@@ -1,0 +1,52 @@
+package zhigalin.predictions.service_impl.predict;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import zhigalin.predictions.converter.predict.PredictionMapper;
+import zhigalin.predictions.dto.predict.PredictionDto;
+import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.repository.predict.PredictionRepository;
+import zhigalin.predictions.service.predict.PredictionService;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class PredictionServiceImpl implements PredictionService {
+
+    private final PredictionRepository repository;
+    private final PredictionMapper mapper;
+
+    @Autowired
+    public PredictionServiceImpl(PredictionRepository repository, PredictionMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
+
+
+    @Override
+    public List<PredictionDto> getAllByWeekId(Long id) {
+        List<Prediction> list = repository.getAllByMatch_Week_Id(id);
+        return list.stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public PredictionDto getById(Long id) {
+        return mapper.toDto(repository.findById(id).get());
+    }
+
+    @Override
+    public List<PredictionDto> getAllByMatchId(Long id) {
+        List<Prediction> list = repository.getAllByMatch_Id(id);
+        return list.stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public PredictionDto save(PredictionDto dto) {
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
+    }
+}
