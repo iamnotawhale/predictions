@@ -1,4 +1,3 @@
-/*
 package zhigalin.predictions.config;
 
 import org.springframework.context.annotation.Configuration;
@@ -10,19 +9,19 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Random;
 import java.util.Set;
 
 @Configuration
 public class LoginSuccessHandler implements AuthenticationSuccessHandler {
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-        Set<String> role = AuthorityUtils.authorityListToSet(authentication.getAuthorities());
-        if (role.contains("ROLE_ADMIN")) {
-            response.sendRedirect("/admin");
-        } else {
-            response.sendRedirect("/user");
-        }
+    public void onAuthenticationSuccess(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Authentication authentication) throws IOException, ServletException {
 
+        Set<String> roles = AuthorityUtils.authorityListToSet(authentication.getAuthorities());
+        if (roles.contains("ADMIN")) {
+            httpServletResponse.sendRedirect("/match/week/" + new Random().nextInt(38));
+        } else {
+            httpServletResponse.sendRedirect("/user");
+        }
     }
 }
-*/

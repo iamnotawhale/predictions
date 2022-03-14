@@ -3,6 +3,8 @@ package zhigalin.predictions.dto.user;
 import lombok.*;
 import zhigalin.predictions.model.user.Role;
 
+import java.util.Set;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -13,5 +15,5 @@ public class UserDto {
     private Long id;
     private String login;
     private String password;
-    private Role role;
+    private Set<Role> roles;
 }

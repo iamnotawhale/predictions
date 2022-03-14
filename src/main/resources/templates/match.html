@@ -44,12 +44,12 @@
             <td th:text="${match.awayTeamScore}">AT Score</td>
             <td th:text="${match.awayTeam.getTeamName()}">Away Team</td>
             <td>
-                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" th:data-bs-target="${'#create'+ match.id}">
+                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" th:data-bs-target="${'#create'+ match.id + currentUser.id}">
                     Создать прогноз
                 </button>
             </td>
-            <div class="modal fade" th:id="${'create'+ match.id}" tabindex="-1"
-                 th:aria-labelledby="${'create'+ match.id + 'Label'}" aria-hidden="true">
+            <div class="modal fade" th:id="${'create'+ match.id + currentUser.id}" tabindex="-1"
+                 th:aria-labelledby="${'create'+ match.id + currentUser.id + 'Label'}" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -73,11 +73,13 @@
                                            readonly>
                                 </div>
                                 <div class="form-group">
-                                    <label class="font-weight-bold" for="user">ID пользователя</label>
-                                    <input type="text" th:field="*{user}"
+                                    <label class="font-weight-bold" th:for="${'user' + currentUser.id}">ID пользователя</label>
+                                    <input type="text"
+                                           name="user"
+                                           th:id="${'user' + currentUser.id}"
                                            class="form-control"
-                                           id="user"
-                                           placeholder="id">
+                                           th:value="${currentUser.id}"
+                                           readonly>
                                 </div>
 
                                 <div class="form-group">

@@ -7,6 +7,7 @@ import com.mashape.unirest.http.Unirest;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.MatchMapper;
 import zhigalin.predictions.converter.event.SeasonMapper;
@@ -95,6 +96,8 @@ public class DataInitServiceImpl {
 
     @Autowired
     private RoleMapper roleMapper;
+    @Autowired
+    PasswordEncoder bCryptPasswordEncoder;
 
     @Autowired
     public DataInitServiceImpl(UserService userService, TeamService teamService, SeasonService seasonService,
@@ -161,8 +164,8 @@ public class DataInitServiceImpl {
         List<UserDto> users = new ArrayList<>();
         for (int i = 1; i < 5; i++) {
             Role role = roleMapper.toEntity(roleService.findById((long) 1));
-            UserDto userDto = UserDto.builder().login("user" + i).password("user" + i)
-                    .role(role).build();
+            UserDto userDto = UserDto.builder().login("user" + i).password(bCryptPasswordEncoder.encode("user" + i))
+                    .roles(Collections.singleton(role)).build();
             users.add(userDto);
         }
         userService.saveAll(users);

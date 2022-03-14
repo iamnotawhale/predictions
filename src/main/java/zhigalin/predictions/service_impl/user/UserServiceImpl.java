@@ -1,6 +1,10 @@
 package zhigalin.predictions.service_impl.user;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.user.UserMapper;
 import zhigalin.predictions.dto.user.UserDto;
@@ -13,10 +17,12 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Service
-public class UserServiceImpl implements UserService {
+public class UserServiceImpl implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
     private final UserMapper mapper;
+    @Autowired
+    PasswordEncoder bCryptPasswordEncoder;
 
     @Autowired
     public UserServiceImpl(UserRepository userRepository, UserMapper mapper) {
@@ -26,6 +32,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto saveUser(UserDto userDto) {
+        User userFromDB = userRepository.findByLogin(userDto.getLogin());
+
+        if (userFromDB != null) {
+            return null;
+        }
+        userDto.setPassword(bCryptPasswordEncoder.encode(userDto.getPassword()));
         User savedUser = userRepository.save(mapper.toEntity(userDto));
         return mapper.toDto(savedUser);
     }
@@ -62,5 +74,15 @@ public class UserServiceImpl implements UserService {
         return StreamSupport.stream(userRepository.saveAll(listUser).spliterator(), false)
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
+        User user = userRepository.findByLogin(login);
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found");
+        }
+
+        return user;
     }
 }
