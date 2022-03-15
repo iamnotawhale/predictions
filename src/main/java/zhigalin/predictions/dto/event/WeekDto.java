@@ -13,4 +13,5 @@ public class WeekDto {
     private Long id;
     private String weekName;
     private Season season;
+    private Boolean isCurrent;
 }

@@ -44,6 +44,14 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
+    public List<MatchDto> getAllByCurrentWeek(Boolean b) {
+        List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByMatchDate(b);
+        return allByCurrentWeek.stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public MatchDto getByTeamIds(Long homeTeamId, Long awayTeamId) {
         Match match = repository.getMatchByHomeTeam_IdAndAwayTeam_Id(homeTeamId, awayTeamId);
         return mapper.toDto(match);

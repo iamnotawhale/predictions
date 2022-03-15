@@ -24,4 +24,6 @@ public class Team {
     private String teamName;
 
     private String code;
+
+    private String logo;
 }

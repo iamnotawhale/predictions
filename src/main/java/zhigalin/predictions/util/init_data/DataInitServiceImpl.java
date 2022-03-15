@@ -23,7 +23,6 @@ import zhigalin.predictions.dto.football.TeamDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.user.Role;
@@ -35,7 +34,6 @@ import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.RoleService;
 import zhigalin.predictions.service.user.UserService;
 
-import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -115,9 +113,7 @@ public class DataInitServiceImpl {
     public void allInit() {
         roleInit();
         userInit();
-        teamInit();
         seasonInit();
-        weekInit();
         matchInit();
         predictInit();
     }
@@ -140,23 +136,6 @@ public class DataInitServiceImpl {
                     .homeTeamScore(htScore)
                     .user(userMapper.toEntity(userService.getById((long) i)))
                     .build());
-        }
-    }
-
-    private void weekInit() {
-        Season season = seasonMapper.toEntity(seasonService.getById(1L));
-        for (int i = 1; i <= 38; i++) {
-            weekService.save(WeekDto.builder().weekName("week " + i).season(season).build());
-        }
-    }
-
-    @SneakyThrows
-    private void teamInit() {
-        Scanner scn = new Scanner(new File("teams.txt"));
-        while (scn.hasNext()) {
-            String teamName = scn.nextLine();
-            String code = scn.nextLine();
-            teamService.saveTeam(TeamDto.builder().teamName(teamName).code(code.toLowerCase()).build());
         }
     }
 
@@ -205,26 +184,41 @@ public class DataInitServiceImpl {
                     status = "-";
                     break;
             }
+
             matchDate = df.parse(matchObj.get("match_start_iso").getAsString()).toInstant()
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime().plusHours(3);
 
             JsonObject weekObj = matchObj.getAsJsonObject("round");
-            week = weekMapper.toEntity(weekService.getById(Long.valueOf(weekObj.get("name").getAsString())));
-            JsonObject homeTeamObj = matchObj.getAsJsonObject("home_team");
-            homeTeam = teamMapper.toEntity(teamService.getByName(homeTeamObj.get("name").getAsString()));
-            JsonObject awayTeamObj = matchObj.getAsJsonObject("away_team");
-            awayTeam = teamMapper.toEntity(teamService.getByName(awayTeamObj.get("name").getAsString()));
-            JsonObject statsObj = matchObj.getAsJsonObject("stats");
+            week = Week.builder().weekName("week " + weekObj.get("name").getAsString())
+                    .isCurrent(!weekObj.get("is_current").isJsonNull())
+                    .season(seasonMapper.toEntity(seasonService.getById(1l)))
+                    .build();
+            WeekDto weekDto = weekService.save(weekMapper.toDto(week));
 
+            JsonObject homeTeamObj = matchObj.getAsJsonObject("home_team");
+            homeTeam = Team.builder().teamName(homeTeamObj.get("name").getAsString())
+                    .code(homeTeamObj.get("short_code").getAsString().toLowerCase())
+                    .logo(homeTeamObj.get("logo").getAsString())
+                    .build();
+            TeamDto homeTeamDto = teamService.saveTeam(teamMapper.toDto(homeTeam));
+            JsonObject awayTeamObj = matchObj.getAsJsonObject("away_team");
+            awayTeam = Team.builder().teamName(awayTeamObj.get("name").getAsString())
+                    .code(awayTeamObj.get("short_code").getAsString().toLowerCase())
+                    .logo(awayTeamObj.get("logo").getAsString())
+                    .build();
+            TeamDto awayTeamDto = teamService.saveTeam(teamMapper.toDto(awayTeam));
+
+
+            JsonObject statsObj = matchObj.getAsJsonObject("stats");
             if (statsObj.get("ft_score").isJsonNull()) {
                 match = Match.builder()
                         .id(id)
                         .status(status)
                         .matchDate(matchDate)
-                        .week(week)
-                        .homeTeam(homeTeam)
-                        .awayTeam(awayTeam)
+                        .week(weekMapper.toEntity(weekDto))
+                        .homeTeam(teamMapper.toEntity(homeTeamDto))
+                        .awayTeam(teamMapper.toEntity(awayTeamDto))
                         .build();
             } else {
                 homeTeamScore = statsObj.get("home_score").getAsInt();
@@ -242,9 +236,9 @@ public class DataInitServiceImpl {
                         .id(id)
                         .status(status)
                         .matchDate(matchDate)
-                        .week(week)
-                        .homeTeam(homeTeam)
-                        .awayTeam(awayTeam)
+                        .week(weekMapper.toEntity(weekDto))
+                        .homeTeam(teamMapper.toEntity(homeTeamDto))
+                        .awayTeam(teamMapper.toEntity(awayTeamDto))
                         .homeTeamScore(homeTeamScore)
                         .awayTeamScore(awayTeamScore)
                         .result(result)

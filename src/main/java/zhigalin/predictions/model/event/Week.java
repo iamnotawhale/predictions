@@ -26,4 +26,6 @@ public class Week {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "season_id")
     private Season season;
+
+    private Boolean isCurrent;
 }

@@ -7,4 +7,6 @@ import zhigalin.predictions.model.event.Week;
 @Repository
 public interface WeekRepository extends CrudRepository<Week, Long> {
     Week getByWeekName(String weekName);
+
+    Week getByIsCurrent(Boolean b);
 }

@@ -9,7 +9,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Random;
 import java.util.Set;
 
 @Configuration
@@ -19,7 +18,7 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         Set<String> roles = AuthorityUtils.authorityListToSet(authentication.getAuthorities());
         if (roles.contains("ADMIN")) {
-            httpServletResponse.sendRedirect("/match/week/" + new Random().nextInt(38));
+            httpServletResponse.sendRedirect("/match/week/current");
         } else {
             httpServletResponse.sendRedirect("/user");
         }

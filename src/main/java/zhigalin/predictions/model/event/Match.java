@@ -23,7 +23,7 @@ public class Match {
     @SequenceGenerator(sequenceName = "Match_sequence", name = "Match_generator")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
     @JoinColumn(name = "matchweek_id")
     private Week week;
 

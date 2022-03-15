@@ -12,4 +12,5 @@ public class TeamDto {
     private Long id;
     private String teamName;
     private String code;
+    private String logo;
 }

@@ -47,6 +47,17 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Override
     public PredictionDto save(PredictionDto dto) {
+        Prediction prediction = repository.findByMatch_IdAndUser_Id(dto.getMatch().getId(), dto.getUser().getId());
+        if (prediction != null) {
+            mapper.updateEntityFromDto(dto, prediction);
+            return mapper.toDto(repository.save(prediction));
+        }
         return mapper.toDto(repository.save(mapper.toEntity(dto)));
+    }
+
+    @Override
+    public PredictionDto findByMatchAndUserIds(Long matchId, Long userId) {
+        Prediction prediction = repository.findByMatch_IdAndUser_Id(matchId, userId);
+        return mapper.toDto(prediction);
     }
 }

@@ -12,6 +12,7 @@ import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.predict.PredictionService;
 
 import java.util.List;
@@ -29,6 +30,8 @@ public class MatchController {
     private MatchMapper mapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private WeekService weekService;
 
     @GetMapping("/week/{id}")
     public ModelAndView findByWeekId(@PathVariable Long id, Authentication authentication) {
@@ -37,7 +40,21 @@ public class MatchController {
         dto.setId(user.getId());
         ModelAndView model = new ModelAndView("match");
         model.addObject("currentUser", dto);
+        model.addObject("weekId", id);
         model.addObject("byWeekList", service.getAllByWeekId(id));
+        model.addObject("newPredict", new PredictionDto());
+        return model;
+    }
+
+    @GetMapping("/week/current")
+    public ModelAndView findByCurrentWeek(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        ModelAndView model = new ModelAndView("match");
+        model.addObject("currentUser", dto);
+        model.addObject("weekId", weekService.getByIsCurrent(true).getId());
+        model.addObject("byWeekList", service.getAllByCurrentWeek(true));
         model.addObject("newPredict", new PredictionDto());
         return model;
     }
@@ -60,12 +77,5 @@ public class MatchController {
     @GetMapping("/result/byNames")
     public List<Integer> getResultByTeamNames(@RequestParam String homeTeamName, @RequestParam String awayTeamName) {
         return service.getResultByTeamNames(homeTeamName, awayTeamName);
-    }
-
-    @PostMapping("/saveByMatchId/{id}")
-    public PredictionDto createPredict(@ModelAttribute PredictionDto dto, @PathVariable Long id) {
-        MatchDto matchDto = service.getById(id);
-        dto.setMatch(mapper.toEntity(matchDto));
-        return predictionService.save(dto);
     }
 }

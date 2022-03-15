@@ -9,4 +9,6 @@ public interface WeekService {
     WeekDto getById(Long id);
 
     WeekDto getByName(String weekName);
+
+    WeekDto getByIsCurrent(Boolean b);
 }

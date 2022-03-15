@@ -23,8 +23,11 @@ public class TeamServiceImpl implements TeamService {
 
     @Override
     public TeamDto saveTeam(TeamDto teamDto) {
-        Team savedTeam = repository.save(mapper.toEntity(teamDto));
-        return mapper.toDto(savedTeam);
+        Team team = repository.getByTeamName(teamDto.getTeamName());
+        if (team != null) {
+            return mapper.toDto(team);
+        }
+        return mapper.toDto(repository.save(mapper.toEntity(teamDto)));
     }
 
     @Override

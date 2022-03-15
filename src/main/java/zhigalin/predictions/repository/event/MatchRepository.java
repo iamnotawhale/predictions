@@ -10,6 +10,8 @@ import java.util.List;
 public interface MatchRepository extends CrudRepository<Match, Long> {
     List<Match> getAllByWeekIdOrderByMatchDate(Long id);
 
+    List<Match> getAllByWeek_IsCurrentOrderByMatchDate(Boolean b);
+
     Match getMatchByHomeTeam_IdAndAwayTeam_Id(Long homeTeamId, Long awayTeamId);
 
     Match getMatchByHomeTeam_TeamNameAndAwayTeam_TeamName(String homeTeamName, String awayTeamName);

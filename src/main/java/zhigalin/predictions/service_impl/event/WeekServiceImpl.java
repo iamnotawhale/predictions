@@ -22,8 +22,11 @@ public class WeekServiceImpl implements WeekService {
 
     @Override
     public WeekDto save(WeekDto weekDto) {
-        Week week = repository.save(mapper.toEntity(weekDto));
-        return mapper.toDto(week);
+        Week week = repository.getByWeekName(weekDto.getWeekName());
+        if (week != null) {
+            return mapper.toDto(week);
+        }
+        return mapper.toDto(repository.save(mapper.toEntity(weekDto)));
     }
 
     @Override
@@ -38,5 +41,11 @@ public class WeekServiceImpl implements WeekService {
             return mapper.toDto(week);
         }
         return null;
+    }
+
+    @Override
+    public WeekDto getByIsCurrent(Boolean b) {
+        Week week = repository.getByIsCurrent(b);
+        return mapper.toDto(week);
     }
 }

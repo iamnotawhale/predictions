@@ -12,6 +12,8 @@ public interface MatchService {
 
     List<MatchDto> getAllByWeekId(Long id);
 
+    List<MatchDto> getAllByCurrentWeek(Boolean b);
+
     MatchDto getByTeamIds(Long homeTeamId, Long awayTeamId);
 
     MatchDto getByTeamNames(String homeTeamName, String awayTeamName);

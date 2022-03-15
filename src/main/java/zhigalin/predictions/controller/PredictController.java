@@ -5,8 +5,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.converter.event.MatchMapper;
+import zhigalin.predictions.converter.predict.PredictionMapper;
 import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
+import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
@@ -29,6 +31,8 @@ public class PredictController {
     private MatchService matchService;
     @Autowired
     private MatchMapper mapper;
+    @Autowired
+    private PredictionMapper predictionMapper;
 
     @GetMapping("/week/{id}")
     public ModelAndView getByWeekId(@PathVariable Long id) {
@@ -81,8 +85,13 @@ public class PredictController {
     @PostMapping("/saveByMatchId/{id}")
     public PredictionDto createPredict(@ModelAttribute PredictionDto dto, @PathVariable Long id) {
         MatchDto matchDto = matchService.getById(id);
-        dto.setMatch(mapper.toEntity(matchDto));
-        return predictionService.save(dto);
+        Prediction prediction = Prediction.builder()
+                .user(dto.getUser())
+                .match(mapper.toEntity(matchDto))
+                .homeTeamScore(dto.getHomeTeamScore())
+                .awayTeamScore(dto.getAwayTeamScore())
+                .build();
+        return predictionService.save(predictionMapper.toDto(prediction));
     }
 
 }

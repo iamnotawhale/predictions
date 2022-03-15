@@ -12,4 +12,6 @@ public interface PredictionService {
     List<PredictionDto> getAllByMatchId(Long id);
 
     PredictionDto save(PredictionDto dto);
+
+    PredictionDto findByMatchAndUserIds(Long matchId, Long userId);
 }
