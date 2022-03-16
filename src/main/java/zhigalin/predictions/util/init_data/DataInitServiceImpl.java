@@ -164,11 +164,12 @@ public class DataInitServiceImpl {
                 .queryString("date_from", DATE_FROM)
                 .asJson();
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
+        //Create data array from api
         JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
         JsonArray data = mainObj.getAsJsonArray("data");
 
         for (JsonElement games : data) {
+            //get match info
             JsonObject matchObj = games.getAsJsonObject();
             id = matchObj.get("match_id").getAsLong();
             status = matchObj.get("status").getAsString();
@@ -184,18 +185,18 @@ public class DataInitServiceImpl {
                     status = "-";
                     break;
             }
-
+            //get match date and time
             matchDate = df.parse(matchObj.get("match_start_iso").getAsString()).toInstant()
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime().plusHours(3);
-
+            //get week info
             JsonObject weekObj = matchObj.getAsJsonObject("round");
             week = Week.builder().weekName("week " + weekObj.get("name").getAsString())
                     .isCurrent(!weekObj.get("is_current").isJsonNull())
                     .season(seasonMapper.toEntity(seasonService.getById(1l)))
                     .build();
             WeekDto weekDto = weekService.save(weekMapper.toDto(week));
-
+            // get playing teams info
             JsonObject homeTeamObj = matchObj.getAsJsonObject("home_team");
             homeTeam = Team.builder().teamName(homeTeamObj.get("name").getAsString())
                     .code(homeTeamObj.get("short_code").getAsString().toLowerCase())
@@ -208,10 +209,10 @@ public class DataInitServiceImpl {
                     .logo(awayTeamObj.get("logo").getAsString())
                     .build();
             TeamDto awayTeamDto = teamService.saveTeam(teamMapper.toDto(awayTeam));
-
-
+            //get match stats
             JsonObject statsObj = matchObj.getAsJsonObject("stats");
             if (statsObj.get("ft_score").isJsonNull()) {
+                //create match if it not starts yet
                 match = Match.builder()
                         .id(id)
                         .status(status)
@@ -221,6 +222,7 @@ public class DataInitServiceImpl {
                         .awayTeam(teamMapper.toEntity(awayTeamDto))
                         .build();
             } else {
+                //create match if it starts
                 homeTeamScore = statsObj.get("home_score").getAsInt();
                 awayTeamScore = statsObj.get("away_score").getAsInt();
 
@@ -244,7 +246,6 @@ public class DataInitServiceImpl {
                         .result(result)
                         .build();
             }
-
             matchService.save(matchMapper.toDto(match));
         }
     }
