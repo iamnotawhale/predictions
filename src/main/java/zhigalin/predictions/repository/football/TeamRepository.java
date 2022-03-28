@@ -9,4 +9,6 @@ public interface TeamRepository extends CrudRepository<Team, Long> {
     Team getByTeamName(String teamName);
 
     Team getByCode(String code);
+
+    Team getByPublicId(Long id);
 }

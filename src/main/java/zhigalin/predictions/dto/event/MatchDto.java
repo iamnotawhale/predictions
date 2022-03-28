@@ -4,7 +4,9 @@ import lombok.*;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Getter
 @Setter
@@ -15,7 +17,9 @@ import java.time.LocalDateTime;
 public class MatchDto {
     private Long id;
     private Week week;
-    private LocalDateTime matchDate;
+    private LocalDateTime localDateTime;
+    private LocalDate matchDate;
+    private LocalTime matchTime;
     private Team homeTeam;
     private Team awayTeam;
     private Integer homeTeamScore;

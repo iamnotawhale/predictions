@@ -21,25 +21,24 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
     private final UserMapper mapper;
-    @Autowired
-    PasswordEncoder bCryptPasswordEncoder;
+
+    private final PasswordEncoder bCryptPasswordEncoder;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, UserMapper mapper) {
+    public UserServiceImpl(UserRepository userRepository, UserMapper mapper, PasswordEncoder bCryptPasswordEncoder) {
         this.userRepository = userRepository;
         this.mapper = mapper;
+        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
     @Override
     public UserDto saveUser(UserDto userDto) {
         User userFromDB = userRepository.findByLogin(userDto.getLogin());
-
         if (userFromDB != null) {
-            return null;
+            return mapper.toDto(userFromDB);
         }
         userDto.setPassword(bCryptPasswordEncoder.encode(userDto.getPassword()));
-        User savedUser = userRepository.save(mapper.toEntity(userDto));
-        return mapper.toDto(savedUser);
+        return mapper.toDto(userRepository.save(mapper.toEntity(userDto)));
     }
 
     @Override
@@ -58,9 +57,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     @Override
     public List<UserDto> getAll() {
-        return StreamSupport.stream(userRepository.findAll().spliterator(), false)
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        return StreamSupport.stream(userRepository.findAll().spliterator(), false).map(mapper::toDto).collect(Collectors.toList());
     }
 
     @Override
@@ -71,9 +68,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     @Override
     public List<UserDto> saveAll(List<UserDto> list) {
         List<User> listUser = list.stream().map(mapper::toEntity).collect(Collectors.toList());
-        return StreamSupport.stream(userRepository.saveAll(listUser).spliterator(), false)
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        return StreamSupport.stream(userRepository.saveAll(listUser).spliterator(), false).map(mapper::toDto).collect(Collectors.toList());
     }
 
     @Override

@@ -5,7 +5,9 @@ import lombok.*;
 import zhigalin.predictions.model.football.Team;
 
 import javax.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Builder
 @ToString
@@ -27,8 +29,11 @@ public class Match {
     @JoinColumn(name = "matchweek_id")
     private Week week;
 
-    @OrderBy
-    private LocalDateTime matchDate;
+    private LocalDateTime localDateTime;
+
+    private LocalDate matchDate;
+
+    private LocalTime matchTime;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_team_id")

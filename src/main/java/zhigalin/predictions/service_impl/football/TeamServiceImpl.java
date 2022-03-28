@@ -20,7 +20,6 @@ public class TeamServiceImpl implements TeamService {
         this.mapper = mapper;
     }
 
-
     @Override
     public TeamDto saveTeam(TeamDto teamDto) {
         Team team = repository.getByTeamName(teamDto.getTeamName());
@@ -47,5 +46,14 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public TeamDto getByCode(String code) {
         return mapper.toDto(repository.getByCode(code));
+    }
+
+    @Override
+    public TeamDto getByPublicId(Long id) {
+        Team team = repository.getByPublicId(id);
+        if (team != null) {
+            return mapper.toDto(team);
+        }
+        return null;
     }
 }

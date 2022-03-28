@@ -23,13 +23,10 @@ public class PredictionServiceImpl implements PredictionService {
         this.mapper = mapper;
     }
 
-
     @Override
     public List<PredictionDto> getAllByWeekId(Long id) {
         List<Prediction> list = repository.getAllByMatch_Week_Id(id);
-        return list.stream()
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        return list.stream().map(mapper::toDto).collect(Collectors.toList());
     }
 
     @Override
@@ -40,14 +37,12 @@ public class PredictionServiceImpl implements PredictionService {
     @Override
     public List<PredictionDto> getAllByMatchId(Long id) {
         List<Prediction> list = repository.getAllByMatch_Id(id);
-        return list.stream()
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        return list.stream().map(mapper::toDto).collect(Collectors.toList());
     }
 
     @Override
     public PredictionDto save(PredictionDto dto) {
-        Prediction prediction = repository.findByMatch_IdAndUser_Id(dto.getMatch().getId(), dto.getUser().getId());
+        Prediction prediction = repository.getByMatch_IdAndUser_Id(dto.getMatch().getId(), dto.getUser().getId());
         if (prediction != null) {
             mapper.updateEntityFromDto(dto, prediction);
             return mapper.toDto(repository.save(prediction));
@@ -56,8 +51,20 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
-    public PredictionDto findByMatchAndUserIds(Long matchId, Long userId) {
-        Prediction prediction = repository.findByMatch_IdAndUser_Id(matchId, userId);
+    public PredictionDto getByMatchAndUserIds(Long matchId, Long userId) {
+        Prediction prediction = repository.getByMatch_IdAndUser_Id(matchId, userId);
         return mapper.toDto(prediction);
+    }
+
+    @Override
+    public List<PredictionDto> getAllByUser_Id(Long id) {
+        List<Prediction> list = repository.getAllByUser_IdOrderByMatch_MatchDateAscMatch_MatchTimeAsc(id);
+        return list.stream().map(mapper::toDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PredictionDto> getAllByUserIdAndWeekId(Long userId, Long weekId) {
+        List<Prediction> list = repository.getAllByUser_IdAndMatch_Week_Id(userId, weekId);
+        return list.stream().map(mapper::toDto).collect(Collectors.toList());
     }
 }

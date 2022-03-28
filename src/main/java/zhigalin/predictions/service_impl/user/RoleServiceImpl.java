@@ -10,15 +10,23 @@ import zhigalin.predictions.service.user.RoleService;
 
 @Service
 public class RoleServiceImpl implements RoleService {
+
+    private final RoleRepository repository;
+    private final RoleMapper mapper;
+
     @Autowired
-    private RoleRepository repository;
-    @Autowired
-    private RoleMapper mapper;
+    public RoleServiceImpl(RoleRepository repository, RoleMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
 
     @Override
     public RoleDto save(RoleDto dto) {
-        Role savedRole = repository.save(mapper.toEntity(dto));
-        return mapper.toDto(savedRole);
+        Role role = repository.findByRole(dto.getRole());
+        if (role != null) {
+            return mapper.toDto(role);
+        }
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override

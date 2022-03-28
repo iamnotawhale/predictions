@@ -1,47 +1,43 @@
 package zhigalin.predictions.controller;
 
-import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
-import zhigalin.predictions.converter.event.MatchMapper;
-import zhigalin.predictions.converter.user.UserMapper;
 import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.predict.PredictionService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
 @RequestMapping("/match")
-@AllArgsConstructor
 public class MatchController {
 
+    private final MatchService service;
+    private final WeekService weekService;
+
     @Autowired
-    private MatchService service;
-    @Autowired
-    private PredictionService predictionService;
-    @Autowired
-    private MatchMapper mapper;
-    @Autowired
-    private UserMapper userMapper;
-    @Autowired
-    private WeekService weekService;
+    public MatchController(MatchService service, WeekService weekService) {
+        this.service = service;
+        this.weekService = weekService;
+    }
 
     @GetMapping("/week/{id}")
     public ModelAndView findByWeekId(@PathVariable Long id, Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         UserDto dto = new UserDto();
         dto.setId(user.getId());
+        dto.setLogin(user.getLogin());
         ModelAndView model = new ModelAndView("match");
+        model.addObject("todayDateTime", LocalDateTime.now());
         model.addObject("currentUser", dto);
-        model.addObject("weekId", id);
-        model.addObject("byWeekList", service.getAllByWeekId(id));
+        model.addObject("header", "Матчи " + id + " тура");
+        model.addObject("matchList", service.getAllByWeekId(id));
         model.addObject("newPredict", new PredictionDto());
         return model;
     }
@@ -51,10 +47,12 @@ public class MatchController {
         User user = (User) authentication.getPrincipal();
         UserDto dto = new UserDto();
         dto.setId(user.getId());
+        dto.setLogin(user.getLogin());
         ModelAndView model = new ModelAndView("match");
+        model.addObject("todayDateTime", LocalDateTime.now());
         model.addObject("currentUser", dto);
-        model.addObject("weekId", weekService.getByIsCurrent(true).getId());
-        model.addObject("byWeekList", service.getAllByCurrentWeek(true));
+        model.addObject("header", "Матчи " + weekService.getByIsCurrent(true).getId() + " тура");
+        model.addObject("matchList", service.getAllByCurrentWeek(true));
         model.addObject("newPredict", new PredictionDto());
         return model;
     }
@@ -77,5 +75,35 @@ public class MatchController {
     @GetMapping("/result/byNames")
     public List<Integer> getResultByTeamNames(@RequestParam String homeTeamName, @RequestParam String awayTeamName) {
         return service.getResultByTeamNames(homeTeamName, awayTeamName);
+    }
+
+    @GetMapping("/today")
+    public ModelAndView findTodayMatches(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setLogin(user.getLogin());
+        ModelAndView model = new ModelAndView("match");
+        model.addObject("todayDateTime", LocalDateTime.now());
+        model.addObject("currentUser", dto);
+        model.addObject("header", "Матчи сегодня");
+        model.addObject("matchList", service.getAllByTodayDate());
+        model.addObject("newPredict", new PredictionDto());
+        return model;
+    }
+
+    @GetMapping("/nearest")
+    public ModelAndView findNearestMatches(@RequestParam Integer days, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setLogin(user.getLogin());
+        ModelAndView model = new ModelAndView("match");
+        model.addObject("todayDateTime", LocalDateTime.now());
+        model.addObject("currentUser", dto);
+        model.addObject("header", "Матчи в ближайшие дни - " + days);
+        model.addObject("matchList", service.getAllByNearestDays(days));
+        model.addObject("newPredict", new PredictionDto());
+        return model;
     }
 }

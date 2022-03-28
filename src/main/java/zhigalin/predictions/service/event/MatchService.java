@@ -5,10 +5,13 @@ import zhigalin.predictions.dto.event.MatchDto;
 import java.util.List;
 
 public interface MatchService {
-
     MatchDto save(MatchDto matchDto);
 
     MatchDto getById(Long id);
+
+    List<MatchDto> getAllByTodayDate();
+
+    List<MatchDto> getAllByNearestDays(Integer days);
 
     List<MatchDto> getAllByWeekId(Long id);
 

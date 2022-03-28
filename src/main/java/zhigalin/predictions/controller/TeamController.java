@@ -1,6 +1,5 @@
 package zhigalin.predictions.controller;
 
-import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import zhigalin.predictions.dto.football.TeamDto;
@@ -8,11 +7,14 @@ import zhigalin.predictions.service.football.TeamService;
 
 @RestController
 @RequestMapping("/team")
-@AllArgsConstructor
 public class TeamController {
 
+    private final TeamService teamService;
+
     @Autowired
-    private TeamService teamService;
+    public TeamController(TeamService teamService) {
+        this.teamService = teamService;
+    }
 
     @PostMapping("/save")
     public TeamDto saveTeam(@RequestBody TeamDto teamDto) {

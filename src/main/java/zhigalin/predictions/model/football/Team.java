@@ -26,4 +26,6 @@ public class Team {
     private String code;
 
     private String logo;
+
+    private Long publicId;
 }

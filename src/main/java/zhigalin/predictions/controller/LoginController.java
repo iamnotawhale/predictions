@@ -6,12 +6,9 @@ import org.springframework.web.servlet.ModelAndView;
 
 @RestController
 public class LoginController {
+
     @GetMapping("/login")
     public ModelAndView login(){
-        ModelAndView model = new ModelAndView("login");
-        return model;
+        return new ModelAndView("login");
     }
-
-
-
 }

@@ -1,19 +1,103 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<html lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/lux/bootstrap.min.css"
+          integrity="sha384-9+PGKSqjRdkeAU7Eu4nkJU8RFaH8ace8HGXnkiKMP9I9Te0GJ4/km3L1Z8tXigpG" crossorigin="anonymous">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Matches</title>
 </head>
 <body>
-<nav class="navbar navbar-dark bg-primary">
-    <span class="text-light fw-bold fs-3"  th:text="'Матчи ' + ${weekId} + ' тура'" ></span>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary" style="padding-top: 0; padding-bottom: 0;">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01"
+                aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarColor01">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Главная</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active text-dark" href="#" th:text="${header}">
+                        <span class="visually-hidden">Header</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/predict">Мои прогнозы</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
+                       aria-haspopup="true" aria-expanded="false">Выбрать тур</a>
+                    <div class="dropdown-menu" style="width: 352px;">
+                        <div class="row">
+                            <div class="col">
+                                <a class="dropdown-item" href="/match/week/1">1</a>
+                                <a class="dropdown-item" href="/match/week/2">2</a>
+                                <a class="dropdown-item" href="/match/week/3">3</a>
+                                <a class="dropdown-item" href="/match/week/4">4</a>
+                                <a class="dropdown-item" href="/match/week/5">5</a>
+                                <a class="dropdown-item" href="/match/week/6">6</a>
+                                <a class="dropdown-item" href="/match/week/7">7</a>
+                                <a class="dropdown-item" href="#">8</a>
+                                <a class="dropdown-item" href="#">9</a>
+                                <a class="dropdown-item" href="#">10</a>
+                            </div>
+                            <div class="col">
+                                <a class="dropdown-item" href="#">11</a>
+                                <a class="dropdown-item" href="#">12</a>
+                                <a class="dropdown-item" href="#">13</a>
+                                <a class="dropdown-item" href="#">14</a>
+                                <a class="dropdown-item" href="#">15</a>
+                                <a class="dropdown-item" href="#">16</a>
+                                <a class="dropdown-item" href="#">17</a>
+                                <a class="dropdown-item" href="#">18</a>
+                                <a class="dropdown-item" href="#">19</a>
+                                <a class="dropdown-item" href="#">20</a>
+                            </div>
+                            <div class="col">
+                                <a class="dropdown-item" href="#">21</a>
+                                <a class="dropdown-item" href="#">22</a>
+                                <a class="dropdown-item" href="#">23</a>
+                                <a class="dropdown-item" href="#">24</a>
+                                <a class="dropdown-item" href="#">25</a>
+                                <a class="dropdown-item" href="#">26</a>
+                                <a class="dropdown-item" href="#">27</a>
+                                <a class="dropdown-item" href="#">28</a>
+                                <a class="dropdown-item" href="#">29</a>
+                                <a class="dropdown-item" href="#">30</a>
+                            </div>
+                            <div class="col">
+                                <a class="dropdown-item" href="#">31</a>
+                                <a class="dropdown-item" href="#">32</a>
+                                <a class="dropdown-item" href="#">33</a>
+                                <a class="dropdown-item" href="#">34</a>
+                                <a class="dropdown-item" href="#">35</a>
+                                <a class="dropdown-item" href="#">36</a>
+                                <a class="dropdown-item" href="#">37</a>
+                                <a class="dropdown-item" href="#">38</a>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                        </div>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/logout">Выйти</a>
+                </li>
+            </ul>
+        </div>
+    </div>
 </nav>
-<div class="container-fluid">
-    <table class="table table-striped table-hover">
+<div class="container-fluid" style="padding-left: 0;padding-right: 0;">
+
+    <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
+
+    <table class="table table-dark table-striped table-hover table-sm" style="margin-bottom: 0;">
 
         <thead th:align="center">
 
@@ -31,31 +115,34 @@
         </tr>
         </thead>
         <tbody th:align="center">
-        <tr th:each="match: ${byWeekList}">
-            <td th:text="${match.week.getId()}">Week</td>
-            <td th:text="${byWeekList.indexOf(match) + 1}"></td>
-            <td th:text="${match.matchDate.toLocalDate()}">Date</td>
-            <td th:text="${match.matchDate.toLocalTime()}">Time</td>
-            <td th:text="${match.homeTeam.getTeamName()}">Home Team</td>
-            <td th:text="${match.homeTeamScore}">HT Score</td>
-            <td th:text="${match.status}">Status</td>
-            <td th:text="${match.awayTeamScore}">AT Score</td>
-            <td th:text="${match.awayTeam.getTeamName()}">Away Team</td>
+        <tr th:each="match: ${matchList}">
+            <td class="align-middle" th:text="${match.week.getId()}">Week</td>
+            <td class="align-middle" th:text="${matchList.indexOf(match) + 1}"></td>
+            <td class="align-middle" th:text="${match.matchDate}">Date</td>
+            <td class="align-middle" th:text="${match.matchTime}">Time</td>
+            <td class="align-middle" th:text="${match.homeTeam.getTeamName()}">Home Team</td>
+            <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
+            <td class="align-middle" th:text="${match.status}">Status</td>
+            <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
+            <td class="align-middle" th:text="${match.awayTeam.getTeamName()}">Away Team</td>
             <td>
-                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" th:data-bs-target="${'#create'+ match.id + currentUser.id}">
-                    Создать прогноз
+                <button type="button" class="btn btn-warning btn-sm" disabled data-bs-toggle="modal"
+                        th:data-bs-target="${'#create'+ match.id + currentUser.id}"
+                        th:if="${match.localDateTime} < ${todayDateTime}">Создать прогноз
+                </button>
+
+                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+                        th:data-bs-target="${'#create'+ match.id + currentUser.id}"
+                        th:unless="${match.localDateTime} < ${todayDateTime}">Создать прогноз
                 </button>
             </td>
             <div class="modal fade" th:id="${'create'+ match.id + currentUser.id}" tabindex="-1"
                  th:aria-labelledby="${'create'+ match.id + currentUser.id + 'Label'}" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h7 class="modal-title" th:text="${match.homeTeam.getTeamName()}"></h7>
-                            <h7>&nbsp;-&nbsp;</h7>
-                            <h7 class="modal-title" th:text="${match.awayTeam.getTeamName()}"></h7>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
+                            <h6 class="modal-title" th:text="${match.homeTeam.getTeamName()} + ' - '
+                            + ${match.awayTeam.getTeamName()}"></h6>
                         </div>
                         <div class="modal-body text-center">
                             <form th:action="@{/predict/saveByMatchId/{id}/(id=${match.getId()})}" th:method="POST"
@@ -70,7 +157,8 @@
                                            readonly>
                                 </div>
                                 <div class="form-group" hidden>
-                                    <label class="font-weight-bold" th:for="${'user' + currentUser.id}">ID пользователя</label>
+                                    <label class="font-weight-bold" th:for="${'user' + currentUser.id}">ID
+                                        пользователя</label>
                                     <input type="text"
                                            name="user"
                                            th:id="${'user' + currentUser.id}"
@@ -83,28 +171,31 @@
                                         <div class="col-sm">
                                             <img th:src="${match.homeTeam.getLogo()}"/>
                                         </div>
-                                        <div class="col-sm">
+                                        <div class="col-sm-2">
                                             <div class="form-group">
                                                 <label class="font-weight-bold" for="htscore">
                                                     <!--<img th:src="${match.homeTeam.getLogo()}"/>-->
                                                     <!--<h7 class="modal-title" th:text="${match.homeTeam.getTeamName()}"></h7>-->
                                                 </label>
                                                 <input type="text" th:field="*{homeTeamScore}"
-                                                       class="form-control "
+                                                       class="form-control form-control-sm"
                                                        id="htscore"
-                                                       placeholder="goals">
+                                                       placeholder="g">
                                             </div>
                                         </div>
                                         <div class="col-sm">
+                                            <h6 style="margin-bottom: 0;">:</h6>
+                                        </div>
+                                        <div class="col-sm-2">
                                             <div class="form-group">
                                                 <label class="font-weight-bold" for="atscore">
                                                     <!--<img th:src="${match.awayTeam.getLogo()}"/>-->
                                                     <!--<h7 class="modal-title" th:text="${match.awayTeam.getTeamName()}"></h7>-->
                                                 </label>
                                                 <input type="text" th:field="*{awayTeamScore}"
-                                                       class="form-control"
+                                                       class="form-control form-control-sm"
                                                        id="atscore"
-                                                       placeholder="goals">
+                                                       placeholder="g">
                                             </div>
                                         </div>
                                         <div class="col-sm">
@@ -113,9 +204,11 @@
                                     </div>
                                 </div>
                                 <br>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                    <input type="submit" class="btn btn-success" value="Сохранить">
+                                <div class="modal-footer" style="padding-bottom: 4px;">
+                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                                        Закрыть
+                                    </button>
+                                    <input type="submit" class="btn btn-success btn-sm" value="Сохранить">
                                 </div>
                             </form>
                         </div>
@@ -125,7 +218,14 @@
         </tr>
         </tbody>
     </table>
+    <div class="row bg-primary">
+    </div>
 </div>
+<footer class="footer mt-auto py-3 bg-primary">
+    <div class="container bg-primary">
+        <span class="text-muted">Place sticky footer content here.</span>
+    </div>
+</footer>
 <!-- Вариант 1: Bootstrap в связке с Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"

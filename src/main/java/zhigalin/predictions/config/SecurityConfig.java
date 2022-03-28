@@ -32,8 +32,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Bean
     public static PasswordEncoder passwordEncoder()
-    {   PasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder(12);
-        return bCryptPasswordEncoder;
+    {
+        return new BCryptPasswordEncoder(12);
     }
 
     @Override
@@ -54,8 +54,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         http
                 .authorizeRequests()
-
                 .antMatchers("/login").anonymous()
+                .antMatchers("/registration").anonymous()
                 .antMatchers("/user").hasAnyRole("USER", "ADMIN")
                 .antMatchers("/admin/**").access("hasAnyRole('ADMIN')").anyRequest().authenticated();
     }

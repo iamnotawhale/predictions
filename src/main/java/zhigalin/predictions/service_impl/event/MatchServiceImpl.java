@@ -8,8 +8,10 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.event.MatchService;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,8 +28,8 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public MatchDto save(MatchDto matchDto) {
-        Match match = repository.save(mapper.toEntity(matchDto));
-        return mapper.toDto(match);
+        Match match = repository.getMatchByHomeTeam_IdAndAwayTeam_IdAndResult(matchDto.getHomeTeam().getId(), matchDto.getAwayTeam().getId(), matchDto.getResult());
+        return mapper.toDto(Objects.requireNonNullElseGet(match, () -> repository.save(mapper.toEntity(matchDto))));
     }
 
     @Override
@@ -36,19 +38,33 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
+    public List<MatchDto> getAllByTodayDate() {
+        LocalDate date = LocalDate.now();
+        List<Match> allToday = repository.getAllByMatchDateOrderByMatchDateAscMatchTimeAsc(date);
+        return allToday.stream().map(mapper::toDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<MatchDto> getAllByNearestDays(Integer days) {
+        List<Match> nearestMatches = new ArrayList<>();
+        LocalDate date = LocalDate.now();
+        for (int i = 0; i < days; i++) {
+            List<Match> allToday = repository.getAllByMatchDateOrderByMatchDateAscMatchTimeAsc(date.plusDays(i));
+            nearestMatches.addAll(allToday);
+        }
+        return nearestMatches.stream().map(mapper::toDto).collect(Collectors.toList());
+    }
+
+    @Override
     public List<MatchDto> getAllByWeekId(Long id) {
-        List<Match> allByWeekId = repository.getAllByWeekIdOrderByMatchDate(id);
-        return allByWeekId.stream()
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        List<Match> allByWeekId = repository.getAllByWeekIdOrderByMatchDateAscMatchTimeAsc(id);
+        return allByWeekId.stream().map(mapper::toDto).collect(Collectors.toList());
     }
 
     @Override
     public List<MatchDto> getAllByCurrentWeek(Boolean b) {
-        List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByMatchDate(b);
-        return allByCurrentWeek.stream()
-                .map(mapper::toDto)
-                .collect(Collectors.toList());
+        List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByMatchDateAscMatchTimeAsc(b);
+        return allByCurrentWeek.stream().map(mapper::toDto).collect(Collectors.toList());
     }
 
     @Override

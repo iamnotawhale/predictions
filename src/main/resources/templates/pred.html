@@ -1,8 +1,10 @@
+<!--
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <html lang="en">
 <head>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/lux/bootstrap.min.css"
+          integrity="sha384-9+PGKSqjRdkeAU7Eu4nkJU8RFaH8ace8HGXnkiKMP9I9Te0GJ4/km3L1Z8tXigpG" crossorigin="anonymous">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Matches</title>
@@ -34,8 +36,8 @@
         <tr th:each="prediction: ${list}">
             <td th:text="${prediction.realMatch.week.getId()}">Week</td>
             <td th:text="${list.indexOf(prediction) + 1}"></td>
-            <td th:text="${prediction.realMatch.matchDate.toLocalDate()}">Date</td>
-            <td th:text="${prediction.realMatch.matchDate.toLocalTime()}">Time</td>
+            <td th:text="${prediction.realMatch.matchDate}">Date</td>
+            <td th:text="${prediction.realMatch.matchTime}">Time</td>
             <td th:text="${prediction.realMatch.homeTeam.getTeamName()}">Home Team</td>
             <td th:text="${prediction.realMatch.homeTeamScore}">HT Score</td>
             <td th:text="${prediction.realMatch.status}">Status</td>
@@ -47,14 +49,14 @@
     </table>
 </div>
 
-<!-- Вариант 1: Bootstrap в связке с Popper -->
+&lt;!&ndash; Вариант 1: Bootstrap в связке с Popper &ndash;&gt;
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
 
-<!-- Вариант 2: Bootstrap JS отдельно от Popper
+&lt;!&ndash; Вариант 2: Bootstrap JS отдельно от Popper
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js" integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js" integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>
--->
+&ndash;&gt;
 
 
 </body>
-</html>
+</html>-->

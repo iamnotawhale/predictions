@@ -13,4 +13,5 @@ public class TeamDto {
     private String teamName;
     private String code;
     private String logo;
+    private Long publicId;
 }
