@@ -18,4 +18,14 @@ public interface PredictionService {
     List<PredictionDto> getAllByUser_Id(Long id);
 
     List<PredictionDto> getAllByUserIdAndWeekId(Long userId, Long weekId);
+
+    Integer getUsersPointsByUserId(Long id);
+
+    Integer getWeeklyUsersPoints(Long userId, Long weekId);
+
+    void deleteById(Long id);
+
+    void delete(PredictionDto dto);
+
+    PredictionDto updatePoints(PredictionDto dto);
 }

@@ -19,7 +19,7 @@ public class Season {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Season_generator")
-    @SequenceGenerator(sequenceName = "Season_sequence", name = "Season_generator")
+    @SequenceGenerator(sequenceName = "Season_sequence", name = "Season_generator", allocationSize = 1)
     private Long id;
     private String seasonName;
 }

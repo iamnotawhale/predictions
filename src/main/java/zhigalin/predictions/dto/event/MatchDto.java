@@ -1,6 +1,7 @@
 package zhigalin.predictions.dto.event;
 
 import lombok.*;
+import zhigalin.predictions.model.event.Stats;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 
@@ -16,6 +17,7 @@ import java.time.LocalTime;
 @Builder
 public class MatchDto {
     private Long id;
+    private Long publicId;
     private Week week;
     private LocalDateTime localDateTime;
     private LocalDate matchDate;
@@ -26,4 +28,6 @@ public class MatchDto {
     private Integer awayTeamScore;
     private String result;
     private String status;
+    private Stats homeStats;
+    private Stats awayStats;
 }

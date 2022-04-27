@@ -57,7 +57,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     @Override
     public List<UserDto> getAll() {
-        return StreamSupport.stream(userRepository.findAll().spliterator(), false).map(mapper::toDto).collect(Collectors.toList());
+        return StreamSupport.stream(userRepository.findAll().spliterator(), false).map(mapper::toDto).toList();
     }
 
     @Override
@@ -68,7 +68,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     @Override
     public List<UserDto> saveAll(List<UserDto> list) {
         List<User> listUser = list.stream().map(mapper::toEntity).collect(Collectors.toList());
-        return StreamSupport.stream(userRepository.saveAll(listUser).spliterator(), false).map(mapper::toDto).collect(Collectors.toList());
+        return StreamSupport.stream(userRepository.saveAll(listUser).spliterator(), false).map(mapper::toDto).toList();
     }
 
     @Override

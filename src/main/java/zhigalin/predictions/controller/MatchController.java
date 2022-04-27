@@ -10,6 +10,7 @@ import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
+import zhigalin.predictions.service.football.TeamService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,11 +21,28 @@ public class MatchController {
 
     private final MatchService service;
     private final WeekService weekService;
+    private final TeamService teamService;
 
     @Autowired
-    public MatchController(MatchService service, WeekService weekService) {
+    public MatchController(MatchService service, WeekService weekService, TeamService teamService) {
         this.service = service;
         this.weekService = weekService;
+        this.teamService = teamService;
+    }
+
+    @GetMapping("/team")
+    public ModelAndView findByTeamId(@RequestParam (value = "id") Long id, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setLogin(user.getLogin());
+        ModelAndView model = new ModelAndView("match");
+        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
+        model.addObject("currentUser", dto);
+        model.addObject("header", "Матчи " + teamService.getById(id).getTeamName());
+        model.addObject("matchList", service.getAllByTeamId(id));
+        model.addObject("newPredict", new PredictionDto());
+        return model;
     }
 
     @GetMapping("/week/{id}")
@@ -34,7 +52,7 @@ public class MatchController {
         dto.setId(user.getId());
         dto.setLogin(user.getLogin());
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now());
+        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
         model.addObject("header", "Матчи " + id + " тура");
         model.addObject("matchList", service.getAllByWeekId(id));
@@ -49,7 +67,7 @@ public class MatchController {
         dto.setId(user.getId());
         dto.setLogin(user.getLogin());
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now());
+        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
         model.addObject("header", "Матчи " + weekService.getByIsCurrent(true).getId() + " тура");
         model.addObject("matchList", service.getAllByCurrentWeek(true));
@@ -84,7 +102,7 @@ public class MatchController {
         dto.setId(user.getId());
         dto.setLogin(user.getLogin());
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now());
+        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
         model.addObject("header", "Матчи сегодня");
         model.addObject("matchList", service.getAllByTodayDate());
@@ -99,7 +117,7 @@ public class MatchController {
         dto.setId(user.getId());
         dto.setLogin(user.getLogin());
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now());
+        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
         model.addObject("header", "Матчи в ближайшие дни - " + days);
         model.addObject("matchList", service.getAllByNearestDays(days));

@@ -18,7 +18,7 @@ import javax.persistence.*;
 public class Week {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Week_generator")
-    @SequenceGenerator(sequenceName = "Week_sequence", name = "Week_generator")
+    @SequenceGenerator(sequenceName = "Week_sequence", name = "Week_generator", allocationSize = 1)
     private Long id;
 
     private String weekName;

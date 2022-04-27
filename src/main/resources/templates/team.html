@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" type="text/css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Login page</title>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01"
+                aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarColor01">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Главная</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active text-dark" href="#" th:text="${header}">
+                        <span class="visually-hidden">Header</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/predict">Мои прогнозы</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
+                       aria-haspopup="true" aria-expanded="false">Выбрать тур</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
+                       aria-haspopup="true" aria-expanded="false">Прогнозы по турам</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/logout">Выйти</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container-fluid p-0 bg-primary">
+
+    <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
+
+    <table class="table table-dark table-striped table-hover table-sm" style="margin-bottom: 0;">
+        <thead th:align="center">
+        <tr>
+            <th>владение</th>
+            <th>удары</th>
+            <th>в створ</th>
+            <th>мимо</th>
+            <th>блок. удары</th>
+            <th>угловые</th>
+            <th>офсайды</th>
+            <th>св. удары</th>
+            <th>фолы</th>
+            <th>вбрасывания</th>
+            <th>goalKick</th>
+            <th>ballSafe</th>
+            <th>желтые</th>
+            <th>красные</th>
+        </tr>
+        </thead>
+        <tbody th:align="center">
+        <tr>
+            <td th:text="${#numbers.formatDecimal(stats.possessionPercent, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.shots, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.shotsOnTarget, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.shotsOffTarget, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.shotsBlocked, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.corners, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.offsides, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.freeKick, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.fouls, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.throwIn, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.goalKick, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.ballSafe, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal(stats.yellowCards, 1, 1)}"></td>
+            <td th:text="${#numbers.formatDecimal((stats.yellowRedCards + stats.redCards)/2, 1, 1)}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table class="table table-dark table-striped table-hover table-sm" style="margin-bottom: 0;">
+
+        <thead th:align="center">
+
+        <tr>
+            <th>Тур</th>
+            <th>Дата</th>
+            <th>Хозяева</th>
+            <th></th>
+            <th>Счет</th>
+            <th></th>
+            <th>Гости</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody th:align="center">
+        <th:block th:each="match, iter: ${last5}">
+            <tr th:data-bs-target="${'#acc'+ match.getId()}" data-bs-toggle="collapse"
+                class="accordion-toggle">
+                <td class="align-middle" th:text="${match.week.getId()}">Week</td>
+                <td class="align-middle" th:text="${match.matchDate}">Date</td>
+                <td class="align-middle" th:text="${match.homeTeam.getTeamName()}">Home Team</td>
+                <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
+                <td class="align-middle" th:text="${match.status}">Status</td>
+                <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
+                <td class="align-middle" th:text="${match.awayTeam.getTeamName()}">Away Team</td>
+                <td class="align-middle">
+                    <span class="p-2 badge rounded-circle bg-success" th:if="${last5Result.get(iter.index) =='W'}">
+                        <span class="visually-hidden" hidden>Победа</span>
+                    </span>
+                    <span class="p-2 badge rounded-circle bg-danger" th:if="${last5Result.get(iter.index) =='L'}">
+                        <span class="visually-hidden" hidden>Поражение</span>
+                    </span>
+                    <span class="p-2 badge rounded-circle bg-warning"
+                          th:unless="${last5Result.get(iter.index) =='W' or last5Result.get(iter.index) =='L'}">
+                        <span class="visually-hidden" hidden>Ничья</span>
+                    </span>
+                </td>
+            </tr>
+            <tr class="accordion-body collapse" th:id="${'acc'+ match.getId()}">
+                <td colspan="3">
+                    <div>
+                        <p class="text-white"
+                           style="margin-bottom: 0;" th:onclick=""></p>
+                    </div>
+                </td>
+                <td colspan="3">
+                    <div>
+                        <table class="table table-striped table-hover table-sm text-white">
+                            <tbody th:align="center">
+                            <tr>
+                                <td th:text="${match.getHomeStats().getPossessionPercent() + '%'}"></td>
+                                <td>Владение мячом</td>
+                                <td th:text="${match.getAwayStats().getPossessionPercent() + '%'}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShots()}"></td>
+                                <td>Всего ударов</td>
+                                <td th:text="${match.getAwayStats().getShots()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShotsOnTarget()}"></td>
+                                <td>Удары в створ ворот</td>
+                                <td th:text="${match.getAwayStats().getShotsOnTarget()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShotsOffTarget()}"></td>
+                                <td>Удары мимо ворот</td>
+                                <td th:text="${match.getAwayStats().getShotsOffTarget()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShotsBlocked()}"></td>
+                                <td>Отбитые мячи</td>
+                                <td th:text="${match.getAwayStats().getShotsBlocked()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getCorners()}"></td>
+                                <td>Угловые</td>
+                                <td th:text="${match.getAwayStats().getCorners()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getOffsides()}"></td>
+                                <td>Офсайды</td>
+                                <td th:text="${match.getAwayStats().getOffsides()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getFreeKick()}"></td>
+                                <td>Свободные удары</td>
+                                <td th:text="${match.getAwayStats().getFreeKick()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getFouls()}"></td>
+                                <td>Фолы</td>
+                                <td th:text="${match.getAwayStats().getFouls()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getThrowIn()}"></td>
+                                <td>Вбрасывания</td>
+                                <td th:text="${match.getAwayStats().getThrowIn()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getYellowCards()}"></td>
+                                <td>Желтые карточки</td>
+                                <td th:text="${match.getAwayStats().getYellowCards()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getYellowRedCards() + match.getHomeStats().getRedCards()}"></td>
+                                <td>Красные карточки</td>
+                                <td th:text="${match.getAwayStats().getYellowRedCards() + match.getAwayStats().getRedCards()}"></td>
+                            </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+                </td>
+                <td colspan="2">
+                    <div>
+                        <p class="text-white"
+                           style="margin-bottom: 0;" th:onclick=""></p>
+                    </div>
+                </td>
+            </tr>
+        </th:block>
+        </tbody>
+    </table>
+</div>
+<script>
+    function rowWeeks(value) {
+        location.href = "/match/week/" + value;
+    }
+</script>
+<script>
+    function rowPredict(value) {
+        location.href = "/predict/week/" + value;
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+        crossorigin="anonymous"></script>
+
+</body>
+</html>

@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/lux/bootstrap.min.css">
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" type="text/css">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Main page</title>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary" style="padding-top: 0; padding-bottom: 0;">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">
             <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
@@ -20,7 +20,7 @@
         <div class="collapse navbar-collapse" id="navbarColor01">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link active text-dark" href="#">Главная
+                    <a class="nav-link active text-dark">Главная
                         <span class="visually-hidden"></span>
                     </a>
                 </li>
@@ -33,55 +33,24 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
                        aria-haspopup="true" aria-expanded="false">Выбрать тур</a>
-                    <div class="dropdown-menu" style="width: 352px;">
-                        <div class="row">
-                            <div class="col">
-                                <a class="dropdown-item" href="/match/week/1">1</a>
-                                <a class="dropdown-item" href="/match/week/2">2</a>
-                                <a class="dropdown-item" href="/match/week/3">3</a>
-                                <a class="dropdown-item" href="/match/week/4">4</a>
-                                <a class="dropdown-item" href="/match/week/5">5</a>
-                                <a class="dropdown-item" href="/match/week/6">6</a>
-                                <a class="dropdown-item" href="/match/week/7">7</a>
-                                <a class="dropdown-item" href="#">8</a>
-                                <a class="dropdown-item" href="#">9</a>
-                                <a class="dropdown-item" href="#">10</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">11</a>
-                                <a class="dropdown-item" href="#">12</a>
-                                <a class="dropdown-item" href="#">13</a>
-                                <a class="dropdown-item" href="#">14</a>
-                                <a class="dropdown-item" href="#">15</a>
-                                <a class="dropdown-item" href="#">16</a>
-                                <a class="dropdown-item" href="#">17</a>
-                                <a class="dropdown-item" href="#">18</a>
-                                <a class="dropdown-item" href="#">19</a>
-                                <a class="dropdown-item" href="#">20</a>
+                        </div>
+                    </div>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
+                       aria-haspopup="true" aria-expanded="false">Прогнозы по турам</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">21</a>
-                                <a class="dropdown-item" href="#">22</a>
-                                <a class="dropdown-item" href="#">23</a>
-                                <a class="dropdown-item" href="#">24</a>
-                                <a class="dropdown-item" href="#">25</a>
-                                <a class="dropdown-item" href="#">26</a>
-                                <a class="dropdown-item" href="#">27</a>
-                                <a class="dropdown-item" href="#">28</a>
-                                <a class="dropdown-item" href="#">29</a>
-                                <a class="dropdown-item" href="#">30</a>
-                            </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">31</a>
-                                <a class="dropdown-item" href="#">32</a>
-                                <a class="dropdown-item" href="#">33</a>
-                                <a class="dropdown-item" href="#">34</a>
-                                <a class="dropdown-item" href="#">35</a>
-                                <a class="dropdown-item" href="#">36</a>
-                                <a class="dropdown-item" href="#">37</a>
-                                <a class="dropdown-item" href="#">38</a>
-                            </div>
-                            <div class="dropdown-divider"></div>
                         </div>
                     </div>
                 </li>
@@ -92,13 +61,15 @@
         </div>
     </div>
 </nav>
-<div class="container-fluid" style="padding-right: 0;padding-left: 0;">
-    <img th:src="@{../img/banner3.png}" class="img-fluid bg-primary">
-    <div class="row g-0">
-        <div class="col g-0" style="padding-right: 0;">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-header">Текущий тур</div>
-                <div class="card-body">
+
+<div class="container-fluid bg-primary">
+    <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary">
+    <div class="row">
+        <div class="col-lg-4 col-md-6 col-sm-12 col-xs-12">
+            <div class="card text-white bg-primary border-0">
+                <div class="card-header border-0"
+                     th:text="${'Текущий тур ' + matchList.get(1).getWeek().getId()}"></div>
+                <div class="card-body" style="padding-left: 0;">
                     <table class="table table-striped table-hover table-sm">
                         <thead th:align="center">
                         <tr>
@@ -113,7 +84,9 @@
                         </thead>
                         <tbody th:align="center">
                         <tr th:each="match: ${matchList}" onclick="window.location.assign('/match/week/current');">
-                            <td class="align-middle" th:text="${match.matchDate}">Date</td>
+                            <td class="align-middle" th:text="${#temporals.format(match.getLocalDateTime(), 'dd.MM')}">
+                                Date
+                            </td>
                             <td class="align-middle" th:text="${match.matchTime}">Time</td>
                             <td><img th:src="${match.homeTeam.getLogo()}" th:width="20"/></td>
                             <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
@@ -125,18 +98,46 @@
                     </table>
                 </div>
             </div>
+            <div class="card text-white bg-primary border-0">
+                <div class="card-header border-0">Рейтинг</div>
+                <div class="card-body" style="padding-left: 0;">
+
+
+                    <table class="table table-striped table-hover table-sm text-white">
+                        <thead th:align="center">
+                        <tr>
+                            <th>Место</th>
+                            <th>Пользователь</th>
+                            <th>Очки</th>
+                        </tr>
+                        </thead>
+                        <tbody th:align="center">
+                        <tr th:each="points, iter: ${map}">
+                            <td th:text="${iter.index + 1}">Position</td>
+                            <td th:text="${points.getKey().getLogin()}">User</td>
+                            <td th:text="${points.getValue()}">Points</td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+
+                </div>
+            </div>
         </div>
-        <div class="col g-0" style="padding-left: 0;">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-header">Турнирная таблица</div>
-                <div class="card-body">
+        <div class="col-lg-4 col-md-6 col-sm-12 col-xs-12">
+            <div class="card text-white bg-primary mb-3 border-0">
+                <div class="card-header border-0">Турнирная таблица</div>
+                <div class="card-body" style="padding-left: 0;">
 
 
                     <table class="table table-striped table-hover table-sm">
                         <thead th:align="center">
                         <tr>
                             <th></th>
-                            <th>Клуб</th>
+                            <th></th>
+                            <th class="d-none d-xl-table-cell">
+                                Клуб
+                            </th>
                             <th>И</th>
                             <th>В</th>
                             <th>Н</th>
@@ -147,23 +148,52 @@
                             <th>О</th>
                         </tr>
                         </thead>
-                        <tbody th:align="center">
-                        <tr th:each="standing: ${standings}">
-                            <td th:text="${standing.id}">Position</td>
-                            <td th:align="left" style="white-space:nowrap">
-                                <img th:src="${standing.team.getLogo()}" th:width="20" style="display:inline;"/>
-                                <p th:text="${standing.team.getTeamName()}" style="display:inline;"></p>
-                            </td>
-                            <td th:text="${standing.games}">Games</td>
-                            <td th:text="${standing.won}">Won</td>
-                            <td th:text="${standing.draw}">Draw</td>
-                            <td th:text="${standing.lost}">Lost</td>
-                            <td th:text="${standing.goalsScored}">Goal Scored</td>
-                            <td th:text="${standing.goalsAgainst}">Goal Against</td>
-                            <td th:text="${standing.goalsScored} - ${standing.goalsAgainst}"></td>
-                            <td th:text="${standing.points}">Points</td>
 
-                        </tr>
+                        <!--@{/predict/saveByMatchId/{id}/(id=${match.getId()})}-->
+
+
+                        <tbody th:align="center">
+
+                        <th:block th:each="standing, iter: ${standings}">
+                            <tr th:data-bs-target="${'#acc'+ standing.getId()}" data-bs-toggle="collapse"
+                                class="accordion-toggle">
+                                <td th:text="${iter.index + 1}">Position</td>
+                                <td>
+                                    <img th:src="${standing.team.getLogo()}" th:width="20" style="display:inline;"/>
+                                </td>
+                                <td class="d-none d-xl-table-cell">
+                                    <p class="text-truncate"
+                                       th:text="${standing.team.getCode().toUpperCase()}"
+                                       style="display:inline; max-width: 100px;">
+                                    </p>
+                                </td>
+                                <td th:text="${standing.games}">Games</td>
+                                <td th:text="${standing.won}">Won</td>
+                                <td th:text="${standing.draw}">Draw</td>
+                                <td th:text="${standing.lost}">Lost</td>
+                                <td th:text="${standing.goalsScored}">Goal Scored</td>
+                                <td th:text="${standing.goalsAgainst}">Goal Against</td>
+                                <td th:text="${standing.goalsScored} - ${standing.goalsAgainst}"></td>
+                                <td th:text="${standing.points}">Points</td>
+                            </tr>
+                            <tr class="accordion-body collapse" th:id="${'acc'+ standing.getId()}">
+                                <td colspan="5">
+                                    <div>
+                                        <p class="text-white" style="margin-bottom: 0;"
+                                           th:text="${'Все игры '}"
+                                           th:onclick="'javascript:allGames(\'' + ${standing.getTeam().getId()} + '\');'"></p>
+                                    </div>
+                                </td>
+                                <td colspan="5">
+                                    <div>
+                                        <p class="text-white" style="margin-bottom: 0;"
+                                           th:text="${'Последние 5 игр'}"
+                                           th:onclick="'javascript:lastFiveGames(\'' + ${standing.getTeam().getId()} + '\');'"></p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </th:block>
+
                         </tbody>
                     </table>
 
@@ -171,35 +201,149 @@
                 </div>
             </div>
         </div>
+        <div class="col-lg-4 col-md-6 col-sm-12 col-xs-12">
+
+            <div class="card text-white bg-primary mb-3 border-0">
+                <div class="card-header border-0">Новости АПЛ</div>
+                <div class="card-body" style="padding-left: 0;">
+                    <div th:align="left" th:each="item, iter: ${news}"
+                         class="container-fluid bg-primary">
+                        <div class="row">
+                            <div class="col-lg-3 col-md-3 col-sm-2 col-xs-2">
+                                <p class="text-light" th:text="${#temporals.format(item.getDateTime(), 'HH:mm')}"></p>
+                            </div>
+                            <div class="col-lg-9 col-md-9 col-sm-10 col-xs-10">
+                                <a th:href="${item.getLink()}" th:class="link-light">
+                                    <p class="text-light" th:text="${item.getTitle()}"></p>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
     <div class="row g-0">
-        <div class="col g-0" style="padding-right: 0;padding-left: 0;">
+        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
             <div class="card text-white bg-dark mb-3">
-                <div class="card-header">3</div>
+                <div class="card-header">
+                    <p class="position-relative text-light">
+                        Live
+                        <span class="p-1 position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            <span class="visually-hidden"></span>
+                        </span>
+                    </p>
+                </div>
                 <div class="card-body">
-                    <h4 class="card-title">Dark card title</h4>
-                    <p class="card-text">Some quick example text to build on the card title and make up the bulk of the
-                        card's content.</p>
+                    <table class="table table-striped table-hover table-sm text-white" th:if="${!online.isEmpty()}">
+                        <thead th:align="center">
+                        <tr>
+                            <th>Хозяева</th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th>Гости</th>
+                        </tr>
+                        </thead>
+                        <tbody th:align="center">
+                        <th:block th:each="match: ${online}">
+                            <tr th:data-bs-target="${'#acc'+ match.getId()}" data-bs-toggle="collapse"
+                                class="accordion-toggle">
+                                <td style="width: 35%"><img th:src="${match.homeTeam.getLogo()}" th:width="20"/></td>
+                                <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
+                                <td class="align-middle" th:text="${match.status}">Status</td>
+                                <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
+                                <td style="width: 35%"><img th:src="${match.awayTeam.getLogo()}" th:width="20"/></td>
+                            </tr>
+                            <tr class="accordion-body collapse" th:if="${!match.status.equals('-')}"
+                                th:id="${'acc'+ match.getId()}">
+                                <td colspan="5">
+                                    <div>
+                                        <table class="table table-striped table-hover table-sm text-white">
+                                            <tbody th:align="center">
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getPossessionPercent() + '%'}"></td>
+                                                <td>Владение мячом</td>
+                                                <td th:text="${match.getAwayStats().getPossessionPercent() + '%'}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getShots()}"></td>
+                                                <td>Всего ударов</td>
+                                                <td th:text="${match.getAwayStats().getShots()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getShotsOnTarget()}"></td>
+                                                <td>Удары в створ ворот</td>
+                                                <td th:text="${match.getAwayStats().getShotsOnTarget()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getShotsOffTarget()}"></td>
+                                                <td>Удары мимо ворот</td>
+                                                <td th:text="${match.getAwayStats().getShotsOffTarget()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getShotsBlocked()}"></td>
+                                                <td>Отбитые мячи</td>
+                                                <td th:text="${match.getAwayStats().getShotsBlocked()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getCorners()}"></td>
+                                                <td>Угловые</td>
+                                                <td th:text="${match.getAwayStats().getCorners()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getOffsides()}"></td>
+                                                <td>Офсайды</td>
+                                                <td th:text="${match.getAwayStats().getOffsides()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getFreeKick()}"></td>
+                                                <td>Свободные удары</td>
+                                                <td th:text="${match.getAwayStats().getFreeKick()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getFouls()}"></td>
+                                                <td>Фолы</td>
+                                                <td th:text="${match.getAwayStats().getFouls()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getThrowIn()}"></td>
+                                                <td>Вбрасывания</td>
+                                                <td th:text="${match.getAwayStats().getThrowIn()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getYellowCards()}"></td>
+                                                <td>Желтые карточки</td>
+                                                <td th:text="${match.getAwayStats().getYellowCards()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getYellowRedCards() + match.getHomeStats().getRedCards()}"></td>
+                                                <td>Красные карточки</td>
+                                                <td th:text="${match.getAwayStats().getYellowRedCards() + match.getAwayStats().getRedCards()}"></td>
+                                            </tr>
+
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </td>
+                            </tr>
+                        </th:block>
+                        </tbody>
+                    </table>
+                    <p th:unless="${!online.isEmpty()}">Матчей онлайн нет</p>
                 </div>
             </div>
         </div>
-        <div class="col g-0">
+        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
             <div class="card text-white bg-dark mb-3">
-                <div class="card-header">4</div>
+                <div class="card-header">Highlights</div>
                 <div class="card-body">
-                    <h4 class="card-title">Dark card title</h4>
-                    <p class="card-text">Some quick example text to build on the card title and make up the bulk of
-                        the card's content.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col g-0">
-            <div class="card text-white bg-dark mb-3">
-                <div class="card-header">5</div>
-                <div class="card-body">
-                    <h4 class="card-title">Dark card title</h4>
-                    <p class="card-text">Some quick example text to build on the card title and make up the bulk
-                        of the card's content.</p>
+                    <div class="video-container">
+                        <iframe id="ytplayer" type="text/html" width="560" height="315"
+                                src="https://www.youtube.com/embed/?listType=playlist&list=PLQ_voP4Q3cfcpg4QLYZfaizdiuL5lccmF&iv_load_policy=3"
+                                frameborder="0" allowfullscreen></iframe>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,5 +353,31 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
         crossorigin="anonymous"></script>
+<script>
+    function allGames(value) {
+        location.href = "/match/team?id=" + value;
+    }
+</script>
+<script>
+    function lastFiveGames(value) {
+        location.href = "/team/" + value;
+    }
+</script>
+<script>
+    function rowWeeks(value) {
+        location.href = "/match/week/" + value;
+    }
+</script>
+<script>
+    function rowPredict(value) {
+        location.href = "/predict/week/" + value;
+    }
+</script>
+<script>
+    function rowNews(value) {
+        href = value;
+    }
+</script>
+</div>
 </body>
 </html>

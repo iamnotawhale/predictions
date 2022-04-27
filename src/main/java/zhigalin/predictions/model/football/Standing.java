@@ -18,7 +18,7 @@ import javax.persistence.*;
 public class Standing {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Standing_generator")
-    @SequenceGenerator(sequenceName = "Standing_sequence", name = "Standing_generator")
+    @SequenceGenerator(sequenceName = "Standing_sequence", name = "Standing_generator", allocationSize = 1)
     private Long id;
 
     @OneToOne

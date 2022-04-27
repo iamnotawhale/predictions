@@ -8,6 +8,8 @@ import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.repository.event.WeekRepository;
 import zhigalin.predictions.service.event.WeekService;
 
+import java.util.List;
+
 @Service
 public class WeekServiceImpl implements WeekService {
 
@@ -24,7 +26,8 @@ public class WeekServiceImpl implements WeekService {
     public WeekDto save(WeekDto weekDto) {
         Week week = repository.getByWeekName(weekDto.getWeekName());
         if (week != null) {
-            return mapper.toDto(week);
+            mapper.updateEntityFromDto(weekDto, week);
+            return mapper.toDto(repository.save(week));
         }
         return mapper.toDto(repository.save(mapper.toEntity(weekDto)));
     }
@@ -47,5 +50,11 @@ public class WeekServiceImpl implements WeekService {
     public WeekDto getByIsCurrent(Boolean b) {
         Week week = repository.getByIsCurrent(b);
         return mapper.toDto(week);
+    }
+
+    @Override
+    public List<WeekDto> getAll() {
+        List<Week> list = (List<Week>) repository.findAll();
+        return list.stream().map(mapper::toDto).toList();
     }
 }

@@ -9,10 +9,9 @@ import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.event.MatchService;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service
 public class MatchServiceImpl implements MatchService {
@@ -28,8 +27,12 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public MatchDto save(MatchDto matchDto) {
-        Match match = repository.getMatchByHomeTeam_IdAndAwayTeam_IdAndResult(matchDto.getHomeTeam().getId(), matchDto.getAwayTeam().getId(), matchDto.getResult());
-        return mapper.toDto(Objects.requireNonNullElseGet(match, () -> repository.save(mapper.toEntity(matchDto))));
+        Match match = repository.getMatchByHomeTeam_IdAndAwayTeam_Id(matchDto.getHomeTeam().getId(), matchDto.getAwayTeam().getId());
+        if (match != null) {
+            mapper.updateEntityFromDto(matchDto, match);
+            return mapper.toDto(repository.save(match));
+        }
+        return mapper.toDto(repository.save(mapper.toEntity(matchDto)));
     }
 
     @Override
@@ -41,7 +44,7 @@ public class MatchServiceImpl implements MatchService {
     public List<MatchDto> getAllByTodayDate() {
         LocalDate date = LocalDate.now();
         List<Match> allToday = repository.getAllByMatchDateOrderByMatchDateAscMatchTimeAsc(date);
-        return allToday.stream().map(mapper::toDto).collect(Collectors.toList());
+        return allToday.stream().map(mapper::toDto).toList();
     }
 
     @Override
@@ -52,19 +55,19 @@ public class MatchServiceImpl implements MatchService {
             List<Match> allToday = repository.getAllByMatchDateOrderByMatchDateAscMatchTimeAsc(date.plusDays(i));
             nearestMatches.addAll(allToday);
         }
-        return nearestMatches.stream().map(mapper::toDto).collect(Collectors.toList());
+        return nearestMatches.stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<MatchDto> getAllByWeekId(Long id) {
         List<Match> allByWeekId = repository.getAllByWeekIdOrderByMatchDateAscMatchTimeAsc(id);
-        return allByWeekId.stream().map(mapper::toDto).collect(Collectors.toList());
+        return allByWeekId.stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<MatchDto> getAllByCurrentWeek(Boolean b) {
         List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByMatchDateAscMatchTimeAsc(b);
-        return allByCurrentWeek.stream().map(mapper::toDto).collect(Collectors.toList());
+        return allByCurrentWeek.stream().map(mapper::toDto).toList();
     }
 
     @Override
@@ -92,4 +95,45 @@ public class MatchServiceImpl implements MatchService {
         result.add(match.getAwayTeamScore());
         return result;
     }
+
+    @Override
+    public List<MatchDto> getAllByTeamId(Long id) {
+        List<Match> list = repository.getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(id, id);
+        return list.stream().map(mapper::toDto).toList();
+    }
+
+    @Override
+    public List<MatchDto> getLast5MatchesByTeamId(Long id) {
+        List<Match> list = repository
+                .getTop5ByHomeTeam_IdAndResultNotNullOrAwayTeam_IdAndResultNotNullOrderByLocalDateTimeDesc(id, id);
+        return list.stream().map(mapper::toDto).toList();
+    }
+
+    @Override
+    public List<String> getLast5MatchesResultByTeamId(Long id) {
+        List<String> result = new ArrayList<>();
+        List<Match> list = repository
+                .getTop5ByHomeTeam_IdAndResultNotNullOrAwayTeam_IdAndResultNotNullOrderByLocalDateTimeDesc(id, id);
+
+        for (Match match : list) {
+            if (match.getHomeTeam().getId().equals(id) && match.getResult().equals("H")
+                    || match.getAwayTeam().getId().equals(id) && match.getResult().equals("A")) {
+                result.add("W");
+            } else if (match.getHomeTeam().getId().equals(id) && match.getResult().equals("A")
+                    || match.getAwayTeam().getId().equals(id) && match.getResult().equals("H")) {
+                result.add("L");
+            } else {
+                result.add("D");
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<MatchDto> getOnline() {
+        List<Match> list = repository.getAllByLocalDateTimeBetween(LocalDateTime.now().minusHours(2L).minusMinutes(10L),
+                LocalDateTime.now().plusMinutes(10L));
+        return list.stream().map(mapper::toDto).toList();
+    }
+
 }

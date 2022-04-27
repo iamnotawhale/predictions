@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/lux/bootstrap.min.css"
-          integrity="sha384-9+PGKSqjRdkeAU7Eu4nkJU8RFaH8ace8HGXnkiKMP9I9Te0GJ4/km3L1Z8tXigpG" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" type="text/css">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Matches</title>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary" style="padding-top: 0; padding-bottom: 0;">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">
             <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
@@ -24,7 +23,7 @@
                     <a class="nav-link" href="/">Главная</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active text-dark" href="#" th:text="${header}">
+                    <a class="nav-link active text-dark"  th:text="${header}">
                         <span class="visually-hidden">Header</span>
                     </a>
                 </li>
@@ -34,55 +33,24 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
                        aria-haspopup="true" aria-expanded="false">Выбрать тур</a>
-                    <div class="dropdown-menu" style="width: 352px;">
-                        <div class="row">
-                            <div class="col">
-                                <a class="dropdown-item" href="/match/week/1">1</a>
-                                <a class="dropdown-item" href="/match/week/2">2</a>
-                                <a class="dropdown-item" href="/match/week/3">3</a>
-                                <a class="dropdown-item" href="/match/week/4">4</a>
-                                <a class="dropdown-item" href="/match/week/5">5</a>
-                                <a class="dropdown-item" href="/match/week/6">6</a>
-                                <a class="dropdown-item" href="/match/week/7">7</a>
-                                <a class="dropdown-item" href="#">8</a>
-                                <a class="dropdown-item" href="#">9</a>
-                                <a class="dropdown-item" href="#">10</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">11</a>
-                                <a class="dropdown-item" href="#">12</a>
-                                <a class="dropdown-item" href="#">13</a>
-                                <a class="dropdown-item" href="#">14</a>
-                                <a class="dropdown-item" href="#">15</a>
-                                <a class="dropdown-item" href="#">16</a>
-                                <a class="dropdown-item" href="#">17</a>
-                                <a class="dropdown-item" href="#">18</a>
-                                <a class="dropdown-item" href="#">19</a>
-                                <a class="dropdown-item" href="#">20</a>
+                        </div>
+                    </div>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
+                       aria-haspopup="true" aria-expanded="false">Прогнозы по турам</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">21</a>
-                                <a class="dropdown-item" href="#">22</a>
-                                <a class="dropdown-item" href="#">23</a>
-                                <a class="dropdown-item" href="#">24</a>
-                                <a class="dropdown-item" href="#">25</a>
-                                <a class="dropdown-item" href="#">26</a>
-                                <a class="dropdown-item" href="#">27</a>
-                                <a class="dropdown-item" href="#">28</a>
-                                <a class="dropdown-item" href="#">29</a>
-                                <a class="dropdown-item" href="#">30</a>
-                            </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">31</a>
-                                <a class="dropdown-item" href="#">32</a>
-                                <a class="dropdown-item" href="#">33</a>
-                                <a class="dropdown-item" href="#">34</a>
-                                <a class="dropdown-item" href="#">35</a>
-                                <a class="dropdown-item" href="#">36</a>
-                                <a class="dropdown-item" href="#">37</a>
-                                <a class="dropdown-item" href="#">38</a>
-                            </div>
-                            <div class="dropdown-divider"></div>
                         </div>
                     </div>
                 </li>
@@ -93,17 +61,16 @@
         </div>
     </div>
 </nav>
-<div class="container-fluid" style="padding-left: 0;padding-right: 0;">
+<div class="container-fluid p-0 bg-primary">
 
     <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
 
-    <table class="table table-dark table-striped table-hover table-sm" style="margin-bottom: 0;">
+    <table class="table table-dark table-striped table-hover table-sm">
 
         <thead th:align="center">
 
         <tr>
             <th>Тур</th>
-            <th>№</th>
             <th>Дата</th>
             <th>Время</th>
             <th>Хозяева</th>
@@ -115,107 +82,195 @@
         </tr>
         </thead>
         <tbody th:align="center">
-        <tr th:each="match: ${matchList}">
-            <td class="align-middle" th:text="${match.week.getId()}">Week</td>
-            <td class="align-middle" th:text="${matchList.indexOf(match) + 1}"></td>
-            <td class="align-middle" th:text="${match.matchDate}">Date</td>
-            <td class="align-middle" th:text="${match.matchTime}">Time</td>
-            <td class="align-middle" th:text="${match.homeTeam.getTeamName()}">Home Team</td>
-            <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
-            <td class="align-middle" th:text="${match.status}">Status</td>
-            <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
-            <td class="align-middle" th:text="${match.awayTeam.getTeamName()}">Away Team</td>
-            <td>
-                <button type="button" class="btn btn-warning btn-sm" disabled data-bs-toggle="modal"
-                        th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                        th:if="${match.localDateTime} < ${todayDateTime}">Создать прогноз
-                </button>
+        <th:block th:each="match: ${matchList}">
+            <tr th:data-bs-target="${'#acc'+ match.getId()}" data-bs-toggle="collapse"
+                class="accordion-toggle">
+                <td class="align-middle" th:text="${match.week.getId()}">Week</td>
+                <td class="align-middle" th:text="${match.matchDate}">Date</td>
+                <td class="align-middle" th:text="${match.matchTime}">Time</td>
+                <td class="align-middle" th:text="${match.homeTeam.getTeamName()}">Home Team</td>
+                <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
+                <td class="align-middle" th:text="${match.status}">Status</td>
+                <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
+                <td class="align-middle" th:text="${match.awayTeam.getTeamName()}">Away Team</td>
+                <td>
+                    <button type="button" class="btn btn-primary btn-sm" disabled data-bs-toggle="modal"
+                            th:data-bs-target="${'#create'+ match.id + currentUser.id}"
+                            th:if="${match.localDateTime < todayDateTime}">Создать прогноз
+                    </button>
 
-                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
-                        th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                        th:unless="${match.localDateTime} < ${todayDateTime}">Создать прогноз
-                </button>
-            </td>
-            <div class="modal fade" th:id="${'create'+ match.id + currentUser.id}" tabindex="-1"
-                 th:aria-labelledby="${'create'+ match.id + currentUser.id + 'Label'}" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h6 class="modal-title" th:text="${match.homeTeam.getTeamName()} + ' - '
+                    <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+                            th:data-bs-target="${'#create'+ match.id + currentUser.id}"
+                            th:unless="${match.localDateTime < todayDateTime}">Создать прогноз
+                    </button>
+                    <!--<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+                            th:data-bs-target="${'#create'+ match.id + currentUser.id}">Создать прогноз
+                    </button>-->
+                </td>
+                <div class="modal fade" th:id="${'create'+ match.id + currentUser.id}" tabindex="-1"
+                     th:aria-labelledby="${'create'+ match.id + currentUser.id + 'Label'}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h6 class="modal-title" th:text="${match.homeTeam.getTeamName()} + ' - '
                             + ${match.awayTeam.getTeamName()}"></h6>
-                        </div>
-                        <div class="modal-body text-center">
-                            <form th:action="@{/predict/saveByMatchId/{id}/(id=${match.getId()})}" th:method="POST"
-                                  th:object="${newPredict}">
-                                <div class="form-group" hidden>
-                                    <label class="font-weight-bold" th:for="${'id' + match.id}">ID Матча</label>
-                                    <input type="text"
-                                           name="id"
-                                           th:id="${'id' + match.id}"
-                                           class="form-control"
-                                           th:value="${match.id}"
-                                           readonly>
-                                </div>
-                                <div class="form-group" hidden>
-                                    <label class="font-weight-bold" th:for="${'user' + currentUser.id}">ID
-                                        пользователя</label>
-                                    <input type="text"
-                                           name="user"
-                                           th:id="${'user' + currentUser.id}"
-                                           class="form-control"
-                                           th:value="${currentUser.id}"
-                                           readonly>
-                                </div>
-                                <div class="container">
-                                    <div class="row align-items-center">
-                                        <div class="col-sm">
-                                            <img th:src="${match.homeTeam.getLogo()}"/>
-                                        </div>
-                                        <div class="col-sm-2">
-                                            <div class="form-group">
-                                                <label class="font-weight-bold" for="htscore">
-                                                    <!--<img th:src="${match.homeTeam.getLogo()}"/>-->
-                                                    <!--<h7 class="modal-title" th:text="${match.homeTeam.getTeamName()}"></h7>-->
-                                                </label>
-                                                <input type="text" th:field="*{homeTeamScore}"
-                                                       class="form-control form-control-sm"
-                                                       id="htscore"
-                                                       placeholder="g">
+                            </div>
+                            <div class="modal-body text-center">
+                                <form th:action="@{/predict/saveByMatchId/{id}/(id=${match.getId()})}" th:method="POST"
+                                      th:object="${newPredict}">
+                                    <div class="form-group" hidden>
+                                        <label class="font-weight-bold" th:for="${'id' + match.id}">ID Матча</label>
+                                        <input type="text"
+                                               name="id"
+                                               th:id="${'id' + match.id}"
+                                               class="form-control"
+                                               th:value="${match.id}"
+                                               readonly>
+                                    </div>
+                                    <div class="form-group" hidden>
+                                        <label class="font-weight-bold" th:for="${'user' + currentUser.id}">ID
+                                            пользователя</label>
+                                        <input type="text"
+                                               name="user"
+                                               th:id="${'user' + currentUser.id}"
+                                               class="form-control"
+                                               th:value="${currentUser.id}"
+                                               readonly>
+                                    </div>
+                                    <div class="container">
+                                        <div class="row align-items-center">
+                                            <div class="col-sm">
+                                                <img th:src="${match.homeTeam.getLogo()}"/>
                                             </div>
-                                        </div>
-                                        <div class="col-sm">
-                                            <h6 style="margin-bottom: 0;">:</h6>
-                                        </div>
-                                        <div class="col-sm-2">
-                                            <div class="form-group">
-                                                <label class="font-weight-bold" for="atscore">
-                                                    <!--<img th:src="${match.awayTeam.getLogo()}"/>-->
-                                                    <!--<h7 class="modal-title" th:text="${match.awayTeam.getTeamName()}"></h7>-->
-                                                </label>
-                                                <input type="text" th:field="*{awayTeamScore}"
-                                                       class="form-control form-control-sm"
-                                                       id="atscore"
-                                                       placeholder="g">
+                                            <div class="col-sm-2">
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold" for="htscore">
+                                                        <!--<img th:src="${match.homeTeam.getLogo()}"/>-->
+                                                        <!--<h7 class="modal-title" th:text="${match.homeTeam.getTeamName()}"></h7>-->
+                                                    </label>
+                                                    <input type="text" th:field="*{homeTeamScore}"
+                                                           class="form-control form-control-sm"
+                                                           id="htscore"
+                                                           placeholder="g">
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="col-sm">
-                                            <img th:src="${match.awayTeam.getLogo()}"/>
+                                            <div class="col-sm">
+                                                <h6 style="margin-bottom: 0;">:</h6>
+                                            </div>
+                                            <div class="col-sm-2">
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold" for="atscore">
+                                                        <!--<img th:src="${match.awayTeam.getLogo()}"/>-->
+                                                        <!--<h7 class="modal-title" th:text="${match.awayTeam.getTeamName()}"></h7>-->
+                                                    </label>
+                                                    <input type="text" th:field="*{awayTeamScore}"
+                                                           class="form-control form-control-sm"
+                                                           id="atscore"
+                                                           placeholder="g">
+                                                </div>
+                                            </div>
+                                            <div class="col-sm">
+                                                <img th:src="${match.awayTeam.getLogo()}"/>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <br>
-                                <div class="modal-footer" style="padding-bottom: 4px;">
-                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
-                                        Закрыть
-                                    </button>
-                                    <input type="submit" class="btn btn-success btn-sm" value="Сохранить">
-                                </div>
-                            </form>
+                                    <br>
+                                    <div class="modal-footer" style="padding-bottom: 4px;">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                                            Закрыть
+                                        </button>
+                                        <input type="submit" class="btn btn-success btn-sm" value="Сохранить">
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </tr>
+            </tr>
+            <tr class="accordion-body collapse" th:if="${!match.status.equals('-')}" th:id="${'acc'+ match.getId()}">
+                <td colspan="4">
+                    <div >
+                        <p class="text-white"
+                           style="margin-bottom: 0;" th:onclick=""></p>
+                    </div>
+                </td>
+                <td colspan="3">
+                    <div>
+                        <table class="table table-striped table-hover table-sm text-white">
+                            <tbody th:align="center">
+                            <tr>
+                                <td th:text="${match.getHomeStats().getPossessionPercent() + '%'}"></td>
+                                <td>Владение мячом</td>
+                                <td th:text="${match.getAwayStats().getPossessionPercent() + '%'}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShots()}"></td>
+                                <td>Всего ударов</td>
+                                <td th:text="${match.getAwayStats().getShots()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShotsOnTarget()}"></td>
+                                <td>Удары в створ ворот</td>
+                                <td th:text="${match.getAwayStats().getShotsOnTarget()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShotsOffTarget()}"></td>
+                                <td>Удары мимо ворот</td>
+                                <td th:text="${match.getAwayStats().getShotsOffTarget()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getShotsBlocked()}"></td>
+                                <td>Отбитые мячи</td>
+                                <td th:text="${match.getAwayStats().getShotsBlocked()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getCorners()}"></td>
+                                <td>Угловые</td>
+                                <td th:text="${match.getAwayStats().getCorners()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getOffsides()}"></td>
+                                <td>Офсайды</td>
+                                <td th:text="${match.getAwayStats().getOffsides()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getFreeKick()}"></td>
+                                <td>Свободные удары</td>
+                                <td th:text="${match.getAwayStats().getFreeKick()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getFouls()}"></td>
+                                <td>Фолы</td>
+                                <td th:text="${match.getAwayStats().getFouls()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getThrowIn()}"></td>
+                                <td>Вбрасывания</td>
+                                <td th:text="${match.getAwayStats().getThrowIn()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getYellowCards()}"></td>
+                                <td>Желтые карточки</td>
+                                <td th:text="${match.getAwayStats().getYellowCards()}"></td>
+                            </tr>
+                            <tr>
+                                <td th:text="${match.getHomeStats().getYellowRedCards() + match.getHomeStats().getRedCards()}"></td>
+                                <td>Красные карточки</td>
+                                <td th:text="${match.getAwayStats().getYellowRedCards() + match.getAwayStats().getRedCards()}"></td>
+                            </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+                </td>
+                <td colspan="2">
+                    <div>
+                        <p class="text-white"
+                           style="margin-bottom: 0;" th:onclick=""></p>
+                    </div>
+                </td>
+            </tr>
+        </th:block>
         </tbody>
     </table>
     <div class="row bg-primary">
@@ -230,7 +285,16 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
         crossorigin="anonymous"></script>
-
+<script>
+    function rowWeeks(value) {
+        location.href = "/match/week/" + value;
+    }
+</script>
+<script>
+    function rowPredict(value) {
+        location.href = "/predict/week/" + value;
+    }
+</script>
 <!-- Вариант 2: Bootstrap JS отдельно от Popper
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js" integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js" integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>

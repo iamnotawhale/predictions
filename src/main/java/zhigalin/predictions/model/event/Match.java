@@ -18,12 +18,14 @@ import java.time.LocalTime;
 @AllArgsConstructor
 @Entity
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
-@Table(name = "matches")
+@Table(name = "match")
 public class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Match_generator")
-    @SequenceGenerator(sequenceName = "Match_sequence", name = "Match_generator")
+    @SequenceGenerator(sequenceName = "Match_sequence", name = "Match_generator", allocationSize = 1)
     private Long id;
+
+    private Long publicId;
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
     @JoinColumn(name = "matchweek_id")
@@ -50,4 +52,12 @@ public class Match {
     private String result;
 
     private String status;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "home_stats_id")
+    private Stats homeStats;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "away_stats_id")
+    private Stats awayStats;
 }

@@ -24,4 +24,12 @@ public interface MatchService {
     MatchDto getByTeamCodes(String home, String away);
 
     List<Integer> getResultByTeamNames(String homeTeamName, String awayTeamName);
+
+    List<MatchDto> getAllByTeamId(Long id);
+
+    List<MatchDto> getLast5MatchesByTeamId(Long id);
+
+    List<String> getLast5MatchesResultByTeamId(Long id);
+
+    List<MatchDto> getOnline();
 }

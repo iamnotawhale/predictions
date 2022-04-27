@@ -9,8 +9,6 @@ import zhigalin.predictions.repository.football.StandingRepository;
 import zhigalin.predictions.service.football.StandingService;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service
 public class StandingServiceImpl implements StandingService {
@@ -27,13 +25,17 @@ public class StandingServiceImpl implements StandingService {
     @Override
     public List<StandingDto> getAll() {
         List<Standing> list = (List<Standing>) repository.findAll();
-        return list.stream().sorted((s1, s2) -> s2.getPoints().compareTo(s1.getPoints())).map(mapper::toDto).collect(Collectors.toList());
+        return list.stream().sorted((s1, s2) -> s2.getPoints().compareTo(s1.getPoints())).map(mapper::toDto).toList();
     }
 
     @Override
     public StandingDto save(StandingDto dto) {
         Standing standing = repository.getByTeam_Id(dto.getTeam().getId());
-        return mapper.toDto(Objects.requireNonNullElseGet(standing, () -> repository.save(mapper.toEntity(dto))));
+        if (standing != null) {
+            mapper.updateEntityFromDto(dto, standing);
+            return mapper.toDto(repository.save(standing));
+        }
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override

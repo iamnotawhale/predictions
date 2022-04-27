@@ -24,7 +24,7 @@ public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "User_generator")
-    @SequenceGenerator(sequenceName = "User_sequence", name = "User_generator")
+    @SequenceGenerator(sequenceName = "User_sequence", name = "User_generator", allocationSize = 1)
     private Long id;
 
     private String login;

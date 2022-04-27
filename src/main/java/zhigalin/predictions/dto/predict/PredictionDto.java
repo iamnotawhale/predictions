@@ -16,4 +16,5 @@ public class PredictionDto {
     private User user;
     private Integer homeTeamScore;
     private Integer awayTeamScore;
+    private Integer points;
 }

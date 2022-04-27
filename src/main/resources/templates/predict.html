@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/lux/bootstrap.min.css"
-          integrity="sha384-9+PGKSqjRdkeAU7Eu4nkJU8RFaH8ace8HGXnkiKMP9I9Te0GJ4/km3L1Z8tXigpG" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" type="text/css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Matches</title>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary" style="padding-top: 0; padding-bottom: 0;">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">
             <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
@@ -25,7 +24,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active text-dark" href="#" th:text="${header}">
+                    <a class="nav-link active text-dark" th:text="${header}">
                         <span class="visually-hidden">Header</span>
                     </a>
                 </li>
@@ -35,55 +34,22 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
                        aria-haspopup="true" aria-expanded="false">Выбрать тур</a>
-                    <div class="dropdown-menu" style="width: 352px;">
-                        <div class="row">
-                            <div class="col">
-                                <a class="dropdown-item" href="/match/week/1">1</a>
-                                <a class="dropdown-item" href="/match/week/2">2</a>
-                                <a class="dropdown-item" href="/match/week/3">3</a>
-                                <a class="dropdown-item" href="/match/week/4">4</a>
-                                <a class="dropdown-item" href="/match/week/5">5</a>
-                                <a class="dropdown-item" href="/match/week/6">6</a>
-                                <a class="dropdown-item" href="/match/week/7">7</a>
-                                <a class="dropdown-item" href="#">8</a>
-                                <a class="dropdown-item" href="#">9</a>
-                                <a class="dropdown-item" href="#">10</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}" th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">11</a>
-                                <a class="dropdown-item" href="#">12</a>
-                                <a class="dropdown-item" href="#">13</a>
-                                <a class="dropdown-item" href="#">14</a>
-                                <a class="dropdown-item" href="#">15</a>
-                                <a class="dropdown-item" href="#">16</a>
-                                <a class="dropdown-item" href="#">17</a>
-                                <a class="dropdown-item" href="#">18</a>
-                                <a class="dropdown-item" href="#">19</a>
-                                <a class="dropdown-item" href="#">20</a>
+                        </div>
+                    </div>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
+                       aria-haspopup="true" aria-expanded="false">Прогнозы по турам</a>
+                    <div class="dropdown-menu" style="width: 354px;">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}" th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
+                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">21</a>
-                                <a class="dropdown-item" href="#">22</a>
-                                <a class="dropdown-item" href="#">23</a>
-                                <a class="dropdown-item" href="#">24</a>
-                                <a class="dropdown-item" href="#">25</a>
-                                <a class="dropdown-item" href="#">26</a>
-                                <a class="dropdown-item" href="#">27</a>
-                                <a class="dropdown-item" href="#">28</a>
-                                <a class="dropdown-item" href="#">29</a>
-                                <a class="dropdown-item" href="#">30</a>
-                            </div>
-                            <div class="col">
-                                <a class="dropdown-item" href="#">31</a>
-                                <a class="dropdown-item" href="#">32</a>
-                                <a class="dropdown-item" href="#">33</a>
-                                <a class="dropdown-item" href="#">34</a>
-                                <a class="dropdown-item" href="#">35</a>
-                                <a class="dropdown-item" href="#">36</a>
-                                <a class="dropdown-item" href="#">37</a>
-                                <a class="dropdown-item" href="#">38</a>
-                            </div>
-                            <div class="dropdown-divider"></div>
                         </div>
                     </div>
                 </li>
@@ -95,53 +61,58 @@
     </div>
 </nav>
 
-<div class="container-fluid" style="padding-right: 0;padding-left: 0;">
+<div class="container-fluid p-0 bg-primary">
     <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
     <table class="table table-dark table-striped table-hover table-sm">
         <thead th:align="center">
         <tr>
             <th>Тур</th>
-            <th>Дата</th>
-            <th>Время</th>
+            <th class="d-none d-lg-table-cell">Дата</th>
+            <th class="d-none d-lg-table-cell">Время</th>
             <th>Хозяева</th>
             <th></th>
             <th></th>
             <th></th>
             <th>Гости</th>
-            <th>Пользователь</th>
+            <th class="d-none d-lg-table-cell">Пользователь</th>
             <th></th>
             <th></th>
             <th></th>
             <th>Очки</th>
-            <th>Изменить</th>
+            <th></th>
 
         </thead>
         <tbody th:align="center">
         <tr th:each="prediction: ${list}">
             <td class="align-middle" th:text="${prediction.match.week.getId()}">Week</td>
-            <td class="align-middle" th:text="${prediction.match.matchDate}">Date</td>
-            <td class="align-middle" th:text="${prediction.match.matchTime}">Time</td>
+            <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.match.getMatchDate()}">Date</td>
+            <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.match.getMatchTime()}">Time</td>
             <td class="align-middle" th:text="${prediction.match.homeTeam.getTeamName()}">Home Team</td>
-            <td class="align-middle" th:text="${prediction.match.homeTeamScore}">HT Score</td>
-            <td class="align-middle" th:text="${prediction.match.status}">Status</td>
+            <td class="align-middle" th:text="${prediction.match.getHomeTeamScore()}">HT Score</td>
+            <td class="align-middle" th:text="${prediction.match.getStatus()}">Status</td>
             <td class="align-middle" th:text="${prediction.match.awayTeamScore}">AT Score</td>
             <td class="align-middle" th:text="${prediction.match.awayTeam.getTeamName()}">Away Team</td>
-            <td class="align-middle" th:text="${prediction.getUser().getLogin()}">Login</td>
+            <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.getUser().getLogin()}">Login</td>
             <td class="align-middle" th:text="${prediction.getHomeTeamScore()}">Predict HT Score</td>
             <td class="align-middle">-</td>
             <td class="align-middle" th:text="${prediction.getAwayTeamScore()}">Predict AT Score</td>
-            <td class="align-middle" th:text="${points.get(list.indexOf(prediction))}">Points</td>
+            <td class="align-middle" th:text="${prediction.getPoints()}">Points</td>
             <td>
-                <button type="button" class="btn btn-warning btn-sm" disabled data-bs-toggle="modal"
+                <button type="button" class="btn btn-primary btn-sm" disabled data-bs-toggle="modal"
                         th:data-bs-target="${'#Edit'+ prediction.id}"
-                        th:if="${prediction.match.localDateTime} < ${todayDateTime}">
-                    Edit
+                        th:if="${prediction.match.localDateTime < todayDateTime or currentUser.getId() != prediction.getUser().getId()}">
+                    Изменить
                 </button>
                 <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
                         th:data-bs-target="${'#Edit'+ prediction.id}"
-                        th:unless="${prediction.match.localDateTime} < ${todayDateTime}">
-                    Edit
+                        th:unless="${prediction.match.localDateTime < todayDateTime or currentUser.getId() != prediction.getUser().getId()}">
+                    Изменить
                 </button>
+
+                <!--<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+                        th:data-bs-target="${'#Edit'+ prediction.id}">
+                    Изменить
+                </button>-->
             </td>
             <div class="modal fade" th:id="${'Edit'+ prediction.id}" tabindex="-1"
                  th:aria-labelledby="${'create'+ prediction.id + 'Label'}" aria-hidden="true">
@@ -224,10 +195,14 @@
                                 </div>
                                 <br>
                                 <div class="modal-footer" style="padding-bottom: 4px;">
+
                                     <button type="button" class="btn btn-secondary btn-sm"
                                             data-bs-dismiss="modal">
                                         Закрыть
                                     </button>
+
+                                    <a th:href="@{/predict/delete(id=${prediction.getId()})}" class="btn btn-danger btn-sm">Удалить</a>
+
                                     <input type="submit" class="btn btn-success btn-sm" value="Сохранить">
                                 </div>
                             </form>
@@ -242,7 +217,16 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
         crossorigin="anonymous"></script>
-
+<script>
+    function rowWeeks(value) {
+        location.href = "/match/week/" + value;
+    }
+</script>
+<script>
+    function rowPredict(value) {
+        location.href = "/predict/week/" + value;
+    }
+</script>
 <!-- Вариант 2: Bootstrap JS отдельно от Popper
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js" integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js" integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>

@@ -5,15 +5,23 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
 public interface MatchRepository extends CrudRepository<Match, Long> {
+
     List<Match> getAllByWeekIdOrderByMatchDateAscMatchTimeAsc(Long id);
 
     List<Match> getAllByWeek_IsCurrentOrderByMatchDateAscMatchTimeAsc(Boolean b);
 
     List<Match> getAllByMatchDateOrderByMatchDateAscMatchTimeAsc(LocalDate date);
+
+    List<Match> getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(Long hId, Long aId);
+
+    List<Match> getAllByLocalDateTimeBetween(LocalDateTime nowMinus2Hour, LocalDateTime now);
+
+    List<Match> getTop5ByHomeTeam_IdAndResultNotNullOrAwayTeam_IdAndResultNotNullOrderByLocalDateTimeDesc(Long hId, Long aId);
 
     Match getMatchByHomeTeam_IdAndAwayTeam_Id(Long homeTeamId, Long awayTeamId);
 
