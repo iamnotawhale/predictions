@@ -14,11 +14,6 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.api.objects.Chat;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import zhigalin.predictions.converter.event.MatchMapper;
 import zhigalin.predictions.converter.event.SeasonMapper;
 import zhigalin.predictions.converter.event.StatsMapper;
@@ -74,7 +69,6 @@ public class DataInitServiceImpl {
     private static final String TOKEN = /*"577b6040-b8e8-11ec-804e-414c550f7861";*/ "8002bee0-9cd1-11ec-9d81-8b3672f0da94";
     private static final String SEASON_ID = "1980";
     private static final String DATE_FROM = "2021-08-12";
-    private static final String BOT_TOKEN = "5370831950:AAHS3TjDNMpyfC9HSNeM91LROZkmVSWGJRQ";
     private final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH); //"2021-08-13T19:00:00+00:00"
 
     private Long id;
@@ -155,7 +149,6 @@ public class DataInitServiceImpl {
         //weekInit();
         //matchInit();
         //standingInit();
-        //sendBotMessage();
         Thread run = new Thread(() -> {
             while (true) {
                 try {
@@ -168,34 +161,6 @@ public class DataInitServiceImpl {
             }
         });
         run.start();
-    }
-
-    @SneakyThrows
-    private void sendBotMessage() {
-        List<Match> matchList = matchService.getAllByTodayDate().stream().map(matchMapper::toEntity).toList();
-        if (!matchList.isEmpty()) {
-
-            TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(eplInfoBot);
-
-            for (Match match : matchList) {
-                Chat chat = new Chat();
-                chat.setId(-554246142L);
-
-                Message message = new Message();
-                message.setChat(chat);
-                if (!match.getStatus().equals("-")) {
-                    message.setText(match.getHomeTeam().getTeamName() + " " + match.getHomeTeamScore() + " " + match.getStatus()+ " " + match.getAwayTeamScore() + " "  + match.getAwayTeam().getTeamName());
-                } else {
-                    message.setText(match.getHomeTeam().getTeamName() + " " + match.getMatchTime() + " " + match.getAwayTeam().getTeamName());
-                }
-
-                Update update = new Update();
-                update.setMessage(message);
-
-                eplInfoBot.onUpdateReceived(update);
-            }
-        }
     }
 
     @SneakyThrows
