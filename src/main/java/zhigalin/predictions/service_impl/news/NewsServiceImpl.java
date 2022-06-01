@@ -47,4 +47,14 @@ public class NewsServiceImpl implements NewsService {
                 .limit(12)
                 .toList();
     }
+
+    @Override
+    public void deleteAll() {
+        repository.deleteAll();
+    }
+
+    @Override
+    public void resetSequence() {
+        repository.resetSequence();
+    }
 }

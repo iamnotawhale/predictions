@@ -29,6 +29,7 @@ public class SendBotMessageServiceImpl implements SendBotMessageService {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.enableHtml(true);
+        sendMessage.enableMarkdown(true);
         sendMessage.setText(message);
 
         createKeyBoard(sendMessage);

@@ -41,18 +41,22 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
+    public MatchDto getByPublicId(Long publicId) {
+        return mapper.toDto(repository.getMatchByPublicId(publicId));
+    }
+
+    @Override
     public List<MatchDto> getAllByTodayDate() {
-        LocalDate date = LocalDate.now();
-        List<Match> allToday = repository.getAllByMatchDateOrderByMatchDateAscMatchTimeAsc(date);
+        List<Match> allToday = repository.getAllByMatchDateOrderByWeekAscMatchDateAscMatchTimeAsc(LocalDate.now());
         return allToday.stream().map(mapper::toDto).toList();
     }
 
     @Override
-    public List<MatchDto> getAllByNearestDays(Integer days) {
+    public List<MatchDto> getAllByUpcomingDays(Integer days) {
         List<Match> nearestMatches = new ArrayList<>();
         LocalDate date = LocalDate.now();
         for (int i = 0; i < days; i++) {
-            List<Match> allToday = repository.getAllByMatchDateOrderByMatchDateAscMatchTimeAsc(date.plusDays(i));
+            List<Match> allToday = repository.getAllByMatchDateOrderByWeekAscMatchDateAscMatchTimeAsc(date.plusDays(i));
             nearestMatches.addAll(allToday);
         }
         return nearestMatches.stream().map(mapper::toDto).toList();
@@ -68,6 +72,12 @@ public class MatchServiceImpl implements MatchService {
     public List<MatchDto> getAllByCurrentWeek(Boolean b) {
         List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByMatchDateAscMatchTimeAsc(b);
         return allByCurrentWeek.stream().map(mapper::toDto).toList();
+    }
+
+    @Override
+    public List<MatchDto> getAll() {
+        List<Match> list = (List<Match>) repository.findAll();
+        return list.stream().map(mapper::toDto).toList();
     }
 
     @Override
@@ -131,8 +141,8 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> getOnline() {
-        List<Match> list = repository.getAllByLocalDateTimeBetween(LocalDateTime.now().minusHours(2L).minusMinutes(10L),
-                LocalDateTime.now().plusMinutes(10L));
+        List<Match> list = repository.getAllByLocalDateTimeBetween(LocalDateTime.now().minusHours(2).minusMinutes(10),
+                LocalDateTime.now().plusMinutes(10));
         return list.stream().map(mapper::toDto).toList();
     }
 

@@ -2,16 +2,17 @@ package zhigalin.predictions.telegram.command;
 
 public enum CommandName {
 
-    START("/start"),
-    STOP("/stop"),
-    HELP("/help"),
+    START("start"),
+    STOP("stop"),
+    HELP("help"),
     NO("nocommand"),
-    TABLE("/table"),
-    TOUR("/tours"),
-    TOURNUM("/tour"),
-    TODAY("/today"),
-
-    TEAM("/team");
+    TABLE("table"),
+    TOUR("tours"),
+    TOURNUM("tour"),
+    TODAY("today"),
+    TEAM("team"),
+    UPCOMING("upcoming"),
+    NEWS("news");
 
 
     private final String commandName;

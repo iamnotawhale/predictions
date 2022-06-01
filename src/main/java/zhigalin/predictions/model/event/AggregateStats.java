@@ -19,14 +19,19 @@ public class AggregateStats {
     private Double shotsBlocked; //отбитые мячи
     private Double corners;
     private Double offsides;
-    private Double freeKick; //свободные удары
+    private Double passes;
+    private Double passesAccurate;
+    private Double passPercent;
+    private Double insideBoxShots;
+    private Double outsideBoxShots;
+    //private Double freeKick; //свободные удары
     //def
     private Double fouls;
-    private Double throwIn; //вбрасывания
-    private Double goalKick; //удары от ворот
+    //private Double throwIn; //вбрасывания
+    //private Double goalKick; //удары от ворот
     private Double ballSafe;
     //cards
     private Double yellowCards;
-    private Double yellowRedCards;
+    //private Double yellowRedCards;
     private Double redCards;
 }

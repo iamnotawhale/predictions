@@ -13,7 +13,7 @@ public interface StatsRepository extends CrudRepository<Stats, Long> {
 
     @Query("select new zhigalin.predictions.model.event.AggregateStats(s.team.id, avg(s.possessionPercent), avg(s.shots), " +
             "avg(s.shotsOnTarget), avg(s.shotsOffTarget), avg(s.shotsBlocked), avg(s.corners), avg(s.offsides), " +
-            "avg(s.freeKick), avg(s.fouls), avg(s.throwIn), avg(s.goalKick), avg(s.ballSafe), avg(s.yellowCards)," +
-            "avg(s.yellowRedCards), avg(s.redCards)) from Stats s where s.team.id=:id group by s.team.id")
+            "avg(s.passes), avg(s.passesAccurate), avg(s.passPercent), avg(s.insideBoxShots), avg(s.outsideBoxShots), " +
+            "avg(s.fouls), avg(s.ballSafe), avg(s.yellowCards), avg(s.redCards)) from Stats s where s.team.id=:id group by s.team.id")
     AggregateStats getAvgStatsByTeamId(@Param("id") Long id);
 }

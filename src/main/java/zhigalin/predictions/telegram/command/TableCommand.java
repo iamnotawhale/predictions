@@ -9,11 +9,8 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 import java.util.List;
 
 public class TableCommand implements Command {
-
     private final SendBotMessageService sendBotMessageService;
-
     private final StandingService standingService;
-
     private final StandingMapper standingMapper;
 
     public TableCommand(SendBotMessageService sendBotMessageService, StandingService standingService, StandingMapper standingMapper) {
@@ -27,17 +24,15 @@ public class TableCommand implements Command {
         List<Standing> list = standingService.getAll().stream().map(standingMapper::toEntity).toList();
         int i = 1;
         StringBuilder builder = new StringBuilder();
-        builder.append("<code>").append("  ").append("КЛУБ ").append("И  ").append("В  ").append("Н  ").append("П  ").append("ЗМ ").append("ПМ ").append("О  ").append("</code>").append("\n");
+        builder.append("`").append("  ").append("КЛУБ ").append("И  ").append("В  ").append("Н  ").append("П  ")
+                .append("ЗМ ").append("ПМ ").append("О  ").append("`").append("\n");
         for (Standing standing : list) {
-            builder.append("<code>").append(i++).append(".");
+            builder.append("`").append(i++).append(".");
             if (i < 11) {
                 builder.append(" ");
             }
-            builder.append(standing.getTeam().getCode()).append(" ");
-            if (standing.getTeam().getCode().equals("LU")) {
-                builder.append(" ");
-            }
-            builder.append(standing.getGames()).append(" ");
+            builder.append(standing.getTeam().getCode()).append(" ")
+                    .append(standing.getGames()).append(" ");
             if (standing.getGames() < 10) {
                 builder.append(" ");
             }
@@ -65,7 +60,7 @@ public class TableCommand implements Command {
             if (standing.getPoints() < 10) {
                 builder.append(" ");
             }
-            builder.append("</code>").append("\n");
+            builder.append("`").append("\n");
         }
 
         sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), builder.toString());

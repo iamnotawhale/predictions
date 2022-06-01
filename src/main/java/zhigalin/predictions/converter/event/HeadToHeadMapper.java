@@ -5,11 +5,11 @@ import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import zhigalin.predictions.converter.CustomMapper;
-import zhigalin.predictions.dto.event.SeasonDto;
-import zhigalin.predictions.model.event.Season;
+import zhigalin.predictions.dto.event.HeadToHeadDto;
+import zhigalin.predictions.model.event.HeadToHead;
 
 @Mapper(componentModel = "spring")
-public interface SeasonMapper extends CustomMapper<Season, SeasonDto> {
+public interface HeadToHeadMapper extends CustomMapper<HeadToHead, HeadToHeadDto> {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateEntityFromDto(SeasonDto dto, @MappingTarget Season entity);
+    void updateEntityFromDto(HeadToHeadDto dto, @MappingTarget HeadToHead entity);
 }

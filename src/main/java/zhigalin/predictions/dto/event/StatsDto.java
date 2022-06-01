@@ -20,12 +20,17 @@ public class StatsDto {
     private Integer shotsBlocked; //отбитые мячи
     private Integer corners;
     private Integer offsides;
-    private Integer freeKick; //свободные удары
+    //private Integer freeKick; //свободные удары
     private Integer fouls;
-    private Integer throwIn; //вбрасывания
-    private Integer goalKick; //удары от ворот
+    //private Integer throwIn; //вбрасывания
+    //private Integer goalKick; //удары от ворот
     private Integer ballSafe;
     private Integer yellowCards;
-    private Integer yellowRedCards;
+    //private Integer yellowRedCards;
     private Integer redCards;
+    private Integer passes;
+    private Integer passesAccurate;
+    private Integer passPercent;
+    private Integer insideBoxShots;
+    private Integer outsideBoxShots;
 }

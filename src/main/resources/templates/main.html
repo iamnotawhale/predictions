@@ -263,16 +263,6 @@
                                         <table class="table table-striped table-hover table-sm text-white">
                                             <tbody th:align="center">
                                             <tr>
-                                                <td th:text="${match.getHomeStats().getPossessionPercent() + '%'}"></td>
-                                                <td>Владение мячом</td>
-                                                <td th:text="${match.getAwayStats().getPossessionPercent() + '%'}"></td>
-                                            </tr>
-                                            <tr>
-                                                <td th:text="${match.getHomeStats().getShots()}"></td>
-                                                <td>Всего ударов</td>
-                                                <td th:text="${match.getAwayStats().getShots()}"></td>
-                                            </tr>
-                                            <tr>
                                                 <td th:text="${match.getHomeStats().getShotsOnTarget()}"></td>
                                                 <td>Удары в створ ворот</td>
                                                 <td th:text="${match.getAwayStats().getShotsOnTarget()}"></td>
@@ -283,9 +273,29 @@
                                                 <td th:text="${match.getAwayStats().getShotsOffTarget()}"></td>
                                             </tr>
                                             <tr>
+                                                <td th:text="${match.getHomeStats().getShots()}"></td>
+                                                <td>Всего ударов</td>
+                                                <td th:text="${match.getAwayStats().getShots()}"></td>
+                                            </tr>
+                                            <tr>
                                                 <td th:text="${match.getHomeStats().getShotsBlocked()}"></td>
-                                                <td>Отбитые мячи</td>
+                                                <td>Заблокированные мячи</td>
                                                 <td th:text="${match.getAwayStats().getShotsBlocked()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getInsideBoxShots()}"></td>
+                                                <td>Удары из штрафной</td>
+                                                <td th:text="${match.getAwayStats().getInsideBoxShots()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getOutsideBoxShots()}"></td>
+                                                <td>Удары из-за штрафной</td>
+                                                <td th:text="${match.getAwayStats().getOutsideBoxShots()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getFouls()}"></td>
+                                                <td>Фолы</td>
+                                                <td th:text="${match.getAwayStats().getFouls()}"></td>
                                             </tr>
                                             <tr>
                                                 <td th:text="${match.getHomeStats().getCorners()}"></td>
@@ -298,19 +308,9 @@
                                                 <td th:text="${match.getAwayStats().getOffsides()}"></td>
                                             </tr>
                                             <tr>
-                                                <td th:text="${match.getHomeStats().getFreeKick()}"></td>
-                                                <td>Свободные удары</td>
-                                                <td th:text="${match.getAwayStats().getFreeKick()}"></td>
-                                            </tr>
-                                            <tr>
-                                                <td th:text="${match.getHomeStats().getFouls()}"></td>
-                                                <td>Фолы</td>
-                                                <td th:text="${match.getAwayStats().getFouls()}"></td>
-                                            </tr>
-                                            <tr>
-                                                <td th:text="${match.getHomeStats().getThrowIn()}"></td>
-                                                <td>Вбрасывания</td>
-                                                <td th:text="${match.getAwayStats().getThrowIn()}"></td>
+                                                <td th:text="${match.getHomeStats().getPossessionPercent() + '%'}"></td>
+                                                <td>Владение мячом</td>
+                                                <td th:text="${match.getAwayStats().getPossessionPercent() + '%'}"></td>
                                             </tr>
                                             <tr>
                                                 <td th:text="${match.getHomeStats().getYellowCards()}"></td>
@@ -318,11 +318,30 @@
                                                 <td th:text="${match.getAwayStats().getYellowCards()}"></td>
                                             </tr>
                                             <tr>
-                                                <td th:text="${match.getHomeStats().getYellowRedCards() + match.getHomeStats().getRedCards()}"></td>
+                                                <td th:text="${match.getHomeStats().getRedCards()}"></td>
                                                 <td>Красные карточки</td>
-                                                <td th:text="${match.getAwayStats().getYellowRedCards() + match.getAwayStats().getRedCards()}"></td>
+                                                <td th:text="${match.getAwayStats().getRedCards()}"></td>
                                             </tr>
-
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getBallSafe()}"></td>
+                                                <td>Сейвы вратаря</td>
+                                                <td th:text="${match.getAwayStats().getBallSafe()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getPasses()}"></td>
+                                                <td>Передачи</td>
+                                                <td th:text="${match.getAwayStats().getPasses()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getPassesAccurate()}"></td>
+                                                <td>Успешные передачи</td>
+                                                <td th:text="${match.getAwayStats().getPassesAccurate()}"></td>
+                                            </tr>
+                                            <tr>
+                                                <td th:text="${match.getHomeStats().getPassPercent()}"></td>
+                                                <td>Процент успешных передач</td>
+                                                <td th:text="${match.getAwayStats().getPassPercent()}"></td>
+                                            </tr>
                                             </tbody>
                                         </table>
                                     </div>

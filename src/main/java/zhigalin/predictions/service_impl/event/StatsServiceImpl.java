@@ -36,6 +36,9 @@ public class StatsServiceImpl implements StatsService {
     @Override
     public StatsDto getByMatchPublicIdAndTeamId(Long matchPublicId, Long teamId) {
         Stats stats = repository.getByMatchPublicIdAndTeam_Id(matchPublicId, teamId);
+        if (stats == null) {
+            return null;
+        }
         return mapper.toDto(stats);
     }
 

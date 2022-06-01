@@ -110,8 +110,8 @@ public class MatchController {
         return model;
     }
 
-    @GetMapping("/nearest")
-    public ModelAndView findNearestMatches(@RequestParam Integer days, Authentication authentication) {
+    @GetMapping("/upcoming")
+    public ModelAndView findUpcomingMatches(@RequestParam Integer days, Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         UserDto dto = new UserDto();
         dto.setId(user.getId());
@@ -120,7 +120,7 @@ public class MatchController {
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
         model.addObject("header", "Матчи в ближайшие дни - " + days);
-        model.addObject("matchList", service.getAllByNearestDays(days));
+        model.addObject("matchList", service.getAllByUpcomingDays(days));
         model.addObject("newPredict", new PredictionDto());
         return model;
     }

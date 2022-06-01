@@ -8,8 +8,6 @@ import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.repository.event.SeasonRepository;
 import zhigalin.predictions.service.event.SeasonService;
 
-import java.util.Objects;
-
 @Service
 public class SeasonServiceImpl implements SeasonService {
 
@@ -25,7 +23,11 @@ public class SeasonServiceImpl implements SeasonService {
     @Override
     public SeasonDto saveSeason(SeasonDto seasonDto) {
         Season season = seasonRepository.getBySeasonName(seasonDto.getSeasonName());
-        return mapper.toDto(Objects.requireNonNullElseGet(season, () -> seasonRepository.save(mapper.toEntity(seasonDto))));
+        if (season != null) {
+            mapper.updateEntityFromDto(seasonDto, season);
+            return mapper.toDto(seasonRepository.save(season));
+        }
+        return mapper.toDto(seasonRepository.save(mapper.toEntity(seasonDto)));
     }
 
     @Override

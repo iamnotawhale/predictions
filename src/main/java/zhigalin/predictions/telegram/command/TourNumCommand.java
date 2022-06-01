@@ -43,28 +43,22 @@ public class TourNumCommand implements Command {
 
         List<Match> tourMatches = matchService.getAllByWeekId(tourId).stream().map(matchMapper::toEntity).toList();
         if (!tourMatches.isEmpty()) {
-            builder.append("<code>").append(tourId).append(" ТУР").append("</code>").append("\n");
+            builder.append("`").append(tourId).append(" ТУР").append("`").append("\n");
             for (Match match : tourMatches) {
-                builder.append("<code>").append(match.getHomeTeam().getCode()).append(" ");
-                if (match.getHomeTeam().getCode().equals("LU")) {
-                    builder.append(" ");
-                }
+                builder.append("`").append(match.getHomeTeam().getCode()).append(" ");
                 if (match.getStatus().equals("ft")) {
                     builder.append(match.getHomeTeamScore())
-                            .append(":")
+                            .append(" - ")
                             .append(match.getAwayTeamScore())
                             .append(" ")
                             .append(match.getAwayTeam().getCode());
                 } else {
                     builder.append("- ")
-                            .append(match.getAwayTeam().getCode()).append(" ");
-                    if (match.getAwayTeam().getCode().equals("LU")) {
-                        builder.append(" ");
-                    }
-                    builder.append("\uD83D\uDDD3 ")
+                            .append(match.getAwayTeam().getCode()).append(" ")
+                            .append("\uD83D\uDDD3 ")
                             .append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
                 }
-                builder.append("</code>").append("\n");
+                builder.append("`").append("\n");
             }
             sendBotMessageService.sendMessage(chatId, builder.toString());
         } else {

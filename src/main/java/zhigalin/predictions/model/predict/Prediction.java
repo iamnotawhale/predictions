@@ -2,14 +2,10 @@ package zhigalin.predictions.model.predict;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
-import org.hibernate.envers.Audited;
-import org.hibernate.envers.NotAudited;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.user.User;
 
 import javax.persistence.*;
-
-import static org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED;
 
 @Builder
 @ToString
@@ -19,7 +15,7 @@ import static org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Audited
+//@Audited
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Table(name = "predict")
 public class Prediction {
@@ -30,20 +26,20 @@ public class Prediction {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id")
-    @Audited(targetAuditMode = NOT_AUDITED)
+    //@Audited(targetAuditMode = NOT_AUDITED)
     private Match match;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    @Audited(targetAuditMode = NOT_AUDITED)
+    //@Audited(targetAuditMode = NOT_AUDITED)
     private User user;
 
-    @Audited(targetAuditMode = NOT_AUDITED)
+    //@Audited(targetAuditMode = NOT_AUDITED)
     private Integer homeTeamScore;
 
-    @Audited(targetAuditMode = NOT_AUDITED)
+    //@Audited(targetAuditMode = NOT_AUDITED)
     private Integer awayTeamScore;
 
-    @NotAudited
+    //@NotAudited
     private Integer points;
 }

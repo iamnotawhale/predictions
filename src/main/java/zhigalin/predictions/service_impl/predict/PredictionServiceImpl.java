@@ -2,6 +2,7 @@ package zhigalin.predictions.service_impl.predict;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import zhigalin.predictions.Control;
 import zhigalin.predictions.converter.predict.PredictionMapper;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.model.predict.Prediction;
@@ -46,6 +47,7 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
+    @Control(method = "save")
     public PredictionDto save(PredictionDto dto) {
         dto.setPoints(getPoints(dto));
         Prediction prediction = repository.getByMatch_IdAndUser_Id(dto.getMatch().getId(), dto.getUser().getId());
