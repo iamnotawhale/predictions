@@ -144,14 +144,14 @@ public class DataInitServiceImpl {
     public void allInit() {
         //predictInit();
         //fastStatsInit();
-        //roleInit();
-        //userInit();
-        //teamsInitFromApiFootball();
-        //matchInitFromApiFootball();
-        //currentWeekUpdate();
-        //standingInitFromApiFootball();
+        roleInit();
+        userInit();
+        teamsInitFromApiFootball();
+        matchInitFromApiFootball();
+        currentWeekUpdate();
+        standingInitFromApiFootball();
 
-        //headToHeadInitFromApiFootball();
+        headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
             while (true) {
