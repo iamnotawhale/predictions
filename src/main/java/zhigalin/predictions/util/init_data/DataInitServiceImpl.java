@@ -157,7 +157,7 @@ public class DataInitServiceImpl {
             while (true) {
                 try {
                     //matchUpdate();
-                    //matchUpdateFromApiFootball();
+                    matchUpdateFromApiFootball();
                     newsInit();
                     Thread.sleep(240000); //1000 - 1 сек
                 } catch (InterruptedException ex) {
