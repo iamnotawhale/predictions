@@ -27,7 +27,10 @@ import zhigalin.predictions.dto.event.WeekDto;
 import zhigalin.predictions.dto.news.NewsDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
-import zhigalin.predictions.model.event.*;
+import zhigalin.predictions.model.event.HeadToHead;
+import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.event.Season;
+import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.user.Role;
@@ -139,29 +142,22 @@ public class DataInitServiceImpl {
     }
 
     public void allInit() {
-        //roleInit();
-        //userInit();
-        //seasonInit();
         //predictInit();
-        //weekInit();
-        //matchInit();
-        //standingInit();
-
         //fastStatsInit();
         //roleInit();
         //userInit();
         //teamsInitFromApiFootball();
         //matchInitFromApiFootball();
-        currentWeekUpdate();
-        //predictInit();
-        standingInitFromApiFootball();
+        //currentWeekUpdate();
+        //standingInitFromApiFootball();
+
         //headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
             while (true) {
                 try {
                     //matchUpdate();
-                    matchUpdateFromApiFootball();
+                    //matchUpdateFromApiFootball();
                     newsInit();
                     Thread.sleep(240000); //1000 - 1 сек
                 } catch (InterruptedException ex) {
@@ -199,52 +195,56 @@ public class DataInitServiceImpl {
     @SneakyThrows
     private void headToHeadInitFromApiFootball() {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        JsonObject mainObj = gson.fromJson(new JsonReader(new FileReader(getFileFromResource("static/json/c_18_19.json"))), JsonElement.class);
-        JsonArray responses = mainObj.getAsJsonArray("response");
-        for (JsonElement response : responses) {
-            JsonObject matchObj = response.getAsJsonObject();
 
-            JsonObject fixture = matchObj.getAsJsonObject("fixture");
-            matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.get("timestamp").getAsLong()),
-                    TimeZone.getDefault().toZoneId());
+        File dir = getFileFromResource("static/json");
+        for (File file : dir.listFiles()) {
+            JsonObject mainObj = gson.fromJson(new JsonReader(new FileReader(getFileFromResource("static/json/" + file.getName()))), JsonElement.class);
+            JsonArray responses = mainObj.getAsJsonArray("response");
+            for (JsonElement response : responses) {
+                JsonObject matchObj = response.getAsJsonObject();
 
-            JsonObject league = matchObj.getAsJsonObject("league");
-            leagueName = switch (league.get("name").getAsString()) {
-                case "Premier League" -> "PL ";
-                case "League Cup" -> "LC ";
-                case "FA Cup" -> "FA ";
-                case "UEFA Champions League" -> "UCL ";
-                case "Championship" -> "C ";
-                default -> league.get("name").getAsString();
-            } + league.get("season").getAsString();
+                JsonObject fixture = matchObj.getAsJsonObject("fixture");
+                matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.get("timestamp").getAsLong()),
+                        TimeZone.getDefault().toZoneId());
 
-            JsonObject teams = matchObj.getAsJsonObject("teams");
-            JsonObject home = teams.getAsJsonObject("home");
-            JsonObject away = teams.getAsJsonObject("away");
-            homeTeam = teamMapper.toEntity(teamService.getByPublicId(home.get("id").getAsLong()));
-            awayTeam = teamMapper.toEntity(teamService.getByPublicId(away.get("id").getAsLong()));
+                JsonObject league = matchObj.getAsJsonObject("league");
+                leagueName = switch (league.get("name").getAsString()) {
+                    case "Premier League" -> "PL ";
+                    case "League Cup" -> "LC ";
+                    case "FA Cup" -> "FA ";
+                    case "UEFA Champions League" -> "UCL ";
+                    case "Championship" -> "C ";
+                    default -> league.get("name").getAsString();
+                } + league.get("season").getAsString();
 
-            if (homeTeam == null || awayTeam == null) {
-                continue;
+                JsonObject teams = matchObj.getAsJsonObject("teams");
+                JsonObject home = teams.getAsJsonObject("home");
+                JsonObject away = teams.getAsJsonObject("away");
+                homeTeam = teamMapper.toEntity(teamService.getByPublicId(home.get("id").getAsLong()));
+                awayTeam = teamMapper.toEntity(teamService.getByPublicId(away.get("id").getAsLong()));
+
+                if (homeTeam == null || awayTeam == null) {
+                    continue;
+                }
+
+                JsonObject goals = matchObj.getAsJsonObject("goals");
+
+                if (goals.get("home").isJsonNull()) {
+                    continue;
+                }
+                homeTeamScore = goals.get("home").getAsInt();
+                awayTeamScore = goals.get("away").getAsInt();
+
+                HeadToHead headToHead = HeadToHead.builder()
+                        .leagueName(leagueName)
+                        .homeTeam(homeTeam)
+                        .awayTeam(awayTeam)
+                        .homeTeamScore(homeTeamScore)
+                        .awayTeamScore(awayTeamScore)
+                        .localDateTime(matchDateTime)
+                        .build();
+                headToHeadService.save(headToHeadMapper.toDto(headToHead));
             }
-
-            JsonObject goals = matchObj.getAsJsonObject("goals");
-
-            if (goals.get("home").isJsonNull()) {
-                continue;
-            }
-            homeTeamScore = goals.get("home").getAsInt();
-            awayTeamScore = goals.get("away").getAsInt();
-
-            HeadToHead headToHead = HeadToHead.builder()
-                    .leagueName(leagueName)
-                    .homeTeam(homeTeam)
-                    .awayTeam(awayTeam)
-                    .homeTeamScore(homeTeamScore)
-                    .awayTeamScore(awayTeamScore)
-                    .localDateTime(matchDateTime)
-                    .build();
-            headToHeadService.save(headToHeadMapper.toDto(headToHead));
         }
     }
 
@@ -253,7 +253,7 @@ public class DataInitServiceImpl {
         HttpResponse<JsonNode> response = Unirest.get("https://v3.football.api-sports.io/fixtures/rounds")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
                 .queryString("league", 39)
-                .queryString("season", 2021)
+                .queryString("season", 2022)
                 .queryString("current", true)
                 .asJson();
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -275,7 +275,7 @@ public class DataInitServiceImpl {
         HttpResponse<JsonNode> response = Unirest.get("https://v3.football.api-sports.io/standings")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
                 .queryString("league", 39)
-                .queryString("season", 2021)
+                .queryString("season", 2022)
                 .asJson();
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
@@ -314,14 +314,14 @@ public class DataInitServiceImpl {
     private void matchUpdateFromApiFootball() {
         List<MatchDto> today = matchService.getAllByTodayDate();
         if (today.isEmpty() || today.get(0).getLocalDateTime().minusMinutes(10).isAfter(LocalDateTime.now()) ||
-        today.get(today.size() - 1).getLocalDateTime().plusHours(2).plusMinutes(10).isBefore(LocalDateTime.now())) {
+                today.get(today.size() - 1).getLocalDateTime().plusHours(2).plusMinutes(10).isBefore(LocalDateTime.now())) {
             return;
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
                 .header("x-rapidapi-host", "v3.football.api-sports.io")
                 .queryString("league", 39)
-                .queryString("season", 2021)
+                .queryString("season", 2022)
                 .queryString("from", LocalDateTime.now().toLocalDate().toString())
                 .queryString("to", LocalDateTime.now().toLocalDate().toString())
                 .asJson();
@@ -375,7 +375,7 @@ public class DataInitServiceImpl {
                 StatsDto homeStats = statsService.getByMatchPublicIdAndTeamId(publicId, homeTeam.getId());
                 StatsDto awayStats = statsService.getByMatchPublicIdAndTeamId(publicId, awayTeam.getId());
 
-                if(homeStats == null || awayStats == null) {
+                if (homeStats == null || awayStats == null) {
                     statsInitFromApiFootball(publicId);
                 }
 
@@ -410,7 +410,7 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     public void statsInitFromApiFootball(Long publicMatchId) {
-        if(!matchService.getByPublicId(publicMatchId).getStatus().equals("ft")) {
+        if (!matchService.getByPublicId(publicMatchId).getStatus().equals("ft")) {
             return;
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures/statistics")
@@ -461,9 +461,16 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void matchInitFromApiFootball() {
+
+        HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
+                .header(X_RAPID_API, API_FOOTBALL_TOKEN)
+                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .queryString("league", 39)
+                .queryString("season", 2022)
+                .asJson();
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-        JsonObject mainObj = gson.fromJson(new JsonReader(new FileReader(getFileFromResource("static/json/21_22.json"))), JsonElement.class);
+        JsonObject mainObj = gson.fromJson(resp.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
         JsonArray responses = mainObj.getAsJsonArray("response");
 
         for (JsonElement response : responses) {
@@ -489,7 +496,6 @@ public class DataInitServiceImpl {
 
             seasonService.saveSeason(seasonMapper.toDto(Season.builder().seasonName(league.get("season").getAsString()).build()));
 
-            String round = league.get("round").getAsString();
             week = Week.builder().weekName("week " + league.get("round").toString().replaceAll("\\D+", ""))
                     .season(seasonMapper.toEntity(seasonService.getById(1L)))
                     .build();
@@ -539,9 +545,20 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void teamsInitFromApiFootball() {
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        /*Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         JsonObject mainObj = gson.fromJson(new JsonReader(new FileReader(getFileFromResource("static/json/teams.json"))), JsonElement.class);
+        JsonArray responses = mainObj.getAsJsonArray("response");*/
+
+        HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/teams")
+                .header(X_RAPID_API, API_FOOTBALL_TOKEN)
+                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .queryString("league", 39)
+                .queryString("season", 2022)
+                .asJson();
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        JsonObject mainObj = gson.fromJson(resp.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
         JsonArray responses = mainObj.getAsJsonArray("response");
 
         for (JsonElement response : responses) {
@@ -556,29 +573,6 @@ public class DataInitServiceImpl {
             teamService.saveTeam(teamMapper.toDto(teamEntity));
         }
     }
-
-    /*@SneakyThrows
-    private void weekInit() {
-        HttpResponse<JsonNode> response = Unirest.get(WEEK)
-                .queryString("apikey", TOKEN)
-                .queryString("season_id", SEASON_ID)
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        //Create data array from api
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        JsonArray data = mainObj.getAsJsonArray("data");
-
-        for (JsonElement games : data) {
-            JsonObject weekObj = games.getAsJsonObject();
-
-            week = Week.builder().weekName("week " + weekObj.get("name").getAsString())
-                    .isCurrent(!weekObj.get("is_current").isJsonNull())
-                    .season(seasonMapper.toEntity(seasonService.getById(1L)))
-                    .build();
-            weekService.save(weekMapper.toDto(week));
-        }
-    }*/
 
     @SneakyThrows
     private void newsInit() {
@@ -607,36 +601,6 @@ public class DataInitServiceImpl {
             newsService.save(NewsDto.builder().title(title).link(link).dateTime(dateTime).build());
         }
     }
-
-   /* @SneakyThrows
-    private void standingInit() {
-        HttpResponse<JsonNode> response = Unirest.get(STANDING)
-                .queryString("apikey", TOKEN)
-                .queryString("season_id", SEASON_ID)
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        JsonObject data = mainObj.getAsJsonObject("data");
-        JsonArray standings = data.getAsJsonArray("standings");
-
-        for (JsonElement element : standings) {
-            JsonObject standing = element.getAsJsonObject();
-            JsonObject overall = standing.getAsJsonObject("overall");
-            Standing std = Standing.builder()
-                    .team(teamMapper.toEntity(teamService.getByPublicId(standing.get("team_id").getAsLong())))
-                    .points(standing.get("points").getAsInt())
-                    .result(standing.get("result").toString())
-                    .games(overall.get("games_played").getAsInt())
-                    .won(overall.get("won").getAsInt())
-                    .draw(overall.get("draw").getAsInt())
-                    .lost(overall.get("lost").getAsInt())
-                    .goalsScored(overall.get("goals_scored").getAsInt())
-                    .goalsAgainst(overall.get("goals_against").getAsInt())
-                    .build();
-            standingService.save(standingMapper.toDto(std));
-        }
-    }*/
 
     private void roleInit() {
         admin = Role.builder().role("ADMIN").build();
@@ -668,271 +632,6 @@ public class DataInitServiceImpl {
             userService.saveUser(userDto);
         }
     }
-
-   /* @SneakyThrows
-    private void seasonInit() {
-        HttpResponse<JsonNode> response = Unirest.get(SEASON_INFO + "/" + SEASON_ID)
-                .queryString("apikey", TOKEN)
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        //Create data array from api
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        JsonObject data = mainObj.getAsJsonObject("data");
-        String seasonName = data.get("name").getAsString();
-        seasonService.saveSeason(SeasonDto.builder().seasonName(seasonName).build());
-    }*/
-
-    /*@SneakyThrows
-    private void matchUpdate() {
-
-        if (matchService.getAllByTodayDate().isEmpty()) {
-            return;
-        }
-
-        HttpResponse<JsonNode> response = Unirest.get(DATA_URL)
-                .queryString("apikey", TOKEN)
-                .queryString("season_id", SEASON_ID)
-                .queryString("date_from", LocalDateTime.now().minusDays(1).toLocalDate().toString())
-                .queryString("date_to", LocalDateTime.now().plusDays(1).toLocalDate().toString())
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        //Create data array from api
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        JsonArray data = mainObj.getAsJsonArray("data");
-
-        if (data == null) {
-            return;
-        }
-
-        for (JsonElement games : data) {
-
-            JsonObject matchObj = games.getAsJsonObject();
-            id = matchObj.get("match_id").getAsLong();
-            JsonObject statsObj = matchObj.getAsJsonObject("stats");
-
-
-            JsonObject homeTeamObj = matchObj.getAsJsonObject("home_team");
-            String homeTeamName = homeTeamObj.get("name").getAsString();
-            Team homeTeam = teamMapper.toEntity(teamService.getByName(homeTeamName));
-
-            JsonObject awayTeamObj = matchObj.getAsJsonObject("away_team");
-            String awayTeamName = awayTeamObj.get("name").getAsString();
-            Team awayTeam = teamMapper.toEntity(teamService.getByName(awayTeamName));
-
-            status = matchObj.get("status").getAsString();
-            switch (status) {
-                case "halftime" -> status = "ht";
-                case "finished" -> status = "ft";
-                case "inplay" -> status = "live" + " " + matchObj.get("minute").getAsString() + "'";
-                case "postponed" -> {
-                    continue;
-                }
-                default -> status = "-";
-            }
-
-            if (statsObj.get("ft_score").isJsonNull()) {
-
-                //create match if it not starts yet
-                match = Match.builder()
-                        .publicId(id)
-                        .status(status)
-                        .homeTeam(homeTeam)
-                        .awayTeam(awayTeam)
-                        .build();
-            } else {
-
-                //create match if it starts
-                homeTeamScore = statsObj.get("home_score").getAsInt();
-                awayTeamScore = statsObj.get("away_score").getAsInt();
-
-                result = (homeTeamScore.equals(awayTeamScore)) ? "D" : (homeTeamScore > awayTeamScore) ? "H" : "A";
-
-                statsInit(id);
-
-                match = Match.builder()
-                        .publicId(id)
-                        .status(status)
-                        .homeTeam(homeTeam)
-                        .awayTeam(awayTeam)
-                        .homeTeamScore(homeTeamScore)
-                        .awayTeamScore(awayTeamScore)
-                        .result(result)
-                        .homeStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(id, homeTeam.getId())))
-                        .awayStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(id, awayTeam.getId())))
-                        .build();
-            }
-            matchService.save(matchMapper.toDto(match));
-        }
-    }*/
-
-   /* @SneakyThrows
-    private void matchInit() {
-        HttpResponse<JsonNode> response = Unirest.get(DATA_URL)
-                .queryString("apikey", TOKEN)
-                .queryString("season_id", SEASON_ID)
-                .queryString("date_from", DATE_FROM)
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        //Create data array from api
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        JsonArray data = mainObj.getAsJsonArray("data");
-
-        for (JsonElement games : data) {
-
-            //get match info
-            JsonObject matchObj = games.getAsJsonObject();
-            id = matchObj.get("match_id").getAsLong();
-            status = matchObj.get("status").getAsString();
-            switch (status) {
-                case "halftime" -> status = "ht";
-                case "finished" -> status = "ft";
-                case "inplay" -> status = "live" + " " + matchObj.get("minute").getAsString() + "'";
-                case "postponed" -> {
-                    continue;
-                }
-                default -> status = "-";
-            }
-
-            //get match date and time
-            matchDateTime = df.parse(matchObj.get("match_start_iso").getAsString()).toInstant()
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDateTime().plusHours(3);
-
-            //get week info
-            JsonObject weekObj = matchObj.getAsJsonObject("round");
-            week = Week.builder().weekName("week " + weekObj.get("name").getAsString())
-                    .isCurrent(!weekObj.get("is_current").isJsonNull())
-                    .season(seasonMapper.toEntity(seasonService.getById(1L)))
-                    .build();
-            WeekDto weekDto = weekService.save(weekMapper.toDto(week));
-
-            // get playing teams info
-            JsonObject homeTeamObj = matchObj.getAsJsonObject("home_team");
-            homeTeam = Team.builder().teamName(homeTeamObj.get("name").getAsString())
-                    .publicId(homeTeamObj.get("team_id").getAsLong())
-                    .code(homeTeamObj.get("short_code").getAsString())
-                    .logo(homeTeamObj.get("logo").getAsString())
-                    .build();
-            if (homeTeam.getCode().equals("TOT")) {
-                homeTeam.setPublicId(12295L);
-            } else if (homeTeam.getCode().equals("SOT")) {
-                homeTeam.setPublicId(12423L);
-                homeTeam.setLogo("https://cdn.sportdataapi.com/images/soccer/teams/100/8.png");
-            }
-            TeamDto homeTeamDto = teamService.saveTeam(teamMapper.toDto(homeTeam));
-
-            JsonObject awayTeamObj = matchObj.getAsJsonObject("away_team");
-            awayTeam = Team.builder().teamName(awayTeamObj.get("name").getAsString())
-                    .publicId(awayTeamObj.get("team_id").getAsLong())
-                    .code(awayTeamObj.get("short_code").getAsString())
-                    .logo(awayTeamObj.get("logo").getAsString())
-                    .build();
-            if (awayTeam.getCode().equals("TOT")) {
-                awayTeam.setPublicId(12295L);
-            } else if (awayTeam.getCode().equals("SOT")) {
-                awayTeam.setPublicId(12423L);
-                awayTeam.setLogo("https://cdn.sportdataapi.com/images/soccer/teams/100/8.png");
-            }
-            TeamDto awayTeamDto = teamService.saveTeam(teamMapper.toDto(awayTeam));
-
-            //get match stats
-            JsonObject statsObj = matchObj.getAsJsonObject("stats");
-
-            if (statsObj.get("ft_score").isJsonNull()) {
-
-                //create match if it not starts yet
-                match = Match.builder()
-                        .publicId(id)
-                        .status(status)
-                        .localDateTime(matchDateTime)
-                        .matchDate(matchDateTime.toLocalDate())
-                        .matchTime(matchDateTime.toLocalTime())
-                        .week(weekMapper.toEntity(weekDto))
-                        .homeTeam(teamMapper.toEntity(homeTeamDto))
-                        .awayTeam(teamMapper.toEntity(awayTeamDto))
-                        .build();
-            } else {
-
-                //create match if it starts
-                homeTeamScore = statsObj.get("home_score").getAsInt();
-                awayTeamScore = statsObj.get("away_score").getAsInt();
-
-                result = (homeTeamScore.equals(awayTeamScore)) ? "D" : (homeTeamScore > awayTeamScore) ? "H" : "A";
-
-                //statsInit(id);
-
-                match = Match.builder()
-                        .publicId(id)
-                        .status(status)
-                        .localDateTime(matchDateTime)
-                        .matchDate(matchDateTime.toLocalDate())
-                        .matchTime(matchDateTime.toLocalTime())
-                        .week(weekMapper.toEntity(weekDto))
-                        .homeTeam(teamMapper.toEntity(homeTeamDto))
-                        .awayTeam(teamMapper.toEntity(awayTeamDto))
-                        .homeTeamScore(homeTeamScore)
-                        .awayTeamScore(awayTeamScore)
-                        .homeStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(id, homeTeam.getId())))
-                        .awayStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(id, awayTeam.getId())))
-                        .result(result)
-                        .build();
-            }
-            matchService.save(matchMapper.toDto(match));
-        }
-    }*/
-
-    /*@SneakyThrows
-    public void statsInit(Long publicMatchId) {
-
-        HttpResponse<JsonNode> response = Unirest.get(STATS + "/" + publicMatchId)
-                .queryString("apikey", TOKEN)
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        //Create data array from api
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        JsonObject dataObj = mainObj.getAsJsonObject("data");
-
-        JsonArray matchStats = dataObj.getAsJsonArray("match_statistics");
-
-        if (matchStats == null) {
-            return;
-        }
-
-        for (JsonElement matchStat : matchStats) {
-            JsonObject statsObj = matchStat.getAsJsonObject();
-
-            long teamPublicId = switch (statsObj.get("team_id").getAsInt()) {
-                case 12430 -> 12295L;
-                case 2959 -> 12423L;
-                default -> statsObj.get("team_id").getAsLong();
-            };
-
-            StatsDto dto = StatsDto.builder()
-                    .matchPublicId(dataObj.get("match_id").getAsLong())
-                    .team(teamMapper.toEntity(teamService.getByPublicId(teamPublicId)))
-                    .possessionPercent(statsObj.get("possessionpercent").getAsInt())
-                    .shots(statsObj.get("shots_total").getAsInt())
-                    .shotsOnTarget(statsObj.get("shots_on_target").getAsInt())
-                    .shotsOffTarget(statsObj.get("shots_off_target").getAsInt())
-                    .shotsBlocked(statsObj.get("shots_blocked").getAsInt())
-                    .corners(statsObj.get("corners").getAsInt())
-                    .offsides(statsObj.get("offsides").getAsInt())
-                    .freeKick(statsObj.get("free_kick").getAsInt())
-                    .fouls(statsObj.get("fouls").getAsInt())
-                    .throwIn(statsObj.get("throw_in").getAsInt())
-                    .goalKick(statsObj.get("goal_kick").getAsInt())
-                    .ballSafe(statsObj.get("ball_safe").getAsInt())
-                    .yellowCards(statsObj.get("yellowcards").getAsInt())
-                    .yellowRedCards(statsObj.get("yellowredcards").getAsInt())
-                    .redCards(statsObj.get("redcards").getAsInt())
-                    .build();
-
-            statsService.save(dto);
-        }
-    }*/
 
     private File getFileFromResource(String fileName) {
         ClassLoader classLoader = getClass().getClassLoader();

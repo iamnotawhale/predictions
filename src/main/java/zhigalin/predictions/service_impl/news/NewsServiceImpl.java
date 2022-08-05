@@ -10,7 +10,6 @@ import zhigalin.predictions.service.news.NewsService;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 public class NewsServiceImpl implements NewsService {
@@ -35,7 +34,11 @@ public class NewsServiceImpl implements NewsService {
     @Override
     public NewsDto save(NewsDto dto) {
         News news = repository.findByTitle(dto.getTitle());
-        return mapper.toDto(Objects.requireNonNullElseGet(news, () -> repository.save(mapper.toEntity(dto))));
+        if (news != null) {
+            mapper.updateEntityFromDto(dto, news);
+            return mapper.toDto(repository.save(news));
+        }
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override
