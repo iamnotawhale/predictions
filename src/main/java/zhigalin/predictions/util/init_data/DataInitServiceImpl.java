@@ -137,11 +137,11 @@ public class DataInitServiceImpl {
         //roleInit();
         //userInit();
         //teamsInitFromApiFootball();
-        matchInitFromApiFootball();
+        //matchInitFromApiFootball();
         //currentWeekUpdate();
-        standingInitFromApiFootball();
+        //standingInitFromApiFootball();
 
-        headToHeadInitFromApiFootball();
+        //headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
             while (true) {
