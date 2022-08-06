@@ -141,7 +141,7 @@ public class DataInitServiceImpl {
         //currentWeekUpdate();
         //standingInitFromApiFootball();
 
-        //headToHeadInitFromApiFootball();
+        headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
             while (true) {
@@ -259,8 +259,6 @@ public class DataInitServiceImpl {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        /*Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        JsonObject mainObj = gson.fromJson(new JsonReader(new FileReader(getFileFromResource("static/json/standings.json"))), JsonElement.class);*/
 
         JsonArray responseArr = mainObj.getAsJsonArray("response");
         JsonObject singleObject = responseArr.get(0).getAsJsonObject();
