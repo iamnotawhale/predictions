@@ -139,9 +139,9 @@ public class DataInitServiceImpl {
         //teamsInitFromApiFootball();
         //matchInitFromApiFootball();
         //currentWeekUpdate();
-        //standingInitFromApiFootball();
+        standingInitFromApiFootball();
 
-        headToHeadInitFromApiFootball();
+        //headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
             while (true) {
@@ -291,7 +291,7 @@ public class DataInitServiceImpl {
     private void matchUpdateFromApiFootball() {
         List<MatchDto> today = matchService.getAllByTodayDate();
         if (today.isEmpty() || today.get(0).getLocalDateTime().minusMinutes(10).isAfter(LocalDateTime.now()) ||
-                today.get(today.size() - 1).getLocalDateTime().plusHours(2).plusMinutes(10).isBefore(LocalDateTime.now())) {
+                today.get(today.size() - 1).getLocalDateTime().plusHours(2).plusMinutes(15).isBefore(LocalDateTime.now())) {
             return;
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
