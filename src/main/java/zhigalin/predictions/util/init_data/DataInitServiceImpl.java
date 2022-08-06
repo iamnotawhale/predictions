@@ -16,13 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import zhigalin.predictions.converter.event.*;
+import zhigalin.predictions.converter.event.HeadToHeadMapper;
+import zhigalin.predictions.converter.event.MatchMapper;
+import zhigalin.predictions.converter.event.SeasonMapper;
+import zhigalin.predictions.converter.event.WeekMapper;
 import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
 import zhigalin.predictions.converter.user.RoleMapper;
 import zhigalin.predictions.converter.user.UserMapper;
 import zhigalin.predictions.dto.event.MatchDto;
-import zhigalin.predictions.dto.event.StatsDto;
 import zhigalin.predictions.dto.event.WeekDto;
 import zhigalin.predictions.dto.news.NewsDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
@@ -34,7 +36,10 @@ import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.user.Role;
-import zhigalin.predictions.service.event.*;
+import zhigalin.predictions.service.event.HeadToHeadService;
+import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.SeasonService;
+import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
@@ -57,16 +62,6 @@ import java.util.*;
 @Service
 @NoArgsConstructor
 public class DataInitServiceImpl {
-
-    //    private static final String SEASON_INFO = "https://app.sportdataapi.com/api/v1/soccer/seasons";
-//    private static final String DATA_URL = "https://app.sportdataapi.com/api/v1/soccer/matches";
-//    private static final String STANDING = "https://app.sportdataapi.com/api/v1/soccer/standings";
-//    private static final String STATS = "https://app.sportdataapi.com/api/v1/soccer/matches";
-//    private static final String WEEK = "https://app.sportdataapi.com/api/v1/soccer/rounds";
-//    private static final String TOKEN = "577b6040-b8e8-11ec-804e-414c550f7861"; /*"8002bee0-9cd1-11ec-9d81-8b3672f0da94"*/
-//    private static final String SEASON_ID = "1980";
-//    private static final String DATE_FROM = "2021-08-12";
-
     private static final String X_RAPID_API = "x-rapidapi-key";
     @Value("${api.football.token}")
     private String API_FOOTBALL_TOKEN;
@@ -97,7 +92,6 @@ public class DataInitServiceImpl {
     private RoleService roleService;
     private StandingService standingService;
     private NewsService newsService;
-    private StatsService statsService;
     private HeadToHeadService headToHeadService;
 
     @Autowired
@@ -117,8 +111,6 @@ public class DataInitServiceImpl {
     @Autowired
     private RoleMapper roleMapper;
     @Autowired
-    private StatsMapper statsMapper;
-    @Autowired
     PasswordEncoder bCryptPasswordEncoder;
     @Autowired
     EPLInfoBot eplInfoBot;
@@ -127,7 +119,7 @@ public class DataInitServiceImpl {
     public DataInitServiceImpl(UserService userService, TeamService teamService, SeasonService seasonService,
                                WeekService weekService, MatchService matchService, PredictionService predictionService,
                                RoleService roleService, StandingService standingService, NewsService newsService,
-                               StatsService statsService, HeadToHeadService headToHeadService) {
+                               HeadToHeadService headToHeadService) {
         this.userService = userService;
         this.teamService = teamService;
         this.seasonService = seasonService;
@@ -137,7 +129,6 @@ public class DataInitServiceImpl {
         this.roleService = roleService;
         this.standingService = standingService;
         this.newsService = newsService;
-        this.statsService = statsService;
         this.headToHeadService = headToHeadService;
     }
 
@@ -166,30 +157,6 @@ public class DataInitServiceImpl {
             }
         });
         run.start();
-    }
-
-    private void statsUpdate() {
-        List<MatchDto> list = matchService.getAll();
-        for (MatchDto matchDto : list) {
-            if (matchDto.getLocalDateTime().isAfter(LocalDateTime.now())) {
-                continue;
-            }
-            Long publicId = matchDto.getPublicId();
-            Long homeTeamId = matchDto.getHomeTeam().getId();
-            Long awayTeamId = matchDto.getAwayTeam().getId();
-
-            StatsDto homeStatsDto = statsService.getByMatchPublicIdAndTeamId(publicId, homeTeamId);
-            StatsDto awayStatsDto = statsService.getByMatchPublicIdAndTeamId(publicId, awayTeamId);
-
-            if (homeStatsDto == null || awayStatsDto == null) {
-                continue;
-            }
-
-            matchDto.setHomeStats(statsMapper.toEntity(homeStatsDto));
-            matchDto.setAwayStats(statsMapper.toEntity(awayStatsDto));
-
-            matchService.save(matchDto);
-        }
     }
 
     @SneakyThrows
@@ -372,13 +339,6 @@ public class DataInitServiceImpl {
 
                 result = (homeTeamScore.equals(awayTeamScore)) ? "D" : (homeTeamScore > awayTeamScore) ? "H" : "A";
 
-                StatsDto homeStats = statsService.getByMatchPublicIdAndTeamId(publicId, homeTeam.getId());
-                StatsDto awayStats = statsService.getByMatchPublicIdAndTeamId(publicId, awayTeam.getId());
-
-                if (homeStats == null || awayStats == null) {
-                    statsInitFromApiFootball(publicId);
-                }
-
                 match = Match.builder()
                         .publicId(publicId)
                         .status(status)
@@ -386,76 +346,10 @@ public class DataInitServiceImpl {
                         .awayTeam(awayTeam)
                         .homeTeamScore(homeTeamScore)
                         .awayTeamScore(awayTeamScore)
-                        .homeStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(publicId, homeTeam.getId())))
-                        .awayStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(publicId, awayTeam.getId())))
                         .result(result)
                         .build();
             }
             matchService.save(matchMapper.toDto(match));
-        }
-    }
-
-    public void fastStatsInit() {
-        List<MatchDto> list = matchService.getAll();
-        for (MatchDto matchDto : list) {
-            if (statsService.getByMatchPublicIdAndTeamId(matchDto.getPublicId(), matchDto.getHomeTeam().getId()) != null || matchDto.getLocalDateTime().isAfter(LocalDateTime.now())) {
-                continue;
-            }
-            statsInitFromApiFootball(matchDto.getPublicId());
-            matchDto.setHomeStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(matchDto.getPublicId(), matchDto.getHomeTeam().getId())));
-            matchDto.setAwayStats(statsMapper.toEntity(statsService.getByMatchPublicIdAndTeamId(matchDto.getPublicId(), matchDto.getAwayTeam().getId())));
-            matchService.save(matchDto);
-        }
-    }
-
-    @SneakyThrows
-    public void statsInitFromApiFootball(Long publicMatchId) {
-        if (!matchService.getByPublicId(publicMatchId).getStatus().equals("ft")) {
-            return;
-        }
-        HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures/statistics")
-                .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .queryString("fixture", publicMatchId)
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        //Create data array from api
-        JsonObject mainObj = gson.fromJson(resp.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-
-        JsonArray responses = mainObj.getAsJsonArray("response");
-        for (JsonElement response : responses) {
-            JsonObject main = response.getAsJsonObject();
-            long teamPublicId = main.getAsJsonObject("team").get("id").getAsLong();
-
-            Map<String, Integer> mapStat = new HashMap<>();
-            JsonArray statistics = main.getAsJsonArray("statistics");
-            for (JsonElement statistic : statistics) {
-                JsonObject map = statistic.getAsJsonObject();
-                mapStat.put(map.get("type").getAsString(), (map.get("value").isJsonNull()) ?
-                        0 : Integer.parseInt(map.get("value").toString().replaceAll("\\D+", "")));
-            }
-            StatsDto dto = StatsDto.builder()
-                    .matchPublicId(publicMatchId)
-                    .team(teamMapper.toEntity(teamService.getByPublicId(teamPublicId)))
-                    .possessionPercent(mapStat.get("Ball Possession"))
-                    .shots(mapStat.get("Total Shots"))
-                    .shotsOnTarget(mapStat.get("Shots on Goal"))
-                    .shotsOffTarget(mapStat.get("Shots off Goal"))
-                    .shotsBlocked(mapStat.get("Blocked Shots"))
-                    .insideBoxShots(mapStat.get("Shots insidebox"))
-                    .outsideBoxShots(mapStat.get("Shots outsidebox"))
-                    .passes(mapStat.get("Total passes"))
-                    .passesAccurate(mapStat.get("Passes accurate"))
-                    .passPercent(mapStat.get("Passes %"))
-                    .corners(mapStat.get("Corner Kicks"))
-                    .offsides(mapStat.get("Offsides"))
-                    .fouls(mapStat.get("Fouls"))
-                    .ballSafe(mapStat.get("Goalkeeper Saves"))
-                    .yellowCards(mapStat.get("Yellow Cards"))
-                    .redCards(mapStat.get("Red Cards"))
-                    .build();
-
-            statsService.save(dto);
         }
     }
 
