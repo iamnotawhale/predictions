@@ -66,49 +66,6 @@
     <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
 
     <table class="table table-dark table-striped table-hover table-sm" style="margin-bottom: 0;">
-        <thead th:align="center">
-        <tr>
-            <th>уд. в створ</th>
-            <th>уд. мимо</th>
-            <th>всего уд.</th>
-            <th>блок. уд.</th>
-            <th>уд. из штрафной</th>
-            <th>уд. из-за штрафной</th>
-            <th>фолы</th>
-            <th>угловые</th>
-            <th>офсайды</th>
-            <th>владение</th>
-            <th>желтые</th>
-            <th>красные</th>
-            <th>сейвы</th>
-            <th>пасы</th>
-            <th>успешные</th>
-            <th>процент</th>
-        </tr>
-        </thead>
-        <tbody th:align="center">
-        <tr>
-            <td th:text="${#numbers.formatDecimal(stats.shotsOnTarget, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.shotsOffTarget, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.shots, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.shotsBlocked, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.insideBoxShots, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.outsideBoxShots, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.fouls, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.corners, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.offsides, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.possessionPercent, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.yellowCards, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.redCards, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.ballSafe, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.passes, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.passesAccurate, 1, 1)}"></td>
-            <td th:text="${#numbers.formatDecimal(stats.passPercent, 1, 1)}"></td>
-        </tr>
-        </tbody>
-    </table>
-
-    <table class="table table-dark table-striped table-hover table-sm" style="margin-bottom: 0;">
 
         <thead th:align="center">
 

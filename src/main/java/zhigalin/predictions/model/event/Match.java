@@ -52,12 +52,4 @@ public class Match {
     private String result;
 
     private String status;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "home_stats_id")
-    private Stats homeStats;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "away_stats_id")
-    private Stats awayStats;
 }
