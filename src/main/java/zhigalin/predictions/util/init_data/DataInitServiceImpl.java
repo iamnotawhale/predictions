@@ -161,10 +161,10 @@ public class DataInitServiceImpl {
     @SneakyThrows
     private void headToHeadInitFromApiFootball() {
 
-        List<Integer> leagues = Stream.of(39, 40, 45, 48, 2).toList();
+        List<Integer> leagues = Stream.of( 45, 48, 2).toList();
         List<Integer> seasons = Stream.of(2018, 2019, 2020, 2021, 2022).toList();
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 5; j++) {
                 HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                         .header(X_RAPID_API, API_FOOTBALL_TOKEN)
