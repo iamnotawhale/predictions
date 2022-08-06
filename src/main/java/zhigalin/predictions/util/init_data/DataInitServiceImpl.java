@@ -137,7 +137,7 @@ public class DataInitServiceImpl {
         //roleInit();
         //userInit();
         //teamsInitFromApiFootball();
-        //matchInitFromApiFootball();
+        matchInitFromApiFootball();
         //currentWeekUpdate();
         standingInitFromApiFootball();
 
@@ -291,7 +291,7 @@ public class DataInitServiceImpl {
     private void matchUpdateFromApiFootball() {
         List<MatchDto> today = matchService.getAllByTodayDate();
         if (today.isEmpty() || today.get(0).getLocalDateTime().minusMinutes(10).isAfter(LocalDateTime.now()) ||
-                today.get(today.size() - 1).getLocalDateTime().plusHours(2).plusMinutes(15).isBefore(LocalDateTime.now())) {
+                today.get(today.size() - 1).getLocalDateTime().plusHours(2).plusMinutes(10).isBefore(LocalDateTime.now())) {
             return;
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
@@ -382,7 +382,7 @@ public class DataInitServiceImpl {
             JsonObject fixture = matchObj.getAsJsonObject("fixture");
             publicId = fixture.get("id").getAsLong();
             matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.get("timestamp").getAsLong()),
-                    TimeZone.getDefault().toZoneId()).plusHours(3L);
+                    TimeZone.getDefault().toZoneId());
             JsonObject fixtureStatus = fixture.get("status").getAsJsonObject();
             status = fixtureStatus.get("short").getAsString();
 
