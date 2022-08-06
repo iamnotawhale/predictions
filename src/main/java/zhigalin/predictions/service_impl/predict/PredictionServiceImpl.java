@@ -132,7 +132,7 @@ public class PredictionServiceImpl implements PredictionService {
         } else if (realHomeScore < realAwayScore && predictHomeScore < predictAwayScore) {
             points = 1;
         } else {
-            points = 0;
+            points = -1;
         }
         return points;
     }

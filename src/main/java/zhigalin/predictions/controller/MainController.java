@@ -16,8 +16,6 @@ import zhigalin.predictions.service.user.UserService;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping()
@@ -45,19 +43,8 @@ public class MainController {
         dto.setId(user.getId());
         dto.setLogin(user.getLogin());
 
-        Map<UserDto, Integer> userPointsMap = new HashMap<>();
-        List<UserDto> userList = userService.getAll();
-        for (UserDto userDto : userList) {
-            userPointsMap.put(userDto, predictionService.getUsersPointsByUserId(userDto.getId()));
-        }
-        Map<UserDto, Integer> sortedMap = userPointsMap.entrySet()
-                .stream()
-                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
-
         ModelAndView model = new ModelAndView("main");
-        model.addObject("map", sortedMap);
+        model.addObject("map", userService.getAllPoints());
         model.addObject("todayDateTime", LocalDateTime.now());
         model.addObject("currentUser", dto);
         model.addObject("matchList", matchService.getAllByCurrentWeek(true));
