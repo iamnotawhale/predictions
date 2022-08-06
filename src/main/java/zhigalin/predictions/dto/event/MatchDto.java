@@ -1,7 +1,6 @@
 package zhigalin.predictions.dto.event;
 
 import lombok.*;
-import zhigalin.predictions.model.event.Stats;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 
@@ -28,6 +27,4 @@ public class MatchDto {
     private Integer awayTeamScore;
     private String result;
     private String status;
-    private Stats homeStats;
-    private Stats awayStats;
 }
