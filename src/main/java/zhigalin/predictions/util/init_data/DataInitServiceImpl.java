@@ -150,7 +150,7 @@ public class DataInitServiceImpl {
                     //matchUpdate();
                     matchUpdateFromApiFootball();
                     newsInit();
-                    Thread.sleep(240000); //1000 - 1 сек
+                    Thread.sleep(360000); //1000 - 1 сек
                 } catch (InterruptedException ex) {
                     throw new RuntimeException(ex);
                 }
