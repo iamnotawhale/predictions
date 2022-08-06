@@ -137,7 +137,7 @@ public class DataInitServiceImpl {
         //roleInit();
         //userInit();
         //teamsInitFromApiFootball();
-        matchInitFromApiFootball();
+        //matchInitFromApiFootball();
         //currentWeekUpdate();
         standingInitFromApiFootball();
 

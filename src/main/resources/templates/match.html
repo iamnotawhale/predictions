@@ -88,11 +88,11 @@
                 <td class="align-middle" th:text="${match.week.getId()}">Week</td>
                 <td class="align-middle" th:text="${match.matchDate}">Date</td>
                 <td class="align-middle" th:text="${match.matchTime}">Time</td>
-                <td class="align-middle" th:text="${match.homeTeam.getTeamName()}">Home Team</td>
+                <td class="align-middle" th:text="${match.homeTeam.getCode()}">Home Team</td>
                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
                 <td class="align-middle" th:text="${match.status}">Status</td>
                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
-                <td class="align-middle" th:text="${match.awayTeam.getTeamName()}">Away Team</td>
+                <td class="align-middle" th:text="${match.awayTeam.getCode()}">Away Team</td>
                 <td>
                     <button type="button" class="btn btn-primary btn-sm" disabled data-bs-toggle="modal"
                             th:data-bs-target="${'#create'+ match.id + currentUser.id}"
