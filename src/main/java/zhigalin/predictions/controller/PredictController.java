@@ -101,7 +101,6 @@ public class PredictController {
     }
 
 
-
     @GetMapping("/week")
     public ModelAndView getByCurrentUserAndWeek(@RequestParam Long id, Authentication authentication) {
         User user = (User) authentication.getPrincipal();

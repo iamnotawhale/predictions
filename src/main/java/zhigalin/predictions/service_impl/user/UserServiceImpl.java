@@ -12,7 +12,7 @@ import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.user.UserRepository;
 import zhigalin.predictions.service.user.UserService;
 
-import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -21,12 +21,12 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
     private final UserMapper mapper;
-
     private final PasswordEncoder bCryptPasswordEncoder;
 
     @Autowired
     public UserServiceImpl(UserRepository userRepository, UserMapper mapper, PasswordEncoder bCryptPasswordEncoder) {
         this.userRepository = userRepository;
+
         this.mapper = mapper;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
@@ -72,29 +72,11 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     }
 
     @Override
-    public Integer getPointsByUserId(Long id) {
-        return userRepository.getPointsByUserId(id);
-    }
-
-    @Override
-    public Map<UserDto, Integer> getAllPoints() {
-        HashMap<UserDto, Integer> map = new HashMap<>();
-        List<UserDto> allUsers = getAll();
-        for (UserDto dto : allUsers) {
-            map.put(dto, getPointsByUserId(dto.getId()));
-        }
-        return map.entrySet().stream().sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
-    }
-
-    @Override
     public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
         User user = userRepository.findByLogin(login);
         if (user == null) {
             throw new UsernameNotFoundException("User not found");
         }
-
         return user;
     }
 }

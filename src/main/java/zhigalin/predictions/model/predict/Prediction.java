@@ -15,7 +15,6 @@ import javax.persistence.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-//@Audited
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Table(name = "predict")
 public class Prediction {
@@ -24,22 +23,17 @@ public class Prediction {
     @SequenceGenerator(sequenceName = "Predict_sequence", name = "Predict_generator", allocationSize = 1)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id")
-    //@Audited(targetAuditMode = NOT_AUDITED)
     private Match match;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    //@Audited(targetAuditMode = NOT_AUDITED)
     private User user;
 
-    //@Audited(targetAuditMode = NOT_AUDITED)
     private Integer homeTeamScore;
 
-    //@Audited(targetAuditMode = NOT_AUDITED)
     private Integer awayTeamScore;
 
-    //@NotAudited
     private Integer points;
 }

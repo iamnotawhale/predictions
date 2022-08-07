@@ -61,13 +61,11 @@ import java.util.stream.Stream;
 @Service
 @NoArgsConstructor
 public class DataInitServiceImpl {
-    private static final String X_RAPID_API = "x-rapidapi-key";
+    @Value("${x.rapid.api}")
+    private String X_RAPID_API;
     @Value("${api.football.token}")
     private String API_FOOTBALL_TOKEN;
     private final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH); //"2021-08-13T19:00:00+00:00"
-
-    private Long id;
-
     private Long publicId;
     private Week week;
     private LocalDateTime matchDateTime;
@@ -161,7 +159,7 @@ public class DataInitServiceImpl {
     @SneakyThrows
     private void headToHeadInitFromApiFootball() {
 
-        List<Integer> leagues = Stream.of( 45, 48, 2).toList();
+        List<Integer> leagues = Stream.of(45, 48, 2).toList();
         List<Integer> seasons = Stream.of(2018, 2019, 2020, 2021, 2022).toList();
 
         for (int i = 0; i < 3; i++) {
@@ -449,11 +447,6 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void teamsInitFromApiFootball() {
-        /*Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        JsonObject mainObj = gson.fromJson(new JsonReader(new FileReader(getFileFromResource("static/json/teams.json"))), JsonElement.class);
-        JsonArray responses = mainObj.getAsJsonArray("response");*/
-
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/teams")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
                 .header("x-rapidapi-host", "v3.football.api-sports.io")

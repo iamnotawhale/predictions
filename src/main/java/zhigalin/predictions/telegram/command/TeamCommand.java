@@ -33,7 +33,6 @@ public class TeamCommand implements Command {
         this.teamMapper = teamMapper;
     }
 
-
     @Override
     public void execute(Update update) {
         Team team = getTeamByCommand(update);
