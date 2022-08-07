@@ -248,7 +248,7 @@
                         </thead>
                         <tbody th:align="center">
                         <th:block th:each="match: ${online}">
-                            <tr >
+                            <tr>
                                 <td style="width: 35%"><img th:src="${match.homeTeam.getLogo()}" th:width="20"/></td>
                                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
                                 <td class="align-middle" th:text="${match.status}">Status</td>

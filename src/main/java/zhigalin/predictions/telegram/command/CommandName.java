@@ -14,7 +14,6 @@ public enum CommandName {
     UPCOMING("upcoming"),
     NEWS("news");
 
-
     private final String commandName;
 
     CommandName(String commandName) {

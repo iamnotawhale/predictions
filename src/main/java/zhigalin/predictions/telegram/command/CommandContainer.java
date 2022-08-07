@@ -47,6 +47,7 @@ public class CommandContainer {
 
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, teamService, teamMapper, headToHeadService, headToHeadMapper);
     }
+
     public Command retrieveCommand(String commandIdentifier) {
         return commandMap.getOrDefault(commandIdentifier, unknownCommand);
     }
@@ -55,7 +56,7 @@ public class CommandContainer {
         return teamCommand;
     }
 
-    public Command retrieveHeadToHeadCommand () {
+    public Command retrieveHeadToHeadCommand() {
         return headToHeadCommand;
     }
 }

@@ -1,3 +1,4 @@
+/*
 package zhigalin.predictions.service.audit;
 
 import zhigalin.predictions.model.predict.Prediction;
@@ -22,3 +23,4 @@ public interface AuditService {
 
     String example();
 }
+*/

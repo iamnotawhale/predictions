@@ -1,3 +1,4 @@
+/*
 package zhigalin.predictions.service_impl.audit;
 
 import org.hibernate.envers.AuditReaderFactory;
@@ -76,3 +77,4 @@ public class AuditServiceImpl implements AuditService {
         return revision.get(2)[0].toString() + " ||| " + revision.get(2)[1].toString() + " |||| " + revision.get(2)[2].toString();
     }
 }
+*/

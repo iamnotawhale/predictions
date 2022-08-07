@@ -2,25 +2,33 @@ package zhigalin.predictions.service_impl.predict;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import zhigalin.predictions.Control;
 import zhigalin.predictions.converter.predict.PredictionMapper;
+import zhigalin.predictions.converter.user.UserMapper;
 import zhigalin.predictions.dto.predict.PredictionDto;
+import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.predict.PredictionRepository;
+import zhigalin.predictions.repository.user.UserRepository;
 import zhigalin.predictions.service.predict.PredictionService;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PredictionServiceImpl implements PredictionService {
 
     private final PredictionRepository repository;
     private final PredictionMapper mapper;
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
     @Autowired
-    public PredictionServiceImpl(PredictionRepository repository, PredictionMapper mapper) {
+    public PredictionServiceImpl(PredictionRepository repository, UserRepository userRepository, PredictionMapper mapper, UserMapper userMapper) {
         this.repository = repository;
+        this.userRepository = userRepository;
         this.mapper = mapper;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -47,7 +55,23 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
-    @Control(method = "save")
+    public Map<UserDto, Integer> allUsersPoints() {
+        Map<UserDto, Integer> map = new HashMap<>();
+        Iterable<User> allUsers = userRepository.findAll();
+        for (User user : allUsers) {
+            map.put(userMapper.toDto(user), getUsersPointsByUserId(user.getId()));
+        }
+        return map.entrySet().stream().sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+    }
+
+    @Override
+    public boolean isExist(List<PredictionDto> list, Long matchId) {
+        return list.stream().anyMatch(predictionDto -> predictionDto.getMatch().getId().equals(matchId));
+    }
+
+    @Override
     public PredictionDto save(PredictionDto dto) {
         dto.setPoints(getPoints(dto));
         Prediction prediction = repository.getByMatch_IdAndUser_Id(dto.getMatch().getId(), dto.getUser().getId());
@@ -78,16 +102,10 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Override
     public Integer getUsersPointsByUserId(Long id) {
-        List<Prediction> list = repository.getAllByUser_IdOrderByMatch_LocalDateTimeDesc(id);
-        Integer points = 0;
-        for (Prediction prediction : list) {
-            if (prediction.getPoints() == null) {
-                points += 0;
-            } else {
-                points += prediction.getPoints();
-            }
+        if (getAllByUser_Id(id).isEmpty()) {
+            return 0;
         }
-        return points;
+        return repository.getPointsByUser_Id(id);
     }
 
     @Override
@@ -116,24 +134,15 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     public Integer getPoints(PredictionDto dto) {
-        Integer points;
         Integer realHomeScore = dto.getMatch().getHomeTeamScore();
         Integer realAwayScore = dto.getMatch().getAwayTeamScore();
         Integer predictHomeScore = dto.getHomeTeamScore();
         Integer predictAwayScore = dto.getAwayTeamScore();
-        if (realHomeScore == null || realAwayScore == null) {
-            points = null;
-        } else if (realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore)) {
-            points = 5;
-        } else if (realHomeScore - realAwayScore == predictHomeScore - predictAwayScore) {
-            points = 3;
-        } else if (realHomeScore > realAwayScore && predictHomeScore > predictAwayScore) {
-            points = 1;
-        } else if (realHomeScore < realAwayScore && predictHomeScore < predictAwayScore) {
-            points = 1;
-        } else {
-            points = 0;
-        }
-        return points;
+
+        return realHomeScore == null || realAwayScore == null ? 0
+                : realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore) ? 5
+                : realHomeScore - realAwayScore == predictHomeScore - predictAwayScore ? 3
+                : realHomeScore > realAwayScore && predictHomeScore > predictAwayScore ? 1
+                : realHomeScore < realAwayScore && predictHomeScore < predictAwayScore ? 1 : -1;
     }
 }

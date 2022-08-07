@@ -23,7 +23,7 @@
                     <a class="nav-link" href="/">Главная</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active text-dark"  th:text="${header}">
+                    <a class="nav-link active text-dark" th:text="${header}">
                         <span class="visually-hidden">Header</span>
                     </a>
                 </li>
@@ -93,19 +93,27 @@
                 <td class="align-middle" th:text="${match.status}">Status</td>
                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
                 <td class="align-middle" th:text="${match.awayTeam.getCode()}">Away Team</td>
-                <td>
+
+
+                <td th:if="${match.localDateTime < todayDateTime}">
                     <button type="button" class="btn btn-primary btn-sm" disabled data-bs-toggle="modal"
                             th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                            th:if="${match.localDateTime < todayDateTime}">Создать прогноз
+                            th:if="${@predictionServiceImpl.isExist(predicts, match.getId())}">Изменить
                     </button>
-
+                    <button type="button" class="btn btn-success btn-sm" disabled data-bs-toggle="modal"
+                            th:data-bs-target="${'#create'+ match.id + currentUser.id}"
+                            th:unless="${@predictionServiceImpl.isExist(predicts, match.getId())}">Создать
+                    </button>
+                </td>
+                <td th:unless="${match.localDateTime < todayDateTime}">
                     <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
                             th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                            th:unless="${match.localDateTime < todayDateTime}">Создать прогноз
+                            th:if="${@predictionServiceImpl.isExist(predicts, match.getId())}">Изменить
                     </button>
-                    <!--<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
-                            th:data-bs-target="${'#create'+ match.id + currentUser.id}">Создать прогноз
-                    </button>-->
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                            th:data-bs-target="${'#create'+ match.id + currentUser.id}"
+                            th:unless="${@predictionServiceImpl.isExist(predicts, match.getId())}">Создать
+                    </button>
                 </td>
                 <div class="modal fade" th:id="${'create'+ match.id + currentUser.id}" tabindex="-1"
                      th:aria-labelledby="${'create'+ match.id + currentUser.id + 'Label'}" aria-hidden="true">

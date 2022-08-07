@@ -21,12 +21,12 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
     private final UserMapper mapper;
-
     private final PasswordEncoder bCryptPasswordEncoder;
 
     @Autowired
     public UserServiceImpl(UserRepository userRepository, UserMapper mapper, PasswordEncoder bCryptPasswordEncoder) {
         this.userRepository = userRepository;
+
         this.mapper = mapper;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
@@ -77,7 +77,6 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         if (user == null) {
             throw new UsernameNotFoundException("User not found");
         }
-
         return user;
     }
 }
