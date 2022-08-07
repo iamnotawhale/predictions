@@ -62,7 +62,7 @@ import java.util.stream.Stream;
 @NoArgsConstructor
 public class DataInitServiceImpl {
     @Value("${x.rapid.api}")
-    private static String X_RAPID_API;
+    private String X_RAPID_API;
     @Value("${api.football.token}")
     private String API_FOOTBALL_TOKEN;
     private final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH); //"2021-08-13T19:00:00+00:00"
@@ -293,6 +293,7 @@ public class DataInitServiceImpl {
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
+                .header("x-rapidapi-host", "v3.football.api-sports.io")
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .queryString("from", LocalDateTime.now().toLocalDate().toString())
