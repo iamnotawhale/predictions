@@ -55,6 +55,6 @@ public class Match {
 
     private String status;
 
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "match")
     private Set<Prediction> predictions;
 }
