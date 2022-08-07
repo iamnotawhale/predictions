@@ -15,6 +15,8 @@ import zhigalin.predictions.service.predict.PredictionService;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping()

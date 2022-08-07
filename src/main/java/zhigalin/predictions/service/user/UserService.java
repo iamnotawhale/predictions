@@ -2,7 +2,6 @@ package zhigalin.predictions.service.user;
 
 
 import zhigalin.predictions.dto.user.UserDto;
-
 import java.util.List;
 
 public interface UserService {
