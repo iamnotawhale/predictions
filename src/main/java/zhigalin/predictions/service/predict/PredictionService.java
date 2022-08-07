@@ -1,8 +1,10 @@
 package zhigalin.predictions.service.predict;
 
 import zhigalin.predictions.dto.predict.PredictionDto;
+import zhigalin.predictions.dto.user.UserDto;
 
 import java.util.List;
+import java.util.Map;
 
 public interface PredictionService {
     List<PredictionDto> getAllByWeekId(Long id);
@@ -28,4 +30,8 @@ public interface PredictionService {
     void delete(PredictionDto dto);
 
     PredictionDto updatePoints(PredictionDto dto);
+
+    Map<UserDto, Integer> allUsersPoints();
+
+    boolean isExist(List<PredictionDto> list, Long matchId);
 }

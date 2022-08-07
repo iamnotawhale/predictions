@@ -12,7 +12,6 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -20,31 +19,24 @@ import java.time.format.DateTimeFormatter;
 @RestController
 @RequestMapping()
 public class MainController {
-
     private final MatchService matchService;
     private final StandingService standingService;
-    private final UserService userService;
     private final PredictionService predictionService;
     private final NewsService newsService;
 
     @Autowired
-    public MainController(MatchService matchService, StandingService standingService, UserService userService, PredictionService predictionService, NewsService newsService) {
+    public MainController(MatchService matchService, StandingService standingService, PredictionService predictionService, NewsService newsService) {
         this.matchService = matchService;
         this.standingService = standingService;
-        this.userService = userService;
         this.predictionService = predictionService;
         this.newsService = newsService;
     }
 
     @GetMapping
     public ModelAndView getMainPage(Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
-        UserDto dto = new UserDto();
-        dto.setId(user.getId());
-        dto.setLogin(user.getLogin());
-
+        UserDto dto = getCurrentUser(authentication);
         ModelAndView model = new ModelAndView("main");
-        model.addObject("map", userService.getAllPoints());
+        model.addObject("map", predictionService.allUsersPoints());
         model.addObject("todayDateTime", LocalDateTime.now());
         model.addObject("currentUser", dto);
         model.addObject("matchList", matchService.getAllByCurrentWeek(true));
@@ -54,5 +46,10 @@ public class MainController {
         model.addObject("formatter", DateTimeFormatter.ofPattern("HH:mm"));
 
         return model;
+    }
+
+    public UserDto getCurrentUser(Authentication a) {
+        User user = (User) a.getPrincipal();
+        return UserDto.builder().id(user.getId()).login(user.getLogin()).build();
     }
 }
