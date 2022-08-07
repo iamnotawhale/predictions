@@ -67,7 +67,8 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
-    public boolean isExist(List<PredictionDto> list, Long matchId) {
+    public boolean isExist(Long userId, Long matchId) {
+        List<PredictionDto> list = getAllByUser_Id(userId);
         return list.stream().anyMatch(predictionDto -> predictionDto.getMatch().getId().equals(matchId));
     }
 
