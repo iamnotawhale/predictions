@@ -33,7 +33,7 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Override
     public List<PredictionDto> getAllByWeekId(Long id) {
-        List<Prediction> list = repository.getAllByMatch_Week_IdOrderByMatch_LocalDateTimeAscMatch_HomeTeam_IdAsc(id);
+        List<Prediction> list = repository.getAllByMatch_Week_IdOrderByMatch_LocalDateTimeDescMatch_HomeTeam_IdAsc(id);
         return list.stream().map(mapper::toDto).map(this::updatePoints).toList();
     }
 
