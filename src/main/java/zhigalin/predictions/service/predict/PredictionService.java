@@ -33,5 +33,5 @@ public interface PredictionService {
 
     Map<UserDto, Integer> allUsersPoints();
 
-    boolean isExist(List<PredictionDto> list, Long matchId);
+    boolean isExist(Long userId, Long matchId);
 }
