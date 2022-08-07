@@ -12,7 +12,7 @@ import java.util.List;
 public interface PredictionRepository extends CrudRepository<Prediction, Long> {
     List<Prediction> getAllByMatch_Id(Long id);
 
-    List<Prediction> getAllByMatch_Week_IdOrderByMatch_LocalDateTimeAscMatch_HomeTeam_IdAsc(Long id);
+    List<Prediction> getAllByMatch_Week_IdOrderByMatch_LocalDateTimeDescMatch_HomeTeam_IdAsc(Long id);
 
     Prediction getByMatch_IdAndUser_Id(Long matchId, Long userId);
 
