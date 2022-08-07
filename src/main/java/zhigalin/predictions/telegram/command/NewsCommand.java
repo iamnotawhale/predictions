@@ -9,7 +9,7 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-public class NewsCommand implements Command{
+public class NewsCommand implements Command {
     private final SendBotMessageService sendBotMessageService;
     private final NewsService newsService;
     private final NewsMapper newsMapper;
@@ -19,7 +19,6 @@ public class NewsCommand implements Command{
         this.newsService = newsService;
         this.newsMapper = newsMapper;
     }
-
 
     @Override
     public void execute(Update update) {

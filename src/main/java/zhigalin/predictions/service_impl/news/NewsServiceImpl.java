@@ -22,13 +22,10 @@ public class NewsServiceImpl implements NewsService {
         this.mapper = mapper;
     }
 
-
     @Override
     public List<NewsDto> getAll() {
         List<News> list = (List<News>) repository.findAll();
-        return list.stream()
-                .map(mapper::toDto)
-                .toList();
+        return list.stream().map(mapper::toDto).toList();
     }
 
     @Override
@@ -44,8 +41,7 @@ public class NewsServiceImpl implements NewsService {
     @Override
     public List<NewsDto> getAllLast() {
         List<News> list = (List<News>) repository.findAll();
-        return list.stream()
-                .map(mapper::toDto)
+        return list.stream().map(mapper::toDto)
                 .sorted(Comparator.comparing(NewsDto::getDateTime).reversed())
                 .limit(12)
                 .toList();

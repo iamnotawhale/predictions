@@ -12,7 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.EnumSet;
 import java.util.List;
 
-public class HeadToHeadCommand implements Command{
+public class HeadToHeadCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
 
@@ -41,8 +41,7 @@ public class HeadToHeadCommand implements Command{
 
         if (list == null) {
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Эти команды еще не играли друг против друга");
-        }
-        else {
+        } else {
             for (HeadToHead h2h : list) {
                 builder.append("`").append(h2h.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM.YY"))).append(" ")
                         .append(h2h.getLeagueName()).append("\n")

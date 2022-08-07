@@ -36,7 +36,8 @@
                        aria-haspopup="true" aria-expanded="false">Выбрать тур</a>
                     <div class="dropdown-menu" style="width: 354px;">
                         <div class="btn-toolbar" role="toolbar">
-                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}" th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
                                 <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
                         </div>
@@ -47,7 +48,8 @@
                        aria-haspopup="true" aria-expanded="false">Прогнозы по турам</a>
                     <div class="dropdown-menu" style="width: 354px;">
                         <div class="btn-toolbar" role="toolbar">
-                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}" th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
+                            <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
+                                 th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
                                 <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
                         </div>
@@ -159,7 +161,7 @@
                                 <div class="container-fluid">
                                     <div class="row align-items-center">
                                         <div class="col-sm">
-                                            <img th:src="${prediction.match.homeTeam.getLogo()}"/>
+                                            <img th:src="${prediction.match.homeTeam.getLogo()}" th:width="100"/>
                                         </div>
                                         <div class="col-sm-2">
                                             <div class="form-group">
@@ -189,7 +191,7 @@
                                             </div>
                                         </div>
                                         <div class="col-sm">
-                                            <img th:src="${prediction.match.awayTeam.getLogo()}"/>
+                                            <img th:src="${prediction.match.awayTeam.getLogo()}" th:width="100"/>
                                         </div>
                                     </div>
                                 </div>
@@ -201,7 +203,8 @@
                                         Закрыть
                                     </button>
 
-                                    <a th:href="@{/predict/delete(id=${prediction.getId()})}" class="btn btn-danger btn-sm">Удалить</a>
+                                    <a th:href="@{/predict/delete(id=${prediction.getId()})}"
+                                       class="btn btn-danger btn-sm">Удалить</a>
 
                                     <input type="submit" class="btn btn-success btn-sm" value="Сохранить">
                                 </div>

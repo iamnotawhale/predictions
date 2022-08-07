@@ -48,5 +48,6 @@ public class TeamController {
 
     @GetMapping("/byCode")
     public TeamDto findByTeamCode(@RequestParam String code) {
-        return teamService.getByCode(code);}
+        return teamService.getByCode(code);
+    }
 }
