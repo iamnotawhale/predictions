@@ -293,7 +293,6 @@ public class DataInitServiceImpl {
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .header("x-rapidapi-host", "v3.football.api-sports.io")
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .queryString("from", LocalDateTime.now().toLocalDate().toString())
