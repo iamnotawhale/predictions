@@ -137,15 +137,14 @@ public class DataInitServiceImpl {
         //teamsInitFromApiFootball();
         //matchInitFromApiFootball();
         //currentWeekUpdate();
-        //standingInitFromApiFootball();
-
+        standingInitFromApiFootball();
         //headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
             while (true) {
                 try {
                     //matchUpdate();
-                    //matchUpdateFromApiFootball();
+                    matchUpdateFromApiFootball();
                     newsInit();
                     Thread.sleep(360000); //1000 - 1 сек
                 } catch (InterruptedException ex) {
