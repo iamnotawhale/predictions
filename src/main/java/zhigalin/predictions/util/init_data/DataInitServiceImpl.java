@@ -138,6 +138,7 @@ public class DataInitServiceImpl {
         //matchInitFromApiFootball();
         //currentWeekUpdate();
         standingInitFromApiFootball();
+
         //headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
