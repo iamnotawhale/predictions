@@ -62,7 +62,7 @@ import java.util.stream.Stream;
 @NoArgsConstructor
 public class DataInitServiceImpl {
     @Value("${x.rapid.api}")
-    private String X_RAPID_API;
+    private static String X_RAPID_API;
     @Value("${api.football.token}")
     private String API_FOOTBALL_TOKEN;
     private final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH); //"2021-08-13T19:00:00+00:00"
@@ -303,6 +303,8 @@ public class DataInitServiceImpl {
         //Create data array from api
         JsonObject mainObj = gson.fromJson(resp.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
         JsonArray responses = mainObj.getAsJsonArray("response");
+
+        System.out.println(mainObj);
 
         for (JsonElement response : responses) {
             JsonObject matchObj = response.getAsJsonObject();
