@@ -43,6 +43,7 @@ public class PredictController {
         User user = (User) authentication.getPrincipal();
         List<PredictionDto> list = predictionService.getAllByWeekId(id);
         ModelAndView model = new ModelAndView("predict");
+        model.addObject("weeklyUsersPoints", predictionService.usersPointsByWeek(id));
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("header", "Прогнозы " + id + " тура");
         model.addObject("currentUser", user);

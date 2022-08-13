@@ -34,4 +34,6 @@ public interface PredictionService {
     Map<UserDto, Integer> allUsersPoints();
 
     boolean isExist(Long userId, Long matchId);
+
+    Map<UserDto, Integer> usersPointsByWeek(Long weekId);
 }

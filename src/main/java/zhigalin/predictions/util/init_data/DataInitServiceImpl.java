@@ -136,8 +136,7 @@ public class DataInitServiceImpl {
         //userInit();
         //teamsInitFromApiFootball();
         //matchInitFromApiFootball();
-        //currentWeekUpdate();
-        standingInitFromApiFootball();
+        currentWeekUpdate();
 
         //headToHeadInitFromApiFootball();
         //statsUpdate();
@@ -324,6 +323,10 @@ public class DataInitServiceImpl {
                 case "HT" -> status = "ht";
                 case "1H", "2H" -> status = "live" + " " + fixtureStatus.get("elapsed").toString() + "'";
                 default -> status = "-";
+            }
+
+            if(status.equals("ft")) {
+                standingInitFromApiFootball();
             }
 
             JsonObject league = matchObj.getAsJsonObject("league");

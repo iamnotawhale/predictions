@@ -73,6 +73,20 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
+    public Map<UserDto, Integer> usersPointsByWeek(Long weekId) {
+        Map<UserDto, Integer> map = new HashMap<>();
+        Iterable<User> all = userRepository.findAll();
+        for (User user : all) {
+            List<Prediction> list = repository.getAllByUser_IdAndMatch_Week_IdOrderByMatch_LocalDateTime(user.getId(), weekId);
+            int sum = list.stream().mapToInt(Prediction::getPoints).sum();
+            map.put(userMapper.toDto(user), sum);
+        }
+        return map.entrySet().stream().sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+    }
+
+    @Override
     public PredictionDto save(PredictionDto dto) {
         dto.setPoints(getPoints(dto));
         Prediction prediction = repository.getByMatch_IdAndUser_Id(dto.getMatch().getId(), dto.getUser().getId());
