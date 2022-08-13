@@ -23,7 +23,6 @@ import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
 import zhigalin.predictions.converter.user.RoleMapper;
 import zhigalin.predictions.converter.user.UserMapper;
-import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.event.WeekDto;
 import zhigalin.predictions.dto.news.NewsDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
@@ -136,7 +135,7 @@ public class DataInitServiceImpl {
         //userInit();
         //teamsInitFromApiFootball();
         //matchInitFromApiFootball();
-        currentWeekUpdate();
+        //currentWeekUpdate();
 
         //headToHeadInitFromApiFootball();
         //statsUpdate();
@@ -250,6 +249,7 @@ public class DataInitServiceImpl {
     private void standingInitFromApiFootball() {
         HttpResponse<JsonNode> response = Unirest.get("https://v3.football.api-sports.io/standings")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
+                .header("x-rapidapi-host", "v3.football.api-sports.io")
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .asJson();
@@ -286,9 +286,7 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void matchUpdateFromApiFootball() {
-        List<MatchDto> today = matchService.getAllByTodayDate();
-        if (today.isEmpty() || today.get(0).getLocalDateTime().minusMinutes(10).isAfter(LocalDateTime.now()) ||
-                today.get(today.size() - 1).getLocalDateTime().plusHours(2).plusMinutes(10).isBefore(LocalDateTime.now())) {
+        if (matchService.getOnline().isEmpty()) {
             return;
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
@@ -325,11 +323,9 @@ public class DataInitServiceImpl {
                 default -> status = "-";
             }
 
-            if(status.equals("ft")) {
+            if (status.equals("ft")) {
                 standingInitFromApiFootball();
             }
-
-            JsonObject league = matchObj.getAsJsonObject("league");
 
             JsonObject teams = matchObj.getAsJsonObject("teams");
             JsonObject home = teams.getAsJsonObject("home");
