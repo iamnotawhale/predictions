@@ -37,18 +37,6 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
     }
 
     @Override
-    public List<HeadToHeadDto> getAllByTwoTeamsId(Long firstTeam, Long secondTeam) {
-        List<HeadToHead> list1 = repository.getAllByHomeTeam_IdAndAwayTeam_Id(firstTeam, secondTeam);
-        List<HeadToHead> list2 = repository.getAllByHomeTeam_IdAndAwayTeam_Id(secondTeam, firstTeam);
-
-        return Stream.concat(list1.stream(), list2.stream())
-                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
-                .limit(7)
-                .map(mapper::toDto)
-                .toList();
-    }
-
-    @Override
     public List<HeadToHeadDto> getAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode) {
         List<HeadToHead> list1 = repository.getAllByHomeTeam_CodeAndAwayTeam_Code(firstTeamCode, secondTeamCode);
         List<HeadToHead> list2 = repository.getAllByHomeTeam_CodeAndAwayTeam_Code(secondTeamCode, firstTeamCode);

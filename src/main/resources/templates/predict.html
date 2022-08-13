@@ -65,6 +65,19 @@
 
 <div class="container-fluid p-0 bg-primary">
     <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
+
+    <table class="table table-dark table-striped table-hover table-sm" th:if="${weeklyUsersPoints != null}">
+        <thead th:align="center">
+        <tr>
+            <th>Пользователь</th>
+            <th>Очков за тур</th>
+        </thead>
+        <tbody th:align="center">
+        <tr th:each="map: ${weeklyUsersPoints}">
+            <td class="align-middle" th:text="${map.key.getLogin()}">Week</td>
+            <td class="align-middle" th:text="${map.value}">Week</td>
+        </tbody>
+    </table>
     <table class="table table-dark table-striped table-hover table-sm">
         <thead th:align="center">
         <tr>
@@ -82,7 +95,6 @@
             <th></th>
             <th>Очки</th>
             <th></th>
-
         </thead>
         <tbody th:align="center">
         <tr th:each="prediction: ${list}">
