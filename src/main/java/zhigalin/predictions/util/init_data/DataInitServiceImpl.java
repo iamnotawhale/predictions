@@ -135,8 +135,6 @@ public class DataInitServiceImpl {
         //userInit();
         //teamsInitFromApiFootball();
         //matchInitFromApiFootball();
-        //currentWeekUpdate();
-
         //headToHeadInitFromApiFootball();
         //statsUpdate();
         Thread run = new Thread(() -> {
@@ -286,6 +284,9 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void matchUpdateFromApiFootball() {
+        if (matchService.getAllByCurrentWeek(true).stream().allMatch(match -> match.getStatus().equals("ft"))) {
+            currentWeekUpdate();
+        }
         if (matchService.getOnline().isEmpty()) {
             return;
         }
