@@ -11,6 +11,7 @@ import zhigalin.predictions.service.event.MatchService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -114,16 +115,15 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> getLast5MatchesByTeamId(Long id) {
-        List<Match> list = repository
-                .getTop5ByHomeTeam_IdAndResultNotNullOrAwayTeam_IdAndResultNotNullOrderByLocalDateTimeDesc(id, id);
-        return list.stream().map(mapper::toDto).toList();
+        List<Match> list = repository.getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(id, id);
+        return list.stream().sorted(Comparator.comparing(Match::getLocalDateTime).reversed()).limit(5).map(mapper::toDto).toList();
     }
 
     @Override
     public List<String> getLast5MatchesResultByTeamId(Long id) {
         List<String> result = new ArrayList<>();
-        List<Match> list = repository
-                .getTop5ByHomeTeam_IdAndResultNotNullOrAwayTeam_IdAndResultNotNullOrderByLocalDateTimeDesc(id, id);
+        List<Match> list = repository.getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(id, id).stream()
+                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed()).limit(5).toList();
 
         for (Match match : list) {
             if (match.getHomeTeam().getId().equals(id) && match.getResult().equals("H")
