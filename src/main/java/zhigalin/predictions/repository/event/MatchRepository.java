@@ -1,6 +1,8 @@
 package zhigalin.predictions.repository.event;
 
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
 
@@ -16,11 +18,7 @@ public interface MatchRepository extends CrudRepository<Match, Long> {
 
     List<Match> getAllByMatchDateOrderByWeekAscMatchDateAscMatchTimeAsc(LocalDate date);
 
-    List<Match> getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(Long hId, Long aId);
-
     List<Match> getAllByLocalDateTimeBetween(LocalDateTime nowMinus2Hour, LocalDateTime now);
-
-    List<Match> getTop5ByHomeTeam_IdAndResultNotNullOrAwayTeam_IdAndResultNotNullOrderByLocalDateTimeDesc(Long hId, Long aId);
 
     Match getMatchByHomeTeam_IdAndAwayTeam_Id(Long homeTeamId, Long awayTeamId);
 
@@ -28,7 +26,8 @@ public interface MatchRepository extends CrudRepository<Match, Long> {
 
     Match getMatchByHomeTeam_CodeAndAwayTeam_Code(String home, String away);
 
-    Match getMatchByHomeTeam_IdAndAwayTeam_IdAndResult(Long homeTeamId, Long awayTeamId, String result);
+    @Query("select m from Match m where m.homeTeam.id = :teamId or m.awayTeam.id = :teamId order by m.localDateTime")
+    List<Match> getAllByTeamId(@Param("teamId")Long teamId);
 
     Match getMatchByPublicId(Long publicId);
 }
