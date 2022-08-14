@@ -109,21 +109,28 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> getAllByTeamId(Long id) {
-        List<Match> list = repository.getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(id, id);
+        List<Match> list = repository.getAllByTeamId(id);
         return list.stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<MatchDto> getLast5MatchesByTeamId(Long id) {
-        List<Match> list = repository.getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(id, id);
-        return list.stream().sorted(Comparator.comparing(Match::getLocalDateTime).reversed()).limit(5).map(mapper::toDto).toList();
+        List<Match> list = repository.getAllByTeamId(id);
+        return list.stream()
+                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
+                .filter(m -> m.getResult() != null)
+                .limit(5)
+                .map(mapper::toDto).toList();
     }
 
     @Override
     public List<String> getLast5MatchesResultByTeamId(Long id) {
         List<String> result = new ArrayList<>();
-        List<Match> list = repository.getAllByHomeTeam_IdOrAwayTeam_IdOrderByLocalDateTime(id, id).stream()
-                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed()).limit(5).toList();
+        List<Match> list = repository.getAllByTeamId(id).stream()
+                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
+                .filter(m -> m.getResult() != null)
+                .limit(5)
+                .toList();
 
         for (Match match : list) {
             if (match.getHomeTeam().getId().equals(id) && match.getResult().equals("H")
