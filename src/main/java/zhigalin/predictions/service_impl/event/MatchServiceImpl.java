@@ -7,6 +7,7 @@ import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.football.StandingService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,11 +20,13 @@ public class MatchServiceImpl implements MatchService {
 
     private final MatchRepository repository;
     private final MatchMapper mapper;
+    private final StandingService standingService;
 
     @Autowired
-    public MatchServiceImpl(MatchRepository repository, MatchMapper mapper) {
+    public MatchServiceImpl(MatchRepository repository, MatchMapper mapper, StandingService standingService) {
         this.repository = repository;
         this.mapper = mapper;
+        this.standingService = standingService;
     }
 
     @Override
@@ -31,6 +34,9 @@ public class MatchServiceImpl implements MatchService {
         Match match = repository.getMatchByHomeTeam_IdAndAwayTeam_Id(matchDto.getHomeTeam().getId(), matchDto.getAwayTeam().getId());
         if (match != null) {
             mapper.updateEntityFromDto(matchDto, match);
+            if (matchDto.getStatus().equals("ft")) {
+                standingService.updateStanding(matchDto);
+            }
             return mapper.toDto(repository.save(match));
         }
         return mapper.toDto(repository.save(mapper.toEntity(matchDto)));
@@ -152,5 +158,4 @@ public class MatchServiceImpl implements MatchService {
                 LocalDateTime.now().plusMinutes(10));
         return list.stream().map(mapper::toDto).toList();
     }
-
 }

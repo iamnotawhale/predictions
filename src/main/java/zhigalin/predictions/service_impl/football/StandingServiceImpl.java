@@ -3,16 +3,17 @@ package zhigalin.predictions.service_impl.football;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.football.StandingMapper;
+import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.football.StandingDto;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.repository.football.StandingRepository;
 import zhigalin.predictions.service.football.StandingService;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
 public class StandingServiceImpl implements StandingService {
-
     private final StandingRepository repository;
     private final StandingMapper mapper;
 
@@ -25,7 +26,10 @@ public class StandingServiceImpl implements StandingService {
     @Override
     public List<StandingDto> getAll() {
         List<Standing> list = (List<Standing>) repository.findAll();
-        return list.stream().sorted((s1, s2) -> s2.getPoints().compareTo(s1.getPoints())).map(mapper::toDto).toList();
+        return list.stream().sorted(Comparator.comparing(Standing::getPoints).reversed()
+                        .thenComparing(Standing::compareGoals)
+                        .thenComparing((s1, s2) -> s2.getGoalsScored().compareTo(s1.getGoalsScored())))
+                .map(mapper::toDto).toList();
     }
 
     @Override
@@ -46,4 +50,10 @@ public class StandingServiceImpl implements StandingService {
         }
         return null;
     }
+
+    @Override
+    public void updateStanding(MatchDto matchDto) {
+
+    }
+
 }

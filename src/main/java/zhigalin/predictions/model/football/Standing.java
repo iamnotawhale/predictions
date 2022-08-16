@@ -40,4 +40,8 @@ public class Standing {
     private Integer goalsAgainst;
 
     private String result;
+
+    public int compareGoals(Standing s) {
+        return Integer.compare(s.getGoalsScored() - s.getGoalsAgainst(), this.getGoalsScored() - this.getGoalsAgainst());
+    }
 }
