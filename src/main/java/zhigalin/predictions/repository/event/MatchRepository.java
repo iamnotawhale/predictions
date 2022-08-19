@@ -30,4 +30,6 @@ public interface MatchRepository extends CrudRepository<Match, Long> {
     List<Match> getAllByTeamId(@Param("teamId")Long teamId);
 
     Match getMatchByPublicId(Long publicId);
+
+    List<Match> getAllByStatusIsNotNull();
 }

@@ -7,7 +7,6 @@ import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.football.StandingService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,13 +19,11 @@ public class MatchServiceImpl implements MatchService {
 
     private final MatchRepository repository;
     private final MatchMapper mapper;
-    private final StandingService standingService;
 
     @Autowired
-    public MatchServiceImpl(MatchRepository repository, MatchMapper mapper, StandingService standingService) {
+    public MatchServiceImpl(MatchRepository repository, MatchMapper mapper) {
         this.repository = repository;
         this.mapper = mapper;
-        this.standingService = standingService;
     }
 
     @Override
@@ -34,9 +31,6 @@ public class MatchServiceImpl implements MatchService {
         Match match = repository.getMatchByHomeTeam_IdAndAwayTeam_Id(matchDto.getHomeTeam().getId(), matchDto.getAwayTeam().getId());
         if (match != null) {
             mapper.updateEntityFromDto(matchDto, match);
-            if (matchDto.getStatus().equals("ft")) {
-                standingService.updateStanding(matchDto);
-            }
             return mapper.toDto(repository.save(match));
         }
         return mapper.toDto(repository.save(mapper.toEntity(matchDto)));
@@ -44,7 +38,7 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public MatchDto getById(Long id) {
-        return mapper.toDto(repository.findById(id).get());
+        return mapper.toDto(repository.findById(id).orElse(null));
     }
 
     @Override
@@ -137,7 +131,6 @@ public class MatchServiceImpl implements MatchService {
                 .filter(m -> m.getResult() != null)
                 .limit(5)
                 .toList();
-
         for (Match match : list) {
             if (match.getHomeTeam().getId().equals(id) && match.getResult().equals("H")
                     || match.getAwayTeam().getId().equals(id) && match.getResult().equals("A")) {
@@ -157,5 +150,10 @@ public class MatchServiceImpl implements MatchService {
         List<Match> list = repository.getAllByLocalDateTimeBetween(LocalDateTime.now().minusHours(2).minusMinutes(10),
                 LocalDateTime.now().plusMinutes(10));
         return list.stream().map(mapper::toDto).toList();
+    }
+
+    @Override
+    public List<MatchDto> getAllCompletedAndCurrent() {
+        return repository.getAllByStatusIsNotNull().stream().map(mapper::toDto).toList();
     }
 }

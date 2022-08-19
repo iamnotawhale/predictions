@@ -20,4 +20,7 @@ public class StandingDto {
     private Integer goalsScored;
     private Integer goalsAgainst;
     private String result;
+    public int compareGoals(StandingDto s) {
+        return Integer.compare(s.getGoalsScored() - s.getGoalsAgainst(), this.getGoalsScored() - this.getGoalsAgainst());
+    }
 }

@@ -32,7 +32,7 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Override
     public SeasonDto getById(Long id) {
-        return mapper.toDto(seasonRepository.findById(id).get());
+        return mapper.toDto(seasonRepository.findById(id).orElse(null));
     }
 
     @Override
