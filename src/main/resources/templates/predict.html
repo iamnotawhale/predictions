@@ -103,7 +103,8 @@
             <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.match.getMatchTime()}">Time</td>
             <td class="align-middle" th:text="${prediction.match.homeTeam.getTeamName()}">Home Team</td>
             <td class="align-middle" th:text="${prediction.match.getHomeTeamScore()}">HT Score</td>
-            <td class="align-middle" th:text="${prediction.match.getStatus()}">Status</td>
+            <td class="align-middle" th:if="${prediction.match.status != null}" th:text="${prediction.match.status}">Status</td>
+            <td class="align-middle" th:unless="${prediction.match.status != null}" th:text="'-'">Status</td>
             <td class="align-middle" th:text="${prediction.match.awayTeamScore}">AT Score</td>
             <td class="align-middle" th:text="${prediction.match.awayTeam.getTeamName()}">Away Team</td>
             <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.getUser().getLogin()}">Login</td>

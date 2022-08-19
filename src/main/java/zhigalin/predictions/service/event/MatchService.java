@@ -36,4 +36,6 @@ public interface MatchService {
     List<String> getLast5MatchesResultByTeamId(Long id);
 
     List<MatchDto> getOnline();
+
+    List<MatchDto> getAllCompletedAndCurrent();
 }

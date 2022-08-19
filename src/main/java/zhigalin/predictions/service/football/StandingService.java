@@ -1,6 +1,5 @@
 package zhigalin.predictions.service.football;
 
-import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.football.StandingDto;
 
 import java.util.List;
@@ -12,5 +11,5 @@ public interface StandingService {
 
     StandingDto findByTeam_Id(Long id);
 
-    void updateStanding(MatchDto matchDto);
+    List<StandingDto> currentTable();
 }

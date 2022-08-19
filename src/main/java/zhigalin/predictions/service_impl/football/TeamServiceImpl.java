@@ -31,7 +31,7 @@ public class TeamServiceImpl implements TeamService {
 
     @Override
     public TeamDto getById(Long id) {
-        return mapper.toDto(repository.findById(id).get());
+        return mapper.toDto(repository.findById(id).orElse(null));
     }
 
     @Override

@@ -39,7 +39,7 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Override
     public PredictionDto getById(Long id) {
-        return mapper.toDto(repository.findById(id).get());
+        return mapper.toDto(repository.findById(id).orElse(null));
     }
 
     @Override

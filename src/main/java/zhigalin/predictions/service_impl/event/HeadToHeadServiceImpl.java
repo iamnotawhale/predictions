@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.HeadToHeadMapper;
 import zhigalin.predictions.dto.event.HeadToHeadDto;
+import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.repository.event.HeadToHeadRepository;
 import zhigalin.predictions.service.event.HeadToHeadService;
@@ -46,5 +47,10 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
                 .limit(7)
                 .map(mapper::toDto)
                 .toList();
+    }
+
+    @Override
+    public List<HeadToHeadDto> getAllByMatch(MatchDto matchDto) {
+        return getAllByTwoTeamsCode(matchDto.getHomeTeam().getCode(), matchDto.getAwayTeam().getCode());
     }
 }
