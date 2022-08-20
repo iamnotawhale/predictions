@@ -7,6 +7,7 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 import java.util.List;
+import java.util.Objects;
 
 public class TodayMatchesCommand implements Command {
 
@@ -35,7 +36,7 @@ public class TodayMatchesCommand implements Command {
                     tour = match.getWeek().getId();
                 }
                 builder.append(match.getHomeTeam().getCode()).append(" ");
-                if (!match.getStatus().equals("-")) {
+                if (!Objects.equals(match.getStatus(), "-")) {
                     builder.append(match.getHomeTeamScore()).append(" - ")
                             .append(match.getAwayTeamScore()).append(" ")
                             .append(match.getAwayTeam().getCode()).append(" ")
