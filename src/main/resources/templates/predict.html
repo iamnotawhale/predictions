@@ -81,19 +81,19 @@
     <table class="table table-dark table-striped table-hover table-sm">
         <thead th:align="center">
         <tr>
-            <th>Тур</th>
-            <th class="d-none d-lg-table-cell">Дата</th>
-            <th class="d-none d-lg-table-cell">Время</th>
-            <th>Хозяева</th>
+            <th>tour</th>
+            <th class="d-none d-lg-table-cell">date</th>
+            <th class="d-none d-lg-table-cell">time</th>
+            <th>home</th>
             <th></th>
             <th></th>
             <th></th>
-            <th>Гости</th>
-            <th class="d-none d-lg-table-cell">Пользователь</th>
+            <th>away</th>
+            <th>user</th>
             <th></th>
             <th></th>
             <th></th>
-            <th>Очки</th>
+            <th>pts</th>
             <th></th>
         </thead>
         <tbody th:align="center">
@@ -101,13 +101,18 @@
             <td class="align-middle" th:text="${prediction.match.week.getId()}">Week</td>
             <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.match.getMatchDate()}">Date</td>
             <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.match.getMatchTime()}">Time</td>
-            <td class="align-middle" th:text="${prediction.match.homeTeam.getTeamName()}">Home Team</td>
+            <td class="align-middle" th:text="${prediction.match.homeTeam.getCode()}">Home Team</td>
             <td class="align-middle" th:text="${prediction.match.getHomeTeamScore()}">HT Score</td>
             <td class="align-middle" th:if="${prediction.match.status != null}" th:text="${prediction.match.status}">Status</td>
             <td class="align-middle" th:unless="${prediction.match.status != null}" th:text="'-'">Status</td>
             <td class="align-middle" th:text="${prediction.match.awayTeamScore}">AT Score</td>
-            <td class="align-middle" th:text="${prediction.match.awayTeam.getTeamName()}">Away Team</td>
-            <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.getUser().getLogin()}">Login</td>
+            <td class="align-middle" th:text="${prediction.match.awayTeam.getCode()}">Away Team</td>
+
+
+            <td class="align-middle text-warning" th:if="${currentUser == prediction.getUser()}" th:text="${prediction.getUser().getLogin()}">Login</td>
+            <td class="align-middle" th:unless="${currentUser == prediction.getUser()}" th:text="${prediction.getUser().getLogin()}">Login</td>
+
+
             <td class="align-middle" th:text="${prediction.getHomeTeamScore()}">Predict HT Score</td>
             <td class="align-middle">-</td>
             <td class="align-middle" th:text="${prediction.getAwayTeamScore()}">Predict AT Score</td>

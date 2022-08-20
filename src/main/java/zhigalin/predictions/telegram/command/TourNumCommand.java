@@ -8,6 +8,7 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 public class TourNumCommand implements Command {
 
@@ -46,7 +47,7 @@ public class TourNumCommand implements Command {
             builder.append("`").append(tourId).append(" ТУР").append("`").append("\n");
             for (Match match : tourMatches) {
                 builder.append("`").append(match.getHomeTeam().getCode()).append(" ");
-                if (match.getStatus().equals("ft")) {
+                if (Objects.equals(match.getStatus(), "ft")) {
                     builder.append(match.getHomeTeamScore())
                             .append(" - ")
                             .append(match.getAwayTeamScore())
