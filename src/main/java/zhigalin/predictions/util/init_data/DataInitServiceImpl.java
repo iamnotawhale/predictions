@@ -21,8 +21,11 @@ import zhigalin.predictions.converter.event.SeasonMapper;
 import zhigalin.predictions.converter.event.WeekMapper;
 import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
+import zhigalin.predictions.converter.predict.OddsMapper;
+import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.event.WeekDto;
 import zhigalin.predictions.dto.news.NewsDto;
+import zhigalin.predictions.dto.predict.OddsDto;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.Season;
@@ -36,6 +39,7 @@ import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
+import zhigalin.predictions.service.predict.OddsService;
 
 import java.net.URL;
 import java.text.DateFormat;
@@ -75,27 +79,25 @@ public class DataInitServiceImpl {
     private StandingService standingService;
     private NewsService newsService;
     private HeadToHeadService headToHeadService;
-
-    @Autowired
+    private OddsService oddsService;
     private SeasonMapper seasonMapper;
-    @Autowired
     private StandingMapper standingMapper;
-    @Autowired
     private WeekMapper weekMapper;
-    @Autowired
     private TeamMapper teamMapper;
-    @Autowired
     private MatchMapper matchMapper;
-    @Autowired
     private HeadToHeadMapper headToHeadMapper;
-    @Autowired
+    private OddsMapper oddsMapper;
     PasswordEncoder bCryptPasswordEncoder;
 
     @Autowired
     public DataInitServiceImpl(TeamService teamService, SeasonService seasonService,
                                WeekService weekService, MatchService matchService,
                                StandingService standingService, NewsService newsService,
-                               HeadToHeadService headToHeadService) {
+                               HeadToHeadService headToHeadService, OddsService oddsService,
+                               SeasonMapper seasonMapper, StandingMapper standingMapper,
+                               WeekMapper weekMapper, TeamMapper teamMapper, MatchMapper matchMapper,
+                               HeadToHeadMapper headToHeadMapper, OddsMapper oddsMapper,
+                               PasswordEncoder bCryptPasswordEncoder) {
         this.teamService = teamService;
         this.seasonService = seasonService;
         this.weekService = weekService;
@@ -103,6 +105,15 @@ public class DataInitServiceImpl {
         this.standingService = standingService;
         this.newsService = newsService;
         this.headToHeadService = headToHeadService;
+        this.oddsService = oddsService;
+        this.seasonMapper = seasonMapper;
+        this.standingMapper = standingMapper;
+        this.weekMapper = weekMapper;
+        this.teamMapper = teamMapper;
+        this.matchMapper = matchMapper;
+        this.headToHeadMapper = headToHeadMapper;
+        this.oddsMapper = oddsMapper;
+        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
     public void allInit() {
@@ -115,6 +126,7 @@ public class DataInitServiceImpl {
         //headToHeadInitFromApiFootball();
         //standingInitFromApiFootball();
         //statsUpdate();
+        //currentWeekUpdate();
         Thread run = new Thread(() -> {
             while (true) {
                 try {
@@ -134,6 +146,7 @@ public class DataInitServiceImpl {
     private void matchUpdateFromApiFootball() {
         if (matchService.getAllByCurrentWeek(true).stream().allMatch(match -> Objects.equals(match.getStatus(), "ft"))) {
             currentWeekUpdate();
+            updateOdds();
         }
         if (matchService.getOnline().isEmpty()) {
             return;
@@ -221,11 +234,50 @@ public class DataInitServiceImpl {
         JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
         JsonArray responseArr = mainObj.getAsJsonArray("response");
 
-        List<Week> weeks = weekService.getAll().stream().map(weekMapper::toEntity).toList();
+        List<WeekDto> weeksDto = weekService.getAll();
 
-        for (Week week : weeks) {
-            week.setIsCurrent(week.getId().equals(Long.valueOf(responseArr.get(0).toString().replaceAll("\\D+", ""))));
-            weekService.save(weekMapper.toDto(week));
+        for (WeekDto dto : weeksDto) {
+            dto.setIsCurrent(dto.getId().equals(Long.valueOf(responseArr.get(0).toString().replaceAll("\\D+", ""))));
+            weekService.save(dto);
+        }
+    }
+
+    @SneakyThrows
+    private void updateOdds() {
+        List<MatchDto> list = matchService.getAllByCurrentWeek(true);
+        for (MatchDto dto : list) {
+            HttpResponse<JsonNode> responseOdds = Unirest.get("https://v3.football.api-sports.io/odds")
+                    .header(X_RAPID_API, API_FOOTBALL_TOKEN)
+                    .queryString("bookmaker", 8)
+                    .queryString("bet", 1)
+                    .queryString("fixture", dto.getPublicId())
+                    .asJson();
+            Gson gsonOdds = new GsonBuilder().setPrettyPrinting().create();
+            JsonObject mainObject = gsonOdds.fromJson(responseOdds.getBody().getObject().toString(), JsonElement.class)
+                    .getAsJsonObject();
+
+            JsonArray responseArray = mainObject.getAsJsonArray("response");
+            JsonObject responseObj = responseArray.get(0).getAsJsonObject();
+            JsonArray bookmakersArray = responseObj.getAsJsonArray("bookmakers");
+            JsonObject bookmakersObj = bookmakersArray.get(0).getAsJsonObject();
+            JsonArray betsArray = bookmakersObj.getAsJsonArray("bets");
+            JsonObject betsObject = betsArray.get(0).getAsJsonObject();
+            JsonArray values = betsObject.getAsJsonArray("values");
+            Double homeOdd = values.get(0).getAsJsonObject().get("odd").getAsDouble();
+            Double drawOdd = values.get(1).getAsJsonObject().get("odd").getAsDouble();
+            Double awayOdd = values.get(2).getAsJsonObject().get("odd").getAsDouble();
+
+            OddsDto oddsDto = OddsDto.builder()
+                    .homeChance(homeOdd)
+                    .drawChance(drawOdd)
+                    .awayChance(awayOdd)
+                    .fixtureId(dto.getPublicId())
+                    .build();
+
+            oddsService.save(oddsDto);
+
+            dto.setOdds(oddsMapper.toEntity(oddsService.getByFixtureId(dto.getPublicId())));
+            matchService.save(dto);
         }
     }
 

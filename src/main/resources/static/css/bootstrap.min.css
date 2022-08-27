@@ -333,11 +333,10 @@ template {
     display: none !important
 }
 
-h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
-    margin-bottom: 0.5rem;
+h1, h2, h3, h4, h5, h6, h7, .h1, .h2, .h3, .h4, .h5, .h6, .h7 {
     font-weight: 600;
     line-height: 1.2;
-    color: #1a1a1a
+    color: darkgray;
 }
 
 h1, .h1 {
@@ -362,6 +361,10 @@ h5, .h5 {
 
 h6, .h6 {
     font-size: 0.75rem
+}
+
+h7, .h7 {
+    font-size: 0.6rem
 }
 
 .lead {
@@ -2774,6 +2777,7 @@ textarea.form-control {
 
 .btn {
     display: inline-block;
+    font-size: 80%;
     font-weight: 600;
     color: #55595c;
     text-align: center;
@@ -3120,6 +3124,30 @@ a.btn.disabled, fieldset:disabled a.btn {
     box-shadow: 0 0 0 0.2rem rgba(82, 88, 93, 0.5)
 }
 
+.btn-purple {
+    color: #fff;
+    background-color: #6f42c1;
+    border-color: #6f42c1
+}
+
+.btn-purple.disabled, .btn-purple:disabled {
+    color: #fff;
+    background-color: #8c68cd;
+    border-color: #8c68cd
+}
+
+.btn-pink {
+    color: #fff;
+    background-color: #ff2882;
+    border-color: #ff2882
+}
+
+.btn-pink.disabled, .btn-pink:disabled {
+    color: #fff;
+    background-color: #e685b5;
+    border-color: #e685b5
+}
+
 .btn-outline-primary {
     color: #1a1a1a;
     border-color: #1a1a1a
@@ -3405,6 +3433,12 @@ a.btn.disabled, fieldset:disabled a.btn {
 
 .btn-sm, .btn-group-sm > .btn {
     padding: 0.5rem 1rem;
+    font-size: 0.765625rem;
+    line-height: 1.5;
+    border-radius: 0
+}
+.btn-sm2, .btn-group-sm2 > .btn {
+    padding: 0.5rem 0.5rem;
     font-size: 0.765625rem;
     line-height: 1.5;
     border-radius: 0
@@ -5231,9 +5265,9 @@ input[type="submit"].btn-block, input[type="reset"].btn-block, input[type="butto
 
 .badge {
     display: inline-block;
-    padding: 0.25em 0.4em;
-    font-size: 75%;
-    font-weight: 700;
+    padding: 0.25em 0.25em;
+    font-size: 60%;
+    font-weight: 600;
     line-height: 1;
     text-align: center;
     white-space: nowrap;
@@ -6907,6 +6941,10 @@ a.bg-light:hover, a.bg-light:focus, button.bg-light:hover, button.bg-light:focus
     background-color: #343a40 !important
 }
 
+.bg-dark2 {
+    background-color: #1c1c1c !important
+}
+
 a.bg-dark:hover, a.bg-dark:focus, button.bg-dark:hover, button.bg-dark:focus {
     background-color: #1d2124 !important
 }
@@ -8478,6 +8516,14 @@ a.bg-dark:hover, a.bg-dark:focus, button.bg-dark:hover, button.bg-dark:focus {
 
 .w-25 {
     width: 25% !important
+}
+
+.w-30 {
+    width: 30% !important
+}
+
+.w-40 {
+    width: 40% !important
 }
 
 .w-50 {
@@ -10728,6 +10774,9 @@ a.text-dark:hover, a.text-dark:focus {
 
 .btn-sm, .btn-group-sm > .btn {
     font-size: 10px
+}
+.btn-sm2, .btn-group-sm2 > .btn {
+    font-size: 9px
 }
 
 .btn-warning, .btn-warning:hover, .btn-warning:not([disabled]):not(.disabled):active, .btn-warning:focus {

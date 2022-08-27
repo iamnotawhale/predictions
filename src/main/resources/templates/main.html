@@ -94,26 +94,36 @@
                                 </td>
                                 <td class="align-middle" th:text="${match.matchTime}">Time</td>
                                 <td><img th:src="${match.homeTeam.getLogo()}" th:width="20"/></td>
-                                <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
-                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.status}">
-                                    Status
+                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.homeTeamScore}">HT Score</td>
+                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.status}">Status</td>
+                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.awayTeamScore}">AT Score</td>
+                                <td colspan="3" class="align-middle" th:unless="${match.status != null}">
+                                    <span class="badge bg-dark2 w-30">
+                                        <p class="h7" style="display:inline" th:text="${match.getOdds().getHomeChance()}"></p>
+                                    </span>
+                                    <span class="badge bg-dark2 w-30">
+                                        <p class="h7" style="display:inline" th:text="${match.getOdds().getDrawChance()}"></p>
+                                    </span>
+                                    <span class="badge bg-dark2 w-30">
+                                        <p class="h7" style="display:inline" th:text="${match.getOdds().getAwayChance()}"></p>
+                                    </span>
                                 </td>
-                                <td class="align-middle" th:unless="${match.status != null}" th:text="'-'">Status</td>
-                                <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
                                 <td><img th:src="${match.awayTeam.getLogo()}" th:width="20"/></td>
                             </tr>
                             <tr class="accordion-body collapse" th:id="${'acco'+ iter.index}"
                                 th:each="hth: ${h2h.get(iter.index)}">
-                                <td class="align-middle" th:if="${hth.getLeagueName().contains('PL') }"><img th:src="'https://media.api-sports.io/football/leagues/39.png'" th:width="20"/></td>
-                                <td class="align-middle" th:if="${hth.getLeagueName().contains('UCL') }"><img th:src="'https://media.api-sports.io/football/leagues/2.png'" th:width="20"/></td>
-                                <td class="align-middle" th:if="${hth.getLeagueName().contains('CH') }"><img th:src="'https://media.api-sports.io/football/leagues/40.png'" th:width="15"/></td>
-                                <td class="align-middle" th:if="${hth.getLeagueName().contains('LC') }"><img th:src="'https://media.api-sports.io/football/leagues/48.png'" th:width="15"/></td>
-                                <td class="align-middle" th:if="${hth.getLeagueName().contains('FA') }"><img th:src="'https://media.api-sports.io/football/leagues/45.png'" th:width="20"/></td>
-                                <td class="align-middle" th:text="${#temporals.format(hth.getLocalDateTime(), 'dd.MM.YY')}">Date</td>
+                                <td colspan="2" class="align-middle">
+                                    <div>
+                                        <img  th:if="${hth.getLeagueName().contains('PL') }" th:src="'https://media.api-sports.io/football/leagues/39.png'" th:width="20"/>
+                                        <img  th:if="${hth.getLeagueName().contains('UCL') }" th:src="'https://media.api-sports.io/football/leagues/2.png'" th:width="20"/>
+                                        <img  th:if="${hth.getLeagueName().contains('CH') }" th:src="'https://media.api-sports.io/football/leagues/40.png'" th:width="15"/>
+                                        <img  th:if="${hth.getLeagueName().contains('LC') }" th:src="'https://media.api-sports.io/football/leagues/48.png'" th:width="15"/>
+                                        <img  th:if="${hth.getLeagueName().contains('FA') }" th:src="'https://media.api-sports.io/football/leagues/45.png'" th:width="20"/>
+                                        <span th:text="${#temporals.format(hth.getLocalDateTime(), 'dd.MM.YY')}"/>
+                                    </div>
+                                </td>
                                 <td><img th:src="${hth.homeTeam.getLogo()}" th:width="20"/></td>
-                                <td class="align-middle" th:text="${hth.homeTeamScore}">HT Score</td>
-                                <td class="align-middle" th:text="'-'">Status</td>
-                                <td class="align-middle" th:text="${hth.awayTeamScore}">AT Score</td>
+                                <td colspan="3" class="align-middle" th:text="${hth.homeTeamScore + ' - ' + hth.awayTeamScore}">Status</td>
                                 <td><img th:src="${hth.awayTeam.getLogo()}" th:width="20"/></td>
                             </tr>
                         </th:block>
@@ -165,8 +175,12 @@
                             <th>В</th>
                             <th>Н</th>
                             <th>П</th>
-                            <th>ЗМ</th>
-                            <th>ПМ</th>
+                            <th class="d-none d-xl-table-cell">
+                                ЗМ
+                            </th>
+                            <th class="d-none d-xl-table-cell">
+                                ПМ
+                            </th>
                             <th>РМ</th>
                             <th>О</th>
                         </tr>
@@ -191,8 +205,18 @@
                                 <td th:text="${standing.won}">Won</td>
                                 <td th:text="${standing.draw}">Draw</td>
                                 <td th:text="${standing.lost}">Lost</td>
-                                <td th:text="${standing.goalsScored}">Goal Scored</td>
-                                <td th:text="${standing.goalsAgainst}">Goal Against</td>
+                                <td class="d-none d-xl-table-cell">
+                                    <p class="text-truncate"
+                                       th:text="${standing.goalsScored}"
+                                       style="display:inline; max-width: 100px;">
+                                    </p>
+                                </td>
+                                <td class="d-none d-xl-table-cell">
+                                    <p class="text-truncate"
+                                       th:text="${standing.goalsAgainst}"
+                                       style="display:inline; max-width: 100px;">
+                                    </p>
+                                </td>
                                 <td th:text="${standing.goalsScored} - ${standing.goalsAgainst}"></td>
                                 <td th:text="${standing.points}">Points</td>
                             </tr>
