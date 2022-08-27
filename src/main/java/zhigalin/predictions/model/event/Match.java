@@ -3,6 +3,7 @@ package zhigalin.predictions.model.event;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.model.predict.Odds;
 import zhigalin.predictions.model.predict.Prediction;
 
 import javax.persistence.*;
@@ -57,4 +58,8 @@ public class Match {
 
     @OneToMany(mappedBy = "match")
     private Set<Prediction> predictions;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "odds_id")
+    private Odds odds;
 }

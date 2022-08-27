@@ -3,6 +3,7 @@ package zhigalin.predictions.dto.event;
 import lombok.*;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.model.predict.Odds;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,4 +28,5 @@ public class MatchDto {
     private Integer awayTeamScore;
     private String result;
     private String status;
+    private Odds odds;
 }
