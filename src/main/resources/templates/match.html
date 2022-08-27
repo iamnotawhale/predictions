@@ -97,21 +97,21 @@
 
 
                 <td th:if="${match.localDateTime < todayDateTime}">
-                    <button type="button" class="btn btn-primary btn-sm2 w-40" disabled data-bs-toggle="modal"
+                    <button type="button" class="btn btn-primary btn-sm2" disabled data-bs-toggle="modal"
                             th:data-bs-target="${'#create'+ match.id + currentUser.id}"
                             th:if="${@predictionServiceImpl.isExist(currentUser.id, match.getId())}">Изменить
                     </button>
-                    <button type="button" class="btn btn-primary btn-sm2 w-40" disabled data-bs-toggle="modal"
+                    <button type="button" class="btn btn-primary btn-sm2" disabled data-bs-toggle="modal"
                             th:data-bs-target="${'#create'+ match.id + currentUser.id}"
                             th:unless="${@predictionServiceImpl.isExist(currentUser.id, match.getId())}">Создать
                     </button>
                 </td>
                 <td th:unless="${match.localDateTime < todayDateTime}">
-                    <button type="button" class="btn btn-warning btn-sm2 w-40" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-warning btn-sm2" data-bs-toggle="modal"
                             th:data-bs-target="${'#create'+ match.id + currentUser.id}"
                             th:if="${@predictionServiceImpl.isExist(currentUser.id, match.getId())}">Изменить
                     </button>
-                    <button type="button" class="btn btn-success btn-sm2 w-40" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-success btn-sm2" data-bs-toggle="modal"
                             th:data-bs-target="${'#create'+ match.id + currentUser.id}"
                             th:unless="${@predictionServiceImpl.isExist(currentUser.id, match.getId())}">Создать
                     </button>
