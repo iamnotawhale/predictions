@@ -86,7 +86,7 @@
             <tr th:data-bs-target="${'#acc'+ match.getId()}" data-bs-toggle="collapse"
                 class="accordion-toggle">
                 <td class="align-middle" th:text="${match.week.getId()}">Week</td>
-                <td class="align-middle" th:text="${match.matchDate}">Date</td>
+                <td class="align-middle" th:text="${#temporals.format(match.getLocalDateTime(), 'dd.MM')}">Date</td>
                 <td class="align-middle" th:text="${match.matchTime}">Time</td>
                 <td class="align-middle" th:text="${match.homeTeam.getCode()}">Home Team</td>
                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
