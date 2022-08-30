@@ -29,7 +29,6 @@ public class RegistrationController {
         this.userMapper = userMapper;
     }
 
-
     @GetMapping()
     public ModelAndView getRegistrationPage() {
         ModelAndView model = new ModelAndView("registration");

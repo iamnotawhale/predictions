@@ -38,7 +38,8 @@
                         <div class="btn-toolbar" role="toolbar">
                             <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
                                  th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
-                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
                         </div>
                     </div>
@@ -50,7 +51,8 @@
                         <div class="btn-toolbar" role="toolbar">
                             <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
                                  th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
-                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
                         </div>
                     </div>
@@ -64,7 +66,7 @@
 </nav>
 
 <div class="container-fluid p-0 bg-primary">
-    <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
+    <img th:src="@{/img/banner3.webp}" class="img-fluid bg-primary"/>
 
     <table class="table table-dark table-striped table-hover table-sm" th:if="${weeklyUsersPoints != null}">
         <thead th:align="center">
@@ -150,7 +152,7 @@
                 </button>-->
             </td>
             <div class="modal fade" th:id="${'Edit'+ prediction.id}" tabindex="-1"
-                 th:aria-labelledby="${'create'+ prediction.id + 'Label'}" aria-hidden="true">
+                 th:aria-labelledby="${'Edit'+ prediction.id + 'Label'}" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -159,7 +161,7 @@
                         </div>
                         <div class="modal-body text-center">
                             <form th:method="POST"
-                                  th:action="@{/predict/update}"
+                                  th:action="@{/predict/saveAndUpdate}"
                                   th:id="${'EditForm' + prediction.id}"
                                   th:object="${newPredict}">
                                 <div class="form-group" hidden>
@@ -170,8 +172,7 @@
                                            class="form-control"
                                            th:value="${prediction.id}"
                                            readonly>
-                                </div>
-                                <div class="form-group" hidden>
+
                                     <label class="font-weight-bold"
                                            th:for="${'match' + prediction.id}">Match</label>
                                     <input type="text"
@@ -180,8 +181,7 @@
                                            class="form-control"
                                            th:value="${prediction.match.id}"
                                            readonly>
-                                </div>
-                                <div class="form-group" hidden>
+
                                     <label class="font-weight-bold"
                                            th:for="${'user' + prediction.id}">User</label>
                                     <input type="text"
@@ -205,7 +205,8 @@
                                                        name="homeTeamScore"
                                                        th:id="${'homeTeamScore' + prediction.id}"
                                                        class="form-control form-control-sm"
-                                                       th:value="${prediction.homeTeamScore}">
+                                                       th:value="${prediction.homeTeamScore}"
+                                                       pattern="[0-9]">
                                             </div>
                                         </div>
                                         <div class="col-sm">
@@ -220,7 +221,8 @@
                                                        name="awayTeamScore"
                                                        th:id="${'awayTeamScore' + prediction.id}"
                                                        class="form-control form-control-sm"
-                                                       th:value="${prediction.awayTeamScore}">
+                                                       th:value="${prediction.awayTeamScore}"
+                                                       pattern="[0-9]">
                                             </div>
                                         </div>
                                         <div class="col-sm">

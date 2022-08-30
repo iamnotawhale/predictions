@@ -14,4 +14,6 @@ public interface WeekService {
     WeekDto getByIsCurrent(Boolean b);
 
     List<WeekDto> getAll();
+
+    Long getCurrentWeekId();
 }

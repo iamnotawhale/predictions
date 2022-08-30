@@ -222,24 +222,13 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void currentWeekUpdate() {
-        HttpResponse<JsonNode> response = Unirest.get("https://v3.football.api-sports.io/fixtures/rounds")
-                .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .queryString("league", 39)
-                .queryString("season", 2022)
-                .queryString("current", true)
-                .asJson();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        //Create data array from api
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
-        JsonArray responseArr = mainObj.getAsJsonArray("response");
-
-        List<WeekDto> weeksDto = weekService.getAll();
-
-        for (WeekDto dto : weeksDto) {
-            dto.setIsCurrent(dto.getId().equals(Long.valueOf(responseArr.get(0).toString().replaceAll("\\D+", ""))));
-            weekService.save(dto);
-        }
+        Long id = weekService.getByIsCurrent(true).getId();
+        WeekDto currentWeek = weekService.getById(id);
+        WeekDto nextCurrentWeek = weekService.getById(id + 1);
+        currentWeek.setIsCurrent(false);
+        nextCurrentWeek.setIsCurrent(true);
+        weekService.save(currentWeek);
+        weekService.save(nextCurrentWeek);
     }
 
     @SneakyThrows
