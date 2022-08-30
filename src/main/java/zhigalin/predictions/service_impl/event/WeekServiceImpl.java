@@ -57,4 +57,9 @@ public class WeekServiceImpl implements WeekService {
         List<Week> list = (List<Week>) repository.findAll();
         return list.stream().map(mapper::toDto).toList();
     }
+
+    @Override
+    public Long getCurrentWeekId() {
+        return repository.getByIsCurrent(true).getId();
+    }
 }

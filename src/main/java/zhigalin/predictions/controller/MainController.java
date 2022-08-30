@@ -12,6 +12,7 @@ import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.PredictionService;
@@ -28,16 +29,17 @@ public class MainController {
     private final StandingService standingService;
     private final PredictionService predictionService;
     private final NewsService newsService;
-
     private final HeadToHeadService headToHeadService;
+    private final WeekService weekService;
 
     @Autowired
-    public MainController(MatchService matchService, StandingService standingService, PredictionService predictionService, NewsService newsService, HeadToHeadService headToHeadService) {
+    public MainController(MatchService matchService, StandingService standingService, PredictionService predictionService, NewsService newsService, HeadToHeadService headToHeadService, WeekService weekService) {
         this.matchService = matchService;
         this.standingService = standingService;
         this.predictionService = predictionService;
         this.newsService = newsService;
         this.headToHeadService = headToHeadService;
+        this.weekService = weekService;
     }
 
     @GetMapping
@@ -55,6 +57,7 @@ public class MainController {
         model.addObject("todayDateTime", LocalDateTime.now());
         model.addObject("currentUser", dto);
         model.addObject("matchList", allByCurrentWeek);
+        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("h2h", listOfHeadToHeads);
         model.addObject("online", matchService.getOnline());
         model.addObject("standings", standingService.getAll());

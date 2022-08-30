@@ -37,7 +37,8 @@
                         <div class="btn-toolbar" role="toolbar">
                             <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
                                  th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
-                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
                         </div>
                     </div>
@@ -49,7 +50,8 @@
                         <div class="btn-toolbar" role="toolbar">
                             <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
                                  th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
-                                <button type="button" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm" th:text="${i}"></button>
                             </div>
                         </div>
                     </div>
@@ -63,7 +65,7 @@
 </nav>
 <div class="container-fluid p-0 bg-primary">
 
-    <img th:src="@{/img/banner3.png}" class="img-fluid bg-primary"/>
+    <img th:src="@{/img/banner3.webp}" class="img-fluid bg-primary"/>
 
     <table class="table table-dark table-striped table-hover table-sm" style="margin-bottom: 0;">
 

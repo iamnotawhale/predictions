@@ -35,6 +35,7 @@ public class MatchController {
         ModelAndView model = new ModelAndView("match");
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
+        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + teamService.getById(id).getTeamName());
         model.addObject("matchList", service.getAllByTeamId(id));
         model.addObject("newPredict", new PredictionDto());
@@ -47,6 +48,7 @@ public class MatchController {
         ModelAndView model = new ModelAndView("match");
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
+        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + id + " тура");
         model.addObject("matchList", service.getAllByWeekId(id));
         model.addObject("newPredict", new PredictionDto());
@@ -59,6 +61,7 @@ public class MatchController {
         ModelAndView model = new ModelAndView("match");
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
+        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + weekService.getByIsCurrent(true).getId() + " тура");
         model.addObject("matchList", service.getAllByCurrentWeek(true));
         model.addObject("newPredict", new PredictionDto());
@@ -91,6 +94,7 @@ public class MatchController {
         ModelAndView model = new ModelAndView("match");
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
+        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи сегодня");
         model.addObject("matchList", service.getAllByTodayDate());
         model.addObject("newPredict", new PredictionDto());
@@ -103,6 +107,7 @@ public class MatchController {
         ModelAndView model = new ModelAndView("match");
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
+        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи в ближайшие дни - " + days);
         model.addObject("matchList", service.getAllByUpcomingDays(days));
         model.addObject("newPredict", new PredictionDto());
