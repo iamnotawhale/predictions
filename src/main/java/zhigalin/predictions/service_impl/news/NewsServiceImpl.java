@@ -43,7 +43,7 @@ public class NewsServiceImpl implements NewsService {
         List<News> list = (List<News>) repository.findAll();
         return list.stream().map(mapper::toDto)
                 .sorted(Comparator.comparing(NewsDto::getDateTime).reversed())
-                .limit(12)
+                .limit(15)
                 .toList();
     }
 

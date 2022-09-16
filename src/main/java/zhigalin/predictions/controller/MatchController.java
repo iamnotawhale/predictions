@@ -62,7 +62,7 @@ public class MatchController {
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentUser", dto);
         model.addObject("currentWeek", weekService.getCurrentWeekId());
-        model.addObject("header", "Матчи " + weekService.getByIsCurrent(true).getId() + " тура");
+        model.addObject("header", "Матчи " + weekService.getCurrentWeek().getId() + " тура");
         model.addObject("matchList", service.getAllByCurrentWeek(true));
         model.addObject("newPredict", new PredictionDto());
         return model;
