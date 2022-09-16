@@ -29,19 +29,6 @@ public class PredictController {
         this.weekService = weekService;
     }
 
-    @GetMapping("/week/{id}")
-    public ModelAndView getByWeekId(@PathVariable Long id, Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
-        ModelAndView model = new ModelAndView("predict");
-        model.addObject("weeklyUsersPoints", predictionService.usersPointsByWeek(id));
-        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
-        model.addObject("header", "Прогнозы " + id + " тура");
-        model.addObject("currentUser", user);
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
-        model.addObject("list", predictionService.getAllByWeekId(id));
-        return model;
-    }
-
     @GetMapping("/match/{id}")
     public List<PredictionDto> getByMatchId(@PathVariable Long id) {
         return predictionService.getAllByMatchId(id);
@@ -56,6 +43,26 @@ public class PredictController {
     public ModelAndView saveAndUpdate(@ModelAttribute PredictionDto dto, HttpServletRequest request) {
         ModelAndView model = new ModelAndView("redirect:" + request.getHeader("referer"));
         predictionService.save(dto);
+        return model;
+    }
+
+    @GetMapping("/delete")
+    public ModelAndView deletePredict(@RequestParam Long id, HttpServletRequest request) {
+        ModelAndView model = new ModelAndView("redirect:" + request.getHeader("referer"));
+        predictionService.deleteById(id);
+        return model;
+    }
+
+    @GetMapping("/week/{id}")
+    public ModelAndView getByWeekId(@PathVariable Long id, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        ModelAndView model = new ModelAndView("predict");
+        model.addObject("weeklyUsersPoints", predictionService.usersPointsByWeek(id));
+        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
+        model.addObject("header", "Прогнозы " + id + " тура");
+        model.addObject("currentUser", user);
+        model.addObject("currentWeek", weekService.getCurrentWeekId());
+        model.addObject("list", predictionService.getAllByWeekId(id));
         return model;
     }
 
@@ -96,13 +103,6 @@ public class PredictController {
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("list", predictionService.getAllByUser_Id(user.getId()));
         model.addObject("newPredict", new PredictionDto());
-        return model;
-    }
-
-    @GetMapping("/delete")
-    public ModelAndView deletePredict(@RequestParam Long id, HttpServletRequest request) {
-        ModelAndView model = new ModelAndView("redirect:" + request.getHeader("referer"));
-        predictionService.deleteById(id);
         return model;
     }
 }

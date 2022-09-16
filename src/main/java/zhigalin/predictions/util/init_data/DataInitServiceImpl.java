@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
@@ -132,7 +133,7 @@ public class DataInitServiceImpl {
                 try {
                     //matchUpdate();
                     matchUpdateFromApiFootball();
-                    newsInit();
+                    //newsInit();
                     Thread.sleep(360000); //1000 - 1 сек
                 } catch (InterruptedException ex) {
                     throw new RuntimeException(ex);
@@ -144,7 +145,9 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void matchUpdateFromApiFootball() {
-        if (matchService.getAllByCurrentWeek(true).stream().allMatch(match -> Objects.equals(match.getStatus(), "ft"))) {
+        if (matchService.getAllByCurrentWeek(true).stream()
+                .allMatch(match -> Objects.equals(match.getStatus(), "ft")
+                        || Objects.equals(match.getStatus(), "pst"))) {
             currentWeekUpdate();
             updateOdds();
         }
@@ -176,12 +179,10 @@ public class DataInitServiceImpl {
             status = fixtureStatus.get("short").getAsString();
 
             switch (status) {
-                case "PST" -> {
-                    continue;
-                }
+                case "PST" -> status = "pst";
                 case "FT" -> status = "ft";
                 case "HT" -> status = "ht";
-                case "1H", "2H" -> status = "live" + " " + fixtureStatus.get("elapsed").toString() + "'";
+                case "1H", "2H" -> status = fixtureStatus.get("elapsed").toString() + "'";
                 default -> status = null;
             }
 
@@ -222,7 +223,7 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void currentWeekUpdate() {
-        Long id = weekService.getByIsCurrent(true).getId();
+        Long id = weekService.getCurrentWeek().getId();
         WeekDto currentWeek = weekService.getById(id);
         WeekDto nextCurrentWeek = weekService.getById(id + 1);
         currentWeek.setIsCurrent(false);
@@ -233,7 +234,7 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void updateOdds() {
-        List<MatchDto> list = matchService.getAllByCurrentWeek(true);
+        List<MatchDto> list = matchService.getAllByWeekId(weekService.getCurrentWeekId());
         for (MatchDto dto : list) {
             HttpResponse<JsonNode> responseOdds = Unirest.get("https://v3.football.api-sports.io/odds")
                     .header(X_RAPID_API, API_FOOTBALL_TOKEN)
@@ -246,6 +247,9 @@ public class DataInitServiceImpl {
                     .getAsJsonObject();
 
             JsonArray responseArray = mainObject.getAsJsonArray("response");
+            if (responseArray.isEmpty()) {
+                continue;
+            }
             JsonObject responseObj = responseArray.get(0).getAsJsonObject();
             JsonArray bookmakersArray = responseObj.getAsJsonArray("bookmakers");
             JsonObject bookmakersObj = bookmakersArray.get(0).getAsJsonObject();
@@ -289,7 +293,7 @@ public class DataInitServiceImpl {
 
         for (Object re : res) {
             link = ((SyndEntryImpl) re).getLink().replaceAll("\n", "");
-            title = ((SyndEntryImpl) re).getTitle().replace("\n", "");
+            title = ((SyndEntryImpl) re).getTitle().replace("\n", "").lines().filter(s -> !s.contains("?")).collect(Collectors.joining());
             dateTime = formatter.parse(((SyndEntryImpl) re).getPublishedDate().toString())
                     .toInstant()
                     .atZone(ZoneId.systemDefault())

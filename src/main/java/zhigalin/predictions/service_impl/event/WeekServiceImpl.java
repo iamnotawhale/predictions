@@ -47,8 +47,8 @@ public class WeekServiceImpl implements WeekService {
     }
 
     @Override
-    public WeekDto getByIsCurrent(Boolean b) {
-        Week week = repository.getByIsCurrent(b);
+    public WeekDto getCurrentWeek() {
+        Week week = repository.getCurrentWeek();
         return mapper.toDto(week);
     }
 
@@ -60,6 +60,6 @@ public class WeekServiceImpl implements WeekService {
 
     @Override
     public Long getCurrentWeekId() {
-        return repository.getByIsCurrent(true).getId();
+        return repository.getCurrentWeek().getId();
     }
 }

@@ -63,6 +63,7 @@ public class StandingServiceImpl implements StandingService {
             long teamId = i;
             List<MatchDto> allMatchesByTeamId = matchService.getAllByTeamId(teamId).stream()
                     .filter(m -> m.getStatus() != null)
+                    .filter(m -> !m.getStatus().equals("pst"))
                     .toList();
 
             Team team = allMatchesByTeamId.stream()
