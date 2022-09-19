@@ -39,8 +39,10 @@
                         <div class="btn-toolbar" role="toolbar">
                             <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
                                  th:onclick="'javascript:rowWeeks(\'' + ${i} + '\');'">
-                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm" th:text="${i}"></button>
-                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm"
+                                        th:text="${i}"></button>
+                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm"
+                                        th:text="${i}"></button>
                             </div>
                         </div>
                     </div>
@@ -52,8 +54,10 @@
                         <div class="btn-toolbar" role="toolbar">
                             <div class="btn-group me-2" role="group" th:each="i: ${#numbers.sequence(1,38)}"
                                  th:onclick="'javascript:rowPredict(\'' + ${i} + '\');'">
-                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm" th:text="${i}"></button>
-                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm" th:text="${i}"></button>
+                                <button type="button" th:if="${currentWeek == i}" class="btn btn-outline-primary btn-sm"
+                                        th:text="${i}"></button>
+                                <button type="button" th:unless="${currentWeek == i}" class="btn btn-secondary btn-sm"
+                                        th:text="${i}"></button>
                             </div>
                         </div>
                     </div>
@@ -72,7 +76,8 @@
         <div class="col-lg-4 col-md-6 col-sm-12 col-xs-12">
             <div class="card text-white bg-primary border-0">
                 <div class="card-header border-0"
-                     th:text="${'Текущий тур ' + matchList.get(1).getWeek().getId()}" onclick="window.location.assign('/match/week/current');"></div>
+                     th:text="${'Текущий тур ' + matchList.get(1).getWeek().getId()}"
+                     onclick="window.location.assign('/match/week/current');"></div>
                 <div class="card-body" style="padding-left: 0;">
                     <table class="table table-striped table-hover table-sm">
                         <thead th:align="center">
@@ -96,19 +101,32 @@
                                 </td>
                                 <td class="align-middle" th:text="${match.matchTime}">Time</td>
                                 <td><img th:src="${match.homeTeam.getLogo()}" th:width="20"/></td>
-                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.homeTeamScore}">HT Score</td>
-                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.status}">Status</td>
-                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.awayTeamScore}">AT Score</td>
+                                <td class="align-middle" th:if="${match.status != null}"
+                                    th:text="${match.homeTeamScore}">HT Score
+                                </td>
+                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.status}">
+                                    Status
+                                </td>
+                                <td class="align-middle" th:if="${match.status != null}"
+                                    th:text="${match.awayTeamScore}">AT Score
+                                </td>
                                 <td colspan="3" class="align-middle" th:unless="${match.status != null}">
+                                    <div th:if="${match.odds != null}">
                                     <span class="badge bg-dark2 w-30">
-                                        <p class="h7" style="display:inline" th:text="${match.getOdds().getHomeChance()}"></p>
+                                        <p class="h7" style="display:inline"
+                                           th:text="${match.getOdds().getHomeChance()}"></p>
                                     </span>
-                                    <span class="badge bg-dark2 w-30">
-                                        <p class="h7" style="display:inline" th:text="${match.getOdds().getDrawChance()}"></p>
+                                        <span class="badge bg-dark2 w-30">
+                                        <p class="h7" style="display:inline"
+                                           th:text="${match.getOdds().getDrawChance()}"></p>
                                     </span>
-                                    <span class="badge bg-dark2 w-30">
-                                        <p class="h7" style="display:inline" th:text="${match.getOdds().getAwayChance()}"></p>
+                                        <span class="badge bg-dark2 w-30">
+                                        <p class="h7" style="display:inline"
+                                           th:text="${match.getOdds().getAwayChance()}"></p>
                                     </span>
+                                    </div>
+                                    <div th:unless="${match.odds != null}" th:text="'-'">
+                                    </div>
                                 </td>
                                 <td><img th:src="${match.awayTeam.getLogo()}" th:width="20"/></td>
                             </tr>
@@ -116,16 +134,28 @@
                                 th:each="hth: ${h2h.get(iter.index)}">
                                 <td colspan="2" class="align-middle">
                                     <div>
-                                        <img  th:if="${hth.getLeagueName().contains('PL') }" th:src="'https://media.api-sports.io/football/leagues/39.png'" th:width="20"/>
-                                        <img  th:if="${hth.getLeagueName().contains('UCL') }" th:src="'https://media.api-sports.io/football/leagues/2.png'" th:width="20"/>
-                                        <img  th:if="${hth.getLeagueName().contains('CH') }" th:src="'https://media.api-sports.io/football/leagues/40.png'" th:width="15"/>
-                                        <img  th:if="${hth.getLeagueName().contains('LC') }" th:src="'https://media.api-sports.io/football/leagues/48.png'" th:width="15"/>
-                                        <img  th:if="${hth.getLeagueName().contains('FA') }" th:src="'https://media.api-sports.io/football/leagues/45.png'" th:width="20"/>
+                                        <img th:if="${hth.getLeagueName().contains('PL') }"
+                                             th:src="'https://media.api-sports.io/football/leagues/39.png'"
+                                             th:width="20"/>
+                                        <img th:if="${hth.getLeagueName().contains('UCL') }"
+                                             th:src="'https://media.api-sports.io/football/leagues/2.png'"
+                                             th:width="20"/>
+                                        <img th:if="${hth.getLeagueName().contains('CH') }"
+                                             th:src="'https://media.api-sports.io/football/leagues/40.png'"
+                                             th:width="15"/>
+                                        <img th:if="${hth.getLeagueName().contains('LC') }"
+                                             th:src="'https://media.api-sports.io/football/leagues/48.png'"
+                                             th:width="15"/>
+                                        <img th:if="${hth.getLeagueName().contains('FA') }"
+                                             th:src="'https://media.api-sports.io/football/leagues/45.png'"
+                                             th:width="20"/>
                                         <span th:text="${#temporals.format(hth.getLocalDateTime(), 'dd.MM.YY')}"/>
                                     </div>
                                 </td>
                                 <td><img th:src="${hth.homeTeam.getLogo()}" th:width="20"/></td>
-                                <td colspan="3" class="align-middle" th:text="${hth.homeTeamScore + ' - ' + hth.awayTeamScore}">Status</td>
+                                <td colspan="3" class="align-middle"
+                                    th:text="${hth.homeTeamScore + ' - ' + hth.awayTeamScore}">Status
+                                </td>
                                 <td><img th:src="${hth.awayTeam.getLogo()}" th:width="20"/></td>
                             </tr>
                         </th:block>

@@ -27,9 +27,11 @@ public interface MatchRepository extends CrudRepository<Match, Long> {
     Match getMatchByHomeTeam_CodeAndAwayTeam_Code(String home, String away);
 
     @Query("select m from Match m where m.homeTeam.id = :teamId or m.awayTeam.id = :teamId order by m.localDateTime")
-    List<Match> getAllByTeamId(@Param("teamId")Long teamId);
+    List<Match> getAllByTeamId(@Param("teamId") Long teamId);
 
     Match getMatchByPublicId(Long publicId);
 
     List<Match> getAllByStatusIsNotNull();
+
+    List<Match> getAllByStatus(String status);
 }

@@ -133,7 +133,7 @@ public class DataInitServiceImpl {
                 try {
                     //matchUpdate();
                     matchUpdateFromApiFootball();
-                    //newsInit();
+                    newsInit();
                     Thread.sleep(360000); //1000 - 1 сек
                 } catch (InterruptedException ex) {
                     throw new RuntimeException(ex);
@@ -141,6 +141,33 @@ public class DataInitServiceImpl {
             }
         });
         run.start();
+    }
+
+    @SneakyThrows
+    private void postponedMatches() {
+        List<MatchDto> pst = matchService.getAllByStatus("pst");
+
+        HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
+                .header(X_RAPID_API, API_FOOTBALL_TOKEN)
+                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .queryString("league", 39)
+                .queryString("season", 2022)
+                .queryString("status", "pst")
+                .asJson();
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        //Create data array from api
+        JsonObject mainObj = gson.fromJson(resp.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
+        JsonArray responses = mainObj.getAsJsonArray("response");
+
+        for (JsonElement response : responses) {
+            JsonObject matchObj = response.getAsJsonObject();
+            JsonObject fixture = matchObj.getAsJsonObject("fixture");
+
+            MatchDto matchDto = matchService.getByPublicId(fixture.get("id").getAsLong());
+            match.setStatus("pst");
+            matchService.save(matchDto);
+        }
     }
 
     @SneakyThrows

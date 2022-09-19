@@ -37,5 +37,5 @@ public interface MatchService {
 
     List<MatchDto> getOnline();
 
-    List<MatchDto> getAllCompletedAndCurrent();
+    List<MatchDto> getAllByStatus(String status);
 }
