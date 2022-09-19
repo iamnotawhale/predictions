@@ -153,7 +153,8 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
-    public List<MatchDto> getAllCompletedAndCurrent() {
-        return repository.getAllByStatusIsNotNull().stream().map(mapper::toDto).toList();
+    public List<MatchDto> getAllByStatus(String status) {
+        List<Match> matchesByStatus = repository.getAllByStatus(status);
+        return matchesByStatus.stream().map(mapper::toDto).toList();
     }
 }
