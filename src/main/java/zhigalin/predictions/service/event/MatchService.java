@@ -38,4 +38,6 @@ public interface MatchService {
     List<MatchDto> getOnline();
 
     List<MatchDto> getAllByStatus(String status);
+
+    MatchDto getOnlineResult(String teamName);
 }

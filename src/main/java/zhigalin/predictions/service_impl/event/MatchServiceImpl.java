@@ -157,4 +157,29 @@ public class MatchServiceImpl implements MatchService {
         List<Match> matchesByStatus = repository.getAllByStatus(status);
         return matchesByStatus.stream().map(mapper::toDto).toList();
     }
+
+    @Override
+    public MatchDto getOnlineResult(String teamName) {
+        List<Match> online = repository.getAllByLocalDateTimeBetween(LocalDateTime.now().minusHours(2), LocalDateTime.now());
+        MatchDto matchDto = online.stream().filter(m -> m.getHomeTeam().getTeamName().equals(teamName) ||
+                m.getAwayTeam().getTeamName().equals(teamName)).findFirst().map(mapper::toDto).orElse(null);
+
+        if (matchDto != null) {
+            if (matchDto.getHomeTeam().getTeamName().equals(teamName)) {
+                MatchDto build = MatchDto.builder()
+                        .homeTeamScore(matchDto.getHomeTeamScore())
+                        .awayTeamScore(matchDto.getAwayTeamScore())
+                        .result(matchDto.getResult().equals("H") ? "H" : matchDto.getResult().equals("A") ? "A" : "D")
+                        .build();
+                return build;
+            } else {
+                return MatchDto.builder()
+                        .homeTeamScore(matchDto.getAwayTeamScore())
+                        .awayTeamScore(matchDto.getHomeTeamScore())
+                        .result(matchDto.getResult().equals("A") ? "H" : matchDto.getResult().equals("H") ? "A" : "D")
+                        .build();
+            }
+        }
+        return null;
+    }
 }
