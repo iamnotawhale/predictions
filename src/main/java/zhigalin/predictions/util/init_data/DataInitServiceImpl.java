@@ -49,7 +49,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -172,7 +171,7 @@ public class DataInitServiceImpl {
 
     @SneakyThrows
     private void matchUpdateFromApiFootball() {
-        if (matchService.getAllByCurrentWeek(true).stream()
+        /*if (matchService.getAllByCurrentWeek(true).stream()
                 .allMatch(match -> Objects.equals(match.getStatus(), "ft")
                         || Objects.equals(match.getStatus(), "pst"))) {
             currentWeekUpdate();
@@ -180,14 +179,14 @@ public class DataInitServiceImpl {
         }
         if (matchService.getOnline().isEmpty()) {
             return;
-        }
+        }*/
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
                 .header("x-rapidapi-host", "v3.football.api-sports.io")
                 .queryString("league", 39)
                 .queryString("season", 2022)
-                .queryString("from", LocalDateTime.now().toLocalDate().toString())
-                .queryString("to", LocalDateTime.now().toLocalDate().toString())
+                /*.queryString("from", LocalDateTime.now().toLocalDate().toString())
+                .queryString("to", LocalDateTime.now().toLocalDate().toString())*/
                 .asJson();
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 

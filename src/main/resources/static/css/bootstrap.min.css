@@ -5275,7 +5275,7 @@ input[type="submit"].btn-block, input[type="reset"].btn-block, input[type="butto
     line-height: 1;
     text-align: center;
     white-space: nowrap;
-    vertical-align: baseline;
+    vertical-align: middle;
     -webkit-transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, -webkit-box-shadow 0.15s ease-in-out;
     transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, -webkit-box-shadow 0.15s ease-in-out;
     transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
@@ -8732,6 +8732,10 @@ a.bg-dark:hover, a.bg-dark:focus, button.bg-dark:hover, button.bg-dark:focus {
 
 .p-1 {
     padding: 0.25rem !important
+}
+
+.p-03 {
+    padding: 0.3rem !important
 }
 
 .pt-1, .py-1 {
