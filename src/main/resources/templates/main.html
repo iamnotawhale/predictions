@@ -13,7 +13,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">
-            <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
+            <p class="text-white" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01"
                 aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
@@ -197,6 +197,7 @@
                             <th class="d-none d-xl-table-cell">
                                 Клуб
                             </th>
+                            <th></th>
                             <th>И</th>
                             <th>В</th>
                             <th>Н</th>
@@ -226,6 +227,17 @@
                                        th:text="${standing.team.getCode().toUpperCase()}"
                                        style="display:inline; max-width: 100px;">
                                     </p>
+                                </td>
+                                <td style="padding-left: 0; padding-right: 0" th:with="match=${@matchServiceImpl.getOnlineResult(standing.team.getTeamName())}">
+                                    <span class="text-white p-03 badge rounded-pill bg-success" th:if="${match != null && match.getResult() == 'H'}"
+                                    th:text="${match.getHomeTeamScore() + ':' + match.getAwayTeamScore()}">
+                                    </span>
+                                    <span class="text-white p-03 badge rounded-pill bg-warning" th:if="${match != null && match.getResult() == 'D'}"
+                                          th:text="${match.getHomeTeamScore() + ':' + match.getAwayTeamScore()}">
+                                    </span>
+                                    <span class="text-white p-03 badge rounded-pill bg-danger" th:if="${match != null && match.getResult() == 'A'}"
+                                          th:text="${match.getHomeTeamScore() + ':' + match.getAwayTeamScore()}">
+                                    </span>
                                 </td>
                                 <td th:text="${standing.games}">Games</td>
                                 <td th:text="${standing.won}">Won</td>
