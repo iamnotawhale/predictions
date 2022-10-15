@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class MatchServiceImpl implements MatchService {
@@ -164,19 +165,18 @@ public class MatchServiceImpl implements MatchService {
         MatchDto matchDto = online.stream().filter(m -> m.getHomeTeam().getTeamName().equals(teamName) ||
                 m.getAwayTeam().getTeamName().equals(teamName)).findFirst().map(mapper::toDto).orElse(null);
 
-        if (matchDto != null) {
+        if (matchDto != null && matchDto.getResult() != null) {
             if (matchDto.getHomeTeam().getTeamName().equals(teamName)) {
-                MatchDto build = MatchDto.builder()
+                return MatchDto.builder()
                         .homeTeamScore(matchDto.getHomeTeamScore())
                         .awayTeamScore(matchDto.getAwayTeamScore())
-                        .result(matchDto.getResult().equals("H") ? "H" : matchDto.getResult().equals("A") ? "A" : "D")
+                        .result(Objects.equals(matchDto.getResult(), "H") ? "H" : Objects.equals(matchDto.getResult(), "A") ? "A" : "D")
                         .build();
-                return build;
             } else {
                 return MatchDto.builder()
                         .homeTeamScore(matchDto.getAwayTeamScore())
                         .awayTeamScore(matchDto.getHomeTeamScore())
-                        .result(matchDto.getResult().equals("A") ? "H" : matchDto.getResult().equals("H") ? "A" : "D")
+                        .result(Objects.equals(matchDto.getResult(), "A") ? "H" : Objects.equals(matchDto.getResult(), "H") ? "A" : "D")
                         .build();
             }
         }
