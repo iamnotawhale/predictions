@@ -120,7 +120,7 @@ public class DataInitServiceImpl {
         Thread run = new Thread(() -> {
             while (true) {
                 try {
-                    matchDateTimeStatusUpdate();
+                    //matchDateTimeStatusUpdate();
                     matchUpdateFromApiFootball();
                     newsInit();
                     Thread.sleep(360000); //1000 - 1 сек
