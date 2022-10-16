@@ -30,7 +30,6 @@ import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.model.event.Week;
-import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -118,20 +117,10 @@ public class DataInitServiceImpl {
     }
 
     public void allInit() {
-        //predictInit();
-        //fastStatsInit();
-        //roleInit();
-        //userInit();
-        //teamsInitFromApiFootball();
-        //matchInitFromApiFootball();
-        //headToHeadInitFromApiFootball();
-        //standingInitFromApiFootball();
-        //statsUpdate();
-        //currentWeekUpdate();
         Thread run = new Thread(() -> {
             while (true) {
                 try {
-                    //matchUpdate();
+                    matchDateTimeStatusUpdate();
                     matchUpdateFromApiFootball();
                     newsInit();
                     Thread.sleep(360000); //1000 - 1 сек
@@ -393,10 +382,9 @@ public class DataInitServiceImpl {
             }
         }
     }
-
     @SneakyThrows
-    private void standingInitFromApiFootball() {
-        HttpResponse<JsonNode> response = Unirest.get("https://v3.football.api-sports.io/standings")
+    private void matchDateTimeStatusUpdate() {
+        HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
                 .header("x-rapidapi-host", "v3.football.api-sports.io")
                 .queryString("league", 39)
@@ -404,33 +392,62 @@ public class DataInitServiceImpl {
                 .asJson();
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-        JsonObject mainObj = gson.fromJson(response.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
+        JsonObject mainObj = gson.fromJson(resp.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
+        JsonArray responses = mainObj.getAsJsonArray("response");
 
-        JsonArray responseArr = mainObj.getAsJsonArray("response");
-        JsonObject singleObject = responseArr.get(0).getAsJsonObject();
-        JsonObject league = singleObject.getAsJsonObject("league");
+        for (JsonElement response : responses) {
+            JsonObject matchObj = response.getAsJsonObject();
+            JsonObject fixture = matchObj.getAsJsonObject("fixture");
+            matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.get("timestamp").getAsLong()),
+                    TimeZone.getDefault().toZoneId());
+            JsonObject fixtureStatus = fixture.get("status").getAsJsonObject();
+            status = fixtureStatus.get("short").getAsString();
 
-        JsonArray standings = league.getAsJsonArray("standings");
-        JsonArray stand = standings.get(0).getAsJsonArray();
-        for (JsonElement standing : stand) {
-            JsonObject obj = standing.getAsJsonObject();
-            JsonObject team = obj.getAsJsonObject("team");
-            JsonObject all = obj.getAsJsonObject("all");
-            JsonObject goals = all.getAsJsonObject("goals");
+            switch (status) {
+                case "PST" -> status = "pst";
+                case "FT" -> status = "ft";
+                case "HT" -> status = "ht";
+                case "1H", "2H" -> status = fixtureStatus.get("elapsed").toString() + "'";
+                default -> status = null;
+            }
 
-            Standing std = Standing.builder()
-                    .team(teamMapper.toEntity(teamService.getByPublicId(team.get("id").getAsLong())))
-                    .points(obj.get("points").getAsInt())
-                    .result((obj.get("description").isJsonNull()) ? null : obj.get("description").getAsString())
-                    .games(all.get("played").getAsInt())
-                    .won(all.get("win").getAsInt())
-                    .draw(all.get("draw").getAsInt())
-                    .lost(all.get("lose").getAsInt())
-                    .goalsScored(goals.get("for").getAsInt())
-                    .goalsAgainst(goals.get("against").getAsInt())
-                    .build();
-            standingService.save(standingMapper.toDto(std));
+            JsonObject teams = matchObj.getAsJsonObject("teams");
+            JsonObject home = teams.getAsJsonObject("home");
+            JsonObject away = teams.getAsJsonObject("away");
+            homeTeam = teamMapper.toEntity(teamService.getByPublicId(home.get("id").getAsLong()));
+            awayTeam = teamMapper.toEntity(teamService.getByPublicId(away.get("id").getAsLong()));
+
+            JsonObject goals = matchObj.getAsJsonObject("goals");
+            if (goals.get("home").isJsonNull()) {
+                match = Match.builder()
+                        .status(status)
+                        .localDateTime(matchDateTime)
+                        .matchDate(matchDateTime.toLocalDate())
+                        .matchTime(matchDateTime.toLocalTime())
+                        .homeTeam(homeTeam)
+                        .awayTeam(awayTeam)
+                        .build();
+            } else {
+                homeTeamScore = goals.get("home").getAsInt();
+                awayTeamScore = goals.get("away").getAsInt();
+
+                result = (homeTeamScore.equals(awayTeamScore)) ? "D" : (homeTeamScore > awayTeamScore) ? "H" : "A";
+
+                match = Match.builder()
+                        .status(status)
+                        .localDateTime(matchDateTime)
+                        .matchDate(matchDateTime.toLocalDate())
+                        .matchTime(matchDateTime.toLocalTime())
+                        .homeTeam(homeTeam)
+                        .awayTeam(awayTeam)
+                        .homeTeamScore(homeTeamScore)
+                        .awayTeamScore(awayTeamScore)
+                        .result(result)
+                        .build();
+            }
+            matchService.save(matchMapper.toDto(match));
         }
+
     }
 
     @SneakyThrows
