@@ -8,6 +8,7 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 public class UpcomingCommand implements Command {
     private final SendBotMessageService sendBotMessageService;
@@ -33,9 +34,14 @@ public class UpcomingCommand implements Command {
                     tour = match.getWeek().getId();
                 }
                 builder.append(match.getHomeTeam().getCode()).append(" ")
-                        .append("- ").append(match.getAwayTeam().getCode())
-                        .append(" ⏱ ").append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")))
-                        .append("`").append("\n");
+                        .append("- ").append(match.getAwayTeam().getCode());
+                if (Objects.equals(match.getStatus(), "pst")) {
+                    builder.append(" ⏰ ").append(match.getStatus());
+                } else {
+                    builder.append(" ⏱ ").append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
+                }
+
+                builder.append("`").append("\n");
             }
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), builder.toString());
         } else {
