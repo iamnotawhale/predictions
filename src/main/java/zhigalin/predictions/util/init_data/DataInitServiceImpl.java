@@ -113,7 +113,6 @@ public class DataInitServiceImpl {
         Thread run = new Thread(() -> {
             while (true) {
                 try {
-                    matchDateTimeStatusUpdate();
                     matchUpdateFromApiFootball();
                     newsInit();
                     Thread.sleep(360000); //1000 - 1 сек
@@ -158,6 +157,7 @@ public class DataInitServiceImpl {
                 .allMatch(match -> Objects.equals(match.getStatus(), "ft")
                         || Objects.equals(match.getStatus(), "pst"))) {
             currentWeekUpdate();
+            matchDateTimeStatusUpdate();
             updateOdds();
         }
         if (matchService.getOnline().isEmpty()) {

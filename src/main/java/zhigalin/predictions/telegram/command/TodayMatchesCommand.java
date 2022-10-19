@@ -36,7 +36,7 @@ public class TodayMatchesCommand implements Command {
                     tour = match.getWeek().getId();
                 }
                 builder.append(match.getHomeTeam().getCode()).append(" ");
-                if (!Objects.equals(match.getStatus(), null)) {
+                if (!Objects.equals(match.getStatus(), "ns")) {
                     builder.append(match.getHomeTeamScore()).append(" - ")
                             .append(match.getAwayTeamScore()).append(" ")
                             .append(match.getAwayTeam().getCode()).append(" ")
