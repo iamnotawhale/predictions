@@ -101,16 +101,16 @@
                                 </td>
                                 <td class="align-middle" th:text="${match.matchTime}">Time</td>
                                 <td><img th:src="${match.homeTeam.getLogo()}" th:width="20"/></td>
-                                <td class="align-middle" th:if="${match.status != null}"
+                                <td class="align-middle" th:if="${match.status != 'ns'}"
                                     th:text="${match.homeTeamScore}">HT Score
                                 </td>
-                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.status}">
+                                <td class="align-middle" th:if="${match.status != 'ns'}" th:text="${match.status}">
                                     Status
                                 </td>
-                                <td class="align-middle" th:if="${match.status != null}"
+                                <td class="align-middle" th:if="${match.status != 'ns'}"
                                     th:text="${match.awayTeamScore}">AT Score
                                 </td>
-                                <td colspan="3" class="align-middle" th:unless="${match.status != null}">
+                                <td colspan="3" class="align-middle" th:unless="${match.status != 'ns'}">
                                     <div th:if="${match.odds != null}">
                                     <span class="badge bg-dark2 w-30">
                                         <p class="h7" style="display:inline"
@@ -333,10 +333,10 @@
                             <tr>
                                 <td style="width: 35%"><img th:src="${match.homeTeam.getLogo()}" th:width="20"/></td>
                                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
-                                <td class="align-middle" th:if="${match.status != null}" th:text="${match.status}">
+                                <td class="align-middle" th:if="${match.status != 'ns'}" th:text="${match.status}">
                                     Status
                                 </td>
-                                <td class="align-middle" th:unless="${match.status != null}" th:text="'-'">Status</td>
+                                <td class="align-middle" th:unless="${match.status != 'ns'}" th:text="'-'">Status</td>
                                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
                                 <td style="width: 35%"><img th:src="${match.awayTeam.getLogo()}" th:width="20"/></td>
                             </tr>
