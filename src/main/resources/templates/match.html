@@ -92,8 +92,8 @@
                 <td class="align-middle" th:text="${match.matchTime}">Time</td>
                 <td class="align-middle" th:text="${match.homeTeam.getCode()}">Home Team</td>
                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
-                <td class="align-middle" th:if="${match.status != null}" th:text="${match.status}">Status</td>
-                <td class="align-middle" th:unless="${match.status != null}" th:text="'-'">Status</td>
+                <td class="align-middle" th:if="${match.status != 'ns'}" th:text="${match.status}">Status</td>
+                <td class="align-middle" th:unless="${match.status != 'ns'}" th:text="'-'">Status</td>
                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
                 <td class="align-middle" th:text="${match.awayTeam.getCode()}">Away Team</td>
 

@@ -19,7 +19,6 @@ import zhigalin.predictions.converter.event.HeadToHeadMapper;
 import zhigalin.predictions.converter.event.MatchMapper;
 import zhigalin.predictions.converter.event.SeasonMapper;
 import zhigalin.predictions.converter.event.WeekMapper;
-import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
 import zhigalin.predictions.converter.predict.OddsMapper;
 import zhigalin.predictions.dto.event.MatchDto;
@@ -35,7 +34,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.OddsService;
@@ -76,12 +74,10 @@ public class DataInitServiceImpl {
     private SeasonService seasonService;
     private WeekService weekService;
     private MatchService matchService;
-    private StandingService standingService;
     private NewsService newsService;
     private HeadToHeadService headToHeadService;
     private OddsService oddsService;
     private SeasonMapper seasonMapper;
-    private StandingMapper standingMapper;
     private WeekMapper weekMapper;
     private TeamMapper teamMapper;
     private MatchMapper matchMapper;
@@ -92,9 +88,8 @@ public class DataInitServiceImpl {
     @Autowired
     public DataInitServiceImpl(TeamService teamService, SeasonService seasonService,
                                WeekService weekService, MatchService matchService,
-                               StandingService standingService, NewsService newsService,
-                               HeadToHeadService headToHeadService, OddsService oddsService,
-                               SeasonMapper seasonMapper, StandingMapper standingMapper,
+                               NewsService newsService, HeadToHeadService headToHeadService,
+                               OddsService oddsService, SeasonMapper seasonMapper,
                                WeekMapper weekMapper, TeamMapper teamMapper, MatchMapper matchMapper,
                                HeadToHeadMapper headToHeadMapper, OddsMapper oddsMapper,
                                PasswordEncoder bCryptPasswordEncoder) {
@@ -102,12 +97,10 @@ public class DataInitServiceImpl {
         this.seasonService = seasonService;
         this.weekService = weekService;
         this.matchService = matchService;
-        this.standingService = standingService;
         this.newsService = newsService;
         this.headToHeadService = headToHeadService;
         this.oddsService = oddsService;
         this.seasonMapper = seasonMapper;
-        this.standingMapper = standingMapper;
         this.weekMapper = weekMapper;
         this.teamMapper = teamMapper;
         this.matchMapper = matchMapper;
@@ -120,7 +113,7 @@ public class DataInitServiceImpl {
         Thread run = new Thread(() -> {
             while (true) {
                 try {
-                    //matchDateTimeStatusUpdate();
+                    matchDateTimeStatusUpdate();
                     matchUpdateFromApiFootball();
                     newsInit();
                     Thread.sleep(360000); //1000 - 1 сек
@@ -196,6 +189,7 @@ public class DataInitServiceImpl {
 
             switch (status) {
                 case "PST" -> status = "pst";
+                case "NS" -> status = "ns";
                 case "FT" -> status = "ft";
                 case "HT" -> status = "ht";
                 case "1H", "2H" -> status = fixtureStatus.get("elapsed").toString() + "'";
@@ -382,6 +376,7 @@ public class DataInitServiceImpl {
             }
         }
     }
+
     @SneakyThrows
     private void matchDateTimeStatusUpdate() {
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
@@ -405,6 +400,7 @@ public class DataInitServiceImpl {
 
             switch (status) {
                 case "PST" -> status = "pst";
+                case "NS" -> status = "ns";
                 case "FT" -> status = "ft";
                 case "HT" -> status = "ht";
                 case "1H", "2H" -> status = fixtureStatus.get("elapsed").toString() + "'";
