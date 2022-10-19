@@ -42,8 +42,8 @@ public class TodayMatchesCommand implements Command {
                             .append(match.getAwayTeam().getCode()).append(" ")
                             .append(match.getStatus()).append(" ");
                 } else if (Objects.equals(match.getStatus(), "pst")) {
-                    builder.append(match.getStatus()).append(" ")
-                            .append(match.getAwayTeam().getCode());
+                    builder.append("- ").append(match.getAwayTeam().getCode())
+                            .append(" ⏰ ").append(match.getStatus());
                 } else {
                     builder.append("- ").append(match.getAwayTeam().getCode())
                             .append(" ⏱ ").append(match.getMatchTime());
