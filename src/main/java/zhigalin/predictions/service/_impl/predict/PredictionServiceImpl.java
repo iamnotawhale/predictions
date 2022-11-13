@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.predict;
+package zhigalin.predictions.service._impl.predict;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.predict.PredictionMapper;
 import zhigalin.predictions.converter.user.UserMapper;
@@ -15,6 +15,7 @@ import zhigalin.predictions.service.predict.PredictionService;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 public class PredictionServiceImpl implements PredictionService {
 
@@ -22,14 +23,6 @@ public class PredictionServiceImpl implements PredictionService {
     private final PredictionMapper mapper;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
-
-    @Autowired
-    public PredictionServiceImpl(PredictionRepository repository, UserRepository userRepository, PredictionMapper mapper, UserMapper userMapper) {
-        this.repository = repository;
-        this.userRepository = userRepository;
-        this.mapper = mapper;
-        this.userMapper = userMapper;
-    }
 
     @Override
     public List<PredictionDto> getAllByWeekId(Long id) {
@@ -90,6 +83,7 @@ public class PredictionServiceImpl implements PredictionService {
     public PredictionDto save(PredictionDto dto) {
         dto.setPoints(getPoints(dto));
         Prediction prediction = repository.getByMatch_IdAndUser_Id(dto.getMatch().getId(), dto.getUser().getId());
+        repository.updateSequence();
         if (prediction != null) {
             mapper.updateEntityFromDto(dto, prediction);
             return mapper.toDto(repository.save(prediction));

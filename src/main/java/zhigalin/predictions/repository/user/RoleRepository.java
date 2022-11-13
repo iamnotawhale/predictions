@@ -6,5 +6,6 @@ import zhigalin.predictions.model.user.Role;
 
 @Repository
 public interface RoleRepository extends CrudRepository<Role, Long> {
+
     Role findByRole(String name);
 }

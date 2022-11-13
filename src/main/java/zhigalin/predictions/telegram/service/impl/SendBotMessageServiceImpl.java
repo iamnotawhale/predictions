@@ -1,6 +1,6 @@
-package zhigalin.predictions.telegram.service_impl;
+package zhigalin.predictions.telegram.service.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -13,16 +13,11 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 import java.util.ArrayList;
 import java.util.List;
 
-
+@RequiredArgsConstructor
 @Service
 public class SendBotMessageServiceImpl implements SendBotMessageService {
 
     private final EPLInfoBot bot;
-
-    @Autowired
-    public SendBotMessageServiceImpl(EPLInfoBot bot) {
-        this.bot = bot;
-    }
 
     @Override
     public void sendMessage(String chatId, String message) {

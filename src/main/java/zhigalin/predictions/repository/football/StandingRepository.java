@@ -6,5 +6,6 @@ import zhigalin.predictions.model.football.Standing;
 
 @Repository
 public interface StandingRepository extends CrudRepository<Standing, Long> {
+
     Standing getByTeam_Id(Long id);
 }

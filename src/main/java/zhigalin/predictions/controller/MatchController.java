@@ -1,6 +1,6 @@
 package zhigalin.predictions.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
@@ -15,19 +15,14 @@ import zhigalin.predictions.service.football.TeamService;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/match")
 public class MatchController {
+
     private final MatchService service;
     private final WeekService weekService;
     private final TeamService teamService;
-
-    @Autowired
-    public MatchController(MatchService service, WeekService weekService, TeamService teamService) {
-        this.service = service;
-        this.weekService = weekService;
-        this.teamService = teamService;
-    }
 
     @GetMapping("/team")
     public ModelAndView findByTeamId(@RequestParam(value = "id") Long id, Authentication authentication) {
@@ -38,7 +33,7 @@ public class MatchController {
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + teamService.getById(id).getTeamName());
         model.addObject("matchList", service.getAllByTeamId(id));
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
@@ -51,7 +46,7 @@ public class MatchController {
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + id + " тура");
         model.addObject("matchList", service.getAllByWeekId(id));
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
@@ -64,7 +59,7 @@ public class MatchController {
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + weekService.getCurrentWeek().getId() + " тура");
         model.addObject("matchList", service.getAllByCurrentWeek(true));
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
@@ -97,7 +92,7 @@ public class MatchController {
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи сегодня");
         model.addObject("matchList", service.getAllByTodayDate());
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
@@ -110,7 +105,7 @@ public class MatchController {
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи в ближайшие дни - " + days);
         model.addObject("matchList", service.getAllByUpcomingDays(days));
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 

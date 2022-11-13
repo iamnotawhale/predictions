@@ -5,6 +5,7 @@ import zhigalin.predictions.dto.event.MatchDto;
 import java.util.List;
 
 public interface MatchService {
+
     MatchDto save(MatchDto matchDto);
 
     MatchDto getById(Long id);

@@ -1,6 +1,6 @@
 package zhigalin.predictions.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -10,20 +10,15 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import zhigalin.predictions.service_impl.user.UserServiceImpl;
+import zhigalin.predictions.service._impl.user.UserServiceImpl;
 
+@RequiredArgsConstructor
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final UserServiceImpl userService;
     private final LoginSuccessHandler loginSuccessHandler;
-
-    @Autowired
-    public SecurityConfig(UserServiceImpl userService, LoginSuccessHandler loginSuccessHandler) {
-        this.userService = userService;
-        this.loginSuccessHandler = loginSuccessHandler;
-    }
 
     @Override
     public void configure(AuthenticationManagerBuilder auth) throws Exception {

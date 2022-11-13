@@ -1,5 +1,6 @@
 package zhigalin.predictions.telegram.command;
 
+import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.model.football.Standing;
@@ -8,16 +9,12 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 public class TableCommand implements Command {
+
     private final SendBotMessageService sendBotMessageService;
     private final StandingService standingService;
     private final StandingMapper standingMapper;
-
-    public TableCommand(SendBotMessageService sendBotMessageService, StandingService standingService, StandingMapper standingMapper) {
-        this.sendBotMessageService = sendBotMessageService;
-        this.standingService = standingService;
-        this.standingMapper = standingMapper;
-    }
 
     @Override
     public void execute(Update update) {

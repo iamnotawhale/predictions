@@ -10,6 +10,7 @@ import java.util.List;
 
 @Repository
 public interface PredictionRepository extends CrudRepository<Prediction, Long> {
+
     List<Prediction> getAllByMatch_Id(Long id);
 
     List<Prediction> getAllByMatch_Week_IdOrderByMatch_LocalDateTimeDescMatch_HomeTeam_IdAsc(Long id);
@@ -22,4 +23,7 @@ public interface PredictionRepository extends CrudRepository<Prediction, Long> {
 
     @Query("SELECT sum(p.points) from Prediction p where p.user.id = :userId and p.points is not null")
     Integer getPointsByUser_Id(@Param("userId") Long userId);
+
+    @Query(value = "SELECT setval('predict_sequence', (SELECT MAX(id) FROM predict) + 1, false)", nativeQuery = true)
+    void updateSequence();
 }

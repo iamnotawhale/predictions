@@ -1,17 +1,23 @@
 package zhigalin.predictions.dto.event;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Setter;
+import lombok.Value;
+import lombok.experimental.NonFinal;
+import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.Season;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+import java.util.Set;
+
+@Value
 @Builder
 public class WeekDto {
-    private Long id;
-    private String weekName;
-    private Season season;
-    private Boolean isCurrent;
+
+    Long id;
+    String weekName;
+    Season season;
+    Set<Match> matches;
+    @NonFinal
+    @Setter
+    Boolean isCurrent;
 }

@@ -1,6 +1,6 @@
 package zhigalin.predictions.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import zhigalin.predictions.dto.user.UserDto;
@@ -8,16 +8,12 @@ import zhigalin.predictions.service.user.UserService;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/user")
 public class UserController {
 
     private final UserService userService;
-
-    @Autowired
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
 
     @GetMapping("/all")
     public List<UserDto> findAllUsers() {

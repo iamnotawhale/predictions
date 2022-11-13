@@ -6,10 +6,7 @@ import lombok.*;
 import javax.persistence.*;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity

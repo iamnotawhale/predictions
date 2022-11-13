@@ -4,15 +4,12 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class NewsDto {
-    private Long id;
-    private String title;
-    private String link;
-    private LocalDateTime dateTime;
+
+    Long id;
+    String title;
+    String link;
+    LocalDateTime dateTime;
 }

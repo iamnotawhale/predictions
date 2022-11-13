@@ -2,16 +2,13 @@ package zhigalin.predictions.dto.predict;
 
 import lombok.*;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class OddsDto {
-    private Long id;
-    private Double homeChance;
-    private Double drawChance;
-    private Double awayChance;
-    private Long fixtureId;
+
+    Long id;
+    Double homeChance;
+    Double drawChance;
+    Double awayChance;
+    Long fixtureId;
 }

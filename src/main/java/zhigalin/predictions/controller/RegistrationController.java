@@ -1,6 +1,6 @@
 package zhigalin.predictions.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.converter.user.RoleMapper;
@@ -12,6 +12,7 @@ import zhigalin.predictions.service.user.UserService;
 
 import java.util.Collections;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/registration")
 public class RegistrationController {
@@ -21,18 +22,10 @@ public class RegistrationController {
     private final RoleMapper roleMapper;
     private final UserMapper userMapper;
 
-    @Autowired
-    public RegistrationController(RoleService roleService, UserService userService, RoleMapper roleMapper, UserMapper userMapper) {
-        this.roleService = roleService;
-        this.userService = userService;
-        this.roleMapper = roleMapper;
-        this.userMapper = userMapper;
-    }
-
     @GetMapping()
     public ModelAndView getRegistrationPage() {
         ModelAndView model = new ModelAndView("registration");
-        model.addObject("newUser", new UserDto());
+        model.addObject("newUser", UserDto.builder().build());
         return model;
     }
 

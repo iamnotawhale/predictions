@@ -7,16 +7,14 @@ import org.springframework.security.core.GrantedAuthority;
 import javax.persistence.*;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "role")
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Entity
 public class Role implements GrantedAuthority {
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Role_generator")
     @SequenceGenerator(sequenceName = "Role_sequence", name = "Role_generator", allocationSize = 1)

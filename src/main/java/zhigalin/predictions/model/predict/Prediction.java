@@ -8,16 +8,14 @@ import zhigalin.predictions.model.user.User;
 import javax.persistence.*;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Table(name = "predict")
 public class Prediction {
+
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO, generator = "Predict_generator")
     @SequenceGenerator(sequenceName = "Predict_sequence", name = "Predict_generator", allocationSize = 1)

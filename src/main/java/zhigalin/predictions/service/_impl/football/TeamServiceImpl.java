@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.football;
+package zhigalin.predictions.service._impl.football;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.football.TeamMapper;
 import zhigalin.predictions.dto.football.TeamDto;
@@ -8,17 +8,12 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.repository.football.TeamRepository;
 import zhigalin.predictions.service.football.TeamService;
 
+@RequiredArgsConstructor
 @Service
 public class TeamServiceImpl implements TeamService {
 
     private final TeamRepository repository;
     private final TeamMapper mapper;
-
-    @Autowired
-    public TeamServiceImpl(TeamRepository repository, TeamMapper mapper) {
-        this.repository = repository;
-        this.mapper = mapper;
-    }
 
     @Override
     public TeamDto saveTeam(TeamDto teamDto) {

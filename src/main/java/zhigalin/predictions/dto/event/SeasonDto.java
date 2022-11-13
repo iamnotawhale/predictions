@@ -2,13 +2,10 @@ package zhigalin.predictions.dto.event;
 
 import lombok.*;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class SeasonDto {
-    private Long id;
-    private String seasonName;
+
+    Long id;
+    String seasonName;
 }

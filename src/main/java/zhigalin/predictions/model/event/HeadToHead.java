@@ -8,16 +8,14 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Table(name = "h2h")
 public class HeadToHead {
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "h2h_generator")
     @SequenceGenerator(name = "h2h_generator", sequenceName = "h2h_sequence", allocationSize = 1)

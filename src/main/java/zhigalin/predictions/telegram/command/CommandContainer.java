@@ -36,7 +36,7 @@ public class CommandContainer {
                 .put(NO.getCommandName(), new NoCommand(sendBotMessageService))
                 .put(TABLE.getCommandName(), new TableCommand(sendBotMessageService, standingService, standingMapper))
                 .put(TOUR.getCommandName(), new TourCommand(sendBotMessageService))
-                .put(TOURNUM.getCommandName(), new TourNumCommand(sendBotMessageService, matchService, matchMapper))
+                .put(TOUR_NUM.getCommandName(), new TourNumCommand(sendBotMessageService, matchService, matchMapper))
                 .put(NEWS.getCommandName(), new NewsCommand(sendBotMessageService, newsService, newsMapper))
                 .put(UPCOMING.getCommandName(), new UpcomingCommand(sendBotMessageService, matchService, matchMapper))
                 .build();
@@ -45,7 +45,7 @@ public class CommandContainer {
 
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, matchMapper, teamMapper);
 
-        headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, teamService, teamMapper, headToHeadService, headToHeadMapper);
+        headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService, headToHeadMapper);
     }
 
     public Command retrieveCommand(String commandIdentifier) {

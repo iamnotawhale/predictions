@@ -4,18 +4,17 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
 
 import javax.persistence.*;
+import java.util.Set;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @Table(name = "weeks")
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 public class Week {
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Week_generator")
     @SequenceGenerator(sequenceName = "Week_sequence", name = "Week_generator", allocationSize = 1)
@@ -26,6 +25,11 @@ public class Week {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "season_id")
     private Season season;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "week")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private Set<Match> matches;
 
     private Boolean isCurrent;
 }

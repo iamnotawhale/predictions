@@ -1,5 +1,6 @@
 package zhigalin.predictions.telegram.command;
 
+import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.converter.news.NewsMapper;
 import zhigalin.predictions.model.news.News;
@@ -9,16 +10,11 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@RequiredArgsConstructor
 public class NewsCommand implements Command {
     private final SendBotMessageService sendBotMessageService;
     private final NewsService newsService;
     private final NewsMapper newsMapper;
-
-    public NewsCommand(SendBotMessageService sendBotMessageService, NewsService newsService, NewsMapper newsMapper) {
-        this.sendBotMessageService = sendBotMessageService;
-        this.newsService = newsService;
-        this.newsMapper = newsMapper;
-    }
 
     @Override
     public void execute(Update update) {

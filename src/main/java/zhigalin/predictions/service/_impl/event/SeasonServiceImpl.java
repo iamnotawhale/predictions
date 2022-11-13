@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.event;
+package zhigalin.predictions.service._impl.event;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.SeasonMapper;
 import zhigalin.predictions.dto.event.SeasonDto;
@@ -8,17 +8,12 @@ import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.repository.event.SeasonRepository;
 import zhigalin.predictions.service.event.SeasonService;
 
+@RequiredArgsConstructor
 @Service
 public class SeasonServiceImpl implements SeasonService {
 
     private final SeasonRepository seasonRepository;
     private final SeasonMapper mapper;
-
-    @Autowired
-    public SeasonServiceImpl(SeasonRepository seasonRepository, SeasonMapper mapper) {
-        this.seasonRepository = seasonRepository;
-        this.mapper = mapper;
-    }
 
     @Override
     public SeasonDto saveSeason(SeasonDto seasonDto) {
