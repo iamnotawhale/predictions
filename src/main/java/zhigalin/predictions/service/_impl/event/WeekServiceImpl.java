@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.event;
+package zhigalin.predictions.service._impl.event;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.WeekMapper;
 import zhigalin.predictions.dto.event.WeekDto;
@@ -10,17 +10,12 @@ import zhigalin.predictions.service.event.WeekService;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Service
 public class WeekServiceImpl implements WeekService {
 
     private final WeekRepository repository;
     private final WeekMapper mapper;
-
-    @Autowired
-    public WeekServiceImpl(WeekRepository repository, WeekMapper mapper) {
-        this.repository = repository;
-        this.mapper = mapper;
-    }
 
     @Override
     public WeekDto save(WeekDto weekDto) {

@@ -3,23 +3,20 @@ package zhigalin.predictions.dto.football;
 import lombok.*;
 import zhigalin.predictions.model.football.Team;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class StandingDto {
-    private Long id;
-    private Team team;
-    private Integer points;
-    private Integer games;
-    private Integer won;
-    private Integer draw;
-    private Integer lost;
-    private Integer goalsScored;
-    private Integer goalsAgainst;
-    private String result;
+
+    Long id;
+    Team team;
+    Integer points;
+    Integer games;
+    Integer won;
+    Integer draw;
+    Integer lost;
+    Integer goalsScored;
+    Integer goalsAgainst;
+    String result;
     public int compareGoals(StandingDto s) {
         return Integer.compare(s.getGoalsScored() - s.getGoalsAgainst(), this.getGoalsScored() - this.getGoalsAgainst());
     }

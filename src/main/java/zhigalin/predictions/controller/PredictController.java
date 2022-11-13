@@ -1,6 +1,6 @@
 package zhigalin.predictions.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
@@ -14,6 +14,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/predict")
 public class PredictController {
@@ -21,13 +22,6 @@ public class PredictController {
     private final PredictionService predictionService;
     private final UserService userService;
     private final WeekService weekService;
-
-    @Autowired
-    public PredictController(PredictionService predictionService, UserService userService, WeekService weekService) {
-        this.predictionService = predictionService;
-        this.userService = userService;
-        this.weekService = weekService;
-    }
 
     @GetMapping("/match/{id}")
     public List<PredictionDto> getByMatchId(@PathVariable Long id) {
@@ -74,7 +68,7 @@ public class PredictController {
         model.addObject("list", predictionService.getAllByUserIdAndWeekId(user, week));
         model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
         model.addObject("currentWeek", weekService.getCurrentWeekId());
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         model.addObject("currentUser", currentUser);
         return model;
     }
@@ -89,7 +83,7 @@ public class PredictController {
         model.addObject("currentUser", user);
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("list", predictionService.getAllByUserIdAndWeekId(user.getId(), id));
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
@@ -102,7 +96,7 @@ public class PredictController {
         model.addObject("currentUser", user);
         model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("list", predictionService.getAllByUser_Id(user.getId()));
-        model.addObject("newPredict", new PredictionDto());
+        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 }

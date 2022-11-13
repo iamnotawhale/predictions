@@ -1,5 +1,6 @@
 package zhigalin.predictions.telegram.command;
 
+import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.converter.event.MatchMapper;
 import zhigalin.predictions.model.event.Match;
@@ -10,16 +11,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 
+@RequiredArgsConstructor
 public class UpcomingCommand implements Command {
-    private final SendBotMessageService sendBotMessageService;
-    private final MatchService matchService;
-    private final MatchMapper matchMapper;
 
-    public UpcomingCommand(SendBotMessageService sendBotMessageService, MatchService matchService, MatchMapper matchMapper) {
-        this.sendBotMessageService = sendBotMessageService;
-        this.matchService = matchService;
-        this.matchMapper = matchMapper;
-    }
+    private final SendBotMessageService sendBotMessageService;
+
+    private final MatchService matchService;
+
+    private final MatchMapper matchMapper;
 
     @Override
     public void execute(Update update) {

@@ -1,32 +1,37 @@
 package zhigalin.predictions.dto.event;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Setter;
+import lombok.Value;
+import lombok.experimental.NonFinal;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Odds;
+import zhigalin.predictions.model.predict.Prediction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Set;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class MatchDto {
-    private Long id;
-    private Long publicId;
-    private Week week;
-    private LocalDateTime localDateTime;
-    private LocalDate matchDate;
-    private LocalTime matchTime;
-    private Team homeTeam;
-    private Team awayTeam;
-    private Integer homeTeamScore;
-    private Integer awayTeamScore;
-    private String result;
-    private String status;
-    private Odds odds;
+
+    Long id;
+    Long publicId;
+    Week week;
+    LocalDateTime localDateTime;
+    LocalDate matchDate;
+    LocalTime matchTime;
+    Team homeTeam;
+    Team awayTeam;
+    Integer homeTeamScore;
+    Integer awayTeamScore;
+    String result;
+    String status;
+    Set<Prediction> predictions;
+    @NonFinal
+    @Setter
+    Odds odds;
 }

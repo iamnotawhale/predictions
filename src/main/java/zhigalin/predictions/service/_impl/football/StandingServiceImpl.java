@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.football;
+package zhigalin.predictions.service._impl.football;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.dto.event.MatchDto;
@@ -15,18 +15,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+@RequiredArgsConstructor
 @Service
 public class StandingServiceImpl implements StandingService {
+
     private final StandingRepository repository;
     private final StandingMapper mapper;
     private final MatchService matchService;
-
-    @Autowired
-    public StandingServiceImpl(StandingRepository repository, StandingMapper mapper, MatchService matchService) {
-        this.repository = repository;
-        this.mapper = mapper;
-        this.matchService = matchService;
-    }
 
     @Override
     public List<StandingDto> getAll() {

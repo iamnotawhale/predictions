@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.event;
+package zhigalin.predictions.service._impl.event;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.MatchMapper;
 import zhigalin.predictions.dto.event.MatchDto;
@@ -15,17 +15,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+@RequiredArgsConstructor
 @Service
 public class MatchServiceImpl implements MatchService {
 
     private final MatchRepository repository;
     private final MatchMapper mapper;
-
-    @Autowired
-    public MatchServiceImpl(MatchRepository repository, MatchMapper mapper) {
-        this.repository = repository;
-        this.mapper = mapper;
-    }
 
     @Override
     public MatchDto save(MatchDto matchDto) {
@@ -49,30 +44,25 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> getAllByTodayDate() {
-        List<Match> allToday = repository.getAllByMatchDateOrderByWeekAscMatchDateAscMatchTimeAsc(LocalDate.now());
+        List<Match> allToday = repository.getAllByMatchDateOrderByWeekAscLocalDateTimeAsc(LocalDate.now());
         return allToday.stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<MatchDto> getAllByUpcomingDays(Integer days) {
-        List<Match> nearestMatches = new ArrayList<>();
-        LocalDate date = LocalDate.now();
-        for (int i = 0; i < days; i++) {
-            List<Match> allToday = repository.getAllByMatchDateOrderByWeekAscMatchDateAscMatchTimeAsc(date.plusDays(i));
-            nearestMatches.addAll(allToday);
-        }
-        return nearestMatches.stream().map(mapper::toDto).toList();
+        List<Match> fromNowToDay = repository.getAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now(), LocalDateTime.now().plusDays(days));
+        return fromNowToDay.stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<MatchDto> getAllByWeekId(Long id) {
-        List<Match> allByWeekId = repository.getAllByWeekIdOrderByMatchDateAscMatchTimeAsc(id);
+        List<Match> allByWeekId = repository.getAllByWeek_IdOrderByLocalDateTime(id);
         return allByWeekId.stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<MatchDto> getAllByCurrentWeek(Boolean b) {
-        List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByMatchDateAscMatchTimeAsc(b);
+        List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByLocalDateTime(b);
         return allByCurrentWeek.stream().map(mapper::toDto).toList();
     }
 
@@ -148,7 +138,7 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> getOnline() {
-        List<Match> list = repository.getAllByLocalDateTimeBetween(LocalDateTime.now().minusHours(2).minusMinutes(10),
+        List<Match> list = repository.getAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusHours(2).minusMinutes(10),
                 LocalDateTime.now().plusMinutes(10));
         return list.stream().map(mapper::toDto).toList();
     }
@@ -161,7 +151,7 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public MatchDto getOnlineResult(String teamName) {
-        List<Match> online = repository.getAllByLocalDateTimeBetween(LocalDateTime.now().minusHours(2), LocalDateTime.now());
+        List<Match> online = repository.getAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusHours(2), LocalDateTime.now());
         MatchDto matchDto = online.stream().filter(m -> m.getHomeTeam().getTeamName().equals(teamName) ||
                 m.getAwayTeam().getTeamName().equals(teamName)).findFirst().map(mapper::toDto).orElse(null);
 

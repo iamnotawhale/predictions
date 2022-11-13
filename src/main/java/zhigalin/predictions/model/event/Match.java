@@ -13,16 +13,14 @@ import java.time.LocalTime;
 import java.util.Set;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Table(name = "match")
 public class Match {
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Match_generator")
     @SequenceGenerator(sequenceName = "Match_sequence", name = "Match_generator", allocationSize = 1)
@@ -30,8 +28,8 @@ public class Match {
 
     private Long publicId;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
-    @JoinColumn(name = "matchweek_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "week_id")
     private Week week;
 
     private LocalDateTime localDateTime;
@@ -56,7 +54,9 @@ public class Match {
 
     private String status;
 
-    @OneToMany(mappedBy = "match")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "match")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Set<Prediction> predictions;
 
     @OneToOne(fetch = FetchType.LAZY)

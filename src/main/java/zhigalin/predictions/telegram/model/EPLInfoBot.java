@@ -17,7 +17,7 @@ import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.telegram.command.CommandContainer;
 import zhigalin.predictions.telegram.command.TeamName;
-import zhigalin.predictions.telegram.service_impl.SendBotMessageServiceImpl;
+import zhigalin.predictions.telegram.service.impl.SendBotMessageServiceImpl;
 
 import java.util.EnumSet;
 
@@ -26,9 +26,9 @@ import static zhigalin.predictions.telegram.command.CommandName.NO;
 @Component
 public class EPLInfoBot extends TelegramLongPollingBot {
 
-    public static String COMMAND_PREFIX = "/";
+    private static final String COMMAND_PREFIX = "/";
 
-    public static String regex = "\\W|\\d";
+    private static final String REGEX = "\\W|\\d";
     @Value("${bot.username}")
     private String name;
     @Value("${bot.token}")
@@ -59,7 +59,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String message = update.getMessage().getText().trim();
             if (message.startsWith(COMMAND_PREFIX)) {
-                String[] array = message.split(regex);
+                String[] array = message.split(REGEX);
                 String commandIdentifier = array[1].toLowerCase();
                 if (array.length == 3 &&
                         EnumSet.allOf(TeamName.class).stream().anyMatch(name -> name.getTeamName().toLowerCase().contains(array[1])) &&
@@ -79,7 +79,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         } else if (update.hasCallbackQuery()) {
             String message = update.getCallbackQuery().getData();
             if (message.startsWith(COMMAND_PREFIX)) {
-                String[] array = message.split(regex);
+                String[] array = message.split(REGEX);
                 String commandIdentifier = array[1].toLowerCase();
                 if (EnumSet.allOf(TeamName.class).stream()
                         .anyMatch(name -> name.getTeamName().toLowerCase().contains(commandIdentifier))) {

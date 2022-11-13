@@ -5,6 +5,7 @@ import zhigalin.predictions.dto.user.UserDto;
 import java.util.List;
 
 public interface UserService {
+
     UserDto saveUser(UserDto userDto);
 
     void delete(Long id);

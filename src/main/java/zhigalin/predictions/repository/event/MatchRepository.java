@@ -12,13 +12,14 @@ import java.util.List;
 
 @Repository
 public interface MatchRepository extends CrudRepository<Match, Long> {
-    List<Match> getAllByWeekIdOrderByMatchDateAscMatchTimeAsc(Long id);
 
-    List<Match> getAllByWeek_IsCurrentOrderByMatchDateAscMatchTimeAsc(Boolean b);
+    List<Match> getAllByWeek_IdOrderByLocalDateTime(Long id);
 
-    List<Match> getAllByMatchDateOrderByWeekAscMatchDateAscMatchTimeAsc(LocalDate date);
+    List<Match> getAllByWeek_IsCurrentOrderByLocalDateTime(Boolean b);
 
-    List<Match> getAllByLocalDateTimeBetween(LocalDateTime nowMinus2Hour, LocalDateTime now);
+    List<Match> getAllByMatchDateOrderByWeekAscLocalDateTimeAsc(LocalDate date);
+
+    List<Match> getAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime from, LocalDateTime to);
 
     Match getMatchByHomeTeam_IdAndAwayTeam_Id(Long homeTeamId, Long awayTeamId);
 
@@ -30,8 +31,6 @@ public interface MatchRepository extends CrudRepository<Match, Long> {
     List<Match> getAllByTeamId(@Param("teamId") Long teamId);
 
     Match getMatchByPublicId(Long publicId);
-
-    List<Match> getAllByStatusIsNotNull();
 
     List<Match> getAllByStatus(String status);
 }

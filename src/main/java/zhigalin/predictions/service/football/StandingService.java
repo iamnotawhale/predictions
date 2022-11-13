@@ -5,6 +5,7 @@ import zhigalin.predictions.dto.football.StandingDto;
 import java.util.List;
 
 public interface StandingService {
+
     List<StandingDto> getAll();
 
     StandingDto save(StandingDto dto);

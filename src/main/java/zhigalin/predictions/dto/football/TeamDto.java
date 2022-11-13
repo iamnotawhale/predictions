@@ -2,16 +2,13 @@ package zhigalin.predictions.dto.football;
 
 import lombok.*;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class TeamDto {
-    private Long id;
-    private String teamName;
-    private String code;
-    private String logo;
-    private Long publicId;
+
+    Long id;
+    String teamName;
+    String code;
+    String logo;
+    Long publicId;
 }

@@ -11,10 +11,7 @@ import java.util.Collection;
 import java.util.Set;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity

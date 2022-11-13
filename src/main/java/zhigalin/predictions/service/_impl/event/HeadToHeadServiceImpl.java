@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.event;
+package zhigalin.predictions.service._impl.event;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.HeadToHeadMapper;
 import zhigalin.predictions.dto.event.HeadToHeadDto;
@@ -13,18 +13,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 
+@RequiredArgsConstructor
 @Service
 public class HeadToHeadServiceImpl implements HeadToHeadService {
 
     private final HeadToHeadRepository repository;
 
     private final HeadToHeadMapper mapper;
-
-    @Autowired
-    public HeadToHeadServiceImpl(HeadToHeadRepository repository, HeadToHeadMapper mapper) {
-        this.repository = repository;
-        this.mapper = mapper;
-    }
 
     @Override
     public HeadToHeadDto save(HeadToHeadDto headToHeadDto) {

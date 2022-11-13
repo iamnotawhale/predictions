@@ -2,13 +2,10 @@ package zhigalin.predictions.dto.user;
 
 import lombok.*;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class RoleDto {
-    private Long id;
-    private String role;
+
+    Long id;
+    String role;
 }

@@ -1,5 +1,6 @@
 package zhigalin.predictions.telegram.command;
 
+import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.converter.event.MatchMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
@@ -12,6 +13,7 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 import java.util.EnumSet;
 import java.util.List;
 
+@RequiredArgsConstructor
 public class TeamCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
@@ -23,15 +25,6 @@ public class TeamCommand implements Command {
     private final MatchMapper matchMapper;
 
     private final TeamMapper teamMapper;
-
-    public TeamCommand(SendBotMessageService sendBotMessageService, TeamService teamService, MatchService matchService,
-                       MatchMapper matchMapper, TeamMapper teamMapper) {
-        this.sendBotMessageService = sendBotMessageService;
-        this.teamService = teamService;
-        this.matchService = matchService;
-        this.matchMapper = matchMapper;
-        this.teamMapper = teamMapper;
-    }
 
     @Override
     public void execute(Update update) {

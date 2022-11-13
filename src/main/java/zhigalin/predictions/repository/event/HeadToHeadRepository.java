@@ -9,6 +9,7 @@ import java.util.List;
 
 @Repository
 public interface HeadToHeadRepository extends CrudRepository<HeadToHead, Long> {
+
     HeadToHead getByHomeTeam_PublicIdAndAwayTeam_PublicIdAndLocalDateTime(Long homePublicId, Long awayPublicId, LocalDateTime localDateTime);
 
     List<HeadToHead> getAllByHomeTeam_CodeAndAwayTeam_Code(String firstTeamCode, String secondTeamCode);

@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.user;
+package zhigalin.predictions.service._impl.user;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -16,20 +16,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+@RequiredArgsConstructor
 @Service
 public class UserServiceImpl implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
     private final UserMapper mapper;
     private final PasswordEncoder bCryptPasswordEncoder;
-
-    @Autowired
-    public UserServiceImpl(UserRepository userRepository, UserMapper mapper, PasswordEncoder bCryptPasswordEncoder) {
-        this.userRepository = userRepository;
-
-        this.mapper = mapper;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
-    }
 
     @Override
     public UserDto saveUser(UserDto userDto) {

@@ -6,16 +6,14 @@ import lombok.*;
 import javax.persistence.*;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Table(name = "odds")
 public class Odds {
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Odds_generator")
     @SequenceGenerator(sequenceName = "Odds_sequence", name = "Odds_generator", allocationSize = 1)

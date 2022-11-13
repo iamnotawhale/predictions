@@ -1,19 +1,19 @@
 package zhigalin.predictions.dto.user;
 
 import lombok.*;
+import lombok.experimental.NonFinal;
 import zhigalin.predictions.model.user.Role;
 
 import java.util.Set;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Value
 @Builder
 public class UserDto {
-    private Long id;
-    private String login;
-    private String password;
-    private Set<Role> roles;
+
+    Long id;
+    String login;
+    @NonFinal
+    @Setter
+    String password;
+    Set<Role> roles;
 }

@@ -6,5 +6,6 @@ import zhigalin.predictions.model.event.Season;
 
 @Repository
 public interface SeasonRepository extends CrudRepository<Season, Long> {
+
     Season getBySeasonName(String seasonName);
 }

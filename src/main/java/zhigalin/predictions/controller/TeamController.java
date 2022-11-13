@@ -1,6 +1,6 @@
 package zhigalin.predictions.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
@@ -10,19 +10,14 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/team")
 public class TeamController {
+
     private final TeamService teamService;
     private final MatchService matchService;
     private final WeekService weekService;
-
-    @Autowired
-    public TeamController(TeamService teamService, MatchService matchService, WeekService weekService) {
-        this.teamService = teamService;
-        this.matchService = matchService;
-        this.weekService = weekService;
-    }
 
     @PostMapping("/save")
     public TeamDto saveTeam(@RequestBody TeamDto teamDto) {

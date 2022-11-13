@@ -1,10 +1,12 @@
 package zhigalin.predictions.telegram.command;
 
+import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 import static zhigalin.predictions.telegram.command.CommandName.*;
 
+@RequiredArgsConstructor
 public class HelpCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
@@ -20,10 +22,6 @@ public class HelpCommand implements Command {
                     + "/%s - матчи в ближайшие 7 дней\n",
             START.getCommandName(), STOP.getCommandName(), HELP.getCommandName(), TODAY.getCommandName(),
             TABLE.getCommandName(), TOUR.getCommandName(), NEWS.getCommandName(), UPCOMING.getCommandName());
-
-    public HelpCommand(SendBotMessageService sendBotMessageService) {
-        this.sendBotMessageService = sendBotMessageService;
-    }
 
     @Override
     public void execute(Update update) {

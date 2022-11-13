@@ -1,38 +1,24 @@
 package zhigalin.predictions.telegram.command;
 
+import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.converter.event.HeadToHeadMapper;
-import zhigalin.predictions.converter.football.TeamMapper;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.service.event.HeadToHeadService;
-import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 import java.time.format.DateTimeFormatter;
 import java.util.EnumSet;
 import java.util.List;
 
+@RequiredArgsConstructor
 public class HeadToHeadCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
 
-    private final TeamService teamService;
-
-    private final TeamMapper teamMapper;
-
     private final HeadToHeadService headToHeadService;
 
     private final HeadToHeadMapper headToHeadMapper;
-
-    public HeadToHeadCommand(SendBotMessageService sendBotMessageService, TeamService teamService,
-                             TeamMapper teamMapper, HeadToHeadService headToHeadService,
-                             HeadToHeadMapper headToHeadMapper) {
-        this.sendBotMessageService = sendBotMessageService;
-        this.teamService = teamService;
-        this.teamMapper = teamMapper;
-        this.headToHeadService = headToHeadService;
-        this.headToHeadMapper = headToHeadMapper;
-    }
 
     @Override
     public void execute(Update update) {

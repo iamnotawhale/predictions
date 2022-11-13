@@ -8,7 +8,7 @@ public enum CommandName {
     NO("nocommand"),
     TABLE("table"),
     TOUR("tours"),
-    TOURNUM("tour"),
+    TOUR_NUM("tour"),
     TODAY("today"),
     TEAM("team"),
     UPCOMING("upcoming"),

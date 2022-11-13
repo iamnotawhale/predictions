@@ -1,6 +1,6 @@
-package zhigalin.predictions.service_impl.news;
+package zhigalin.predictions.service._impl.news;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.news.NewsMapper;
 import zhigalin.predictions.dto.news.NewsDto;
@@ -11,16 +11,12 @@ import zhigalin.predictions.service.news.NewsService;
 import java.util.Comparator;
 import java.util.List;
 
+@RequiredArgsConstructor
 @Service
 public class NewsServiceImpl implements NewsService {
+
     private final NewsRepository repository;
     private final NewsMapper mapper;
-
-    @Autowired
-    public NewsServiceImpl(NewsRepository repository, NewsMapper mapper) {
-        this.repository = repository;
-        this.mapper = mapper;
-    }
 
     @Override
     public List<NewsDto> getAll() {

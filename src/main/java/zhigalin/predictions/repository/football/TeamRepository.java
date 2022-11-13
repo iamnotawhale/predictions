@@ -6,6 +6,7 @@ import zhigalin.predictions.model.football.Team;
 
 @Repository
 public interface TeamRepository extends CrudRepository<Team, Long> {
+
     Team getByTeamName(String teamName);
 
     Team getByCode(String code);

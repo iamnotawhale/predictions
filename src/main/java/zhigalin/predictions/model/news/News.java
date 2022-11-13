@@ -7,10 +7,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Builder
-@ToString
-@EqualsAndHashCode
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity

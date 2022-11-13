@@ -1,4 +1,4 @@
-package zhigalin.predictions.util.init_data;
+package zhigalin.predictions.service._impl.init;
 
 import com.google.gson.*;
 import com.mashape.unirest.http.HttpResponse;
@@ -9,9 +9,8 @@ import com.rometools.rome.feed.synd.SyndEntryImpl;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,6 +34,7 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
+import zhigalin.predictions.service.init.DataInitService;
 import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.OddsService;
 
@@ -44,22 +44,23 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
 @Service
-@NoArgsConstructor
-public class DataInitServiceImpl {
+@RequiredArgsConstructor
+public class DataInitServiceImpl implements DataInitService {
+
     @Value("${x.rapid.api}")
     private String X_RAPID_API;
     @Value("${api.football.token}")
     private String API_FOOTBALL_TOKEN;
-    private final DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH); //"2021-08-13T19:00:00+00:00"
+
+    private static final String HOST_NAME = "x-rapidapi-host";
+
+    private static final String HOST = "v3.football.api-sports.io";
     private Long publicId;
     private LocalDateTime matchDateTime;
     private Team homeTeam;
@@ -70,58 +71,25 @@ public class DataInitServiceImpl {
     private String status;
     private Match match;
 
-    private TeamService teamService;
-    private SeasonService seasonService;
-    private WeekService weekService;
-    private MatchService matchService;
-    private NewsService newsService;
-    private HeadToHeadService headToHeadService;
-    private OddsService oddsService;
-    private SeasonMapper seasonMapper;
-    private WeekMapper weekMapper;
-    private TeamMapper teamMapper;
-    private MatchMapper matchMapper;
-    private HeadToHeadMapper headToHeadMapper;
-    private OddsMapper oddsMapper;
-    PasswordEncoder bCryptPasswordEncoder;
+    private final TeamService teamService;
+    private final SeasonService seasonService;
+    private final WeekService weekService;
+    private final MatchService matchService;
+    private final NewsService newsService;
+    private final HeadToHeadService headToHeadService;
+    private final OddsService oddsService;
+    private final SeasonMapper seasonMapper;
+    private final WeekMapper weekMapper;
+    private final TeamMapper teamMapper;
+    private final MatchMapper matchMapper;
+    private final HeadToHeadMapper headToHeadMapper;
+    private final OddsMapper oddsMapper;
 
-    @Autowired
-    public DataInitServiceImpl(TeamService teamService, SeasonService seasonService,
-                               WeekService weekService, MatchService matchService,
-                               NewsService newsService, HeadToHeadService headToHeadService,
-                               OddsService oddsService, SeasonMapper seasonMapper,
-                               WeekMapper weekMapper, TeamMapper teamMapper, MatchMapper matchMapper,
-                               HeadToHeadMapper headToHeadMapper, OddsMapper oddsMapper,
-                               PasswordEncoder bCryptPasswordEncoder) {
-        this.teamService = teamService;
-        this.seasonService = seasonService;
-        this.weekService = weekService;
-        this.matchService = matchService;
-        this.newsService = newsService;
-        this.headToHeadService = headToHeadService;
-        this.oddsService = oddsService;
-        this.seasonMapper = seasonMapper;
-        this.weekMapper = weekMapper;
-        this.teamMapper = teamMapper;
-        this.matchMapper = matchMapper;
-        this.headToHeadMapper = headToHeadMapper;
-        this.oddsMapper = oddsMapper;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
-    }
+    private final PasswordEncoder bCryptPasswordEncoder;
 
     public void allInit() {
-        Thread run = new Thread(() -> {
-            while (true) {
-                try {
-                    matchUpdateFromApiFootball();
-                    newsInit();
-                    Thread.sleep(360000); //1000 - 1 сек
-                } catch (InterruptedException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
-        });
-        run.start();
+        matchUpdateFromApiFootball();
+        newsInit();
     }
 
     @SneakyThrows
@@ -130,7 +98,7 @@ public class DataInitServiceImpl {
 
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .queryString("status", "pst")
@@ -165,7 +133,7 @@ public class DataInitServiceImpl {
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .queryString("from", LocalDateTime.now().toLocalDate().toString())
@@ -176,8 +144,6 @@ public class DataInitServiceImpl {
         //Create data array from api
         JsonObject mainObj = gson.fromJson(resp.getBody().getObject().toString(), JsonElement.class).getAsJsonObject();
         JsonArray responses = mainObj.getAsJsonArray("response");
-
-        System.out.println(mainObj);
 
         for (JsonElement response : responses) {
             JsonObject matchObj = response.getAsJsonObject();
@@ -381,7 +347,7 @@ public class DataInitServiceImpl {
     private void matchDateTimeStatusUpdate() {
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .asJson();
@@ -451,7 +417,7 @@ public class DataInitServiceImpl {
 
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .asJson();
@@ -534,7 +500,7 @@ public class DataInitServiceImpl {
     private void teamsInitFromApiFootball() {
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/teams")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                .header("x-rapidapi-host", "v3.football.api-sports.io")
+                .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2022)
                 .asJson();

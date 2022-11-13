@@ -1,6 +1,6 @@
 package zhigalin.predictions.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,25 +22,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+@RequiredArgsConstructor
 @RestController
-@RequestMapping()
+@RequestMapping
 public class MainController {
+
     private final MatchService matchService;
     private final StandingService standingService;
     private final PredictionService predictionService;
     private final NewsService newsService;
     private final HeadToHeadService headToHeadService;
     private final WeekService weekService;
-
-    @Autowired
-    public MainController(MatchService matchService, StandingService standingService, PredictionService predictionService, NewsService newsService, HeadToHeadService headToHeadService, WeekService weekService) {
-        this.matchService = matchService;
-        this.standingService = standingService;
-        this.predictionService = predictionService;
-        this.newsService = newsService;
-        this.headToHeadService = headToHeadService;
-        this.weekService = weekService;
-    }
 
     @GetMapping
     public ModelAndView getMainPage(Authentication authentication) {
