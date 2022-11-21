@@ -1,13 +1,13 @@
 package zhigalin.predictions.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
+import zhigalin.predictions.config.securirty.PersonDetails;
 import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
-import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
@@ -17,7 +17,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/match")
+@RequestMapping("/matches")
 public class MatchController {
 
     private final MatchService service;
@@ -25,41 +25,26 @@ public class MatchController {
     private final TeamService teamService;
 
     @GetMapping("/team")
-    public ModelAndView findByTeamId(@RequestParam(value = "id") Long id, Authentication authentication) {
-        UserDto dto = getCurrentUser(authentication);
+    public ModelAndView findByTeamId(@RequestParam(value = "id") Long id) {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
-        model.addObject("currentUser", dto);
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + teamService.getById(id).getTeamName());
         model.addObject("matchList", service.getAllByTeamId(id));
-        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
     @GetMapping("/week/{id}")
-    public ModelAndView findByWeekId(@PathVariable Long id, Authentication authentication) {
-        UserDto dto = getCurrentUser(authentication);
+    public ModelAndView findByWeekId(@PathVariable Long id) {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
-        model.addObject("currentUser", dto);
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + id + " тура");
         model.addObject("matchList", service.getAllByWeekId(id));
-        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
     @GetMapping("/week/current")
-    public ModelAndView findByCurrentWeek(Authentication authentication) {
-        UserDto dto = getCurrentUser(authentication);
+    public ModelAndView findByCurrentWeek() {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
-        model.addObject("currentUser", dto);
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи " + weekService.getCurrentWeek().getId() + " тура");
         model.addObject("matchList", service.getAllByCurrentWeek(true));
-        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
@@ -84,33 +69,45 @@ public class MatchController {
     }
 
     @GetMapping("/today")
-    public ModelAndView findTodayMatches(Authentication authentication) {
-        UserDto dto = getCurrentUser(authentication);
+    public ModelAndView findTodayMatches() {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
-        model.addObject("currentUser", dto);
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи сегодня");
         model.addObject("matchList", service.getAllByTodayDate());
-        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
     @GetMapping("/upcoming")
-    public ModelAndView findUpcomingMatches(@RequestParam Integer days, Authentication authentication) {
-        UserDto dto = getCurrentUser(authentication);
+    public ModelAndView findUpcomingMatches(@RequestParam Integer days) {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("todayDateTime", LocalDateTime.now().minusMinutes(5L));
-        model.addObject("currentUser", dto);
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
         model.addObject("header", "Матчи в ближайшие дни - " + days);
         model.addObject("matchList", service.getAllByUpcomingDays(days));
-        model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
 
-    public UserDto getCurrentUser(Authentication a) {
-        User user = (User) a.getPrincipal();
-        return UserDto.builder().id(user.getId()).login(user.getLogin()).build();
+    @ModelAttribute("currentUser")
+    public UserDto getCurrentUser() {
+        PersonDetails personDetails = (PersonDetails) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+        return UserDto.builder()
+                .id(personDetails.user().getId())
+                .login(personDetails.user().getLogin())
+                .build();
+    }
+
+    @ModelAttribute("currentWeek")
+    public Long getCurrentWeekId() {
+        return weekService.getCurrentWeekId();
+    }
+
+    @ModelAttribute("todayDateTime")
+    public LocalDateTime getTodayDateTime() {
+        return LocalDateTime.now().minusMinutes(5L);
+    }
+
+    @ModelAttribute("newPredict")
+    public PredictionDto newPrediction() {
+        return PredictionDto.builder().build();
     }
 }
