@@ -1,9 +1,6 @@
 package zhigalin.predictions.service._impl.user;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.user.UserMapper;
@@ -18,7 +15,7 @@ import java.util.stream.StreamSupport;
 
 @RequiredArgsConstructor
 @Service
-public class UserServiceImpl implements UserService, UserDetailsService {
+public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper mapper;
@@ -62,14 +59,5 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     public List<UserDto> saveAll(List<UserDto> list) {
         List<User> listUser = list.stream().map(mapper::toEntity).collect(Collectors.toList());
         return StreamSupport.stream(userRepository.saveAll(listUser).spliterator(), false).map(mapper::toDto).toList();
-    }
-
-    @Override
-    public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
-        User user = userRepository.findByLogin(login);
-        if (user == null) {
-            throw new UsernameNotFoundException("User not found");
-        }
-        return user;
     }
 }

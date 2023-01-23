@@ -56,13 +56,13 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> getAllByWeekId(Long id) {
-        List<Match> allByWeekId = repository.getAllByWeek_IdOrderByLocalDateTime(id);
+        List<Match> allByWeekId = repository.getAllByWeekId(id);
         return allByWeekId.stream().map(mapper::toDto).toList();
     }
 
     @Override
-    public List<MatchDto> getAllByCurrentWeek(Boolean b) {
-        List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentOrderByLocalDateTime(b);
+    public List<MatchDto> getAllByCurrentWeek() {
+        List<Match> allByCurrentWeek = repository.getAllByWeek_IsCurrentTrueOrderByLocalDateTime();
         return allByCurrentWeek.stream().map(mapper::toDto).toList();
     }
 

@@ -1,7 +1,10 @@
 package zhigalin.predictions.model.event;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import zhigalin.predictions.model.football.Team;
 
 import javax.persistence.*;
@@ -22,12 +25,12 @@ public class HeadToHead {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "home_team_id")
+    @OneToOne
+    @JoinColumn(name = "home_team_id", referencedColumnName = "id")
     private Team homeTeam;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "away_team_id")
+    @OneToOne
+    @JoinColumn(name = "away_team_id", referencedColumnName = "id")
     private Team awayTeam;
 
     private Integer homeTeamScore;

@@ -10,10 +10,15 @@ import zhigalin.predictions.model.user.User;
 public class PredictionDto {
 
     Long id;
+
     Match match;
+
     User user;
+
     Integer homeTeamScore;
+
     Integer awayTeamScore;
+
     @NonFinal
     @Setter
     Integer points;

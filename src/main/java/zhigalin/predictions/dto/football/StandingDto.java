@@ -7,16 +7,22 @@ import zhigalin.predictions.model.football.Team;
 @Builder
 public class StandingDto {
 
-    Long id;
     Team team;
+
     Integer points;
+
     Integer games;
+
     Integer won;
+
     Integer draw;
+
     Integer lost;
+
     Integer goalsScored;
+
     Integer goalsAgainst;
-    String result;
+
     public int compareGoals(StandingDto s) {
         return Integer.compare(s.getGoalsScored() - s.getGoalsAgainst(), this.getGoalsScored() - this.getGoalsAgainst());
     }

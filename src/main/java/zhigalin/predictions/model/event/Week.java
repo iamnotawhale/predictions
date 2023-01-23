@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
 
 import javax.persistence.*;
-import java.util.Set;
+import java.util.List;
 
 @Builder
 @Data
@@ -22,14 +22,14 @@ public class Week {
 
     private String weekName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "season_id")
+    @ManyToOne
+    @JoinColumn(name = "season_id", referencedColumnName = "id")
     private Season season;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "week")
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    private Set<Match> matches;
+    private List<Match> matches;
 
     private Boolean isCurrent;
 }

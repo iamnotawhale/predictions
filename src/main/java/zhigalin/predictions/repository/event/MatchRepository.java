@@ -13,9 +13,10 @@ import java.util.List;
 @Repository
 public interface MatchRepository extends CrudRepository<Match, Long> {
 
-    List<Match> getAllByWeek_IdOrderByLocalDateTime(Long id);
+    @Query("select m from Match m left join fetch m.week where m.week.id = :id order by m.localDateTime")
+    List<Match> getAllByWeekId(@Param("id") Long id);
 
-    List<Match> getAllByWeek_IsCurrentOrderByLocalDateTime(Boolean b);
+    List<Match> getAllByWeek_IsCurrentTrueOrderByLocalDateTime();
 
     List<Match> getAllByMatchDateOrderByWeekAscLocalDateTimeAsc(LocalDate date);
 

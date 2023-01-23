@@ -3,17 +3,21 @@ package zhigalin.predictions.service._impl.football;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.football.StandingMapper;
+import zhigalin.predictions.converter.football.TeamMapper;
 import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.football.StandingDto;
+import zhigalin.predictions.dto.football.TeamDto;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.repository.football.StandingRepository;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
+import zhigalin.predictions.service.football.TeamService;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 @RequiredArgsConstructor
 @Service
@@ -22,12 +26,23 @@ public class StandingServiceImpl implements StandingService {
     private final StandingRepository repository;
     private final StandingMapper mapper;
     private final MatchService matchService;
+    private final TeamService teamService;
+    private final TeamMapper teamMapper;
+
 
     @Override
     public List<StandingDto> getAll() {
-        List<StandingDto> list = currentTable();
+        List<StandingDto> list;
+
+        if (matchService.getOnline().isEmpty()) {
+            list = StreamSupport.stream(repository.findAll().spliterator(), false).map(mapper::toDto).toList();
+        } else {
+            list = currentTable();
+        }
+
         return list.stream()
-                .sorted(Comparator.comparing(StandingDto::getPoints).reversed()
+                .sorted(Comparator.comparing(StandingDto::getPoints)
+                        .reversed()
                         .thenComparing(StandingDto::compareGoals)
                         .thenComparing((s1, s2) -> s2.getGoalsScored().compareTo(s1.getGoalsScored())))
                 .toList();
@@ -43,47 +58,38 @@ public class StandingServiceImpl implements StandingService {
         return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
-    @Override
-    public StandingDto findByTeam_Id(Long id) {
-        Standing standing = repository.getByTeam_Id(id);
-        if (standing != null) {
-            return mapper.toDto(standing);
-        }
-        return null;
-    }
-
     public List<StandingDto> currentTable() {
-        List<StandingDto> list = new ArrayList<>();
-        for (long i = 1L; i <= 20L; i++) {
-            long teamId = i;
-            List<MatchDto> allMatchesByTeamId = matchService.getAllByTeamId(teamId).stream()
+
+        List<StandingDto> currentTable = new ArrayList<>();
+
+        List<TeamDto> allTeams = teamService.findAll();
+
+        for (TeamDto teamDto : allTeams) {
+            List<MatchDto> allMatchesByTeam = matchService.getAllByTeamId(teamDto.getId()).stream()
                     .filter(m -> !m.getStatus().equals("ns"))
                     .filter(m -> !m.getStatus().equals("pst"))
                     .toList();
 
-            Team team = allMatchesByTeamId.stream()
-                    .map(m -> m.getHomeTeam().getId().equals(teamId) ? m.getHomeTeam() : m.getAwayTeam())
-                    .findAny()
-                    .orElse(null);
-
             StandingDto sDto = StandingDto.builder()
-                    .id(teamId)
                     .games(0)
                     .points(0)
                     .won(0)
                     .draw(0)
                     .lost(0)
-                    .team(team)
+                    .team(teamMapper.toEntity(teamDto))
                     .goalsScored(0)
                     .goalsAgainst(0)
                     .build();
 
-            for (MatchDto dto : allMatchesByTeamId) {
-                sDto = updateByMatch(sDto, dto);
+
+            for (MatchDto matchDto : allMatchesByTeam) {
+                sDto = updateByMatch(sDto, matchDto);
             }
-            list.add(sDto);
+
+            currentTable.add(sDto);
+            save(sDto);
         }
-        return list;
+        return currentTable;
     }
 
     public StandingDto updateByMatch(StandingDto standingDto, MatchDto matchDto) {
@@ -114,7 +120,7 @@ public class StandingServiceImpl implements StandingService {
                     .goalsScored(standingDto.getGoalsScored() + matchDto.getAwayTeamScore())
                     .goalsAgainst(standingDto.getGoalsAgainst() + matchDto.getHomeTeamScore())
                     .build();
-        } else if (result.equals("D") && currentTeam.equals(homeTeam)) {
+        } else if (result.equals("D")) {
             return StandingDto.builder()
                     .team(currentTeam)
                     .points(standingDto.getPoints() + 1)
@@ -124,17 +130,6 @@ public class StandingServiceImpl implements StandingService {
                     .lost(standingDto.getLost())
                     .goalsScored(standingDto.getGoalsScored() + matchDto.getHomeTeamScore())
                     .goalsAgainst(standingDto.getGoalsAgainst() + matchDto.getAwayTeamScore())
-                    .build();
-        } else if (result.equals("D") && currentTeam.equals(awayTeam)) {
-            return StandingDto.builder()
-                    .team(currentTeam)
-                    .points(standingDto.getPoints() + 1)
-                    .games(standingDto.getGames() + 1)
-                    .won(standingDto.getWon())
-                    .draw(standingDto.getDraw() + 1)
-                    .lost(standingDto.getLost())
-                    .goalsScored(standingDto.getGoalsScored() + matchDto.getAwayTeamScore())
-                    .goalsAgainst(standingDto.getGoalsAgainst() + matchDto.getHomeTeamScore())
                     .build();
         } else if (result.equals("A") && currentTeam.equals(homeTeam)) {
             return StandingDto.builder()

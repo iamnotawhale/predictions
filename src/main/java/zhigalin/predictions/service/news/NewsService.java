@@ -10,7 +10,7 @@ public interface NewsService {
 
     NewsDto save(NewsDto dto);
 
-    List<NewsDto> getAllLast();
+    List<NewsDto> getLastNews();
 
     void deleteAll();
 

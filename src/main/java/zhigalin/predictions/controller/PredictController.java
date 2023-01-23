@@ -1,11 +1,12 @@
 package zhigalin.predictions.controller;
 
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
-import zhigalin.predictions.config.securirty.PersonDetails;
+import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.service.event.WeekService;
@@ -89,13 +90,13 @@ public class PredictController {
 
     @ModelAttribute("currentUser")
     public UserDto getCurrentUser() {
-        PersonDetails personDetails = (PersonDetails) SecurityContextHolder
+        UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
         return UserDto.builder()
-                .id(personDetails.user().getId())
-                .login(personDetails.user().getLogin())
+                .id(userDetailsImpl.getId())
+                .login(userDetailsImpl.getLogin())
                 .build();
     }
 

@@ -18,7 +18,7 @@ public class NewsCommand implements Command {
 
     @Override
     public void execute(Update update) {
-        List<News> list = newsService.getAllLast().stream().limit(10).map(newsMapper::toEntity).toList();
+        List<News> list = newsService.getLastNews().stream().limit(10).map(newsMapper::toEntity).toList();
         StringBuilder builder = new StringBuilder();
         for (News news : list) {
             builder.append("*").append(news.getDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append("* ")

@@ -2,8 +2,12 @@ package zhigalin.predictions.service.football;
 
 import zhigalin.predictions.dto.football.TeamDto;
 
+import java.util.List;
+
 
 public interface TeamService {
+
+    List<TeamDto> findAll();
 
     TeamDto saveTeam(TeamDto teamDto);
 
