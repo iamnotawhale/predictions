@@ -10,10 +10,16 @@ import java.time.LocalDateTime;
 public class HeadToHeadDto {
 
     Long id;
+
     Team homeTeam;
+
     Team awayTeam;
+
     Integer homeTeamScore;
+
     Integer awayTeamScore;
+
     LocalDateTime localDateTime;
+
     String leagueName;
 }

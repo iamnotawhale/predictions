@@ -18,7 +18,7 @@ public interface MatchService {
 
     List<MatchDto> getAllByWeekId(Long id);
 
-    List<MatchDto> getAllByCurrentWeek(Boolean b);
+    List<MatchDto> getAllByCurrentWeek();
 
     List<MatchDto> getAll();
 

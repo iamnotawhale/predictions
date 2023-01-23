@@ -14,9 +14,13 @@ import java.util.Set;
 public class WeekDto {
 
     Long id;
+
     String weekName;
+
     Season season;
+
     Set<Match> matches;
+
     @NonFinal
     @Setter
     Boolean isCurrent;

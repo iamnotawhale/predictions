@@ -21,12 +21,12 @@ public class Prediction {
     @SequenceGenerator(sequenceName = "Predict_sequence", name = "Predict_generator", allocationSize = 1)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "match_id")
+    @ManyToOne
+    @JoinColumn(name = "match_id", referencedColumnName = "id")
     private Match match;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @ManyToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
 
     private Integer homeTeamScore;

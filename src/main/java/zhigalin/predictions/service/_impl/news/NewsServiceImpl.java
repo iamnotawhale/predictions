@@ -35,9 +35,9 @@ public class NewsServiceImpl implements NewsService {
     }
 
     @Override
-    public List<NewsDto> getAllLast() {
-        List<News> list = (List<News>) repository.findAll();
-        return list.stream().map(mapper::toDto)
+    public List<NewsDto> getLastNews() {
+        List<NewsDto> list = getAll();
+        return list.stream()
                 .sorted(Comparator.comparing(NewsDto::getDateTime).reversed())
                 .limit(15)
                 .toList();

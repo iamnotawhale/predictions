@@ -10,7 +10,7 @@ import javax.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Set;
+import java.util.List;
 
 @Builder
 @Data
@@ -28,8 +28,8 @@ public class Match {
 
     private Long publicId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "week_id")
+    @ManyToOne
+    @JoinColumn(name = "week_id", referencedColumnName = "id")
     private Week week;
 
     private LocalDateTime localDateTime;
@@ -38,12 +38,12 @@ public class Match {
 
     private LocalTime matchTime;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "home_team_id")
+    @OneToOne
+    @JoinColumn(name = "home_team_id", referencedColumnName = "id")
     private Team homeTeam;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "away_team_id")
+    @OneToOne
+    @JoinColumn(name = "away_team_id", referencedColumnName = "id")
     private Team awayTeam;
 
     private Integer homeTeamScore;
@@ -54,12 +54,12 @@ public class Match {
 
     private String status;
 
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "match")
+    @OneToMany(mappedBy = "match")
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    private Set<Prediction> predictions;
+    private List<Prediction> predictions;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "odds_id")
+    @OneToOne
+    @JoinColumn(name = "odds_id", referencedColumnName = "id")
     private Odds odds;
 }

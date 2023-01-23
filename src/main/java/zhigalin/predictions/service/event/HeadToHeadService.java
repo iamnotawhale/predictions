@@ -12,4 +12,6 @@ public interface HeadToHeadService {
     List<HeadToHeadDto> getAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode);
 
     List<HeadToHeadDto> getAllByMatch(MatchDto matchDto);
+
+    List<List<HeadToHeadDto>> getAllByCurrentWeek();
 }

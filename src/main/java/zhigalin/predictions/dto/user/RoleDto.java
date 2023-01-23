@@ -7,5 +7,6 @@ import lombok.*;
 public class RoleDto {
 
     Long id;
+
     String role;
 }

@@ -1,8 +1,10 @@
 package zhigalin.predictions.model.user;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.*;
-import org.springframework.security.core.GrantedAuthority;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 
@@ -13,7 +15,7 @@ import javax.persistence.*;
 @Table(name = "role")
 @JsonIgnoreProperties({"hibernateLazyInitializer"})
 @Entity
-public class Role implements GrantedAuthority {
+public class Role{
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Role_generator")
@@ -21,9 +23,4 @@ public class Role implements GrantedAuthority {
     private Long id;
 
     private String role;
-
-    @Override
-    public String getAuthority() {
-        return getRole();
-    }
 }

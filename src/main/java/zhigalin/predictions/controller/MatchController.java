@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
-import zhigalin.predictions.config.securirty.PersonDetails;
+import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
@@ -44,7 +44,7 @@ public class MatchController {
     public ModelAndView findByCurrentWeek() {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи " + weekService.getCurrentWeek().getId() + " тура");
-        model.addObject("matchList", service.getAllByCurrentWeek(true));
+        model.addObject("matchList", service.getAllByCurrentWeek());
         return model;
     }
 
@@ -86,13 +86,13 @@ public class MatchController {
 
     @ModelAttribute("currentUser")
     public UserDto getCurrentUser() {
-        PersonDetails personDetails = (PersonDetails) SecurityContextHolder
+        UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
         return UserDto.builder()
-                .id(personDetails.user().getId())
-                .login(personDetails.user().getLogin())
+                .id(userDetailsImpl.getId())
+                .login(userDetailsImpl.getLogin())
                 .build();
     }
 

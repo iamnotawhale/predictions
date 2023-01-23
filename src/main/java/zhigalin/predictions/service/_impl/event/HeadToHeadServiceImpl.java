@@ -8,7 +8,9 @@ import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.repository.event.HeadToHeadRepository;
 import zhigalin.predictions.service.event.HeadToHeadService;
+import zhigalin.predictions.service.event.MatchService;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -20,6 +22,8 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
     private final HeadToHeadRepository repository;
 
     private final HeadToHeadMapper mapper;
+
+    private final MatchService matchService;
 
     @Override
     public HeadToHeadDto save(HeadToHeadDto headToHeadDto) {
@@ -48,4 +52,16 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
     public List<HeadToHeadDto> getAllByMatch(MatchDto matchDto) {
         return getAllByTwoTeamsCode(matchDto.getHomeTeam().getCode(), matchDto.getAwayTeam().getCode());
     }
+
+    @Override
+    public List<List<HeadToHeadDto>> getAllByCurrentWeek() {
+        List<List<HeadToHeadDto>> listOfHeadToHeads = new ArrayList<>();
+        List<MatchDto> allByCurrentWeek = matchService.getAllByCurrentWeek();
+        for (MatchDto matchDto : allByCurrentWeek) {
+            listOfHeadToHeads.add(getAllByMatch(matchDto));
+        }
+        return listOfHeadToHeads;
+    }
+
+
 }

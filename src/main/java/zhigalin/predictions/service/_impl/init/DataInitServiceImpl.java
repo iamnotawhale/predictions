@@ -12,7 +12,6 @@ import com.rometools.rome.io.XmlReader;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.HeadToHeadMapper;
 import zhigalin.predictions.converter.event.MatchMapper;
@@ -44,7 +43,10 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -85,11 +87,10 @@ public class DataInitServiceImpl implements DataInitService {
     private final HeadToHeadMapper headToHeadMapper;
     private final OddsMapper oddsMapper;
 
-    private final PasswordEncoder bCryptPasswordEncoder;
-
     public void allInit() {
         matchUpdateFromApiFootball();
         newsInit();
+
     }
 
     @SneakyThrows
@@ -121,7 +122,7 @@ public class DataInitServiceImpl implements DataInitService {
 
     @SneakyThrows
     private void matchUpdateFromApiFootball() {
-        if (matchService.getAllByCurrentWeek(true).stream()
+        if (matchService.getAllByCurrentWeek().stream()
                 .allMatch(match -> Objects.equals(match.getStatus(), "ft")
                         || Objects.equals(match.getStatus(), "pst"))) {
             currentWeekUpdate();
@@ -252,7 +253,7 @@ public class DataInitServiceImpl implements DataInitService {
 
     @SneakyThrows
     private void newsInit() {
-        if (newsService.getAll().size() > 150) {
+        if (newsService.getAll().size() > 30) {
             newsService.deleteAll();
             newsService.resetSequence();
         }
@@ -265,7 +266,7 @@ public class DataInitServiceImpl implements DataInitService {
         URL feedSource = new URL("https://www.sports.ru/stat/export/rss/taglenta.xml?id=1363805");
         SyndFeedInput input = new SyndFeedInput();
         SyndFeed feed = input.build(new XmlReader(feedSource));
-        List<SyndEntry> res = feed.getEntries();
+        List<SyndEntry> res = feed.getEntries().stream().limit(30L).toList();
 
         for (Object re : res) {
             link = ((SyndEntryImpl) re).getLink().replaceAll("\n", "");

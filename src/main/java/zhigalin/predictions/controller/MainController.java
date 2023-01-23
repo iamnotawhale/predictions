@@ -7,9 +7,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import zhigalin.predictions.config.securirty.PersonDetails;
-import zhigalin.predictions.dto.event.HeadToHeadDto;
-import zhigalin.predictions.dto.event.MatchDto;
+import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -19,8 +17,6 @@ import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.PredictionService;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
@@ -36,35 +32,27 @@ public class MainController {
 
     @GetMapping()
     public ModelAndView getMainPage() {
-        List<List<HeadToHeadDto>> listOfHeadToHeads = new ArrayList<>();
-        List<MatchDto> allByCurrentWeek = matchService.getAllByCurrentWeek(true);
-        for (MatchDto matchDto : allByCurrentWeek) {
-            List<HeadToHeadDto> allByMatch = headToHeadService.getAllByMatch(matchDto);
-            listOfHeadToHeads.add(allByMatch);
-        }
-
         ModelAndView model = new ModelAndView("main");
         model.addObject("map", predictionService.allUsersPoints());
         model.addObject("todayDateTime", LocalDateTime.now());
-        model.addObject("matchList", allByCurrentWeek);
         model.addObject("currentWeek", weekService.getCurrentWeekId());
-        model.addObject("h2h", listOfHeadToHeads);
+        model.addObject("matchList", matchService.getAllByCurrentWeek());
+        model.addObject("h2h", headToHeadService.getAllByCurrentWeek());
         model.addObject("online", matchService.getOnline());
         model.addObject("standings", standingService.getAll());
         model.addObject("news", newsService.getLastNews());
-
         return model;
     }
 
     @ModelAttribute("currentUser")
     public UserDto getCurrentUser() {
-        PersonDetails personDetails = (PersonDetails) SecurityContextHolder
+        UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
         return UserDto.builder()
-                .id(personDetails.user().getId())
-                .login(personDetails.user().getLogin())
+                .id(userDetailsImpl.getId())
+                .login(userDetailsImpl.getLogin())
                 .build();
     }
 }

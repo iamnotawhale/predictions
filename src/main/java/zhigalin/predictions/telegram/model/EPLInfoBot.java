@@ -2,7 +2,6 @@ package zhigalin.predictions.telegram.model;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.converter.event.HeadToHeadMapper;
@@ -23,7 +22,7 @@ import java.util.EnumSet;
 
 import static zhigalin.predictions.telegram.command.CommandName.NO;
 
-@Component
+//@Component
 public class EPLInfoBot extends TelegramLongPollingBot {
 
     private static final String COMMAND_PREFIX = "/";
