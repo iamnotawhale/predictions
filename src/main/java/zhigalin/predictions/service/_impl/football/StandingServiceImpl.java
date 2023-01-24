@@ -29,15 +29,16 @@ public class StandingServiceImpl implements StandingService {
     private final TeamService teamService;
     private final TeamMapper teamMapper;
 
-
     @Override
     public List<StandingDto> getAll() {
         List<StandingDto> list;
 
         if (matchService.getOnline().isEmpty()) {
-            list = StreamSupport.stream(repository.findAll().spliterator(), false).map(mapper::toDto).toList();
+            list = StreamSupport.stream(repository.findAll().spliterator(), false)
+                    .map(mapper::toDto)
+                    .toList();
         } else {
-            list = currentTable();
+            list = currentOnlineTable();
         }
 
         return list.stream()
@@ -58,16 +59,21 @@ public class StandingServiceImpl implements StandingService {
         return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
-    public List<StandingDto> currentTable() {
+    public List<StandingDto> currentOnlineTable() {
 
         List<StandingDto> currentTable = new ArrayList<>();
 
         List<TeamDto> allTeams = teamService.findAll();
 
+        List<MatchDto> allMatches = matchService.getAll().stream()
+                .filter(m -> !m.getStatus().equals("ns"))
+                .filter(m -> !m.getStatus().equals("pst"))
+                .toList();
+
         for (TeamDto teamDto : allTeams) {
-            List<MatchDto> allMatchesByTeam = matchService.getAllByTeamId(teamDto.getId()).stream()
-                    .filter(m -> !m.getStatus().equals("ns"))
-                    .filter(m -> !m.getStatus().equals("pst"))
+            Long teamId = teamDto.getId();
+            List<MatchDto> allMatchesByTeam = allMatches.stream()
+                    .filter(m -> m.getHomeTeam().getId().equals(teamId) || m.getAwayTeam().getId().equals(teamId))
                     .toList();
 
             StandingDto sDto = StandingDto.builder()
@@ -97,7 +103,6 @@ public class StandingServiceImpl implements StandingService {
         String result = matchDto.getResult();
         Team homeTeam = matchDto.getHomeTeam();
         Team awayTeam = matchDto.getAwayTeam();
-
         if (result.equals("H") && currentTeam.equals(homeTeam)) {
             return StandingDto.builder()
                     .team(currentTeam)

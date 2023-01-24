@@ -3,7 +3,6 @@ package zhigalin.predictions.model.event;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.model.predict.Odds;
 import zhigalin.predictions.model.predict.Prediction;
 
 import javax.persistence.*;
@@ -58,8 +57,4 @@ public class Match {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private List<Prediction> predictions;
-
-    @OneToOne
-    @JoinColumn(name = "odds_id", referencedColumnName = "id")
-    private Odds odds;
 }
