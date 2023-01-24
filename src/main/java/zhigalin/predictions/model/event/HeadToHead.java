@@ -25,11 +25,11 @@ public class HeadToHead {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_team_id", referencedColumnName = "id")
     private Team homeTeam;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "away_team_id", referencedColumnName = "id")
     private Team awayTeam;
 
