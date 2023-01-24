@@ -3,7 +3,6 @@ package zhigalin.predictions.telegram.command;
 import com.google.common.collect.ImmutableMap;
 import zhigalin.predictions.converter.event.HeadToHeadMapper;
 import zhigalin.predictions.converter.event.MatchMapper;
-import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
 import zhigalin.predictions.converter.news.NewsMapper;
 import zhigalin.predictions.service.event.HeadToHeadService;
@@ -25,8 +24,8 @@ public class CommandContainer {
     private final Command headToHeadCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService, MatchMapper matchMapper,
-                            StandingService standingService, StandingMapper standingMapper, TeamService teamService,
-                            TeamMapper teamMapper, HeadToHeadService headToHeadService, HeadToHeadMapper headToHeadMapper,
+                            StandingService standingService, TeamService teamService, TeamMapper teamMapper,
+                            HeadToHeadService headToHeadService, HeadToHeadMapper headToHeadMapper,
                             NewsService newsService, NewsMapper newsMapper) {
         commandMap = ImmutableMap.<String, Command>builder()
                 .put(TODAY.getCommandName(), new TodayMatchesCommand(sendBotMessageService, matchService, matchMapper))
@@ -34,7 +33,7 @@ public class CommandContainer {
                 .put(STOP.getCommandName(), new StopCommand(sendBotMessageService))
                 .put(HELP.getCommandName(), new HelpCommand(sendBotMessageService))
                 .put(NO.getCommandName(), new NoCommand(sendBotMessageService))
-                .put(TABLE.getCommandName(), new TableCommand(sendBotMessageService, standingService, standingMapper))
+                .put(TABLE.getCommandName(), new TableCommand(sendBotMessageService, standingService))
                 .put(TOUR.getCommandName(), new TourCommand(sendBotMessageService))
                 .put(TOUR_NUM.getCommandName(), new TourNumCommand(sendBotMessageService, matchService, matchMapper))
                 .put(NEWS.getCommandName(), new NewsCommand(sendBotMessageService, newsService, newsMapper))
