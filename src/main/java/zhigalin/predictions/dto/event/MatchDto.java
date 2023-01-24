@@ -1,12 +1,9 @@
 package zhigalin.predictions.dto.event;
 
 import lombok.Builder;
-import lombok.Setter;
 import lombok.Value;
-import lombok.experimental.NonFinal;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.model.predict.Odds;
 import zhigalin.predictions.model.predict.Prediction;
 
 import java.time.LocalDate;
@@ -43,8 +40,4 @@ public class MatchDto {
     String status;
 
     List<Prediction> predictions;
-
-    @NonFinal
-    @Setter
-    Odds odds;
 }

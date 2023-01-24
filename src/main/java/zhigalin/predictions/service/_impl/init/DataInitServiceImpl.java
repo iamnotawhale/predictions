@@ -18,11 +18,9 @@ import zhigalin.predictions.converter.event.MatchMapper;
 import zhigalin.predictions.converter.event.SeasonMapper;
 import zhigalin.predictions.converter.event.WeekMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
-import zhigalin.predictions.converter.predict.OddsMapper;
 import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.dto.event.WeekDto;
 import zhigalin.predictions.dto.news.NewsDto;
-import zhigalin.predictions.dto.predict.OddsDto;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.Season;
@@ -35,7 +33,6 @@ import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.init.DataInitService;
 import zhigalin.predictions.service.news.NewsService;
-import zhigalin.predictions.service.predict.OddsService;
 
 import java.net.URL;
 import java.text.DateFormat;
@@ -79,13 +76,11 @@ public class DataInitServiceImpl implements DataInitService {
     private final MatchService matchService;
     private final NewsService newsService;
     private final HeadToHeadService headToHeadService;
-    private final OddsService oddsService;
     private final SeasonMapper seasonMapper;
     private final WeekMapper weekMapper;
     private final TeamMapper teamMapper;
     private final MatchMapper matchMapper;
     private final HeadToHeadMapper headToHeadMapper;
-    private final OddsMapper oddsMapper;
 
     public void allInit() {
         matchUpdateFromApiFootball();
@@ -127,7 +122,6 @@ public class DataInitServiceImpl implements DataInitService {
                         || Objects.equals(match.getStatus(), "pst"))) {
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
-            updateOdds();
         }
         if (matchService.getOnline().isEmpty()) {
             return;
@@ -207,48 +201,6 @@ public class DataInitServiceImpl implements DataInitService {
         nextCurrentWeek.setIsCurrent(true);
         weekService.save(currentWeek);
         weekService.save(nextCurrentWeek);
-    }
-
-    @SneakyThrows
-    private void updateOdds() {
-        List<MatchDto> list = matchService.getAllByWeekId(weekService.getCurrentWeekId());
-        for (MatchDto dto : list) {
-            HttpResponse<JsonNode> responseOdds = Unirest.get("https://v3.football.api-sports.io/odds")
-                    .header(X_RAPID_API, API_FOOTBALL_TOKEN)
-                    .queryString("bookmaker", 8)
-                    .queryString("bet", 1)
-                    .queryString("fixture", dto.getPublicId())
-                    .asJson();
-            Gson gsonOdds = new GsonBuilder().setPrettyPrinting().create();
-            JsonObject mainObject = gsonOdds.fromJson(responseOdds.getBody().getObject().toString(), JsonElement.class)
-                    .getAsJsonObject();
-
-            JsonArray responseArray = mainObject.getAsJsonArray("response");
-            if (responseArray.isEmpty()) {
-                continue;
-            }
-            JsonObject responseObj = responseArray.get(0).getAsJsonObject();
-            JsonArray bookmakersArray = responseObj.getAsJsonArray("bookmakers");
-            JsonObject bookmakersObj = bookmakersArray.get(0).getAsJsonObject();
-            JsonArray betsArray = bookmakersObj.getAsJsonArray("bets");
-            JsonObject betsObject = betsArray.get(0).getAsJsonObject();
-            JsonArray values = betsObject.getAsJsonArray("values");
-            Double homeOdd = values.get(0).getAsJsonObject().get("odd").getAsDouble();
-            Double drawOdd = values.get(1).getAsJsonObject().get("odd").getAsDouble();
-            Double awayOdd = values.get(2).getAsJsonObject().get("odd").getAsDouble();
-
-            OddsDto oddsDto = OddsDto.builder()
-                    .homeChance(homeOdd)
-                    .drawChance(drawOdd)
-                    .awayChance(awayOdd)
-                    .fixtureId(dto.getPublicId())
-                    .build();
-
-            oddsService.save(oddsDto);
-
-            dto.setOdds(oddsMapper.toEntity(oddsService.getByFixtureId(dto.getPublicId())));
-            matchService.save(dto);
-        }
     }
 
     @SneakyThrows

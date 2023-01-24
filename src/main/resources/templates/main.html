@@ -111,22 +111,7 @@
                                     th:text="${match.awayTeamScore}">AT Score
                                 </td>
                                 <td colspan="3" class="align-middle" th:unless="${match.status != 'ns'}">
-                                    <div th:if="${match.odds != null}">
-                                    <span class="badge bg-dark2 w-30">
-                                        <p class="h7" style="display:inline"
-                                           th:text="${match.getOdds().getHomeChance()}"></p>
-                                    </span>
-                                        <span class="badge bg-dark2 w-30">
-                                        <p class="h7" style="display:inline"
-                                           th:text="${match.getOdds().getDrawChance()}"></p>
-                                    </span>
-                                        <span class="badge bg-dark2 w-30">
-                                        <p class="h7" style="display:inline"
-                                           th:text="${match.getOdds().getAwayChance()}"></p>
-                                    </span>
-                                    </div>
-                                    <div th:unless="${match.odds != null}" th:text="'-'">
-                                    </div>
+                                    <div th:text="'-'"></div>
                                 </td>
                                 <td><img th:src="${match.awayTeam.getLogo()}" th:width="20"/></td>
                             </tr>
