@@ -21,11 +21,11 @@ public class Prediction {
     @SequenceGenerator(sequenceName = "Predict_sequence", name = "Predict_generator", allocationSize = 1)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id", referencedColumnName = "id")
     private Match match;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
 

@@ -22,7 +22,7 @@ public class Week {
 
     private String weekName;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "season_id", referencedColumnName = "id")
     private Season season;
 

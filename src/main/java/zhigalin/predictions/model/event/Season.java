@@ -22,7 +22,7 @@ public class Season {
 
     private String seasonName;
 
-    @OneToMany(mappedBy = "season")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "season")
     @ToString.Exclude
     private List<Week> weeks;
 }

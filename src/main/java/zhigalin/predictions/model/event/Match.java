@@ -27,7 +27,7 @@ public class Match {
 
     private Long publicId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "week_id", referencedColumnName = "id")
     private Week week;
 
@@ -37,11 +37,11 @@ public class Match {
 
     private LocalTime matchTime;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_team_id", referencedColumnName = "id")
     private Team homeTeam;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "away_team_id", referencedColumnName = "id")
     private Team awayTeam;
 
@@ -53,7 +53,7 @@ public class Match {
 
     private String status;
 
-    @OneToMany(mappedBy = "match")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "match")
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private List<Prediction> predictions;

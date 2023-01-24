@@ -22,7 +22,7 @@ public class Standing {
     @SequenceGenerator(sequenceName = "standing_sequence", name = "standing_generator", allocationSize = 1)
     private Long id;
 
-    @OneToOne(fetch = FetchType.EAGER)
+    @OneToOne(fetch = FetchType.LAZY)
     private Team team;
 
     private Integer points;
