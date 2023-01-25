@@ -2,8 +2,7 @@ package zhigalin.predictions.telegram.command;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.converter.event.MatchMapper;
-import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
@@ -17,32 +16,30 @@ public class TodayMatchesCommand implements Command {
 
     private final MatchService matchService;
 
-    private final MatchMapper matchMapper;
-
     @Override
     public void execute(Update update) {
         Long tour = null;
-        List<Match> list = matchService.findAllByTodayDate().stream().map(matchMapper::toEntity).toList();
+        List<MatchDto> list = matchService.findAllByTodayDate();
         StringBuilder builder = new StringBuilder();
         if (!list.isEmpty()) {
-            for (Match match : list) {
+            for (MatchDto dto : list) {
                 builder.append("`");
-                if (!match.getWeek().getId().equals(tour)) {
-                    builder.append(match.getWeek().getId()).append(" тур").append("\n");
-                    tour = match.getWeek().getId();
+                if (!dto.getWeek().getId().equals(tour)) {
+                    builder.append(dto.getWeek().getId()).append(" тур").append("\n");
+                    tour = dto.getWeek().getId();
                 }
-                builder.append(match.getHomeTeam().getCode()).append(" ");
-                if (!Objects.equals(match.getStatus(), "ns") && !Objects.equals(match.getStatus(), "pst")) {
-                    builder.append(match.getHomeTeamScore()).append(" - ")
-                            .append(match.getAwayTeamScore()).append(" ")
-                            .append(match.getAwayTeam().getCode()).append(" ")
-                            .append(match.getStatus()).append(" ");
-                } else if (Objects.equals(match.getStatus(), "pst")) {
-                    builder.append("- ").append(match.getAwayTeam().getCode())
-                            .append(" ⏰ ").append(match.getStatus());
+                builder.append(dto.getHomeTeam().getCode()).append(" ");
+                if (!Objects.equals(dto.getStatus(), "ns") && !Objects.equals(dto.getStatus(), "pst")) {
+                    builder.append(dto.getHomeTeamScore()).append(" - ")
+                            .append(dto.getAwayTeamScore()).append(" ")
+                            .append(dto.getAwayTeam().getCode()).append(" ")
+                            .append(dto.getStatus()).append(" ");
+                } else if (Objects.equals(dto.getStatus(), "pst")) {
+                    builder.append("- ").append(dto.getAwayTeam().getCode())
+                            .append(" ⏰ ").append(dto.getStatus());
                 } else {
-                    builder.append("- ").append(match.getAwayTeam().getCode())
-                            .append(" ⏱ ").append(match.getMatchTime());
+                    builder.append("- ").append(dto.getAwayTeam().getCode())
+                            .append(" ⏱ ").append(dto.getMatchTime());
                 }
                 builder.append("`").append("\n");
             }

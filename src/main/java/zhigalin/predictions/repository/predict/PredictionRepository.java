@@ -10,13 +10,13 @@ import java.util.List;
 @Repository
 public interface PredictionRepository extends JpaRepository<Prediction, Long> {
 
+    Prediction findByMatchIdAndUserId(Long matchId, Long userId);
+
     List<Prediction> findAllByMatchId(Long id);
 
     List<Prediction> findAllByMatchWeekId(Long id);
 
     List<Prediction> findAllByMatchWeekIdOrderByMatchLocalDateTimeDescMatchHomeTeamIdAsc(Long id);
-
-    Prediction findByMatchIdAndUserId(Long matchId, Long userId);
 
     List<Prediction> findAllByUserIdOrderByMatchLocalDateTimeDesc(Long id);
 

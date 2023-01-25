@@ -62,7 +62,7 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> findAllByWeekId(Long weekId) {
-        return repository.findAllByWeekId(weekId).stream().map(mapper::toDto).toList();
+        return repository.findAllByWeekIdOrderByLocalDateTime(weekId).stream().map(mapper::toDto).toList();
     }
 
     @Override

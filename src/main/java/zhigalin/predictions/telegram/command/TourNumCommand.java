@@ -2,8 +2,7 @@ package zhigalin.predictions.telegram.command;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.converter.event.MatchMapper;
-import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
@@ -17,8 +16,6 @@ public class TourNumCommand implements Command {
     private final SendBotMessageService sendBotMessageService;
 
     private final MatchService matchService;
-
-    private final MatchMapper matchMapper;
 
     @Override
     public void execute(Update update) {
@@ -38,22 +35,22 @@ public class TourNumCommand implements Command {
         }
         StringBuilder builder = new StringBuilder();
 
-        List<Match> tourMatches = matchService.findAllByWeekId(tourId).stream().map(matchMapper::toEntity).toList();
+        List<MatchDto> tourMatches = matchService.findAllByWeekId(tourId);
         if (!tourMatches.isEmpty()) {
             builder.append("`").append(tourId).append(" ТУР").append("`").append("\n");
-            for (Match match : tourMatches) {
-                builder.append("`").append(match.getHomeTeam().getCode()).append(" ");
-                if (Objects.equals(match.getStatus(), "ft")) {
-                    builder.append(match.getHomeTeamScore())
+            for (MatchDto dto : tourMatches) {
+                builder.append("`").append(dto.getHomeTeam().getCode()).append(" ");
+                if (Objects.equals(dto.getStatus(), "ft")) {
+                    builder.append(dto.getHomeTeamScore())
                             .append(" - ")
-                            .append(match.getAwayTeamScore())
+                            .append(dto.getAwayTeamScore())
                             .append(" ")
-                            .append(match.getAwayTeam().getCode());
+                            .append(dto.getAwayTeam().getCode());
                 } else {
                     builder.append("- ")
-                            .append(match.getAwayTeam().getCode()).append(" ")
+                            .append(dto.getAwayTeam().getCode()).append(" ")
                             .append("\uD83D\uDDD3 ")
-                            .append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
+                            .append(dto.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
                 }
                 builder.append("`").append("\n");
             }
