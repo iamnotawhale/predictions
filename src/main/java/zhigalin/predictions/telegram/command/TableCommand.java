@@ -22,7 +22,7 @@ public class TableCommand implements Command {
         builder.append("`").append("  ").append("КЛУБ ").append("И  ").append("В  ").append("Н  ").append("П  ")
                 .append("ЗМ ").append("ПМ ").append("О  ").append("`").append("\n");
         for (StandingDto standingDto : list) {
-            builder.append("`").append(i++).append(".");
+            builder.append("`").append(i++).append(" ");
             if (i < 11) {
                 builder.append(" ");
             }
