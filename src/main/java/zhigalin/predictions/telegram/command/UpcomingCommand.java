@@ -23,7 +23,7 @@ public class UpcomingCommand implements Command {
     @Override
     public void execute(Update update) {
         Long tour = null;
-        List<Match> upcomingMatches = matchService.getAllByUpcomingDays(7).stream().map(matchMapper::toEntity).toList();
+        List<Match> upcomingMatches = matchService.findAllByUpcomingDays(7).stream().map(matchMapper::toEntity).toList();
         StringBuilder builder = new StringBuilder();
         if (!upcomingMatches.isEmpty()) {
             for (Match match : upcomingMatches) {

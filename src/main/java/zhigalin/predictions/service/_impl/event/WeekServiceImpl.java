@@ -19,7 +19,7 @@ public class WeekServiceImpl implements WeekService {
 
     @Override
     public WeekDto save(WeekDto weekDto) {
-        Week week = repository.getByWeekName(weekDto.getWeekName());
+        Week week = repository.findByWeekName(weekDto.getWeekName());
         if (week != null) {
             mapper.updateEntityFromDto(weekDto, week);
             return mapper.toDto(repository.save(week));
@@ -28,13 +28,13 @@ public class WeekServiceImpl implements WeekService {
     }
 
     @Override
-    public WeekDto getById(Long id) {
-        return mapper.toDto(repository.findById(id).orElse(null));
+    public WeekDto findById(Long weekId) {
+        return mapper.toDto(repository.findById(weekId).orElse(null));
     }
 
     @Override
-    public WeekDto getByName(String weekName) {
-        Week week = repository.getByWeekName(weekName);
+    public WeekDto findByName(String weekName) {
+        Week week = repository.findByWeekName(weekName);
         if (week != null) {
             return mapper.toDto(week);
         }
@@ -42,19 +42,15 @@ public class WeekServiceImpl implements WeekService {
     }
 
     @Override
-    public WeekDto getCurrentWeek() {
-        Week week = repository.getWeekByIsCurrentTrue();
-        return mapper.toDto(week);
+    public WeekDto findCurrentWeek() {
+        return mapper.toDto(repository.findWeekByIsCurrentTrue());
     }
 
     @Override
-    public List<WeekDto> getAll() {
-        List<Week> list = (List<Week>) repository.findAll();
-        return list.stream().map(mapper::toDto).toList();
-    }
-
-    @Override
-    public Long getCurrentWeekId() {
-        return repository.getWeekByIsCurrentTrue().getId();
+    public List<WeekDto> findAll() {
+        return repository.findAll()
+                .stream()
+                .map(mapper::toDto)
+                .toList();
     }
 }

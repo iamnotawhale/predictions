@@ -1,15 +1,15 @@
 package zhigalin.predictions.repository.football;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.football.Team;
 
 @Repository
-public interface TeamRepository extends CrudRepository<Team, Long> {
+public interface TeamRepository extends JpaRepository<Team, Long> {
 
-    Team getByTeamName(String teamName);
+    Team findByTeamName(String teamName);
 
-    Team getByCode(String code);
+    Team findByCode(String teamCode);
 
-    Team getByPublicId(Long id);
+    Team findByPublicId(Long publicId);
 }

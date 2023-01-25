@@ -53,7 +53,7 @@ public class Match {
 
     private String status;
 
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "match")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "match", cascade = CascadeType.REFRESH)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private List<Prediction> predictions;

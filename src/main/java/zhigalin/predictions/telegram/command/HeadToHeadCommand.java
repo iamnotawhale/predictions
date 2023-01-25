@@ -54,6 +54,6 @@ public class HeadToHeadCommand implements Command {
         if (secondTeamCode == null) {
             return null;
         }
-        return headToHeadService.getAllByTwoTeamsCode(firstTeamCode, secondTeamCode).stream().map(headToHeadMapper::toEntity).toList();
+        return headToHeadService.findAllByTwoTeamsCode(firstTeamCode, secondTeamCode).stream().map(headToHeadMapper::toEntity).toList();
     }
 }

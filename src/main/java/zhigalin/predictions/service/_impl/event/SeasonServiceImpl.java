@@ -16,8 +16,8 @@ public class SeasonServiceImpl implements SeasonService {
     private final SeasonMapper mapper;
 
     @Override
-    public SeasonDto saveSeason(SeasonDto seasonDto) {
-        Season season = seasonRepository.getBySeasonName(seasonDto.getSeasonName());
+    public SeasonDto save(SeasonDto seasonDto) {
+        Season season = seasonRepository.findBySeasonName(seasonDto.getSeasonName());
         if (season != null) {
             mapper.updateEntityFromDto(seasonDto, season);
             return mapper.toDto(seasonRepository.save(season));
@@ -26,13 +26,13 @@ public class SeasonServiceImpl implements SeasonService {
     }
 
     @Override
-    public SeasonDto getById(Long id) {
-        return mapper.toDto(seasonRepository.findById(id).orElse(null));
+    public SeasonDto findById(Long seasonId) {
+        return mapper.toDto(seasonRepository.findById(seasonId).orElse(null));
     }
 
     @Override
-    public SeasonDto getByName(String seasonName) {
-        Season season = seasonRepository.getBySeasonName(seasonName);
+    public SeasonDto findByName(String seasonName) {
+        Season season = seasonRepository.findBySeasonName(seasonName);
         if (season != null) {
             return mapper.toDto(season);
         }

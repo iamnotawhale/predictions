@@ -9,9 +9,9 @@ public interface HeadToHeadService {
 
     HeadToHeadDto save(HeadToHeadDto headToHeadDto);
 
-    List<HeadToHeadDto> getAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode);
+    List<HeadToHeadDto> findAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode);
 
-    List<HeadToHeadDto> getAllByMatch(MatchDto matchDto);
+    List<HeadToHeadDto> findAllByMatch(MatchDto matchDto);
 
-    List<List<HeadToHeadDto>> getAllByCurrentWeek();
+    List<List<HeadToHeadDto>> findAllByCurrentWeek();
 }

@@ -22,7 +22,7 @@ public class TodayMatchesCommand implements Command {
     @Override
     public void execute(Update update) {
         Long tour = null;
-        List<Match> list = matchService.getAllByTodayDate().stream().map(matchMapper::toEntity).toList();
+        List<Match> list = matchService.findAllByTodayDate().stream().map(matchMapper::toEntity).toList();
         StringBuilder builder = new StringBuilder();
         if (!list.isEmpty()) {
             for (Match match : list) {

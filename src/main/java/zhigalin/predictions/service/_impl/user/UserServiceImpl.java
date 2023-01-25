@@ -11,7 +11,6 @@ import zhigalin.predictions.service.user.UserService;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @RequiredArgsConstructor
 @Service
@@ -22,7 +21,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder bCryptPasswordEncoder;
 
     @Override
-    public UserDto saveUser(UserDto userDto) {
+    public UserDto save(UserDto userDto) {
         User userFromDB = userRepository.findByLogin(userDto.getLogin());
         if (userFromDB != null) {
             return mapper.toDto(userFromDB);
@@ -32,12 +31,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void delete(Long id) {
-        userRepository.deleteById(id);
+    public List<UserDto> saveAll(List<UserDto> list) {
+        List<User> listUser = list.stream().map(mapper::toEntity).collect(Collectors.toList());
+        return userRepository.saveAll(listUser).stream().map(mapper::toDto).toList();
     }
 
     @Override
-    public UserDto getByLogin(String login) {
+    public List<UserDto> findAll() {
+        return userRepository.findAll().stream().map(mapper::toDto).toList();
+    }
+
+    @Override
+    public UserDto findById(Long id) {
+        return mapper.toDto(userRepository.findById(id).orElse(null));
+    }
+
+    @Override
+    public UserDto findByLogin(String login) {
         User user = userRepository.findByLogin(login);
         if (user != null) {
             return mapper.toDto(user);
@@ -46,18 +56,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<UserDto> getAll() {
-        return StreamSupport.stream(userRepository.findAll().spliterator(), false).map(mapper::toDto).toList();
-    }
-
-    @Override
-    public UserDto getById(Long id) {
-        return mapper.toDto(userRepository.findById(id).orElse(null));
-    }
-
-    @Override
-    public List<UserDto> saveAll(List<UserDto> list) {
-        List<User> listUser = list.stream().map(mapper::toEntity).collect(Collectors.toList());
-        return StreamSupport.stream(userRepository.saveAll(listUser).spliterator(), false).map(mapper::toDto).toList();
+    public void delete(Long id) {
+        userRepository.deleteById(id);
     }
 }

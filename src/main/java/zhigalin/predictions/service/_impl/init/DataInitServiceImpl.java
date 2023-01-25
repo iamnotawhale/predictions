@@ -90,7 +90,7 @@ public class DataInitServiceImpl implements DataInitService {
 
     @SneakyThrows
     private void postponedMatches() {
-        List<MatchDto> pst = matchService.getAllByStatus("pst");
+        List<MatchDto> pst = matchService.findAllByStatus("pst");
 
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
                 .header(X_RAPID_API, API_FOOTBALL_TOKEN)
@@ -109,7 +109,7 @@ public class DataInitServiceImpl implements DataInitService {
             JsonObject matchObj = response.getAsJsonObject();
             JsonObject fixture = matchObj.getAsJsonObject("fixture");
 
-            MatchDto matchDto = matchService.getByPublicId(fixture.get("id").getAsLong());
+            MatchDto matchDto = matchService.findByPublicId(fixture.get("id").getAsLong());
             match.setStatus("pst");
             matchService.save(matchDto);
         }
@@ -117,13 +117,13 @@ public class DataInitServiceImpl implements DataInitService {
 
     @SneakyThrows
     private void matchUpdateFromApiFootball() {
-        if (matchService.getAllByCurrentWeek().stream()
+        if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(match -> Objects.equals(match.getStatus(), "ft")
                         || Objects.equals(match.getStatus(), "pst"))) {
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
         }
-        if (matchService.getOnline().isEmpty()) {
+        if (matchService.findOnline().isEmpty()) {
             return;
         }
         HttpResponse<JsonNode> resp = Unirest.get("https://v3.football.api-sports.io/fixtures")
@@ -160,8 +160,8 @@ public class DataInitServiceImpl implements DataInitService {
             JsonObject teams = matchObj.getAsJsonObject("teams");
             JsonObject home = teams.getAsJsonObject("home");
             JsonObject away = teams.getAsJsonObject("away");
-            homeTeam = teamMapper.toEntity(teamService.getByPublicId(home.get("id").getAsLong()));
-            awayTeam = teamMapper.toEntity(teamService.getByPublicId(away.get("id").getAsLong()));
+            homeTeam = teamMapper.toEntity(teamService.findByPublicId(home.get("id").getAsLong()));
+            awayTeam = teamMapper.toEntity(teamService.findByPublicId(away.get("id").getAsLong()));
 
             JsonObject goals = matchObj.getAsJsonObject("goals");
 
@@ -194,9 +194,9 @@ public class DataInitServiceImpl implements DataInitService {
 
     @SneakyThrows
     private void currentWeekUpdate() {
-        Long id = weekService.getCurrentWeek().getId();
-        WeekDto currentWeek = weekService.getById(id);
-        WeekDto nextCurrentWeek = weekService.getById(id + 1);
+        Long id = weekService.findCurrentWeek().getId();
+        WeekDto currentWeek = weekService.findById(id);
+        WeekDto nextCurrentWeek = weekService.findById(id + 1);
         currentWeek.setIsCurrent(false);
         nextCurrentWeek.setIsCurrent(true);
         weekService.save(currentWeek);
@@ -205,7 +205,7 @@ public class DataInitServiceImpl implements DataInitService {
 
     @SneakyThrows
     private void newsInit() {
-        if (newsService.getAll().size() > 30) {
+        if (newsService.findAll().size() > 30) {
             newsService.deleteAll();
             newsService.resetSequence();
         }
@@ -268,8 +268,8 @@ public class DataInitServiceImpl implements DataInitService {
                 JsonObject teams = matchObj.getAsJsonObject("teams");
                 JsonObject home = teams.getAsJsonObject("home");
                 JsonObject away = teams.getAsJsonObject("away");
-                homeTeam = teamMapper.toEntity(teamService.getByPublicId(home.get("id").getAsLong()));
-                awayTeam = teamMapper.toEntity(teamService.getByPublicId(away.get("id").getAsLong()));
+                homeTeam = teamMapper.toEntity(teamService.findByPublicId(home.get("id").getAsLong()));
+                awayTeam = teamMapper.toEntity(teamService.findByPublicId(away.get("id").getAsLong()));
 
                 if (homeTeam == null || awayTeam == null) {
                     continue;
@@ -329,8 +329,8 @@ public class DataInitServiceImpl implements DataInitService {
             JsonObject teams = matchObj.getAsJsonObject("teams");
             JsonObject home = teams.getAsJsonObject("home");
             JsonObject away = teams.getAsJsonObject("away");
-            homeTeam = teamMapper.toEntity(teamService.getByPublicId(home.get("id").getAsLong()));
-            awayTeam = teamMapper.toEntity(teamService.getByPublicId(away.get("id").getAsLong()));
+            homeTeam = teamMapper.toEntity(teamService.findByPublicId(home.get("id").getAsLong()));
+            awayTeam = teamMapper.toEntity(teamService.findByPublicId(away.get("id").getAsLong()));
 
             JsonObject goals = matchObj.getAsJsonObject("goals");
             if (goals.get("home").isJsonNull()) {
@@ -400,18 +400,18 @@ public class DataInitServiceImpl implements DataInitService {
 
             JsonObject league = matchObj.getAsJsonObject("league");
 
-            seasonService.saveSeason(seasonMapper.toDto(Season.builder().seasonName(league.get("season").getAsString()).build()));
+            seasonService.save(seasonMapper.toDto(Season.builder().seasonName(league.get("season").getAsString()).build()));
 
             Week week = Week.builder().weekName("week " + league.get("round").toString().replaceAll("\\D+", ""))
-                    .season(seasonMapper.toEntity(seasonService.getById(1L)))
+                    .season(seasonMapper.toEntity(seasonService.findById(1L)))
                     .build();
             WeekDto weekDto = weekService.save(weekMapper.toDto(week));
 
             JsonObject teams = matchObj.getAsJsonObject("teams");
             JsonObject home = teams.getAsJsonObject("home");
             JsonObject away = teams.getAsJsonObject("away");
-            homeTeam = teamMapper.toEntity(teamService.getByPublicId(home.get("id").getAsLong()));
-            awayTeam = teamMapper.toEntity(teamService.getByPublicId(away.get("id").getAsLong()));
+            homeTeam = teamMapper.toEntity(teamService.findByPublicId(home.get("id").getAsLong()));
+            awayTeam = teamMapper.toEntity(teamService.findByPublicId(away.get("id").getAsLong()));
 
             JsonObject goals = matchObj.getAsJsonObject("goals");
             if (goals.get("home").isJsonNull()) {
@@ -471,7 +471,7 @@ public class DataInitServiceImpl implements DataInitService {
                     .teamName(team.get("name").getAsString())
                     .code(team.get("code").getAsString())
                     .build();
-            teamService.saveTeam(teamMapper.toDto(teamEntity));
+            teamService.save(teamMapper.toDto(teamEntity));
         }
     }
 }

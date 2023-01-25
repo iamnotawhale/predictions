@@ -27,7 +27,7 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
 
     @Override
     public HeadToHeadDto save(HeadToHeadDto headToHeadDto) {
-        HeadToHead headToHead = repository.getByHomeTeam_PublicIdAndAwayTeam_PublicIdAndLocalDateTime(
+        HeadToHead headToHead = repository.findByHomeTeamPublicIdAndAwayTeamPublicIdAndLocalDateTime(
                 headToHeadDto.getHomeTeam().getPublicId(), headToHeadDto.getAwayTeam().getPublicId(), headToHeadDto.getLocalDateTime());
         if (headToHead != null) {
             mapper.updateEntityFromDto(headToHeadDto, headToHead);
@@ -37,9 +37,9 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
     }
 
     @Override
-    public List<HeadToHeadDto> getAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode) {
-        List<HeadToHead> list1 = repository.getAllByHomeTeam_CodeAndAwayTeam_Code(firstTeamCode, secondTeamCode);
-        List<HeadToHead> list2 = repository.getAllByHomeTeam_CodeAndAwayTeam_Code(secondTeamCode, firstTeamCode);
+    public List<HeadToHeadDto> findAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode) {
+        List<HeadToHead> list1 = repository.findAllByHomeTeamCodeAndAwayTeamCode(firstTeamCode, secondTeamCode);
+        List<HeadToHead> list2 = repository.findAllByHomeTeamCodeAndAwayTeamCode(secondTeamCode, firstTeamCode);
 
         return Stream.concat(list1.stream(), list2.stream())
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
@@ -49,16 +49,16 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
     }
 
     @Override
-    public List<HeadToHeadDto> getAllByMatch(MatchDto matchDto) {
-        return getAllByTwoTeamsCode(matchDto.getHomeTeam().getCode(), matchDto.getAwayTeam().getCode());
+    public List<HeadToHeadDto> findAllByMatch(MatchDto matchDto) {
+        return findAllByTwoTeamsCode(matchDto.getHomeTeam().getCode(), matchDto.getAwayTeam().getCode());
     }
 
     @Override
-    public List<List<HeadToHeadDto>> getAllByCurrentWeek() {
+    public List<List<HeadToHeadDto>> findAllByCurrentWeek() {
         List<List<HeadToHeadDto>> listOfHeadToHeads = new ArrayList<>();
-        List<MatchDto> allByCurrentWeek = matchService.getAllByCurrentWeek();
+        List<MatchDto> allByCurrentWeek = matchService.findAllByCurrentWeek();
         for (MatchDto matchDto : allByCurrentWeek) {
-            listOfHeadToHeads.add(getAllByMatch(matchDto));
+            listOfHeadToHeads.add(findAllByMatch(matchDto));
         }
         return listOfHeadToHeads;
     }

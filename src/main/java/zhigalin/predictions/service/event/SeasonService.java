@@ -4,9 +4,9 @@ import zhigalin.predictions.dto.event.SeasonDto;
 
 public interface SeasonService {
 
-    SeasonDto saveSeason(SeasonDto seasonDto);
+    SeasonDto save(SeasonDto seasonDto);
 
-    SeasonDto getById(Long id);
+    SeasonDto findById(Long seasonId);
 
-    SeasonDto getByName(String seasonName);
+    SeasonDto findByName(String seasonName);
 }

@@ -1,7 +1,7 @@
 package zhigalin.predictions.repository.event;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
@@ -11,27 +11,25 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface MatchRepository extends CrudRepository<Match, Long> {
+public interface MatchRepository extends JpaRepository<Match, Long> {
+    List<Match> findAllByWeekId(Long weekId);
 
-    @Query("select m from Match m left join fetch m.week where m.week.id = :id order by m.localDateTime")
-    List<Match> getAllByWeekId(@Param("id") Long id);
+    List<Match> findAllByWeekIsCurrentTrueOrderByLocalDateTime();
 
-    List<Match> getAllByWeek_IsCurrentTrueOrderByLocalDateTime();
+    List<Match> findAllByMatchDateOrderByWeekAscLocalDateTimeAsc(LocalDate date);
 
-    List<Match> getAllByMatchDateOrderByWeekAscLocalDateTimeAsc(LocalDate date);
+    List<Match> findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime from, LocalDateTime to);
 
-    List<Match> getAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime from, LocalDateTime to);
+    Match findMatchByHomeTeamIdAndAwayTeamId(Long homeTeamId, Long awayTeamId);
 
-    Match getMatchByHomeTeam_IdAndAwayTeam_Id(Long homeTeamId, Long awayTeamId);
+    Match findMatchByHomeTeamTeamNameAndAwayTeamTeamName(String homeTeamName, String awayTeamName);
 
-    Match getMatchByHomeTeam_TeamNameAndAwayTeam_TeamName(String homeTeamName, String awayTeamName);
-
-    Match getMatchByHomeTeam_CodeAndAwayTeam_Code(String home, String away);
+    Match findMatchByHomeTeamCodeAndAwayTeamCode(String homeCode, String awayCode);
 
     @Query("select m from Match m where m.homeTeam.id = :teamId or m.awayTeam.id = :teamId order by m.localDateTime")
-    List<Match> getAllByTeamId(@Param("teamId") Long teamId);
+    List<Match> findAllByTeamId(@Param("teamId") Long teamId);
 
-    Match getMatchByPublicId(Long publicId);
+    Match findMatchByPublicId(Long publicId);
 
-    List<Match> getAllByStatus(String status);
+    List<Match> findAllByStatus(String status);
 }

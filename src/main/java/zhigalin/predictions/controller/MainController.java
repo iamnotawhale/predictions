@@ -33,14 +33,14 @@ public class MainController {
     @GetMapping()
     public ModelAndView getMainPage() {
         ModelAndView model = new ModelAndView("main");
-        model.addObject("map", predictionService.allUsersPoints());
+        model.addObject("map", predictionService.getAllUsersPoints());
         model.addObject("todayDateTime", LocalDateTime.now());
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
-        model.addObject("matchList", matchService.getAllByCurrentWeek());
-        model.addObject("h2h", headToHeadService.getAllByCurrentWeek());
-        model.addObject("online", matchService.getOnline());
-        model.addObject("standings", standingService.getAll());
-        model.addObject("news", newsService.getLastNews());
+        model.addObject("currentWeek", weekService.findCurrentWeek().getId());
+        model.addObject("matchList", matchService.findAllByCurrentWeek());
+        model.addObject("h2h", headToHeadService.findAllByCurrentWeek());
+        model.addObject("online", matchService.findOnline());
+        model.addObject("standings", standingService.findAll());
+        model.addObject("news", newsService.findLastNews());
         return model;
     }
 

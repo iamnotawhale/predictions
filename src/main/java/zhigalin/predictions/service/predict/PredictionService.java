@@ -8,33 +8,31 @@ import java.util.Map;
 
 public interface PredictionService {
 
-    List<PredictionDto> getAllByWeekId(Long id);
-
-    PredictionDto getById(Long id);
-
-    List<PredictionDto> getAllByMatchId(Long id);
-
     PredictionDto save(PredictionDto dto);
 
-    PredictionDto getByMatchAndUserIds(Long matchId, Long userId);
+    PredictionDto findById(Long id);
 
-    List<PredictionDto> getAllByUser_Id(Long id);
+    PredictionDto findByMatchAndUserIds(Long matchId, Long userId);
 
-    List<PredictionDto> getAllByUserIdAndWeekId(Long userId, Long weekId);
+    List<PredictionDto> findAllByWeekId(Long id);
+
+    List<PredictionDto> findAllByMatchId(Long id);
+
+    List<PredictionDto> findAllByUserId(Long id);
+
+    List<PredictionDto> findAllByUserIdAndWeekId(Long userId, Long weekId);
 
     Integer getUsersPointsByUserId(Long id);
 
     Integer getWeeklyUsersPoints(Long userId, Long weekId);
 
-    void deleteById(Long id);
+    Map<UserDto, Integer> getAllUsersPoints();
+
+    Map<UserDto, Integer> getUsersPointsByWeek(Long weekId);
 
     void delete(PredictionDto dto);
 
-    PredictionDto updatePoints(PredictionDto dto);
-
-    Map<UserDto, Integer> allUsersPoints();
+    void deleteById(Long id);
 
     boolean isExist(Long userId, Long matchId);
-
-    Map<UserDto, Integer> usersPointsByWeek(Long weekId);
 }

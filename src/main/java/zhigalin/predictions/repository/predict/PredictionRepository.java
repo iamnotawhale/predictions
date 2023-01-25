@@ -1,29 +1,28 @@
 package zhigalin.predictions.repository.predict;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.predict.Prediction;
 
 import java.util.List;
 
 @Repository
-public interface PredictionRepository extends CrudRepository<Prediction, Long> {
+public interface PredictionRepository extends JpaRepository<Prediction, Long> {
 
-    List<Prediction> getAllByMatch_Id(Long id);
+    List<Prediction> findAllByMatchId(Long id);
 
-    List<Prediction> getAllByMatch_Week_IdOrderByMatch_LocalDateTimeDescMatch_HomeTeam_IdAsc(Long id);
+    List<Prediction> findAllByMatchWeekId(Long id);
 
-    Prediction getByMatch_IdAndUser_Id(Long matchId, Long userId);
+    List<Prediction> findAllByMatchWeekIdOrderByMatchLocalDateTimeDescMatchHomeTeamIdAsc(Long id);
 
-    List<Prediction> getAllByUser_IdOrderByMatch_LocalDateTimeDesc(Long id);
+    Prediction findByMatchIdAndUserId(Long matchId, Long userId);
 
-    List<Prediction> getAllByUser_IdAndMatch_Week_IdOrderByMatch_LocalDateTime(Long userId, Long weekId);
+    List<Prediction> findAllByUserIdOrderByMatchLocalDateTimeDesc(Long id);
 
-    @Query("SELECT sum(p.points) from Prediction p where p.user.id = :userId and p.points is not null")
-    Integer getPointsByUser_Id(@Param("userId") Long userId);
+    List<Prediction> findAllByUserIdAndMatchWeekIdOrderByMatchLocalDateTime(Long userId, Long weekId);
 
     @Query(value = "SELECT setval('predict_sequence', (SELECT MAX(id) FROM predict) + 1, false)", nativeQuery = true)
     void updateSequence();
 }
+

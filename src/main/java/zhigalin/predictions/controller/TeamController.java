@@ -22,27 +22,27 @@ public class TeamController {
 
     @PostMapping("/save")
     public TeamDto saveTeam(@RequestBody TeamDto teamDto) {
-        return service.saveTeam(teamDto);
+        return service.save(teamDto);
     }
 
     @GetMapping("/{id}")
     public ModelAndView getTeamById(@PathVariable Long id) {
         ModelAndView model = new ModelAndView("team");
-        model.addObject("header", service.getById(id).getTeamName());
-        model.addObject("currentWeek", weekService.getCurrentWeekId());
-        model.addObject("last5", matchService.getLast5MatchesByTeamId(id));
+        model.addObject("header", service.findById(id).getTeamName());
+        model.addObject("currentWeek", weekService.findCurrentWeek().getId());
+        model.addObject("last5", matchService.findLast5MatchesByTeamId(id));
         model.addObject("last5Result", matchService.getLast5MatchesResultByTeamId(id));
         return model;
     }
 
     @GetMapping("/byName")
     public TeamDto findByTeamName(@RequestParam String name) {
-        return service.getByName(name);
+        return service.findByName(name);
     }
 
     @GetMapping("/byCode")
     public TeamDto findByTeamCode(@RequestParam String code) {
-        return service.getByCode(code);
+        return service.findByCode(code);
     }
 
     @ModelAttribute("currentUser")

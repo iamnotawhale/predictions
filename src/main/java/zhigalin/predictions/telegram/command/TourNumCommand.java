@@ -38,7 +38,7 @@ public class TourNumCommand implements Command {
         }
         StringBuilder builder = new StringBuilder();
 
-        List<Match> tourMatches = matchService.getAllByWeekId(tourId).stream().map(matchMapper::toEntity).toList();
+        List<Match> tourMatches = matchService.findAllByWeekId(tourId).stream().map(matchMapper::toEntity).toList();
         if (!tourMatches.isEmpty()) {
             builder.append("`").append(tourId).append(" ТУР").append("`").append("\n");
             for (Match match : tourMatches) {
