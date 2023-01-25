@@ -7,9 +7,8 @@ import java.util.List;
 public interface WeekService {
 
     WeekDto save(WeekDto weekDto);
-    WeekDto getById(Long id);
-    WeekDto getByName(String weekName);
-    WeekDto getCurrentWeek();
-    List<WeekDto> getAll();
-    Long getCurrentWeekId();
+    WeekDto findById(Long weekId);
+    WeekDto findByName(String weekName);
+    WeekDto findCurrentWeek();
+    List<WeekDto> findAll();
 }

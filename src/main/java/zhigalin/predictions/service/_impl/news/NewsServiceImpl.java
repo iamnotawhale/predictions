@@ -19,12 +19,6 @@ public class NewsServiceImpl implements NewsService {
     private final NewsMapper mapper;
 
     @Override
-    public List<NewsDto> getAll() {
-        List<News> list = (List<News>) repository.findAll();
-        return list.stream().map(mapper::toDto).toList();
-    }
-
-    @Override
     public NewsDto save(NewsDto dto) {
         News news = repository.findByTitle(dto.getTitle());
         if (news != null) {
@@ -35,8 +29,13 @@ public class NewsServiceImpl implements NewsService {
     }
 
     @Override
-    public List<NewsDto> getLastNews() {
-        List<NewsDto> list = getAll();
+    public List<NewsDto> findAll() {
+        return repository.findAll().stream().map(mapper::toDto).toList();
+    }
+
+    @Override
+    public List<NewsDto> findLastNews() {
+        List<NewsDto> list = findAll();
         return list.stream()
                 .sorted(Comparator.comparing(NewsDto::getDateTime).reversed())
                 .limit(15)

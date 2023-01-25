@@ -1,12 +1,12 @@
 package zhigalin.predictions.repository.news;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.news.News;
 
 @Repository
-public interface NewsRepository extends CrudRepository<News, Long> {
+public interface NewsRepository extends JpaRepository<News, Long> {
 
     News findByTitle(String title);
 

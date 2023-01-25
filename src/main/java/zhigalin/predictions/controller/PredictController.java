@@ -2,7 +2,6 @@ package zhigalin.predictions.controller;
 
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
@@ -28,12 +27,12 @@ public class PredictController {
 
     @GetMapping("/match/{id}")
     public List<PredictionDto> getByMatchId(@PathVariable Long id) {
-        return service.getAllByMatchId(id);
+        return service.findAllByMatchId(id);
     }
 
     @GetMapping("/{id}")
     public PredictionDto getById(@PathVariable Long id) {
-        return service.getById(id);
+        return service.findById(id);
     }
 
     @PostMapping("/saveAndUpdate")
@@ -51,19 +50,19 @@ public class PredictController {
     }
 
     @GetMapping("/week/{id}")
-    public ModelAndView getByWeekId(@PathVariable Long id, Authentication authentication) {
+    public ModelAndView getByWeekId(@PathVariable Long id) {
         ModelAndView model = new ModelAndView("predict");
-        model.addObject("weeklyUsersPoints", service.usersPointsByWeek(id));
+        model.addObject("weeklyUsersPoints", service.getUsersPointsByWeek(id));
         model.addObject("header", "Прогнозы " + id + " тура");
-        model.addObject("list", service.getAllByWeekId(id));
+        model.addObject("list", service.findAllByWeekId(id));
         return model;
     }
 
     @GetMapping("/byUserAndWeek")
     public ModelAndView getByUserAndWeek(@RequestParam Long user, @RequestParam Long week) {
         ModelAndView model = new ModelAndView("predict");
-        model.addObject("header", "Прогнозы " + userService.getById(user).getLogin() + " " + week + " тура");
-        model.addObject("list", service.getAllByUserIdAndWeekId(user, week));
+        model.addObject("header", "Прогнозы " + userService.findById(user).getLogin() + " " + week + " тура");
+        model.addObject("list", service.findAllByUserIdAndWeekId(user, week));
         model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
@@ -73,8 +72,7 @@ public class PredictController {
     public ModelAndView getByCurrentUserAndWeek(@RequestParam Long id) {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("header", "Мои прогнозы " + id + " тура");
-        model.addObject("currentUser", getCurrentUser());
-        model.addObject("list", service.getAllByUserIdAndWeekId(getCurrentUser().getId(), id));
+        model.addObject("list", service.findAllByUserIdAndWeekId(getCurrentUser().getId(), id));
         model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
@@ -83,7 +81,7 @@ public class PredictController {
     public ModelAndView getByUser() {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("header", "Мои прогнозы ");
-        model.addObject("list", service.getAllByUser_Id(getCurrentUser().getId()));
+        model.addObject("list", service.findAllByUserId(getCurrentUser().getId()));
         model.addObject("newPredict", PredictionDto.builder().build());
         return model;
     }
@@ -102,7 +100,7 @@ public class PredictController {
 
     @ModelAttribute("currentWeek")
     public Long getCurrentWeekId() {
-        return weekService.getCurrentWeekId();
+        return weekService.findCurrentWeek().getId();
     }
 
     @ModelAttribute("todayDateTime")

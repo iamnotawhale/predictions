@@ -18,14 +18,8 @@ public class TeamServiceImpl implements TeamService {
     private final TeamMapper mapper;
 
     @Override
-    public List<TeamDto> findAll() {
-        List<Team> list = (List<Team>) repository.findAll();
-        return list.stream().map(mapper::toDto).toList();
-    }
-
-    @Override
-    public TeamDto saveTeam(TeamDto teamDto) {
-        Team team = repository.getByTeamName(teamDto.getTeamName());
+    public TeamDto save(TeamDto teamDto) {
+        Team team = repository.findByTeamName(teamDto.getTeamName());
         if (team != null) {
             return mapper.toDto(team);
         }
@@ -33,13 +27,18 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public TeamDto getById(Long id) {
-        return mapper.toDto(repository.findById(id).orElse(null));
+    public List<TeamDto> findAll() {
+        return repository.findAll().stream().map(mapper::toDto).toList();
     }
 
     @Override
-    public TeamDto getByName(String teamName) {
-        Team team = repository.getByTeamName(teamName);
+    public TeamDto findById(Long teamId) {
+        return mapper.toDto(repository.findById(teamId).orElse(null));
+    }
+
+    @Override
+    public TeamDto findByName(String teamName) {
+        Team team = repository.findByTeamName(teamName);
         if (team != null) {
             return mapper.toDto(team);
         }
@@ -47,13 +46,17 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public TeamDto getByCode(String code) {
-        return mapper.toDto(repository.getByCode(code));
+    public TeamDto findByCode(String teamCode) {
+        Team team = repository.findByCode(teamCode);
+        if (team != null) {
+            return mapper.toDto(team);
+        }
+        return null;
     }
 
     @Override
-    public TeamDto getByPublicId(Long id) {
-        Team team = repository.getByPublicId(id);
+    public TeamDto findByPublicId(Long publicId) {
+        Team team = repository.findByPublicId(publicId);
         if (team != null) {
             return mapper.toDto(team);
         }

@@ -17,17 +17,17 @@ public class UserController {
 
     @GetMapping("/all")
     public List<UserDto> findAllUsers() {
-        return userService.getAll();
+        return userService.findAll();
     }
 
     @GetMapping()
     public UserDto findByLogin(@RequestParam String login) {
-        return userService.getByLogin(login);
+        return userService.findByLogin(login);
     }
 
     @GetMapping("/{id}")
     public UserDto findById(@PathVariable Long id) {
-        return userService.getById(id);
+        return userService.findById(id);
     }
 
     @DeleteMapping("/delete/{id}")

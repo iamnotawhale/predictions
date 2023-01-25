@@ -37,7 +37,7 @@ public class RegistrationController {
                 .password(userDto.getPassword())
                 .roles(Collections.singleton(roleMapper.toEntity(roleService.findById(1L))))
                 .build();
-        userService.saveUser(userMapper.toDto(user));
+        userService.save(userMapper.toDto(user));
         return model;
     }
 }

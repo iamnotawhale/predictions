@@ -6,15 +6,15 @@ import java.util.List;
 
 public interface UserService {
 
-    UserDto saveUser(UserDto userDto);
-
-    void delete(Long id);
-
-    UserDto getByLogin(String login);
-
-    List<UserDto> getAll();
-
-    UserDto getById(Long id);
+    UserDto save(UserDto userDto);
 
     List<UserDto> saveAll(List<UserDto> list);
+
+    UserDto findById(Long id);
+
+    UserDto findByLogin(String login);
+
+    List<UserDto> findAll();
+
+    void delete(Long id);
 }

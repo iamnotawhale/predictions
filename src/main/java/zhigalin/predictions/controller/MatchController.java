@@ -27,8 +27,8 @@ public class MatchController {
     @GetMapping("/team")
     public ModelAndView findByTeamId(@RequestParam(value = "id") Long id) {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("header", "Матчи " + teamService.getById(id).getTeamName());
-        model.addObject("matchList", service.getAllByTeamId(id));
+        model.addObject("header", "Матчи " + teamService.findById(id).getTeamName());
+        model.addObject("matchList", service.findAllByTeamId(id));
         return model;
     }
 
@@ -36,31 +36,31 @@ public class MatchController {
     public ModelAndView findByWeekId(@PathVariable Long id) {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи " + id + " тура");
-        model.addObject("matchList", service.getAllByWeekId(id));
+        model.addObject("matchList", service.findAllByWeekId(id));
         return model;
     }
 
     @GetMapping("/week/current")
     public ModelAndView findByCurrentWeek() {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("header", "Матчи " + weekService.getCurrentWeek().getId() + " тура");
-        model.addObject("matchList", service.getAllByCurrentWeek());
+        model.addObject("header", "Матчи " + weekService.findCurrentWeek().getId() + " тура");
+        model.addObject("matchList", service.findAllByCurrentWeek());
         return model;
     }
 
     @GetMapping("/{id}")
     public MatchDto findById(@PathVariable Long id) {
-        return service.getById(id);
+        return service.findById(id);
     }
 
     @GetMapping("/byNames")
     public MatchDto findByTeamNames(@RequestParam String home, @RequestParam String away) {
-        return service.getByTeamNames(home, away);
+        return service.findByTeamNames(home, away);
     }
 
     @GetMapping("/byCodes")
     public MatchDto findByTeamCodes(@RequestParam String home, @RequestParam String away) {
-        return service.getByTeamCodes(home, away);
+        return service.findByTeamCodes(home, away);
     }
 
     @GetMapping("/result/byNames")
@@ -72,7 +72,7 @@ public class MatchController {
     public ModelAndView findTodayMatches() {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи сегодня");
-        model.addObject("matchList", service.getAllByTodayDate());
+        model.addObject("matchList", service.findAllByTodayDate());
         return model;
     }
 
@@ -80,7 +80,7 @@ public class MatchController {
     public ModelAndView findUpcomingMatches(@RequestParam Integer days) {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи в ближайшие дни - " + days);
-        model.addObject("matchList", service.getAllByUpcomingDays(days));
+        model.addObject("matchList", service.findAllByUpcomingDays(days));
         return model;
     }
 
@@ -98,7 +98,7 @@ public class MatchController {
 
     @ModelAttribute("currentWeek")
     public Long getCurrentWeekId() {
-        return weekService.getCurrentWeekId();
+        return weekService.findCurrentWeek().getId();
     }
 
     @ModelAttribute("todayDateTime")

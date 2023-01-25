@@ -33,7 +33,7 @@ public class TeamCommand implements Command {
         if (team == null) {
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Такой команды нет. Повтори запрос");
         } else {
-            List<Match> lastFiveMatches = matchService.getLast5MatchesByTeamId(team.getId()).stream().map(matchMapper::toEntity).toList();
+            List<Match> lastFiveMatches = matchService.findLast5MatchesByTeamId(team.getId()).stream().map(matchMapper::toEntity).toList();
             List<String> result = matchService.getLast5MatchesResultByTeamId(team.getId());
             int i = 0;
             for (Match match : lastFiveMatches) {
@@ -62,6 +62,6 @@ public class TeamCommand implements Command {
         if (teamCode == null) {
             return null;
         }
-        return teamMapper.toEntity(teamService.getByCode(teamCode));
+        return teamMapper.toEntity(teamService.findByCode(teamCode));
     }
 }

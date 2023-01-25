@@ -17,7 +17,6 @@ import zhigalin.predictions.service.football.TeamService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.StreamSupport;
 
 @RequiredArgsConstructor
 @Service
@@ -30,17 +29,25 @@ public class StandingServiceImpl implements StandingService {
     private final TeamMapper teamMapper;
 
     @Override
-    public List<StandingDto> getAll() {
-        List<StandingDto> list;
+    public StandingDto save(StandingDto dto) {
+        Standing standing = repository.findByTeamId(dto.getTeam().getId());
+        if (standing != null) {
+            mapper.updateEntityFromDto(dto, standing);
+            return mapper.toDto(repository.save(standing));
+        }
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
+    }
 
-        if (matchService.getOnline().isEmpty()) {
-            list = StreamSupport.stream(repository.findAll().spliterator(), false)
+    @Override
+    public List<StandingDto> findAll() {
+        List<StandingDto> list;
+        if (matchService.findOnline().isEmpty()) {
+            list = repository.findAll().stream()
                     .map(mapper::toDto)
                     .toList();
         } else {
             list = currentOnlineTable();
         }
-
         return list.stream()
                 .sorted(Comparator.comparing(StandingDto::getPoints)
                         .reversed()
@@ -49,23 +56,10 @@ public class StandingServiceImpl implements StandingService {
                 .toList();
     }
 
-    @Override
-    public StandingDto save(StandingDto dto) {
-        Standing standing = repository.getByTeam_Id(dto.getTeam().getId());
-        if (standing != null) {
-            mapper.updateEntityFromDto(dto, standing);
-            return mapper.toDto(repository.save(standing));
-        }
-        return mapper.toDto(repository.save(mapper.toEntity(dto)));
-    }
-
     public List<StandingDto> currentOnlineTable() {
-
         List<StandingDto> currentTable = new ArrayList<>();
-
         List<TeamDto> allTeams = teamService.findAll();
-
-        List<MatchDto> allMatches = matchService.getAll().stream()
+        List<MatchDto> allMatches = matchService.findAll().stream()
                 .filter(m -> !m.getStatus().equals("ns"))
                 .filter(m -> !m.getStatus().equals("pst"))
                 .toList();
@@ -75,7 +69,6 @@ public class StandingServiceImpl implements StandingService {
             List<MatchDto> allMatchesByTeam = allMatches.stream()
                     .filter(m -> m.getHomeTeam().getId().equals(teamId) || m.getAwayTeam().getId().equals(teamId))
                     .toList();
-
             StandingDto sDto = StandingDto.builder()
                     .games(0)
                     .points(0)
@@ -86,12 +79,9 @@ public class StandingServiceImpl implements StandingService {
                     .goalsScored(0)
                     .goalsAgainst(0)
                     .build();
-
-
             for (MatchDto matchDto : allMatchesByTeam) {
                 sDto = updateByMatch(sDto, matchDto);
             }
-
             currentTable.add(sDto);
             save(sDto);
         }

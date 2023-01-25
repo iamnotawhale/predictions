@@ -16,7 +16,7 @@ public class TableCommand implements Command {
 
     @Override
     public void execute(Update update) {
-        List<StandingDto> list = standingService.getAll();
+        List<StandingDto> list = standingService.findAll();
         int i = 1;
         StringBuilder builder = new StringBuilder();
         builder.append("`").append("  ").append("КЛУБ ").append("И  ").append("В  ").append("Н  ").append("П  ")

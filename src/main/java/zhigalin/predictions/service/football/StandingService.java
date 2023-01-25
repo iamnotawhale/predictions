@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface StandingService {
 
-    List<StandingDto> getAll();
-
     StandingDto save(StandingDto dto);
+
+    List<StandingDto> findAll();
 }

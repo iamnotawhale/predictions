@@ -213,7 +213,7 @@
                                        style="display:inline; max-width: 100px;">
                                     </p>
                                 </td>
-                                <td style="padding-left: 0; padding-right: 0" th:with="match=${@matchServiceImpl.getOnlineResult(standing.team.getTeamName())}">
+                                <td style="padding-left: 0; padding-right: 0" th:if="${!online.isEmpty()}" th:with="match=${@matchServiceImpl.getOnlineResult(standing.team.getTeamName())}">
                                     <span class="text-white p-03 badge rounded-pill bg-success" th:if="${match != null && match.getResult() == 'H'}"
                                     th:text="${match.getHomeTeamScore() + ':' + match.getAwayTeamScore()}">
                                     </span>
@@ -224,6 +224,7 @@
                                           th:text="${match.getHomeTeamScore() + ':' + match.getAwayTeamScore()}">
                                     </span>
                                 </td>
+                                <td th:if="${online.isEmpty()}"></td>
                                 <td th:text="${standing.games}">Games</td>
                                 <td th:text="${standing.won}">Won</td>
                                 <td th:text="${standing.draw}">Draw</td>

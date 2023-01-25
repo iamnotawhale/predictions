@@ -32,6 +32,4 @@ public class Prediction {
     private Integer homeTeamScore;
 
     private Integer awayTeamScore;
-
-    private Integer points;
 }
