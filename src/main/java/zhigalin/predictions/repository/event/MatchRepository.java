@@ -12,7 +12,16 @@ import java.util.List;
 
 @Repository
 public interface MatchRepository extends JpaRepository<Match, Long> {
-    List<Match> findAllByWeekId(Long weekId);
+
+    Match findMatchByHomeTeamIdAndAwayTeamId(Long homeTeamId, Long awayTeamId);
+
+    Match findMatchByHomeTeamCodeAndAwayTeamCode(String homeCode, String awayCode);
+
+    Match findMatchByHomeTeamTeamNameAndAwayTeamTeamName(String homeTeamName, String awayTeamName);
+
+    Match findMatchByPublicId(Long publicId);
+
+    List<Match> findAllByWeekIdOrderByLocalDateTime(Long weekId);
 
     List<Match> findAllByWeekIsCurrentTrueOrderByLocalDateTime();
 
@@ -20,16 +29,8 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     List<Match> findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime from, LocalDateTime to);
 
-    Match findMatchByHomeTeamIdAndAwayTeamId(Long homeTeamId, Long awayTeamId);
-
-    Match findMatchByHomeTeamTeamNameAndAwayTeamTeamName(String homeTeamName, String awayTeamName);
-
-    Match findMatchByHomeTeamCodeAndAwayTeamCode(String homeCode, String awayCode);
+    List<Match> findAllByStatus(String status);
 
     @Query("select m from Match m where m.homeTeam.id = :teamId or m.awayTeam.id = :teamId order by m.localDateTime")
     List<Match> findAllByTeamId(@Param("teamId") Long teamId);
-
-    Match findMatchByPublicId(Long publicId);
-
-    List<Match> findAllByStatus(String status);
 }

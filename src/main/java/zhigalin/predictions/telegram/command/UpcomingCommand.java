@@ -2,8 +2,7 @@ package zhigalin.predictions.telegram.command;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.converter.event.MatchMapper;
-import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
@@ -15,29 +14,26 @@ import java.util.Objects;
 public class UpcomingCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
-
     private final MatchService matchService;
-
-    private final MatchMapper matchMapper;
 
     @Override
     public void execute(Update update) {
         Long tour = null;
-        List<Match> upcomingMatches = matchService.findAllByUpcomingDays(7).stream().map(matchMapper::toEntity).toList();
+        List<MatchDto> upcomingMatches = matchService.findAllByUpcomingDays(7);
         StringBuilder builder = new StringBuilder();
         if (!upcomingMatches.isEmpty()) {
-            for (Match match : upcomingMatches) {
+            for (MatchDto dto : upcomingMatches) {
                 builder.append("`");
-                if (!match.getWeek().getId().equals(tour)) {
-                    builder.append(match.getWeek().getId()).append(" тур").append("\n");
-                    tour = match.getWeek().getId();
+                if (!dto.getWeek().getId().equals(tour)) {
+                    builder.append(dto.getWeek().getId()).append(" тур").append("\n");
+                    tour = dto.getWeek().getId();
                 }
-                builder.append(match.getHomeTeam().getCode()).append(" ")
-                        .append("- ").append(match.getAwayTeam().getCode());
-                if (Objects.equals(match.getStatus(), "pst")) {
-                    builder.append(" ⏰ ").append(match.getStatus());
+                builder.append(dto.getHomeTeam().getCode()).append(" ")
+                        .append("- ").append(dto.getAwayTeam().getCode());
+                if (Objects.equals(dto.getStatus(), "pst")) {
+                    builder.append(" ⏰ ").append(dto.getStatus());
                 } else {
-                    builder.append(" ⏱ ").append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
+                    builder.append(" ⏱ ").append(dto.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
                 }
 
                 builder.append("`").append("\n");

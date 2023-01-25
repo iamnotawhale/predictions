@@ -2,8 +2,7 @@ package zhigalin.predictions.telegram.command;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.converter.event.HeadToHeadMapper;
-import zhigalin.predictions.model.event.HeadToHead;
+import zhigalin.predictions.dto.event.HeadToHeadDto;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
@@ -15,33 +14,30 @@ import java.util.List;
 public class HeadToHeadCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
-
     private final HeadToHeadService headToHeadService;
-
-    private final HeadToHeadMapper headToHeadMapper;
 
     @Override
     public void execute(Update update) {
-        List<HeadToHead> list = getHeadToHead(update);
+        List<HeadToHeadDto> list = getHeadToHead(update);
         StringBuilder builder = new StringBuilder();
 
         if (list == null) {
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Эти команды еще не играли друг против друга");
         } else {
-            for (HeadToHead h2h : list) {
-                builder.append("`").append(h2h.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM.YY"))).append(" ")
-                        .append(h2h.getLeagueName()).append("\n")
-                        .append(h2h.getHomeTeam().getCode()).append(" ")
-                        .append(h2h.getHomeTeamScore()).append(" - ")
-                        .append(h2h.getAwayTeamScore()).append(" ")
-                        .append(h2h.getAwayTeam().getCode()).append(" ")
+            for (HeadToHeadDto dto : list) {
+                builder.append("`").append(dto.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM.yy"))).append(" ")
+                        .append(dto.getLeagueName()).append("\n")
+                        .append(dto.getHomeTeam().getCode()).append(" ")
+                        .append(dto.getHomeTeamScore()).append(" - ")
+                        .append(dto.getAwayTeamScore()).append(" ")
+                        .append(dto.getAwayTeam().getCode()).append(" ")
                         .append("`").append("\n\n");
             }
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), builder.toString());
         }
     }
 
-    public List<HeadToHead> getHeadToHead(Update update) {
+    public List<HeadToHeadDto> getHeadToHead(Update update) {
         String firstTeamCode = EnumSet.allOf(TeamName.class).stream()
                 .filter(t -> t.getTeamName().toLowerCase().contains(update.getMessage().getText().split("\\W|\\d")[1].toLowerCase()))
                 .map(Enum::name).findFirst().orElse(null);
@@ -54,6 +50,6 @@ public class HeadToHeadCommand implements Command {
         if (secondTeamCode == null) {
             return null;
         }
-        return headToHeadService.findAllByTwoTeamsCode(firstTeamCode, secondTeamCode).stream().map(headToHeadMapper::toEntity).toList();
+        return headToHeadService.findAllByTwoTeamsCode(firstTeamCode, secondTeamCode);
     }
 }

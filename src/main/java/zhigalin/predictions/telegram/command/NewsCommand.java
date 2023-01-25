@@ -2,8 +2,7 @@ package zhigalin.predictions.telegram.command;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.converter.news.NewsMapper;
-import zhigalin.predictions.model.news.News;
+import zhigalin.predictions.dto.news.NewsDto;
 import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
@@ -14,15 +13,14 @@ import java.util.List;
 public class NewsCommand implements Command {
     private final SendBotMessageService sendBotMessageService;
     private final NewsService newsService;
-    private final NewsMapper newsMapper;
 
     @Override
     public void execute(Update update) {
-        List<News> list = newsService.findLastNews().stream().limit(10).map(newsMapper::toEntity).toList();
+        List<NewsDto> list = newsService.findLastNews().stream().limit(10).toList();
         StringBuilder builder = new StringBuilder();
-        for (News news : list) {
-            builder.append("*").append(news.getDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append("* ")
-                    .append("[").append(news.getTitle()).append("]").append("(").append(news.getLink()).append(") ")
+        for (NewsDto dto : list) {
+            builder.append("*").append(dto.getDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append("* ")
+                    .append("[").append(dto.getTitle()).append("]").append("(").append(dto.getLink()).append(") ")
                     .append("\n\n");
         }
         sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), builder.toString());

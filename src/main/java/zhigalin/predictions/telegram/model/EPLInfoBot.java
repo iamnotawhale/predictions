@@ -5,10 +5,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.converter.event.HeadToHeadMapper;
-import zhigalin.predictions.converter.event.MatchMapper;
-import zhigalin.predictions.converter.football.TeamMapper;
-import zhigalin.predictions.converter.news.NewsMapper;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
@@ -36,11 +32,10 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private final CommandContainer commandContainer;
 
     @Autowired
-    public EPLInfoBot(MatchService matchService, MatchMapper matchMapper, StandingService standingService,
-                      TeamService teamService, TeamMapper teamMapper, HeadToHeadService headToHeadService,
-                      HeadToHeadMapper headToHeadMapper, NewsService newsService, NewsMapper newsMapper) {
-        commandContainer = new CommandContainer(new SendBotMessageServiceImpl(this), matchService, matchMapper,
-                standingService, teamService, teamMapper, headToHeadService, headToHeadMapper, newsService, newsMapper);
+    public EPLInfoBot(MatchService matchService, StandingService standingService, TeamService teamService,
+                      HeadToHeadService headToHeadService, NewsService newsService) {
+        commandContainer = new CommandContainer(new SendBotMessageServiceImpl(this), matchService, standingService,
+                teamService, headToHeadService, newsService);
     }
 
     @Override
