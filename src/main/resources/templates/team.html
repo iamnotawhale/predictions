@@ -10,7 +10,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">
-            <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
+            <p class="text-light" th:text="${currentUser.login}" style="margin-bottom: 0;">Login</p>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01"
                 aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,15 +84,15 @@
         </thead>
         <tbody th:align="center">
         <th:block th:each="match, iter: ${last5}">
-            <tr th:data-bs-target="${'#acc'+ match.getId()}" data-bs-toggle="collapse"
+            <tr th:data-bs-target="${'#acc'+ match.id}" data-bs-toggle="collapse"
                 class="accordion-toggle">
-                <td class="align-middle" th:text="${match.week.getId()}">Week</td>
-                <td class="align-middle" th:text="${match.matchDate}">Date</td>
-                <td class="align-middle" th:text="${match.homeTeam.getTeamName()}">Home Team</td>
+                <td class="align-middle" th:text="${match.week.id}">Week</td>
+                <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date</td>
+                <td class="align-middle" th:text="${match.homeTeam.name}">Home Team</td>
                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
                 <td class="align-middle" th:text="${match.status}">Status</td>
                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
-                <td class="align-middle" th:text="${match.awayTeam.getTeamName()}">Away Team</td>
+                <td class="align-middle" th:text="${match.awayTeam.name}">Away Team</td>
                 <td class="align-middle">
                     <span class="p-2 badge rounded-circle bg-success" th:if="${last5Result.get(iter.index) =='W'}">
                         <span class="visually-hidden" hidden>Победа</span>

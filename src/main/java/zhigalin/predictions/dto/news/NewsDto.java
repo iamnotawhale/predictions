@@ -14,5 +14,5 @@ public class NewsDto {
 
     String link;
 
-    LocalDateTime dateTime;
+    LocalDateTime localDateTime;
 }

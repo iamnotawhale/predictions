@@ -7,11 +7,11 @@ import java.util.List;
 
 public interface HeadToHeadService {
 
-    HeadToHeadDto save(HeadToHeadDto headToHeadDto);
+    HeadToHeadDto save(HeadToHeadDto dto);
 
-    List<HeadToHeadDto> findAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode);
+    List<HeadToHeadDto> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode);
 
-    List<HeadToHeadDto> findAllByMatch(MatchDto matchDto);
+    List<HeadToHeadDto> findAllByMatch(MatchDto dto);
 
     List<List<HeadToHeadDto>> findAllByCurrentWeek();
 }

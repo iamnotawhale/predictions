@@ -6,9 +6,9 @@ import java.util.List;
 
 public interface MatchService {
 
-    MatchDto save(MatchDto matchDto);
+    MatchDto save(MatchDto dto);
 
-    MatchDto findById(Long matchId);
+    MatchDto findById(Long id);
 
     MatchDto findByPublicId(Long publicId);
 
@@ -16,13 +16,13 @@ public interface MatchService {
 
     MatchDto findByTeamNames(String homeTeamName, String awayTeamName);
 
-    MatchDto findByTeamCodes(String homeCode, String awayCode);
+    MatchDto findByTeamCodes(String homeTeamCode, String awayTeamCode);
 
     List<MatchDto> findAll();
 
     List<MatchDto> findAllByTodayDate();
 
-    List<MatchDto> findAllByTeamId(Long teamId);
+    List<MatchDto> findAllByTeamId(Long id);
 
     List<MatchDto> findAllByUpcomingDays(Integer days);
 
@@ -34,9 +34,9 @@ public interface MatchService {
 
     List<Integer> getResultByTeamNames(String homeTeamName, String awayTeamName);
 
-    List<MatchDto> findLast5MatchesByTeamId(Long teamId);
+    List<MatchDto> findLast5MatchesByTeamId(Long id);
 
-    List<String> getLast5MatchesResultByTeamId(Long teamId);
+    List<String> getLast5MatchesResultByTeamId(Long id);
 
     List<MatchDto> findOnline();
 

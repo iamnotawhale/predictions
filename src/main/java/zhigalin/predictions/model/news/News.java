@@ -24,5 +24,5 @@ public class News {
 
     private String link;
 
-    private LocalDateTime dateTime;
+    private LocalDateTime localDateTime;
 }

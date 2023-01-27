@@ -39,7 +39,7 @@ public class TodayMatchesCommand implements Command {
                             .append(" ⏰ ").append(dto.getStatus());
                 } else {
                     builder.append("- ").append(dto.getAwayTeam().getCode())
-                            .append(" ⏱ ").append(dto.getMatchTime());
+                            .append(" ⏱ ").append(dto.getLocalDateTime().toLocalTime());
                 }
                 builder.append("`").append("\n");
             }

@@ -12,27 +12,27 @@ import zhigalin.predictions.service.event.SeasonService;
 @Service
 public class SeasonServiceImpl implements SeasonService {
 
-    private final SeasonRepository seasonRepository;
+    private final SeasonRepository repository;
     private final SeasonMapper mapper;
 
     @Override
-    public SeasonDto save(SeasonDto seasonDto) {
-        Season season = seasonRepository.findBySeasonName(seasonDto.getSeasonName());
+    public SeasonDto save(SeasonDto dto) {
+        Season season = repository.findByName(dto.getName());
         if (season != null) {
-            mapper.updateEntityFromDto(seasonDto, season);
-            return mapper.toDto(seasonRepository.save(season));
+            mapper.updateEntityFromDto(dto, season);
+            return mapper.toDto(repository.save(season));
         }
-        return mapper.toDto(seasonRepository.save(mapper.toEntity(seasonDto)));
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override
-    public SeasonDto findById(Long seasonId) {
-        return mapper.toDto(seasonRepository.findById(seasonId).orElse(null));
+    public SeasonDto findById(Long id) {
+        return mapper.toDto(repository.findById(id).orElse(null));
     }
 
     @Override
-    public SeasonDto findByName(String seasonName) {
-        Season season = seasonRepository.findBySeasonName(seasonName);
+    public SeasonDto findByName(String name) {
+        Season season = repository.findByName(name);
         if (season != null) {
             return mapper.toDto(season);
         }

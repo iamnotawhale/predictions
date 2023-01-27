@@ -9,11 +9,11 @@ public class TeamDto {
 
     Long id;
 
+    Long publicId;
+
     String teamName;
 
     String code;
 
     String logo;
-
-    Long publicId;
 }

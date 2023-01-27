@@ -12,7 +12,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">
-            <p class="text-light" th:text="${currentUser.getLogin()}" style="margin-bottom: 0;">Login</p>
+            <p class="text-light" th:text="${currentUser.login}" style="margin-bottom: 0;">Login</p>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01"
                 aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,7 +78,7 @@
         </thead>
         <tbody th:align="center">
         <tr th:each="map: ${weeklyUsersPoints}">
-            <td class="align-middle" th:text="${map.key.getLogin()}">Week</td>
+            <td class="align-middle" th:text="${map.key.login}">Week</td>
             <td class="align-middle" th:text="${map.value}">Week</td>
         </tbody>
     </table>
@@ -104,36 +104,36 @@
         </thead>
         <tbody th:align="center">
         <tr th:each="prediction: ${list}">
-            <td class="align-middle" th:text="${prediction.match.week.getId()}">Week</td>
-            <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.match.getMatchDate()}">Date</td>
-            <td class="d-none d-lg-table-cell align-middle" th:text="${prediction.match.getMatchTime()}">Time</td>
-            <td class="align-middle" th:text="${prediction.match.homeTeam.getCode()}">Home Team</td>
-            <td class="align-middle" th:text="${prediction.match.getHomeTeamScore()}">HT Score</td>
+            <td class="align-middle" th:text="${prediction.match.week.id}">Week</td>
+            <td class="d-none d-lg-table-cell align-middle" th:text="${#temporals.format(prediction.match.localDateTime, 'dd.MM')}">Date</td>
+            <td class="d-none d-lg-table-cell align-middle" th:text="${#temporals.format(prediction.match.localDateTime, 'HH:mm')}">Time</td>
+            <td class="align-middle" th:text="${prediction.match.homeTeam.code}">Home Team</td>
+            <td class="align-middle" th:text="${prediction.match.homeTeamScore}">HT Score</td>
             <td class="align-middle" th:if="${prediction.match.status != 'ns'}" th:text="${prediction.match.status}">
                 Status
             </td>
             <td class="align-middle" th:unless="${prediction.match.status != 'ns'}" th:text="'-'">Status</td>
             <td class="align-middle" th:text="${prediction.match.awayTeamScore}">AT Score</td>
-            <td class="align-middle" th:text="${prediction.match.awayTeam.getCode()}">Away Team</td>
+            <td class="align-middle" th:text="${prediction.match.awayTeam.code}">Away Team</td>
 
 
-            <td class="align-middle text-warning" th:if="${currentUser == prediction.getUser()}"
-                th:text="${prediction.getUser().getLogin()}">Login
+            <td class="align-middle text-warning" th:if="${currentUser == prediction.user}"
+                th:text="${prediction.user.login}">Login
             </td>
-            <td class="align-middle" th:unless="${currentUser == prediction.getUser()}"
-                th:text="${prediction.getUser().getLogin()}">Login
+            <td class="align-middle" th:unless="${currentUser == prediction.user}"
+                th:text="${prediction.user.login}">Login
             </td>
 
 
-            <td class="align-middle" th:text="${prediction.getHomeTeamScore()}">Predict HT Score</td>
+            <td class="align-middle" th:text="${prediction.homeTeamScore}">Predict HT Score</td>
             <td class="align-middle">-</td>
-            <td class="align-middle" th:text="${prediction.getAwayTeamScore()}">Predict AT Score</td>
+            <td class="align-middle" th:text="${prediction.awayTeamScore}">Predict AT Score</td>
 
 
-            <td class="align-middle text-warning" th:if="${prediction.getPoints() == 5}" th:text="${prediction.getPoints()}">
+            <td class="align-middle text-warning" th:if="${prediction.points == 5}" th:text="${prediction.points}">
                 Points
             </td>
-            <td class="align-middle" th:unless="${prediction.getPoints() == 5}" th:text="${prediction.getPoints()}">
+            <td class="align-middle" th:unless="${prediction.points == 5}" th:text="${prediction.points}">
                 Points
             </td>
 
@@ -141,27 +141,22 @@
             <td>
                 <button type="button" class="btn btn-primary btn-sm" disabled data-bs-toggle="modal"
                         th:data-bs-target="${'#Edit'+ prediction.id}"
-                        th:if="${prediction.match.localDateTime < todayDateTime or currentUser.getId() != prediction.getUser().getId()}">
+                        th:if="${prediction.match.localDateTime < todayDateTime or currentUser.id != prediction.user.id}">
                     Изменить
                 </button>
                 <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
                         th:data-bs-target="${'#Edit'+ prediction.id}"
-                        th:unless="${prediction.match.localDateTime < todayDateTime or currentUser.getId() != prediction.getUser().getId()}">
+                        th:unless="${prediction.match.localDateTime < todayDateTime or currentUser.id != prediction.user.id}">
                     Изменить
                 </button>
-
-                <!--<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
-                        th:data-bs-target="${'#Edit'+ prediction.id}">
-                    Изменить
-                </button>-->
             </td>
             <div class="modal fade" th:id="${'Edit'+ prediction.id}" tabindex="-1"
                  th:aria-labelledby="${'Edit'+ prediction.id + 'Label'}" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h6 class="modal-title" th:text="${prediction.match.homeTeam.getTeamName()} + ' - '
-                            + ${prediction.match.awayTeam.getTeamName()}"></h6>
+                            <h6 class="modal-title" th:text="${prediction.match.homeTeam.name} + ' - '
+                            + ${prediction.match.awayTeam.name}"></h6>
                         </div>
                         <div class="modal-body text-center">
                             <form th:method="POST"
@@ -198,7 +193,7 @@
                                 <div class="container-fluid">
                                     <div class="row align-items-center">
                                         <div class="col-sm">
-                                            <img th:src="${prediction.match.homeTeam.getLogo()}" th:width="100"/>
+                                            <img th:src="${prediction.match.homeTeam.logo}" th:width="100"/>
                                         </div>
                                         <div class="col-sm-2">
                                             <div class="form-group">
@@ -230,7 +225,7 @@
                                             </div>
                                         </div>
                                         <div class="col-sm">
-                                            <img th:src="${prediction.match.awayTeam.getLogo()}" th:width="100"/>
+                                            <img th:src="${prediction.match.awayTeam.logo}" th:width="100"/>
                                         </div>
                                     </div>
                                 </div>
@@ -242,7 +237,7 @@
                                         Закрыть
                                     </button>
 
-                                    <a th:href="@{/predict/delete(id=${prediction.getId()})}"
+                                    <a th:href="@{/predict/delete(id=${prediction.id})}"
                                        class="btn btn-danger btn-sm">Удалить</a>
 
                                     <input type="submit" class="btn btn-success btn-sm" value="Сохранить">
@@ -255,7 +250,6 @@
         </tbody>
     </table>
 </div>
-<!-- Вариант 1: Bootstrap в связке с Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
         crossorigin="anonymous"></script>
@@ -269,10 +263,6 @@
         location.href = "/predict/week/" + value;
     }
 </script>
-<!-- Вариант 2: Bootstrap JS отдельно от Popper
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js" integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js" integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>
--->
 <script src="https://unpkg.com/bootstrap-table@1.21.0/dist/bootstrap-table.min.js"></script>
 <script src="extensions/group-by-v2/bootstrap-table-group-by.js"></script>
 </body>

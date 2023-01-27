@@ -8,7 +8,6 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.event.MatchService;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -23,29 +22,29 @@ public class MatchServiceImpl implements MatchService {
     private final MatchMapper mapper;
 
     @Override
-    public MatchDto save(MatchDto matchDto) {
-        Match match = repository.findMatchByHomeTeamIdAndAwayTeamId(matchDto.getHomeTeam().getId(),
-                matchDto.getAwayTeam().getId());
+    public MatchDto save(MatchDto dto) {
+        Match match = repository.findByHomeTeamIdAndAwayTeamId(dto.getHomeTeam().getId(),
+                dto.getAwayTeam().getId());
         if (match != null) {
-            mapper.updateEntityFromDto(matchDto, match);
+            mapper.updateEntityFromDto(dto, match);
             return mapper.toDto(repository.save(match));
         }
-        return mapper.toDto(repository.save(mapper.toEntity(matchDto)));
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override
-    public MatchDto findById(Long matchId) {
-        return mapper.toDto(repository.findById(matchId).orElse(null));
+    public MatchDto findById(Long id) {
+        return mapper.toDto(repository.findById(id).orElse(null));
     }
 
     @Override
     public MatchDto findByPublicId(Long publicId) {
-        return mapper.toDto(repository.findMatchByPublicId(publicId));
+        return mapper.toDto(repository.findByPublicId(publicId));
     }
 
     @Override
     public List<MatchDto> findAllByTodayDate() {
-        return repository.findAllByMatchDateOrderByWeekAscLocalDateTimeAsc(LocalDate.now())
+        return repository.findAllByLocalDateTimeOrderByWeekAscLocalDateTimeAsc(LocalDateTime.now())
                 .stream()
                 .map(mapper::toDto)
                 .toList();
@@ -83,39 +82,39 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public MatchDto findByTeamIds(Long homeTeamId, Long awayTeamId) {
-        return mapper.toDto(repository.findMatchByHomeTeamIdAndAwayTeamId(homeTeamId, awayTeamId));
+        return mapper.toDto(repository.findByHomeTeamIdAndAwayTeamId(homeTeamId, awayTeamId));
     }
 
     @Override
     public MatchDto findByTeamNames(String homeTeamName, String awayTeamName) {
-        return mapper.toDto(repository.findMatchByHomeTeamTeamNameAndAwayTeamTeamName(homeTeamName, awayTeamName));
+        return mapper.toDto(repository.findByHomeTeamNameAndAwayTeamName(homeTeamName, awayTeamName));
     }
 
     @Override
-    public MatchDto findByTeamCodes(String homeCode, String awayCode) {
-        return mapper.toDto(repository.findMatchByHomeTeamCodeAndAwayTeamCode(homeCode, awayCode));
+    public MatchDto findByTeamCodes(String homeTeamCode, String awayTeamCode) {
+        return mapper.toDto(repository.findByHomeTeamCodeAndAwayTeamCode(homeTeamCode, awayTeamCode));
     }
 
     @Override
     public List<Integer> getResultByTeamNames(String homeTeamName, String awayTeamName) {
         List<Integer> result = new ArrayList<>();
-        Match match = repository.findMatchByHomeTeamTeamNameAndAwayTeamTeamName(homeTeamName, awayTeamName);
+        Match match = repository.findByHomeTeamNameAndAwayTeamName(homeTeamName, awayTeamName);
         result.add(match.getHomeTeamScore());
         result.add(match.getAwayTeamScore());
         return result;
     }
 
     @Override
-    public List<MatchDto> findAllByTeamId(Long teamId) {
-        return repository.findAllByTeamId(teamId)
+    public List<MatchDto> findAllByTeamId(Long id) {
+        return repository.findAllByTeamId(id)
                 .stream()
                 .map(mapper::toDto)
                 .toList();
     }
 
     @Override
-    public List<MatchDto> findLast5MatchesByTeamId(Long teamId) {
-        return repository.findAllByTeamId(teamId)
+    public List<MatchDto> findLast5MatchesByTeamId(Long id) {
+        return repository.findAllByTeamId(id)
                 .stream()
                 .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
                 .filter(m -> m.getResult() != null)
@@ -124,20 +123,20 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
-    public List<String> getLast5MatchesResultByTeamId(Long teamId) {
+    public List<String> getLast5MatchesResultByTeamId(Long id) {
         List<String> result = new ArrayList<>();
-        List<MatchDto> list = repository.findAllByTeamId(teamId).stream()
+        List<MatchDto> list = repository.findAllByTeamId(id).stream()
                 .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
                 .filter(m -> m.getResult() != null)
                 .limit(5)
                 .map(mapper::toDto)
                 .toList();
         for (MatchDto dto : list) {
-            if (dto.getHomeTeam().getId().equals(teamId) && dto.getResult().equals("H") ||
-                    dto.getAwayTeam().getId().equals(teamId) && dto.getResult().equals("A")) {
+            if (dto.getHomeTeam().getId().equals(id) && dto.getResult().equals("H") ||
+                    dto.getAwayTeam().getId().equals(id) && dto.getResult().equals("A")) {
                 result.add("W");
-            } else if (dto.getHomeTeam().getId().equals(teamId) && dto.getResult().equals("A") ||
-                    dto.getAwayTeam().getId().equals(teamId) && dto.getResult().equals("H")) {
+            } else if (dto.getHomeTeam().getId().equals(id) && dto.getResult().equals("A") ||
+                    dto.getAwayTeam().getId().equals(id) && dto.getResult().equals("H")) {
                 result.add("L");
             } else {
                 result.add("D");
@@ -168,13 +167,13 @@ public class MatchServiceImpl implements MatchService {
         MatchDto matchDto = repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusHours(2),
                         LocalDateTime.now())
                 .stream()
-                .filter(m -> m.getHomeTeam().getTeamName().equals(teamName) || m.getAwayTeam().getTeamName().equals(teamName))
+                .filter(m -> m.getHomeTeam().getName().equals(teamName) || m.getAwayTeam().getName().equals(teamName))
                 .findFirst()
                 .map(mapper::toDto)
                 .orElse(null);
 
         if (matchDto != null && matchDto.getResult() != null) {
-            if (matchDto.getHomeTeam().getTeamName().equals(teamName)) {
+            if (matchDto.getHomeTeam().getName().equals(teamName)) {
                 return MatchDto.builder()
                         .homeTeamScore(matchDto.getHomeTeamScore())
                         .awayTeamScore(matchDto.getAwayTeamScore())

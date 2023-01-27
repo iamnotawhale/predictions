@@ -1,4 +1,4 @@
-package zhigalin.predictions.service._impl.init;
+package zhigalin.predictions.init;
 
 import com.google.gson.*;
 import com.mashape.unirest.http.HttpResponse;
@@ -31,7 +31,6 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.init.DataInitService;
 import zhigalin.predictions.service.news.NewsService;
 
 import java.net.URL;
@@ -227,7 +226,7 @@ public class DataInitServiceImpl implements DataInitService {
                     .toInstant()
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
-            newsService.save(NewsDto.builder().title(title).link(link).dateTime(dateTime).build());
+            newsService.save(NewsDto.builder().title(title).link(link).localDateTime(dateTime).build());
         }
     }
 
@@ -337,8 +336,6 @@ public class DataInitServiceImpl implements DataInitService {
                 match = Match.builder()
                         .status(status)
                         .localDateTime(matchDateTime)
-                        .matchDate(matchDateTime.toLocalDate())
-                        .matchTime(matchDateTime.toLocalTime())
                         .homeTeam(homeTeam)
                         .awayTeam(awayTeam)
                         .build();
@@ -351,8 +348,6 @@ public class DataInitServiceImpl implements DataInitService {
                 match = Match.builder()
                         .status(status)
                         .localDateTime(matchDateTime)
-                        .matchDate(matchDateTime.toLocalDate())
-                        .matchTime(matchDateTime.toLocalTime())
                         .homeTeam(homeTeam)
                         .awayTeam(awayTeam)
                         .homeTeamScore(homeTeamScore)
@@ -400,9 +395,9 @@ public class DataInitServiceImpl implements DataInitService {
 
             JsonObject league = matchObj.getAsJsonObject("league");
 
-            seasonService.save(seasonMapper.toDto(Season.builder().seasonName(league.get("season").getAsString()).build()));
+            seasonService.save(seasonMapper.toDto(Season.builder().name(league.get("season").getAsString()).build()));
 
-            Week week = Week.builder().weekName("week " + league.get("round").toString().replaceAll("\\D+", ""))
+            Week week = Week.builder().name("week " + league.get("round").toString().replaceAll("\\D+", ""))
                     .season(seasonMapper.toEntity(seasonService.findById(1L)))
                     .build();
             WeekDto weekDto = weekService.save(weekMapper.toDto(week));
@@ -419,8 +414,6 @@ public class DataInitServiceImpl implements DataInitService {
                         .publicId(publicId)
                         .status(status)
                         .localDateTime(matchDateTime)
-                        .matchDate(matchDateTime.toLocalDate())
-                        .matchTime(matchDateTime.toLocalTime())
                         .week(weekMapper.toEntity(weekDto))
                         .homeTeam(homeTeam)
                         .awayTeam(awayTeam)
@@ -435,8 +428,6 @@ public class DataInitServiceImpl implements DataInitService {
                         .publicId(publicId)
                         .status(status)
                         .localDateTime(matchDateTime)
-                        .matchDate(matchDateTime.toLocalDate())
-                        .matchTime(matchDateTime.toLocalTime())
                         .week(weekMapper.toEntity(weekDto))
                         .homeTeam(homeTeam)
                         .awayTeam(awayTeam)
@@ -468,7 +459,7 @@ public class DataInitServiceImpl implements DataInitService {
             Team teamEntity = Team.builder()
                     .publicId(team.get("id").getAsLong())
                     .logo(team.get("logo").getAsString())
-                    .teamName(team.get("name").getAsString())
+                    .name(team.get("name").getAsString())
                     .code(team.get("code").getAsString())
                     .build();
             teamService.save(teamMapper.toDto(teamEntity));

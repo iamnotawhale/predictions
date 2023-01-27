@@ -1,4 +1,4 @@
-package zhigalin.predictions.service.init;
+package zhigalin.predictions.init;
 
 public interface DataInitService {
 
