@@ -18,12 +18,12 @@ public class TeamServiceImpl implements TeamService {
     private final TeamMapper mapper;
 
     @Override
-    public TeamDto save(TeamDto teamDto) {
-        Team team = repository.findByTeamName(teamDto.getTeamName());
+    public TeamDto save(TeamDto dto) {
+        Team team = repository.findByName(dto.getTeamName());
         if (team != null) {
             return mapper.toDto(team);
         }
-        return mapper.toDto(repository.save(mapper.toEntity(teamDto)));
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override
@@ -32,13 +32,13 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public TeamDto findById(Long teamId) {
-        return mapper.toDto(repository.findById(teamId).orElse(null));
+    public TeamDto findById(Long id) {
+        return mapper.toDto(repository.findById(id).orElse(null));
     }
 
     @Override
-    public TeamDto findByName(String teamName) {
-        Team team = repository.findByTeamName(teamName);
+    public TeamDto findByName(String name) {
+        Team team = repository.findByName(name);
         if (team != null) {
             return mapper.toDto(team);
         }
@@ -46,8 +46,8 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public TeamDto findByCode(String teamCode) {
-        Team team = repository.findByCode(teamCode);
+    public TeamDto findByCode(String code) {
+        Team team = repository.findByCode(code);
         if (team != null) {
             return mapper.toDto(team);
         }

@@ -16,39 +16,39 @@ import java.util.stream.Collectors;
 @Service
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
+    private final UserRepository repository;
     private final UserMapper mapper;
     private final PasswordEncoder bCryptPasswordEncoder;
 
     @Override
-    public UserDto save(UserDto userDto) {
-        User userFromDB = userRepository.findByLogin(userDto.getLogin());
+    public UserDto save(UserDto dto) {
+        User userFromDB = repository.findByLogin(dto.getLogin());
         if (userFromDB != null) {
             return mapper.toDto(userFromDB);
         }
-        userDto.setPassword(bCryptPasswordEncoder.encode(userDto.getPassword()));
-        return mapper.toDto(userRepository.save(mapper.toEntity(userDto)));
+        dto.setPassword(bCryptPasswordEncoder.encode(dto.getPassword()));
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override
     public List<UserDto> saveAll(List<UserDto> list) {
         List<User> listUser = list.stream().map(mapper::toEntity).collect(Collectors.toList());
-        return userRepository.saveAll(listUser).stream().map(mapper::toDto).toList();
+        return repository.saveAll(listUser).stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<UserDto> findAll() {
-        return userRepository.findAll().stream().map(mapper::toDto).toList();
+        return repository.findAll().stream().map(mapper::toDto).toList();
     }
 
     @Override
     public UserDto findById(Long id) {
-        return mapper.toDto(userRepository.findById(id).orElse(null));
+        return mapper.toDto(repository.findById(id).orElse(null));
     }
 
     @Override
     public UserDto findByLogin(String login) {
-        User user = userRepository.findByLogin(login);
+        User user = repository.findByLogin(login);
         if (user != null) {
             return mapper.toDto(user);
         }
@@ -57,6 +57,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void delete(Long id) {
-        userRepository.deleteById(id);
+        repository.deleteById(id);
     }
 }

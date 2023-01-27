@@ -19,12 +19,11 @@ public class Team {
     @SequenceGenerator(sequenceName = "Team_sequence", name = "Team_generator", allocationSize = 1)
     private Long id;
 
-    private String teamName;
+    private Long publicId;
+
+    private String name;
 
     private String code;
 
     private String logo;
-
-    private Long publicId;
-
 }

@@ -37,7 +37,7 @@ public class NewsServiceImpl implements NewsService {
     public List<NewsDto> findLastNews() {
         List<NewsDto> list = findAll();
         return list.stream()
-                .sorted(Comparator.comparing(NewsDto::getDateTime).reversed())
+                .sorted(Comparator.comparing(NewsDto::getLocalDateTime).reversed())
                 .limit(15)
                 .toList();
     }

@@ -6,9 +6,7 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 
 import javax.persistence.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
 @Builder
@@ -32,10 +30,6 @@ public class Match {
     private Week week;
 
     private LocalDateTime localDateTime;
-
-    private LocalDate matchDate;
-
-    private LocalTime matchTime;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_team_id", referencedColumnName = "id")

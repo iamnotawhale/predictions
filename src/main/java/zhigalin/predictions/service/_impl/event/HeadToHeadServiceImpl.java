@@ -26,20 +26,20 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
     private final MatchService matchService;
 
     @Override
-    public HeadToHeadDto save(HeadToHeadDto headToHeadDto) {
+    public HeadToHeadDto save(HeadToHeadDto dto) {
         HeadToHead headToHead = repository.findByHomeTeamPublicIdAndAwayTeamPublicIdAndLocalDateTime(
-                headToHeadDto.getHomeTeam().getPublicId(), headToHeadDto.getAwayTeam().getPublicId(), headToHeadDto.getLocalDateTime());
+                dto.getHomeTeam().getPublicId(), dto.getAwayTeam().getPublicId(), dto.getLocalDateTime());
         if (headToHead != null) {
-            mapper.updateEntityFromDto(headToHeadDto, headToHead);
+            mapper.updateEntityFromDto(dto, headToHead);
             return mapper.toDto(repository.save(headToHead));
         }
-        return mapper.toDto(repository.save(mapper.toEntity(headToHeadDto)));
+        return mapper.toDto(repository.save(mapper.toEntity(dto)));
     }
 
     @Override
-    public List<HeadToHeadDto> findAllByTwoTeamsCode(String firstTeamCode, String secondTeamCode) {
-        List<HeadToHead> list1 = repository.findAllByHomeTeamCodeAndAwayTeamCode(firstTeamCode, secondTeamCode);
-        List<HeadToHead> list2 = repository.findAllByHomeTeamCodeAndAwayTeamCode(secondTeamCode, firstTeamCode);
+    public List<HeadToHeadDto> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode) {
+        List<HeadToHead> list1 = repository.findAllByHomeTeamCodeAndAwayTeamCode(homeTeamCode, awayTeamCode);
+        List<HeadToHead> list2 = repository.findAllByHomeTeamCodeAndAwayTeamCode(awayTeamCode, homeTeamCode);
 
         return Stream.concat(list1.stream(), list2.stream())
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
@@ -49,8 +49,8 @@ public class HeadToHeadServiceImpl implements HeadToHeadService {
     }
 
     @Override
-    public List<HeadToHeadDto> findAllByMatch(MatchDto matchDto) {
-        return findAllByTwoTeamsCode(matchDto.getHomeTeam().getCode(), matchDto.getAwayTeam().getCode());
+    public List<HeadToHeadDto> findAllByMatch(MatchDto dto) {
+        return findAllByTwoTeamsCode(dto.getHomeTeam().getCode(), dto.getAwayTeam().getCode());
     }
 
     @Override

@@ -6,9 +6,7 @@ import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
 @Value
@@ -22,10 +20,6 @@ public class MatchDto {
     Week week;
 
     LocalDateTime localDateTime;
-
-    LocalDate matchDate;
-
-    LocalTime matchTime;
 
     Team homeTeam;
 

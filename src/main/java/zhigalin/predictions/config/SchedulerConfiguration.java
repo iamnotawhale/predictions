@@ -3,7 +3,7 @@ package zhigalin.predictions.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import zhigalin.predictions.service.init.DataInitService;
+import zhigalin.predictions.init.DataInitService;
 
 @Component
 @RequiredArgsConstructor

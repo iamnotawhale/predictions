@@ -19,7 +19,7 @@ public class NewsCommand implements Command {
         List<NewsDto> list = newsService.findLastNews().stream().limit(10).toList();
         StringBuilder builder = new StringBuilder();
         for (NewsDto dto : list) {
-            builder.append("*").append(dto.getDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append("* ")
+            builder.append("*").append(dto.getLocalDateTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append("* ")
                     .append("[").append(dto.getTitle()).append("]").append("(").append(dto.getLink()).append(") ")
                     .append("\n\n");
         }

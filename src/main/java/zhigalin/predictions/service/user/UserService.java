@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface UserService {
 
-    UserDto save(UserDto userDto);
+    UserDto save(UserDto dto);
 
     List<UserDto> saveAll(List<UserDto> list);
 

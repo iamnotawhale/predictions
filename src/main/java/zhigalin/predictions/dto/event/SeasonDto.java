@@ -11,7 +11,7 @@ public class SeasonDto {
 
     Long id;
 
-    String seasonName;
+    String name;
 
     List<Week> weeks;
 }

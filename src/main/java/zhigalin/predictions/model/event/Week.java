@@ -20,7 +20,7 @@ public class Week {
     @SequenceGenerator(sequenceName = "Week_sequence", name = "Week_generator", allocationSize = 1)
     private Long id;
 
-    private String weekName;
+    private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "season_id", referencedColumnName = "id")

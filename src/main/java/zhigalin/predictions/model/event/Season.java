@@ -20,7 +20,7 @@ public class Season {
     @SequenceGenerator(sequenceName = "Season_sequence", name = "Season_generator", allocationSize = 1)
     private Long id;
 
-    private String seasonName;
+    private String name;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "season")
     @ToString.Exclude

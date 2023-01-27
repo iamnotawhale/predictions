@@ -7,13 +7,13 @@ import java.util.List;
 
 public interface TeamService {
 
-    TeamDto save(TeamDto teamDto);
+    TeamDto save(TeamDto dto);
 
-    TeamDto findById(Long teamId);
+    TeamDto findById(Long id);
 
-    TeamDto findByName(String teamName);
+    TeamDto findByName(String name);
 
-    TeamDto findByCode(String teamCode);
+    TeamDto findByCode(String code);
 
     TeamDto findByPublicId(Long publicId);
 
