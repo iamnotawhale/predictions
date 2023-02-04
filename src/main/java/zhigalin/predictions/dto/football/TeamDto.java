@@ -11,7 +11,7 @@ public class TeamDto {
 
     Long publicId;
 
-    String teamName;
+    String name;
 
     String code;
 

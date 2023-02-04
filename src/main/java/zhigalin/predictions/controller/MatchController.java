@@ -27,7 +27,7 @@ public class MatchController {
     @GetMapping("/team")
     public ModelAndView findByTeamId(@RequestParam(value = "id") Long id) {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("header", "Матчи " + teamService.findById(id).getTeamName());
+        model.addObject("header", "Матчи " + teamService.findById(id).getName());
         model.addObject("matchList", service.findAllByTeamId(id));
         return model;
     }

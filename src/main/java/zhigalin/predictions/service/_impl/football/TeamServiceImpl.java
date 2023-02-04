@@ -19,7 +19,7 @@ public class TeamServiceImpl implements TeamService {
 
     @Override
     public TeamDto save(TeamDto dto) {
-        Team team = repository.findByName(dto.getTeamName());
+        Team team = repository.findByName(dto.getName());
         if (team != null) {
             return mapper.toDto(team);
         }
