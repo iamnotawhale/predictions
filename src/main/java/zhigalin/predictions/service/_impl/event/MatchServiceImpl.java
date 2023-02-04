@@ -8,7 +8,9 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.event.MatchService;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -44,7 +46,10 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDto> findAllByTodayDate() {
-        return repository.findAllByLocalDateTimeOrderByWeekAscLocalDateTimeAsc(LocalDateTime.now())
+        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime
+                                .of(LocalDate.now(), LocalTime.of(0,1)),
+                        LocalDateTime
+                                .of(LocalDate.now(), LocalTime.of(23,59)))
                 .stream()
                 .map(mapper::toDto)
                 .toList();
