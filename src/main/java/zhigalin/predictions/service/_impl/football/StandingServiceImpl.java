@@ -14,9 +14,8 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @RequiredArgsConstructor
 @Service
@@ -27,6 +26,8 @@ public class StandingServiceImpl implements StandingService {
     private final MatchService matchService;
     private final TeamService teamService;
     private final TeamMapper teamMapper;
+
+    private final Map<Long, Integer> places = new HashMap<>();
 
     @Override
     public StandingDto save(StandingDto dto) {
@@ -41,6 +42,7 @@ public class StandingServiceImpl implements StandingService {
     @Override
     public List<StandingDto> findAll() {
         List<StandingDto> list;
+        AtomicInteger place = new AtomicInteger(1);
         if (matchService.findOnline().isEmpty()) {
             list = repository.findAll().stream()
                     .map(mapper::toDto)
@@ -48,12 +50,19 @@ public class StandingServiceImpl implements StandingService {
         } else {
             list = currentOnlineTable();
         }
-        return list.stream()
+        list = list.stream()
                 .sorted(Comparator.comparing(StandingDto::getPoints)
                         .reversed()
                         .thenComparing(StandingDto::compareGoals)
                         .thenComparing((s1, s2) -> s2.getGoalsScored().compareTo(s1.getGoalsScored())))
                 .toList();
+        list.forEach(st -> places.put(st.getTeam().getPublicId(), place.getAndIncrement()));
+        return list;
+    }
+
+    @Override
+    public Map<Long, Integer> getPlaces() {
+        return places;
     }
 
     public List<StandingDto> currentOnlineTable() {
