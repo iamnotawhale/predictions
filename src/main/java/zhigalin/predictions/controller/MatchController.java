@@ -10,10 +10,12 @@ import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
+import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @RestController
@@ -23,8 +25,10 @@ public class MatchController {
     private final MatchService service;
     private final WeekService weekService;
     private final TeamService teamService;
+    private final StandingService standingService;
 
     @GetMapping("/team")
+
     public ModelAndView findByTeamId(@RequestParam(value = "id") Long id) {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи " + teamService.findById(id).getName());
@@ -109,5 +113,10 @@ public class MatchController {
     @ModelAttribute("newPredict")
     public PredictionDto newPrediction() {
         return PredictionDto.builder().build();
+    }
+
+    @ModelAttribute("places")
+    public Map<Long, Integer> places() {
+        return standingService.getPlaces();
     }
 }

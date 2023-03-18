@@ -9,12 +9,14 @@ import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.service.event.WeekService;
+import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 
 import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @RestController
@@ -24,6 +26,7 @@ public class PredictController {
     private final PredictionService service;
     private final UserService userService;
     private final WeekService weekService;
+    private final StandingService standingService;
 
     @GetMapping("/match/{id}")
     public List<PredictionDto> getByMatchId(@PathVariable Long id) {
@@ -106,5 +109,10 @@ public class PredictController {
     @ModelAttribute("todayDateTime")
     public LocalDateTime getLocalDateTime() {
         return LocalDateTime.now().minusMinutes(5L);
+    }
+
+    @ModelAttribute("places")
+    public Map<Long, Integer> places() {
+        return standingService.getPlaces();
     }
 }

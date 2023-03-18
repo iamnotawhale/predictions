@@ -155,8 +155,8 @@
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h6 class="modal-title" th:text="${prediction.match.homeTeam.name} + ' - '
-                            + ${prediction.match.awayTeam.name}"></h6>
+                            <h6 class="modal-title" th:text="${prediction.match.homeTeam.name} + ' (' + ${places.get(prediction.match.homeTeam.publicId)} + ') - '
+                            + ${prediction.match.awayTeam.name} + ' (' + ${places.get(prediction.match.awayTeam.publicId)} + ')'"></h6>
                         </div>
                         <div class="modal-body text-center">
                             <form th:method="POST"

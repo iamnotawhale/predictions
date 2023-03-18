@@ -128,8 +128,8 @@
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content">
                                 <div class="modal-header">
-                                    <h6 class="modal-title" th:text="${match.homeTeam.name} + ' - '
-                            + ${match.awayTeam.name}"></h6>
+                                    <h6 class="modal-title" th:text="${match.homeTeam.name} + ' (' + ${places.get(match.homeTeam.publicId)} + ') - '
+                            + ${match.awayTeam.name} + ' (' + ${places.get(match.awayTeam.publicId)} + ')'"></h6>
                                 </div>
                                 <div class="modal-body text-center">
                                     <form th:action="@{/predict/saveAndUpdate}" th:method="POST"
