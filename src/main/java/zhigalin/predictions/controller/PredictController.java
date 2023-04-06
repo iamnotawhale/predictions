@@ -10,6 +10,7 @@ import zhigalin.predictions.dto.predict.PredictionDto;
 import zhigalin.predictions.dto.user.UserDto;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
+import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 
@@ -22,11 +23,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/predict")
 public class PredictController {
-
     private final PredictionService service;
     private final UserService userService;
     private final WeekService weekService;
     private final StandingService standingService;
+    private final PointsService pointsService;
 
     @GetMapping("/match/{id}")
     public List<PredictionDto> getByMatchId(@PathVariable Long id) {
@@ -55,7 +56,7 @@ public class PredictController {
     @GetMapping("/week/{id}")
     public ModelAndView getByWeekId(@PathVariable Long id) {
         ModelAndView model = new ModelAndView("predict");
-        model.addObject("weeklyUsersPoints", service.getUsersPointsByWeek(id));
+        model.addObject("weeklyUsersPoints", pointsService.getWeeklyUsersPoints(id));
         model.addObject("header", "Прогнозы " + id + " тура");
         model.addObject("list", service.findAllByWeekId(id));
         return model;

@@ -21,7 +21,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/matches")
 public class MatchController {
-
     private final MatchService service;
     private final WeekService weekService;
     private final TeamService teamService;

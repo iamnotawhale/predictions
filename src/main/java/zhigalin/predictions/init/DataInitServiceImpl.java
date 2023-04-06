@@ -46,19 +46,13 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-
 @Service
 @RequiredArgsConstructor
 public class DataInitServiceImpl implements DataInitService {
-
     @Value("${x.rapid.api}")
     private String X_RAPID_API;
     @Value("${api.football.token}")
     private String API_FOOTBALL_TOKEN;
-
-    private static final String HOST_NAME = "x-rapidapi-host";
-
-    private static final String HOST = "v3.football.api-sports.io";
     private Long publicId;
     private LocalDateTime matchDateTime;
     private Team homeTeam;
@@ -81,9 +75,17 @@ public class DataInitServiceImpl implements DataInitService {
     private final MatchMapper matchMapper;
     private final HeadToHeadMapper headToHeadMapper;
 
+    private static final String HOST_NAME = "x-rapidapi-host";
+    private static final String HOST = "v3.football.api-sports.io";
+
     public void allInit() {
+        //updatePoints();
         matchUpdateFromApiFootball();
         newsInit();
+    }
+
+    private void updatePoints() {
+        matchService.findAll().forEach(matchService::save);
 
     }
 
