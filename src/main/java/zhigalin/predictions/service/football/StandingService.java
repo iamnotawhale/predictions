@@ -6,10 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface StandingService {
-
     StandingDto save(StandingDto dto);
-
     List<StandingDto> findAll();
-
     Map<Long, Integer> getPlaces();
 }

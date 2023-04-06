@@ -9,8 +9,6 @@ import java.util.List;
 
 @Repository
 public interface HeadToHeadRepository extends JpaRepository<HeadToHead, Long> {
-
     HeadToHead findByHomeTeamPublicIdAndAwayTeamPublicIdAndLocalDateTime(Long homePublicId, Long awayPublicId, LocalDateTime localDateTime);
-
     List<HeadToHead> findAllByHomeTeamCodeAndAwayTeamCode(String homeTeamCode, String awayTeamCode);
 }

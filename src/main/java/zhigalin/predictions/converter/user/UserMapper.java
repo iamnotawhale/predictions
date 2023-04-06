@@ -7,5 +7,4 @@ import zhigalin.predictions.model.user.User;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper extends CustomMapper<User, UserDto> {
-
 }

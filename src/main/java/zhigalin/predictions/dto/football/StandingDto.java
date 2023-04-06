@@ -1,28 +1,20 @@
 package zhigalin.predictions.dto.football;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Value;
 import zhigalin.predictions.model.football.Team;
 
 @Value
 @Builder
 public class StandingDto {
-
     Long id;
-
     Team team;
-
     Integer points;
-
     Integer games;
-
     Integer won;
-
     Integer draw;
-
     Integer lost;
-
     Integer goalsScored;
-
     Integer goalsAgainst;
 
     public int compareGoals(StandingDto dto) {

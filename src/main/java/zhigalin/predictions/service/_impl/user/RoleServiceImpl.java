@@ -11,7 +11,6 @@ import zhigalin.predictions.service.user.RoleService;
 @RequiredArgsConstructor
 @Service
 public class RoleServiceImpl implements RoleService {
-
     private final RoleRepository repository;
     private final RoleMapper mapper;
 

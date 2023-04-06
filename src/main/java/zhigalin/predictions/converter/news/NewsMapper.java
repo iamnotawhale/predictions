@@ -10,7 +10,6 @@ import zhigalin.predictions.model.news.News;
 
 @Mapper(componentModel = "spring")
 public interface NewsMapper extends CustomMapper<News, NewsDto> {
-
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(NewsDto dto, @MappingTarget News entity);
 }

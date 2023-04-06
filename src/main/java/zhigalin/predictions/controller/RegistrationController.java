@@ -16,7 +16,6 @@ import java.util.Collections;
 @RestController
 @RequestMapping("/registration")
 public class RegistrationController {
-
     private final RoleService roleService;
     private final UserService userService;
     private final RoleMapper roleMapper;

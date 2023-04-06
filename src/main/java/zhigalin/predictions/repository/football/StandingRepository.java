@@ -6,6 +6,5 @@ import zhigalin.predictions.model.football.Standing;
 
 @Repository
 public interface StandingRepository extends JpaRepository<Standing, Long> {
-
     Standing findByTeamId(Long id);
 }
