@@ -10,7 +10,6 @@ import zhigalin.predictions.model.event.Match;
 
 @Mapper(componentModel = "spring")
 public interface MatchMapper extends CustomMapper<Match, MatchDto> {
-
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(MatchDto dto, @MappingTarget Match entity);
 }

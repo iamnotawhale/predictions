@@ -8,7 +8,6 @@ import zhigalin.predictions.init.DataInitService;
 @Component
 @RequiredArgsConstructor
 public class SchedulerConfiguration {
-
     private static final int SIX_MINUTES_DELAY = 360000;
     private final DataInitService service;
 

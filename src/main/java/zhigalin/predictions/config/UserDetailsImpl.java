@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 @Getter
 @Setter
 public class UserDetailsImpl implements UserDetails {
-
     private static final long serialVersionUID = 1L;
     private Long id;
     private String login;
@@ -43,6 +42,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getPassword(),
                 authorities);
     }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;

@@ -1,6 +1,7 @@
 package zhigalin.predictions.service._impl.football;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.football.StandingMapper;
 import zhigalin.predictions.converter.football.TeamMapper;
@@ -19,14 +20,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class StandingServiceImpl implements StandingService {
-
     private final StandingRepository repository;
     private final StandingMapper mapper;
     private final MatchService matchService;
     private final TeamService teamService;
     private final TeamMapper teamMapper;
-
     private final Map<Long, Integer> places = new HashMap<>();
 
     @Override
@@ -41,6 +41,7 @@ public class StandingServiceImpl implements StandingService {
 
     @Override
     public List<StandingDto> findAll() {
+        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         List<StandingDto> list;
         AtomicInteger place = new AtomicInteger(1);
         if (matchService.findOnline().isEmpty()) {
@@ -62,10 +63,12 @@ public class StandingServiceImpl implements StandingService {
 
     @Override
     public Map<Long, Integer> getPlaces() {
+        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         return places;
     }
 
     public List<StandingDto> currentOnlineTable() {
+        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         List<StandingDto> currentTable = new ArrayList<>();
         List<TeamDto> allTeams = teamService.findAll();
         List<MatchDto> allMatches = matchService.findAll().stream()
@@ -98,6 +101,7 @@ public class StandingServiceImpl implements StandingService {
     }
 
     public StandingDto updateByMatch(StandingDto standingDto, MatchDto matchDto) {
+        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         Team currentTeam = standingDto.getTeam();
         String result = matchDto.getResult();
         Team homeTeam = matchDto.getHomeTeam();

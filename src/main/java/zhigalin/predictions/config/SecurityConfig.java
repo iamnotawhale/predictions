@@ -15,7 +15,6 @@ import zhigalin.predictions.service._impl.user.UserDetailsServiceImpl;
 @RequiredArgsConstructor
 @Configuration
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
     private final UserDetailsServiceImpl userDetailsService;
     private final LoginSuccessHandler loginSuccessHandler;
 

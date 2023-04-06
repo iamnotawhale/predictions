@@ -5,8 +5,6 @@ import lombok.*;
 @Value
 @Builder
 public class RoleDto {
-
     Long id;
-
     String role;
 }
