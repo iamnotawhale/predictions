@@ -6,8 +6,6 @@ import zhigalin.predictions.model.event.Week;
 
 @Repository
 public interface WeekRepository extends JpaRepository<Week, Long> {
-
     Week findByName(String name);
-
     Week findByIsCurrentTrue();
 }

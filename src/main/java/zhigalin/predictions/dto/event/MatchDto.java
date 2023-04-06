@@ -12,26 +12,15 @@ import java.util.List;
 @Value
 @Builder
 public class MatchDto {
-
     Long id;
-
     Long publicId;
-
     Week week;
-
     LocalDateTime localDateTime;
-
     Team homeTeam;
-
     Team awayTeam;
-
     Integer homeTeamScore;
-
     Integer awayTeamScore;
-
     String result;
-
     String status;
-
     List<Prediction> predictions;
 }

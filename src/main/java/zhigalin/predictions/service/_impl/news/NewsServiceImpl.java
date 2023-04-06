@@ -1,6 +1,7 @@
 package zhigalin.predictions.service._impl.news;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.news.NewsMapper;
 import zhigalin.predictions.dto.news.NewsDto;
@@ -13,8 +14,8 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class NewsServiceImpl implements NewsService {
-
     private final NewsRepository repository;
     private final NewsMapper mapper;
 
@@ -30,11 +31,13 @@ public class NewsServiceImpl implements NewsService {
 
     @Override
     public List<NewsDto> findAll() {
+        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         return repository.findAll().stream().map(mapper::toDto).toList();
     }
 
     @Override
     public List<NewsDto> findLastNews() {
+        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         List<NewsDto> list = findAll();
         return list.stream()
                 .sorted(Comparator.comparing(NewsDto::getLocalDateTime).reversed())
@@ -49,6 +52,7 @@ public class NewsServiceImpl implements NewsService {
 
     @Override
     public void resetSequence() {
+        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         repository.resetSequence();
     }
 }

@@ -15,7 +15,6 @@ import zhigalin.predictions.service.football.TeamService;
 @RestController
 @RequestMapping("/team")
 public class TeamController {
-
     private final TeamService service;
     private final MatchService matchService;
     private final WeekService weekService;

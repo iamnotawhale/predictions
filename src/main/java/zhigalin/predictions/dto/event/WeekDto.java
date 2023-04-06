@@ -12,15 +12,10 @@ import java.util.Set;
 @Value
 @Builder
 public class WeekDto {
-
     Long id;
-
     String name;
-
     Season season;
-
     Set<Match> matches;
-
     @NonFinal
     @Setter
     Boolean isCurrent;

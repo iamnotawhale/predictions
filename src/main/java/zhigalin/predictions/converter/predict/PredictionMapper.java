@@ -10,7 +10,6 @@ import zhigalin.predictions.model.predict.Prediction;
 
 @Mapper(componentModel = "spring")
 public interface PredictionMapper extends CustomMapper<Prediction, PredictionDto> {
-
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(PredictionDto dto, @MappingTarget Prediction entity);
 }

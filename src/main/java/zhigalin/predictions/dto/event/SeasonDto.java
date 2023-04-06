@@ -1,6 +1,7 @@
 package zhigalin.predictions.dto.event;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Value;
 import zhigalin.predictions.model.event.Week;
 
 import java.util.List;

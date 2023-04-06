@@ -14,7 +14,7 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.news.NewsService;
-import zhigalin.predictions.service.predict.PredictionService;
+import zhigalin.predictions.service.predict.PointsService;
 
 import java.time.LocalDateTime;
 
@@ -22,18 +22,17 @@ import java.time.LocalDateTime;
 @RestController
 @RequestMapping
 public class MainController {
-
     private final MatchService matchService;
     private final StandingService standingService;
-    private final PredictionService predictionService;
     private final NewsService newsService;
     private final HeadToHeadService headToHeadService;
     private final WeekService weekService;
+    private final PointsService pointsService;
 
     @GetMapping()
     public ModelAndView getMainPage() {
         ModelAndView model = new ModelAndView("main");
-        model.addObject("map", predictionService.getAllUsersPoints());
+        model.addObject("map", pointsService.getAll());
         model.addObject("todayDateTime", LocalDateTime.now());
         model.addObject("currentWeek", weekService.findCurrentWeek().getId());
         model.addObject("matchList", matchService.findAllByCurrentWeek());
