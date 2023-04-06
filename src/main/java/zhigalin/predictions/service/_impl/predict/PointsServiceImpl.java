@@ -66,7 +66,7 @@ public class PointsServiceImpl implements PointsService {
         List<UserDto> all = userService.findAll();
         for (UserDto userDto : all) {
             Long points = pointsRepository.getAllPointsByUserId(userDto.getId());
-            PointsDto dto = PointsDto.builder().userId(userDto.getId()).value(points).build();
+            PointsDto dto = PointsDto.builder().userId(userDto.getId()).value(points != null ? points : 0).build();
             save(dto);
         }
     }
