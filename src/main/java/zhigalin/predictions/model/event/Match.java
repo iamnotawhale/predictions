@@ -36,7 +36,7 @@ public class Match {
     private Integer awayTeamScore;
     private String result;
     private String status;
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "match", cascade = CascadeType.REFRESH)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "match", cascade = CascadeType.ALL)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private List<Prediction> predictions;
