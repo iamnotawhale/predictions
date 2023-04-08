@@ -27,6 +27,7 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.SeasonService;
@@ -41,10 +42,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -82,6 +80,7 @@ public class DataInitServiceImpl implements DataInitService {
     private final MatchMapper matchMapper;
     private final HeadToHeadMapper headToHeadMapper;
 
+    private Set<Long> notificationBan = new HashSet<>();
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
@@ -93,7 +92,45 @@ public class DataInitServiceImpl implements DataInitService {
             sendTodaysMatchNotification();
         }
         matchUpdateFromApiFootball();
+        fullTimeMatchNotification();
         newsInit();
+    }
+
+    private void fullTimeMatchNotification() {
+        List<MatchDto> online = matchService.findOnline();
+        if (!online.isEmpty()) {
+            for (MatchDto matchDto : online) {
+                StringBuilder builder = new StringBuilder();
+                if (matchDto.getStatus().equals("ft") && !notificationBan.contains(matchDto.getPublicId())) {
+                    builder.append("`").append(matchDto.getHomeTeam().getCode()).append(" ")
+                            .append(matchDto.getHomeTeamScore()).append(" ")
+                            .append(matchDto.getStatus()).append(" ")
+                            .append(matchDto.getAwayTeamScore()).append(" ")
+                            .append(matchDto.getAwayTeam().getCode()).append("`").append("\n\n");
+                    for (Prediction prediction : matchDto.getPredictions()) {
+                        builder.append("`").append(prediction.getUser().getLogin()).append(" ")
+                                .append(prediction.getHomeTeamScore()).append(":").append(prediction.getAwayTeamScore()).append(" ")
+                                .append(prediction.getPoints()).append(" pts").append("`").append("\n");
+                    }
+                    notificationBan.add(matchDto.getPublicId());
+                    try {
+                        HttpResponse<JsonNode> response = Unirest.get(url)
+                                .queryString("chat_id", chatId)
+                                .queryString("text", builder.toString())
+                                .queryString("parse_mode", "Markdown")
+                                .asJson();
+                        if (response.getStatus() == 200) {
+                            log.info(response.getBody());
+                            log.info("Message has been send");
+                        } else {
+                            log.warn("Don't send full-time notification" + response.getBody());
+                        }
+                    } catch (UnirestException e) {
+                        log.error("Sending message error: " + e.getMessage());
+                    }
+                }
+            }
+        }
     }
 
     private void sendTodaysMatchNotification() {
@@ -132,9 +169,9 @@ public class DataInitServiceImpl implements DataInitService {
                     .asJson();
             if (response.getStatus() == 200) {
                 log.info(response.getBody());
-                log.info("Message has been send");
+                log.info("Message todays match notification has been send");
             } else {
-                log.warn("Don't send telegram bot panic");
+                log.warn("Don't send todays match notification");
             }
         } catch (UnirestException e) {
             log.error("Sending message error: " + e.getMessage());
