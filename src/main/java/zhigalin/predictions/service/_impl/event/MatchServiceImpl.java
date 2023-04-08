@@ -4,13 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.converter.event.MatchMapper;
-import zhigalin.predictions.converter.predict.PredictionMapper;
 import zhigalin.predictions.dto.event.MatchDto;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.predict.PredictionService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,8 +24,6 @@ import java.util.Objects;
 public class MatchServiceImpl implements MatchService {
     private final MatchRepository repository;
     private final MatchMapper mapper;
-    private final PredictionService predictionService;
-    private final PredictionMapper predictionMapper;
 
     @Override
     public MatchDto save(MatchDto dto) {
@@ -35,8 +31,11 @@ public class MatchServiceImpl implements MatchService {
         Match match = repository.findByHomeTeamIdAndAwayTeamId(dto.getHomeTeam().getId(),
                 dto.getAwayTeam().getId());
         if (match != null) {
+            List<Prediction> predictions = match.getPredictions();
+            if (predictions != null) {
+                predictions.forEach(Prediction::setPoints);
+            }
             mapper.updateEntityFromDto(dto, match);
-            updatePredictionsByMatch(dto);
             return mapper.toDto(repository.save(match));
         }
         return mapper.toDto(repository.save(mapper.toEntity(dto)));
@@ -65,7 +64,6 @@ public class MatchServiceImpl implements MatchService {
                 .map(mapper::toDto)
                 .toList();
     }
-
     @Override
     public List<MatchDto> findAllByUpcomingDays(Integer days) {
         log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
@@ -214,15 +212,5 @@ public class MatchServiceImpl implements MatchService {
             }
         }
         return null;
-    }
-
-    public void updatePredictionsByMatch(MatchDto match) {
-        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
-        if (match.getPredictions() != null) {
-            for (Prediction prediction : match.getPredictions()) {
-                prediction.setPoints();
-                predictionService.save(predictionMapper.toDto(prediction));
-            }
-        }
     }
 }
