@@ -79,8 +79,8 @@ public class DataInitServiceImpl implements DataInitService {
     private final TeamMapper teamMapper;
     private final MatchMapper matchMapper;
     private final HeadToHeadMapper headToHeadMapper;
+    private final Set<Long> notificationBan = new HashSet<>();
 
-    private Set<Long> notificationBan = new HashSet<>();
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
@@ -108,9 +108,12 @@ public class DataInitServiceImpl implements DataInitService {
                             .append(matchDto.getAwayTeamScore()).append(" ")
                             .append(matchDto.getAwayTeam().getCode()).append("`").append("\n\n");
                     for (Prediction prediction : matchDto.getPredictions()) {
-                        builder.append("`").append(prediction.getUser().getLogin()).append(" ")
-                                .append(prediction.getHomeTeamScore()).append(":").append(prediction.getAwayTeamScore()).append(" ")
-                                .append(prediction.getPoints()).append(" pts").append("`").append("\n");
+                        builder.append("`").append(prediction.getUser().getLogin().substring(0, 2).toUpperCase()).append(" ")
+                                .append(prediction.getHomeTeamScore()).append(":").append(prediction.getAwayTeamScore()).append(" ");
+                        if (prediction.getPoints() != -1) {
+                            builder.append(" ");
+                        }
+                        builder.append(prediction.getPoints()).append(" PTS").append("`").append("\n");
                     }
                     notificationBan.add(matchDto.getPublicId());
                     try {
@@ -129,6 +132,10 @@ public class DataInitServiceImpl implements DataInitService {
                         log.error("Sending message error: " + e.getMessage());
                     }
                 }
+            }
+        } else {
+            if (!notificationBan.isEmpty()) {
+                notificationBan.clear();
             }
         }
     }
@@ -160,21 +167,21 @@ public class DataInitServiceImpl implements DataInitService {
                 }
                 builder.append("`").append("\n");
             }
-        }
-        try {
-            HttpResponse<JsonNode> response = Unirest.get(url)
-                    .queryString("chat_id", chatId)
-                    .queryString("text", builder.toString())
-                    .queryString("parse_mode", "Markdown")
-                    .asJson();
-            if (response.getStatus() == 200) {
-                log.info(response.getBody());
-                log.info("Message todays match notification has been send");
-            } else {
-                log.warn("Don't send todays match notification");
+            try {
+                HttpResponse<JsonNode> response = Unirest.get(url)
+                        .queryString("chat_id", chatId)
+                        .queryString("text", builder.toString())
+                        .queryString("parse_mode", "Markdown")
+                        .asJson();
+                if (response.getStatus() == 200) {
+                    log.info(response.getBody());
+                    log.info("Message todays match notification has been send");
+                } else {
+                    log.warn("Don't send todays match notification");
+                }
+            } catch (UnirestException e) {
+                log.error("Sending message error: " + e.getMessage());
             }
-        } catch (UnirestException e) {
-            log.error("Sending message error: " + e.getMessage());
         }
     }
 
