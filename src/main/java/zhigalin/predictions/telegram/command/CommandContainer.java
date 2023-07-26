@@ -3,6 +3,7 @@ package zhigalin.predictions.telegram.command;
 import com.google.common.collect.ImmutableMap;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
@@ -23,7 +24,7 @@ public class CommandContainer {
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             StandingService standingService, TeamService teamService,
                             HeadToHeadService headToHeadService, NewsService newsService,
-                            PredictionService predictionService, UserService userService) {
+                            PredictionService predictionService, UserService userService, SeasonService seasonService) {
         commandMap = ImmutableMap.<String, Command>builder()
                 .put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService))
                 .put(START.getName(), new StartCommand(sendBotMessageService))
@@ -41,7 +42,7 @@ public class CommandContainer {
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
         updateCommand = new UpdateCommand(sendBotMessageService, matchService);
         predictCommand = new PredictCommand(sendBotMessageService, predictionService,
-                userService, matchService);
+                userService, matchService, seasonService);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
