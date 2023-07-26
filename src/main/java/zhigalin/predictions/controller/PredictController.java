@@ -101,7 +101,7 @@ public class PredictController {
 
     @ModelAttribute("currentWeek")
     public Long getCurrentWeekId() {
-        return weekService.findCurrentWeek().getId();
+        return weekService.findCurrentWeek().getWid();
     }
 
     @ModelAttribute("todayDateTime")
