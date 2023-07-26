@@ -4,6 +4,7 @@ public enum TeamName {
 
     ARS("/arsenal"),
     AST("/astonvilla"),
+    BOU("/bournemouth"),
     BRE("/brentford"),
     BRI("/brightonbha"),
     BUR("/burnley"),
@@ -13,26 +14,27 @@ public enum TeamName {
     LEE("/leedsunited"),
     LEI("/leicester"),
     LIV("/liverpoollfc"),
+    LUT("/luton"),
     MAC("/mcmncmac"),
     MUN("/munmnu"),
     NEW("/newcastle"),
     NOR("/norwich"),
+    NOT("/nottingham"),
+    SHE("/sheffield"),
     SOU("/southamptonsot"),
     TOT("/tottenham"),
     WAT("/watford"),
     WES("/westhamwhu"),
     WOL("/wolverhampton"),
-    NOT("/nottingham"),
-    FUL("/fulham"),
-    BOU("/bournemouth");
+    FUL("/fulham");
 
-    private final String teamName;
+    private final String name;
 
-    TeamName(String teamName) {
-        this.teamName = teamName;
+    TeamName(String name) {
+        this.name = name;
     }
 
-    public String getTeamName() {
-        return teamName;
+    public String getName() {
+        return name;
     }
 }

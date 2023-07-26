@@ -1,9 +1,8 @@
-package zhigalin.predictions.service._impl.user;
+package zhigalin.predictions.service.user;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.config.UserDetailsImpl;
@@ -13,7 +12,7 @@ import zhigalin.predictions.repository.user.UserRepository;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class UserDetailsServiceImpl implements UserDetailsService {
+public class UserDetailsService implements org.springframework.security.core.userdetails.UserDetailsService {
     private final UserRepository repository;
 
     @Override

@@ -18,6 +18,7 @@ public class Week {
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Week_generator")
     @SequenceGenerator(sequenceName = "Week_sequence", name = "Week_generator", allocationSize = 1)
     private Long id;
+    private Long wid;
     private String name;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "season_id", referencedColumnName = "id")

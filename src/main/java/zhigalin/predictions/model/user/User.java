@@ -34,4 +34,6 @@ public class User implements Serializable {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<Prediction> predictions;
+    @EqualsAndHashCode.Exclude
+    private String telegramId;
 }

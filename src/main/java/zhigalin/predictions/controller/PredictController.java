@@ -6,8 +6,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.config.UserDetailsImpl;
-import zhigalin.predictions.dto.predict.PredictionDto;
-import zhigalin.predictions.dto.user.UserDto;
+import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.predict.PointsService;
@@ -16,7 +17,6 @@ import zhigalin.predictions.service.user.UserService;
 
 import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 @RequiredArgsConstructor
@@ -28,21 +28,18 @@ public class PredictController {
     private final WeekService weekService;
     private final StandingService standingService;
     private final PointsService pointsService;
-
-    @GetMapping("/match/{id}")
-    public List<PredictionDto> getByMatchId(@PathVariable Long id) {
-        return service.findAllByMatchId(id);
-    }
+    private final SeasonService seasonService;
 
     @GetMapping("/{id}")
-    public PredictionDto getById(@PathVariable Long id) {
+    public Prediction getById(@PathVariable Long id) {
         return service.findById(id);
     }
 
     @PostMapping("/saveAndUpdate")
-    public ModelAndView saveAndUpdate(@ModelAttribute PredictionDto dto, HttpServletRequest request) {
+    public ModelAndView saveAndUpdate(@ModelAttribute Prediction prediction, HttpServletRequest request) {
         ModelAndView model = new ModelAndView("redirect:" + request.getHeader("referer"));
-        service.save(dto);
+        prediction.setSeason(seasonService.currentSeason());
+        service.save(prediction);
         return model;
     }
 
@@ -67,7 +64,7 @@ public class PredictController {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("header", "Прогнозы " + userService.findById(user).getLogin() + " " + week + " тура");
         model.addObject("list", service.findAllByUserIdAndWeekId(user, week));
-        model.addObject("newPredict", PredictionDto.builder().build());
+        model.addObject("newPredict", Prediction.builder().build());
         return model;
     }
 
@@ -77,7 +74,7 @@ public class PredictController {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("header", "Мои прогнозы " + id + " тура");
         model.addObject("list", service.findAllByUserIdAndWeekId(getCurrentUser().getId(), id));
-        model.addObject("newPredict", PredictionDto.builder().build());
+        model.addObject("newPredict", Prediction.builder().build());
         return model;
     }
 
@@ -86,17 +83,17 @@ public class PredictController {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("header", "Мои прогнозы ");
         model.addObject("list", service.findAllByUserId(getCurrentUser().getId()));
-        model.addObject("newPredict", PredictionDto.builder().build());
+        model.addObject("newPredict", Prediction.builder().build());
         return model;
     }
 
     @ModelAttribute("currentUser")
-    public UserDto getCurrentUser() {
+    public User getCurrentUser() {
         UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
-        return UserDto.builder()
+        return User.builder()
                 .id(userDetailsImpl.getId())
                 .login(userDetailsImpl.getLogin())
                 .build();

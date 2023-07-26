@@ -7,4 +7,5 @@ import zhigalin.predictions.model.event.Season;
 @Repository
 public interface SeasonRepository extends JpaRepository<Season, Long> {
     Season findByName(String name);
+    Season findByIsCurrentTrue();
 }

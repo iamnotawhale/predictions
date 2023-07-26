@@ -11,14 +11,21 @@ import java.util.List;
 
 @Repository
 public interface MatchRepository extends JpaRepository<Match, Long> {
-    Match findByHomeTeamIdAndAwayTeamId(Long homeTeamId, Long awayTeamId);
-    Match findByHomeTeamCodeAndAwayTeamCode(String homeTeamCode, String awayTeamCode);
-    Match findByHomeTeamNameAndAwayTeamName(String homeTeamName, String awayTeamName);
+    Match findByHomeTeamIdAndAwayTeamIdAndLocalDateTime(Long homeTeamId, Long awayTeamId, LocalDateTime localDateTime);
+    Match findByHomeTeamCodeAndAwayTeamCodeAndWeekSeasonIsCurrentTrue(String homeTeamCode, String awayTeamCode);
+    Match findByHomeTeamNameAndAwayTeamNameAndWeekSeasonIsCurrentTrue(String homeTeamName, String awayTeamName);
     Match findByPublicId(Long publicId);
-    List<Match> findAllByWeekIdOrderByLocalDateTime(Long weekId);
+    List<Match> findAllByWeekSeasonIsCurrentTrue();
+    List<Match> findAllByWeekWidAndWeekSeasonIsCurrentTrueOrderByLocalDateTime(Long wid);
     List<Match> findAllByWeekIsCurrentTrueOrderByLocalDateTime();
     List<Match> findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime from, LocalDateTime to);
-    List<Match> findAllByStatus(String status);
-    @Query("select m from Match m where m.homeTeam.id = :id or m.awayTeam.id = :id order by m.localDateTime")
+    List<Match> findAllByStatusAndWeekSeasonIsCurrentTrue(String status);
+    @Query("select m " +
+            "from Match m " +
+            "where m.homeTeam.id = :id or m.awayTeam.id = :id " +
+            "and m.week.season.isCurrent = true " +
+            "order by m.localDateTime")
     List<Match> findAllByTeamId(@Param("id") Long id);
+    @Query(value = "SELECT setval('match_sequence', (SELECT MAX(id) FROM match) + 1, false)", nativeQuery = true)
+    void updateSequence();
 }
