@@ -2,8 +2,8 @@ package zhigalin.predictions.telegram.command;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.dto.event.MatchDto;
-import zhigalin.predictions.dto.football.TeamDto;
+import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
@@ -20,21 +20,23 @@ public class TeamCommand implements Command {
 
     private final MatchService matchService;
 
+    private static final String REGEX = "[^A-Za-z]";
+
     @Override
     public void execute(Update update) {
-        TeamDto teamDto = getTeamByCommand(update);
+        Team team = getTeamByCommand(update);
         StringBuilder builder = new StringBuilder();
-        if (teamDto == null) {
+        if (team == null) {
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Такой команды нет. Повтори запрос");
         } else {
-            List<MatchDto> lastFiveMatches = matchService.findLast5MatchesByTeamId(teamDto.getId());
-            List<String> result = matchService.getLast5MatchesResultByTeamId(teamDto.getId());
+            List<Match> lastFiveMatches = matchService.findLast5MatchesByTeamId(team.getId());
+            List<String> result = matchService.getLast5MatchesResultByTeamId(team.getId());
             int i = 0;
-            for (MatchDto dto : lastFiveMatches) {
-                builder.append("`").append(dto.getHomeTeam().getCode()).append(" ")
-                        .append(dto.getHomeTeamScore()).append(" - ")
-                        .append(dto.getAwayTeamScore()).append(" ")
-                        .append(dto.getAwayTeam().getCode());
+            for (Match match : lastFiveMatches) {
+                builder.append("`").append(match.getHomeTeam().getCode()).append(" ")
+                        .append(match.getHomeTeamScore()).append(" - ")
+                        .append(match.getAwayTeamScore()).append(" ")
+                        .append(match.getAwayTeam().getCode());
                 String str = result.get(i++);
                 if (str.equals("W")) {
                     builder.append(" \uD83D\uDFE2");
@@ -49,9 +51,10 @@ public class TeamCommand implements Command {
         sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), builder.toString());
     }
 
-    public TeamDto getTeamByCommand(Update update) {
+    public Team getTeamByCommand(Update update) {
         String teamCode = EnumSet.allOf(TeamName.class).stream()
-                .filter(t -> t.getTeamName().toLowerCase().contains(update.getMessage().getText().split("\\W|\\d")[1].toLowerCase()))
+                .filter(t -> t.getName().toLowerCase()
+                        .contains(update.getMessage().getText().split(REGEX)[1].toLowerCase()))
                 .map(Enum::name).findFirst().orElse(null);
         if (teamCode == null) {
             return null;

@@ -12,15 +12,17 @@ public enum CommandName {
     TODAY("today"),
     TEAM("team"),
     UPCOMING("upcoming"),
-    NEWS("news");
+    NEWS("news"),
+    UPDATE("update"),
+    PRED("pred");
 
-    private final String commandName;
+    private final String name;
 
-    CommandName(String commandName) {
-        this.commandName = commandName;
+    CommandName(String name) {
+        this.name = name;
     }
 
-    public String getCommandName() {
-        return commandName;
+    public String getName() {
+        return name;
     }
 }

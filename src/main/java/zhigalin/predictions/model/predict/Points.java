@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import zhigalin.predictions.model.event.Season;
 
 import javax.persistence.*;
 
@@ -22,4 +23,7 @@ public class Points {
     private Long id;
     private Long userId;
     private Long value;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "season_id", referencedColumnName = "id")
+    private Season season;
 }

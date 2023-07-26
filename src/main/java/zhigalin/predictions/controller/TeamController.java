@@ -5,8 +5,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.config.UserDetailsImpl;
-import zhigalin.predictions.dto.football.TeamDto;
-import zhigalin.predictions.dto.user.UserDto;
+import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
@@ -20,7 +20,7 @@ public class TeamController {
     private final WeekService weekService;
 
     @PostMapping("/save")
-    public TeamDto saveTeam(@RequestBody TeamDto teamDto) {
+    public Team saveTeam(@RequestBody Team teamDto) {
         return service.save(teamDto);
     }
 
@@ -35,22 +35,22 @@ public class TeamController {
     }
 
     @GetMapping("/byName")
-    public TeamDto findByTeamName(@RequestParam String name) {
+    public Team findByTeamName(@RequestParam String name) {
         return service.findByName(name);
     }
 
     @GetMapping("/byCode")
-    public TeamDto findByTeamCode(@RequestParam String code) {
+    public Team findByTeamCode(@RequestParam String code) {
         return service.findByCode(code);
     }
 
     @ModelAttribute("currentUser")
-    public UserDto getCurrentUser() {
+    public User getCurrentUser() {
         UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
-        return UserDto.builder()
+        return User.builder()
                 .id(userDetailsImpl.getId())
                 .login(userDetailsImpl.getLogin())
                 .build();
