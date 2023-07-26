@@ -9,7 +9,7 @@ public class StartCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
 
-    public final static String START_MESSAGE = "Привет. Я eplinfobot. Я помогу тебе быть в курсе последних " +
+    public static final String START_MESSAGE = "Привет. Я eplinfobot. Я помогу тебе быть в курсе последних " +
             "новостей АПЛ. Я еще маленький и только учусь.";
 
     @Override

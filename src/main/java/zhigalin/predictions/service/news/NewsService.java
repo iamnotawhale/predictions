@@ -1,13 +1,46 @@
 package zhigalin.predictions.service.news;
 
-import zhigalin.predictions.dto.news.NewsDto;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import zhigalin.predictions.model.news.News;
+import zhigalin.predictions.repository.news.NewsRepository;
+import zhigalin.predictions.util.FieldsUpdater;
 
+import java.util.Comparator;
 import java.util.List;
 
-public interface NewsService {
-    NewsDto save(NewsDto dto);
-    List<NewsDto> findAll();
-    List<NewsDto> findLastNews();
-    void deleteAll();
-    void resetSequence();
+@RequiredArgsConstructor
+@Service
+@Slf4j
+public class NewsService {
+    private final NewsRepository repository;
+
+    public News save(News news) {
+        News newsFromDB = repository.findByTitle(news.getTitle());
+        if (newsFromDB != null) {
+            return repository.save(FieldsUpdater.update(newsFromDB, news));
+        }
+        return repository.save(news);
+    }
+
+    public List<News> findAll() {
+        return repository.findAll();
+    }
+
+    public List<News> findLastNews() {
+        List<News> list = findAll();
+        return list.stream()
+                .sorted(Comparator.comparing(News::getLocalDateTime).reversed())
+                .limit(15)
+                .toList();
+    }
+
+    public void deleteAll() {
+        repository.deleteAll();
+    }
+
+    public void resetSequence() {
+        repository.resetSequence();
+    }
 }

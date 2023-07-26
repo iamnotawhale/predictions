@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.config.UserDetailsImpl;
-import zhigalin.predictions.dto.user.UserDto;
+import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
@@ -34,7 +34,7 @@ public class MainController {
         ModelAndView model = new ModelAndView("main");
         model.addObject("map", pointsService.getAll());
         model.addObject("todayDateTime", LocalDateTime.now());
-        model.addObject("currentWeek", weekService.findCurrentWeek().getId());
+        model.addObject("currentWeek", weekService.findCurrentWeek().getWid());
         model.addObject("matchList", matchService.findAllByCurrentWeek());
         model.addObject("h2h", headToHeadService.findAllByCurrentWeek());
         model.addObject("online", matchService.findOnline());
@@ -44,12 +44,12 @@ public class MainController {
     }
 
     @ModelAttribute("currentUser")
-    public UserDto getCurrentUser() {
+    public User getCurrentUser() {
         UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
-        return UserDto.builder()
+        return User.builder()
                 .id(userDetailsImpl.getId())
                 .login(userDetailsImpl.getLogin())
                 .build();

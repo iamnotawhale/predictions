@@ -1,1 +1,1 @@
-web: java -Dserver.port=$PORT $JAVA_OPTS -javaagent:newrelic/newrelic.jar -jar target/predictions-0.0.1-SNAPSHOT.war
+web: java -Dserver.port=$PORT $JAVA_OPTS -javaagent:newrelic/newrelic.jar -jar target/predictions-1.0.0.war

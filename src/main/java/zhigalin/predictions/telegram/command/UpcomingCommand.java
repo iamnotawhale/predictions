@@ -2,7 +2,7 @@ package zhigalin.predictions.telegram.command;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.dto.event.MatchDto;
+import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
@@ -19,21 +19,21 @@ public class UpcomingCommand implements Command {
     @Override
     public void execute(Update update) {
         Long tour = null;
-        List<MatchDto> upcomingMatches = matchService.findAllByUpcomingDays(7);
+        List<Match> upcomingMatches = matchService.findAllByUpcomingDays(7);
         StringBuilder builder = new StringBuilder();
         if (!upcomingMatches.isEmpty()) {
-            for (MatchDto dto : upcomingMatches) {
+            for (Match match : upcomingMatches) {
                 builder.append("`");
-                if (!dto.getWeek().getId().equals(tour)) {
-                    builder.append(dto.getWeek().getId()).append(" тур").append("\n");
-                    tour = dto.getWeek().getId();
+                if (!match.getWeek().getId().equals(tour)) {
+                    builder.append(match.getWeek().getId()).append(" тур").append("\n");
+                    tour = match.getWeek().getId();
                 }
-                builder.append(dto.getHomeTeam().getCode()).append(" ")
-                        .append("- ").append(dto.getAwayTeam().getCode());
-                if (Objects.equals(dto.getStatus(), "pst")) {
-                    builder.append(" ⏰ ").append(dto.getStatus());
+                builder.append(match.getHomeTeam().getCode()).append(" ")
+                        .append("- ").append(match.getAwayTeam().getCode());
+                if (Objects.equals(match.getStatus(), "pst")) {
+                    builder.append(" ⏰ ").append(match.getStatus());
                 } else {
-                    builder.append(" ⏱ ").append(dto.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
+                    builder.append(" ⏱ ").append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
                 }
 
                 builder.append("`").append("\n");
