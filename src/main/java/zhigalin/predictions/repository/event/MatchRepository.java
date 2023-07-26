@@ -22,7 +22,7 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     List<Match> findAllByStatusAndWeekSeasonIsCurrentTrue(String status);
     @Query("select m " +
             "from Match m " +
-            "where m.homeTeam.id = :id or m.awayTeam.id = :id " +
+            "where (m.homeTeam.id = :id or m.awayTeam.id = :id) " +
             "and m.week.season.isCurrent = true " +
             "order by m.localDateTime")
     List<Match> findAllByTeamId(@Param("id") Long id);
