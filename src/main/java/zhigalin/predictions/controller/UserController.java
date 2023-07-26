@@ -3,7 +3,7 @@ package zhigalin.predictions.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import zhigalin.predictions.dto.user.UserDto;
+import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.user.UserService;
 
 import java.util.List;
@@ -15,17 +15,17 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/all")
-    public List<UserDto> findAllUsers() {
+    public List<User> findAllUsers() {
         return userService.findAll();
     }
 
     @GetMapping()
-    public UserDto findByLogin(@RequestParam String login) {
+    public User findByLogin(@RequestParam String login) {
         return userService.findByLogin(login);
     }
 
     @GetMapping("/{id}")
-    public UserDto findById(@PathVariable Long id) {
+    public User findById(@PathVariable Long id) {
         return userService.findById(id);
     }
 

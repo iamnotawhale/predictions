@@ -9,11 +9,10 @@ import java.util.List;
 
 @Repository
 public interface PredictionRepository extends JpaRepository<Prediction, Long> {
-    Prediction findByMatchIdAndUserId(Long matchId, Long userId);
-    List<Prediction> findAllByMatchId(Long id);
-    List<Prediction> findAllByMatchWeekIdOrderByMatchLocalDateTimeDescMatchHomeTeamIdAsc(Long id);
-    List<Prediction> findAllByUserIdOrderByMatchLocalDateTimeDesc(Long id);
-    List<Prediction> findAllByUserIdAndMatchWeekIdOrderByMatchLocalDateTime(Long userId, Long weekId);
+    Prediction findByMatchIdAndUserIdAndSeasonIsCurrent(Long matchId, Long userId, boolean current);
+    List<Prediction> findAllByMatchWeekWidAndMatchWeekSeasonIsCurrentTrueOrderByMatchLocalDateTimeDescMatchHomeTeamIdAsc(Long wid);
+    List<Prediction> findAllByUserIdAndSeasonIsCurrentTrueOrderByMatchLocalDateTimeDesc(Long id);
+    List<Prediction> findAllByUserIdAndMatchWeekWidAndMatchWeekSeasonIsCurrentTrueOrderByMatchLocalDateTime(Long userId, Long wid);
     @Query(value = "SELECT setval('predict_sequence', (SELECT MAX(id) FROM predict) + 1, false)", nativeQuery = true)
     void updateSequence();
 }

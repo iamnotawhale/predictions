@@ -92,7 +92,7 @@
             <th:block th:each="match: ${matchList}">
                 <tr th:data-bs-target="${'#acc'+ match.id}" data-bs-toggle="collapse"
                     class="accordion-toggle">
-                    <td class="align-middle" th:text="${match.week.id}">Week</td>
+                    <td class="align-middle" th:text="${match.week.wid}">Week</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'HH:mm')}">Time</td>
                     <td class="align-middle" th:text="${match.homeTeam.code}">Home Team</td>
@@ -106,21 +106,21 @@
                     <td th:if="${match.localDateTime < todayDateTime}">
                         <button type="button" class="btn btn-primary btn-sm2" disabled data-bs-toggle="modal"
                                 th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:if="${@predictionServiceImpl.isExist(currentUser.id, match.id)}">Изменить
+                                th:if="${@predictionService.isExist(currentUser.id, match.id)}">Изменить
                         </button>
                         <button type="button" class="btn btn-primary btn-sm2" disabled data-bs-toggle="modal"
                                 th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:unless="${@predictionServiceImpl.isExist(currentUser.id, match.id)}">Создать
+                                th:unless="${@predictionService.isExist(currentUser.id, match.id)}">Создать
                         </button>
                     </td>
                     <td th:unless="${match.localDateTime < todayDateTime}">
                         <button type="button" class="btn btn-warning btn-sm2" data-bs-toggle="modal"
                                 th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:if="${@predictionServiceImpl.isExist(currentUser.id, match.id)}">Изменить
+                                th:if="${@predictionService.isExist(currentUser.id, match.id)}">Изменить
                         </button>
                         <button type="button" class="btn btn-success btn-sm2" data-bs-toggle="modal"
                                 th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:unless="${@predictionServiceImpl.isExist(currentUser.id, match.id)}">Создать
+                                th:unless="${@predictionService.isExist(currentUser.id, match.id)}">Создать
                         </button>
                     </td>
                     <div class="modal fade" th:id="${'create'+ match.id + currentUser.id}" tabindex="-1"
