@@ -6,6 +6,7 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
@@ -18,6 +19,7 @@ public class PredictCommand implements Command {
     private final PredictionService predictionService;
     private final UserService userService;
     private final MatchService matchService;
+    private final SeasonService seasonService;
 
     private static final String REGEX = "[^A-Za-z0-9]";
 
@@ -66,6 +68,7 @@ public class PredictCommand implements Command {
                 .user(user)
                 .homeTeamScore(homePredict)
                 .awayTeamScore(awayPredict)
+                .season(seasonService.currentSeason())
                 .build();
     }
 }
