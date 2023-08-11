@@ -46,14 +46,11 @@ public class UpdateCommand implements Command {
         int homeScore = Integer.parseInt(matchToUpdate[3]);
         int awayScore = Integer.parseInt(matchToUpdate[5]);
         String result = homeScore > awayScore ? "H" : homeScore < awayScore ? "A" : "D";
-        Match getByNames = matchService.findByTeamCodes(homeTeam, awayTeam);
-        return Match.builder()
-                .homeTeam(getByNames.getHomeTeam())
-                .awayTeam(getByNames.getAwayTeam())
-                .homeTeamScore(homeScore)
-                .awayTeamScore(awayScore)
-                .status("ft")
-                .result(result)
-                .build();
+        Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+        match.setHomeTeamScore(homeScore);
+        match.setAwayTeamScore(awayScore);
+        match.setStatus("ft");
+        match.setResult(result);
+        return match;
     }
 }
