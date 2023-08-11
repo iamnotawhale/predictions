@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.MatchRepository;
+import zhigalin.predictions.service.predict.PredictionService;
+import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.FieldsUpdater;
 
 import java.time.LocalDate;
@@ -21,6 +24,7 @@ import java.util.Objects;
 @Slf4j
 public class MatchService {
     private final MatchRepository repository;
+    private final UserService userService;
 
     public Match save(Match match) {
         Match matchFromBD = repository.findByHomeTeamIdAndAwayTeamIdAndLocalDateTime(match.getHomeTeam().getId(),
@@ -28,6 +32,22 @@ public class MatchService {
         if (matchFromBD != null) {
             List<Prediction> predictions = matchFromBD.getPredictions();
             if (predictions != null) {
+                List<User> users = userService.findAll();
+                List<User> usersWithNoPredicts = users.stream()
+                        .filter(user -> !predictions.stream()
+                                .map(prediction -> prediction.getUser().getId())
+                                .toList()
+                                .contains(user.getId()))
+                        .toList();
+                for (User user : usersWithNoPredicts) {
+                    predictions.add(Prediction.builder()
+                            .match(match)
+                            .homeTeamScore(null)
+                            .awayTeamScore(null)
+                            .user(user)
+                            .season(match.getWeek().getSeason())
+                            .build());
+                }
                 predictions.forEach(Prediction::setPoints);
             }
             return repository.save(FieldsUpdater.update(matchFromBD, match));
@@ -58,8 +78,7 @@ public class MatchService {
     }
 
     public List<Match> findAllByWeekId(Long wid) {
-        List<Match> m = repository.findAllByWeekWidAndWeekSeasonIsCurrentTrueOrderByLocalDateTime(wid);
-        return m;
+        return repository.findAllByWeekWidAndWeekSeasonIsCurrentTrueOrderByLocalDateTime(wid);
     }
 
     public List<Match> findAllByCurrentWeek() {
