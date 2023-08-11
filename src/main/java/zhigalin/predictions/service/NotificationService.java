@@ -56,10 +56,9 @@ public class NotificationService {
     }
 
     public void sendNotification(List<Notification> list) {
-        LocalTime now = LocalTime.now();
         for (Notification notification : list) {
             if (!sentNotifications.contains(notification)) {
-                Duration duration = Duration.between(now, notification.getMatch().getLocalDateTime().toLocalTime());
+                Duration duration = Duration.between(LocalTime.now().plusMinutes(5), notification.getMatch().getLocalDateTime().toLocalTime());
                 StringBuilder builder = new StringBuilder();
                 builder.append("Не проставлен прогноз на матч:\n")
                         .append(notification.getMatch().getHomeTeam().getCode()).append(" ")
@@ -80,6 +79,7 @@ public class NotificationService {
                                 notification.getMatch().getAwayTeam().getCode(),
                                 notification.getUser().getLogin()
                         );
+                        sentNotifications.add(notification);
                     } else {
                         log.warn("Don't send not predictable match notification");
                     }
@@ -87,7 +87,6 @@ public class NotificationService {
                     log.error("Sending message error: " + e.getMessage());
                 }
             }
-            sentNotifications.add(notification);
         }
     }
 }
