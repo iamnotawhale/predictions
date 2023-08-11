@@ -40,7 +40,7 @@ public class MatchService {
                         .toList();
                 for (User user : usersWithNoPredicts) {
                     predictions.add(Prediction.builder()
-                            .match(match)
+                            .match(matchFromBD)
                             .homeTeamScore(null)
                             .awayTeamScore(null)
                             .user(user)
