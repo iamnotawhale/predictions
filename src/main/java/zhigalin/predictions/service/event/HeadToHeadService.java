@@ -47,7 +47,6 @@ public class HeadToHeadService {
     }
 
     public List<List<HeadToHead>> findAllByCurrentWeek() {
-        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         List<List<HeadToHead>> listOfHeadToHeads = new ArrayList<>();
         List<Match> allByCurrentWeek = matchService.findAllByCurrentWeek();
         for (Match match : allByCurrentWeek) {

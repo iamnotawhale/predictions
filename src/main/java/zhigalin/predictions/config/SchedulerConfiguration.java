@@ -4,15 +4,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import zhigalin.predictions.service.DataInitService;
+import zhigalin.predictions.service.NotificationService;
 
 @Component
 @RequiredArgsConstructor
 public class SchedulerConfiguration {
     private static final int SIX_MINUTES_DELAY = 360000;
-    private final DataInitService service;
+    private final DataInitService dataInitService;
+    private final NotificationService notificationService;
 
     @Scheduled(fixedDelay = SIX_MINUTES_DELAY)
     public void start() {
-        service.allInit();
+        dataInitService.allInit();
+        notificationService.check();
     }
 }
