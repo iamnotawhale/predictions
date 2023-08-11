@@ -10,5 +10,7 @@ import java.util.List;
 public interface WeekRepository extends JpaRepository<Week, Long> {
     Week findByNameAndSeasonId(String name, Long seasonId);
     Week findByIsCurrentTrue();
+
+    Week findBySeasonIsCurrentTrueAndWid(Long wid);
     List<Week> findBySeasonIsCurrent(boolean current);
 }

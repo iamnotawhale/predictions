@@ -38,4 +38,8 @@ public class WeekService {
     public List<Week> findAll() {
         return repository.findAll();
     }
+
+    public Week findByIdCurrentSeason(Long weekId) {
+        return repository.findBySeasonIsCurrentTrueAndWid(weekId);
+    }
 }

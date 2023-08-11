@@ -44,7 +44,7 @@ public class MatchService {
                             .homeTeamScore(null)
                             .awayTeamScore(null)
                             .user(user)
-                            .season(match.getWeek().getSeason())
+                            .season(matchFromBD.getWeek().getSeason())
                             .build());
                 }
                 predictions.forEach(Prediction::setPoints);
