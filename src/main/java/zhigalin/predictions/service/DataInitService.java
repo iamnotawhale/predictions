@@ -31,6 +31,7 @@ import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
+import zhigalin.predictions.service.user.UserService;
 
 import java.net.URL;
 import java.text.DateFormat;
@@ -64,8 +65,9 @@ public class DataInitService {
     private final MatchService matchService;
     private final NewsService newsService;
     private final HeadToHeadService headToHeadService;
+    private final UserService userService;
+    private List<Match> online;
     private final Set<Long> notificationBan = new HashSet<>();
-
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
@@ -73,6 +75,7 @@ public class DataInitService {
 
     public void allInit() {
         LocalTime now = LocalTime.now();
+        online = matchService.findOnline();
         if (now.isAfter(LocalTime.of(9, 0)) &&
                 now.isBefore(LocalTime.of(9, 6))) {
             sendTodaysMatchNotification();
@@ -95,7 +98,7 @@ public class DataInitService {
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
         }
-        if (!matchService.findOnline().isEmpty()) {
+        if (!online.isEmpty()) {
             HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                     .header(xRapidApi, apiFootballToken)
                     .header(HOST_NAME, HOST)
@@ -119,13 +122,17 @@ public class DataInitService {
                 }
                 Team homeTeam = teamService.findByPublicId(response.getTeams().getHome().getId());
                 Team awayTeam = teamService.findByPublicId(response.getTeams().getAway().getId());
+                String weekId = response.getLeague().getRound().replace("\\D", "");
+                Week week = weekService.findByIdCurrentSeason(Long.parseLong(weekId));
                 if (response.getGoals().getHome() == null) {
                     match = Match.builder()
                             .publicId(publicId)
                             .status(status)
+                            .week(week)
                             .homeTeam(homeTeam)
                             .awayTeam(awayTeam)
                             .build();
+
                 } else {
                     Integer homeTeamScore = response.getGoals().getHome();
                     Integer awayTeamScore = response.getGoals().getAway();
@@ -138,6 +145,7 @@ public class DataInitService {
                     match = Match.builder()
                             .publicId(publicId)
                             .status(status)
+                            .week(week)
                             .homeTeam(homeTeam)
                             .awayTeam(awayTeam)
                             .homeTeamScore(homeTeamScore)
@@ -289,8 +297,8 @@ public class DataInitService {
     @SneakyThrows
     private void currentWeekUpdate() {
         Long id = weekService.findCurrentWeek().getId();
-        Week currentWeek = weekService.findById(id);
-        Week nextCurrentWeek = weekService.findById(id + 1);
+        Week currentWeek = weekService.findByIdCurrentSeason(id);
+        Week nextCurrentWeek = weekService.findByIdCurrentSeason(id + 1);
         currentWeek.setIsCurrent(false);
         nextCurrentWeek.setIsCurrent(true);
         weekService.save(currentWeek);
