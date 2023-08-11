@@ -36,6 +36,7 @@ import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -100,8 +101,8 @@ public class DataInitService {
                     .header(HOST_NAME, HOST)
                     .queryString("league", 39)
                     .queryString("season", 2023)
-                    .queryString("from", LocalDateTime.now().toLocalDate().toString())
-                    .queryString("to", LocalDateTime.now().toLocalDate().toString())
+                    .queryString("from", LocalDate.now().toString())
+                    .queryString("to", LocalDate.now().toString())
                     .asString();
             Root root = mapper.readValue(resp.getBody(), Root.class);
             for (Response response : root.getResponse()) {
