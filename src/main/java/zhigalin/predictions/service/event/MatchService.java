@@ -7,7 +7,6 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.MatchRepository;
-import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.FieldsUpdater;
 
@@ -71,8 +70,12 @@ public class MatchService {
                                 .of(LocalDate.now(), LocalTime.of(23, 59)));
     }
 
+    public List<Match> findAllNearest() {
+        LocalDateTime now = LocalDateTime.now();
+        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(now, now.plusMinutes(30));
+    }
+
     public List<Match> findAllByUpcomingDays(Integer days) {
-        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now(),
                         LocalDateTime.now().plusDays(days));
     }
@@ -140,18 +143,15 @@ public class MatchService {
     }
 
     public List<Match> findOnline() {
-        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusMinutes(140),
                         LocalDateTime.now().plusMinutes(20));
     }
 
     public List<Match> findAllByStatus(String status) {
-        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         return repository.findAllByStatusAndWeekSeasonIsCurrentTrue(status);
     }
 
     public Match getOnlineResult(String teamName) {
-        log.info(Thread.currentThread().getStackTrace()[1].getMethodName());
         Match match = repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusHours(2),
                         LocalDateTime.now())
                 .stream()
