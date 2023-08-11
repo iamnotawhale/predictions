@@ -2,11 +2,15 @@ package zhigalin.predictions.util;
 
 import java.lang.reflect.Field;
 
+import lombok.extern.log4j.Log4j2;
+
+@Log4j2
 public class FieldsUpdater<T> {
 
     public static <T> T update(T oldValue, T newValue) {
+        Class<?> clazz = null;
         try {
-            Class<?> clazz = oldValue.getClass();
+            clazz = oldValue.getClass();
             Field[] fields = clazz.getDeclaredFields();
 
             for (Field field : fields) {
@@ -18,7 +22,7 @@ public class FieldsUpdater<T> {
                 }
             }
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            log.error("Error to update fields of {} with: {}", clazz, e.getMessage());
         }
         return oldValue;
     }

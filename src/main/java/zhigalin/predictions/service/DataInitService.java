@@ -77,8 +77,8 @@ public class DataInitService {
             sendTodaysMatchNotification();
         }
         matchUpdateFromApiFootball();
+        newsInit();
 //        fullTimeMatchNotification();
-//        newsInit();
 //        teamsInitFromApiFootball();
 //        matchInitFromApiFootball();
 //        headToHeadInitFromApiFootball();
