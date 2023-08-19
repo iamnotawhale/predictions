@@ -78,12 +78,12 @@ public class DataInitService {
                 now.isBefore(LocalTime.of(9, 6))) {
             sendTodaysMatchNotification();
         }
-//        matchUpdateFromApiFootball();
-//        newsInit();
+        matchUpdateFromApiFootball();
+        newsInit();
 //        fullTimeMatchNotification();
-        teamsInitFromApiFootball();
-        matchInitFromApiFootball();
-        headToHeadInitFromApiFootball();
+//        teamsInitFromApiFootball();
+//        matchInitFromApiFootball();
+//        headToHeadInitFromApiFootball();
     }
 
     @SneakyThrows
