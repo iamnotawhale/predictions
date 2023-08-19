@@ -11,5 +11,5 @@ public class Response {
     private Teams teams;
     private Goals goals;
     private Score score;
-    private Team team;
+    private ResponseTeam team;
 }

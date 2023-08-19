@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.news.News;
 import zhigalin.predictions.repository.news.NewsRepository;
-import zhigalin.predictions.util.FieldsUpdater;
 
 import java.util.Comparator;
 import java.util.List;
@@ -17,10 +16,6 @@ public class NewsService {
     private final NewsRepository repository;
 
     public News save(News news) {
-        News newsFromDB = repository.findByTitle(news.getTitle());
-        if (newsFromDB != null) {
-            return repository.save(FieldsUpdater.update(newsFromDB, news));
-        }
         return repository.save(news);
     }
 
@@ -38,9 +33,5 @@ public class NewsService {
 
     public void deleteAll() {
         repository.deleteAll();
-    }
-
-    public void resetSequence() {
-        repository.resetSequence();
     }
 }

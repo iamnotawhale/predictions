@@ -6,6 +6,6 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 public class Teams {
-    private Team home;
-    private Team away;
+    private ResponseTeam home;
+    private ResponseTeam away;
 }

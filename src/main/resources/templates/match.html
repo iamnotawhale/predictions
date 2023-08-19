@@ -92,7 +92,7 @@
             <th:block th:each="match: ${matchList}">
                 <tr th:data-bs-target="${'#acc'+ match.id}" data-bs-toggle="collapse"
                     class="accordion-toggle">
-                    <td class="align-middle" th:text="${match.week.wid}">Week</td>
+                    <td class="align-middle" th:text="${match.week.id}">Week</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'HH:mm')}">Time</td>
                     <td class="align-middle" th:text="${match.homeTeam.code}">Home Team</td>

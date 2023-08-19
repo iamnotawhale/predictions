@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.Set;
 
 @Builder
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
@@ -27,13 +28,8 @@ public class User implements Serializable {
     @ManyToMany(fetch = FetchType.LAZY, cascade=CascadeType.MERGE)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name="user_id"),
             inverseJoinColumns = @JoinColumn(name="role_id"))
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private Set<Role> roles;
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private List<Prediction> predictions;
-    @EqualsAndHashCode.Exclude
     private String telegramId;
 }

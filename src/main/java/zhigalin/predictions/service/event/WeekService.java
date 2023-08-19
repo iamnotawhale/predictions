@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.repository.event.WeekRepository;
-import zhigalin.predictions.util.FieldsUpdater;
 
 import java.util.List;
 
@@ -17,14 +16,14 @@ public class WeekService {
 
     public Week save(Week week) {
         Week weekFromDB = repository.findByNameAndSeasonId(week.getName(), week.getSeason().getId());
-        if (weekFromDB != null) {
-            return repository.save(FieldsUpdater.update(weekFromDB, week));
-        }
-        return repository.save(week);
+        return weekFromDB != null ? weekFromDB : repository.save(week);
     }
 
-    public List<Week> findByCurrentSeason() {
-        return repository.findBySeasonIsCurrent(true);
+    public void updateCurrent(Week week, Boolean isCurrent) {
+        Week w = repository.findByNameAndSeasonId(week.getName(), week.getSeason().getId());
+        if (w != null) {
+            repository.updateCurrentWeek(week.getId(), isCurrent);
+        }
     }
 
     public Week findById(Long id) {
@@ -39,7 +38,4 @@ public class WeekService {
         return repository.findAll();
     }
 
-    public Week findByIdCurrentSeason(Long weekId) {
-        return repository.findBySeasonIsCurrentTrueAndWid(weekId);
-    }
 }

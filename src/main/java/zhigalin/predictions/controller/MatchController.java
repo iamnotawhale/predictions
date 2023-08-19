@@ -101,7 +101,7 @@ public class MatchController {
 
     @ModelAttribute("currentWeek")
     public Long getCurrentWeekId() {
-        return weekService.findCurrentWeek().getWid();
+        return weekService.findCurrentWeek().getId();
     }
 
     @ModelAttribute("todayDateTime")

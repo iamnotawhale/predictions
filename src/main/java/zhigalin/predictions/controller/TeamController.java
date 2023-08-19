@@ -28,7 +28,7 @@ public class TeamController {
     public ModelAndView getTeamById(@PathVariable Long id) {
         ModelAndView model = new ModelAndView("team");
         model.addObject("header", service.findById(id).getName());
-        model.addObject("currentWeek", weekService.findCurrentWeek().getWid());
+        model.addObject("currentWeek", weekService.findCurrentWeek().getId());
         model.addObject("last5", matchService.findLast5MatchesByTeamId(id));
         model.addObject("last5Result", matchService.getLast5MatchesResultByTeamId(id));
         return model;

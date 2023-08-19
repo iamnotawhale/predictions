@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.repository.event.HeadToHeadRepository;
-import zhigalin.predictions.util.FieldsUpdater;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,10 +25,7 @@ public class HeadToHeadService {
                 h2h.getAwayTeam().getPublicId(),
                 h2h.getLocalDateTime()
         );
-        if (fromBD != null) {
-            return repository.save(FieldsUpdater.update(fromBD, h2h));
-        }
-        return repository.save(h2h);
+        return fromBD != null ? null : repository.save(h2h);
     }
 
     public List<HeadToHead> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode) {

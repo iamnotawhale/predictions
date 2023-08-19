@@ -7,7 +7,6 @@ import zhigalin.predictions.model.predict.Points;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.predict.PointsRepository;
 import zhigalin.predictions.service.user.UserService;
-import zhigalin.predictions.util.FieldsUpdater;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,17 +18,18 @@ public class PointsService {
     private final PointsRepository pointsRepository;
     private final UserService userService;
 
-    public Points save(Points points) {
-        Points pointsFromDB = pointsRepository.getPointsByUserIdAndSeasonIsCurrentTrue(points.getUserId());
+    public void save(Points points) {
+        Points pointsFromDB = pointsRepository.getPointsByUserId(points.getUserId());
         if (pointsFromDB != null) {
-            return pointsRepository.save(FieldsUpdater.update(pointsFromDB, points));
+            pointsRepository.update(points.getUserId(), points.getValue());
+        } else {
+            pointsRepository.save(points);
         }
-        return pointsRepository.save(points);
     }
 
     public Map<User, Long> getAll() {
         updatePoints();
-        List<Points> pointsList = pointsRepository.findAllBySeasonIsCurrentTrue();
+        List<Points> pointsList = pointsRepository.findAll();
         Map<User, Long> map = new LinkedHashMap<>();
         for (Points points : pointsList) {
             map.put(userService.findById(points.getUserId()), points.getValue());
@@ -43,7 +43,7 @@ public class PointsService {
         Map<User, Long> map = new HashMap<>();
         List<User> allUsers = userService.findAll();
         for (User user : allUsers) {
-            Long points = pointsRepository.getPointsByUserIdAndMatchWeekWid(user.getId(), weekId);
+            Long points = pointsRepository.getPointsByUserIdAndMatchWeekId(user.getId(), weekId);
             map.put(user, points != null ? points : 0);
         }
         return map.entrySet().stream().sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))

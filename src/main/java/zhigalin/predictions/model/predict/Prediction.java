@@ -1,18 +1,15 @@
 package zhigalin.predictions.model.predict;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.model.user.User;
 
 import javax.persistence.*;
 
 @Builder
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
@@ -32,9 +29,6 @@ public class Prediction {
     private Integer homeTeamScore;
     private Integer awayTeamScore;
     private Long points;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "season_id", referencedColumnName = "id")
-    private Season season;
 
     public void setPoints() {
         Integer realHomeScore = this.match.getHomeTeamScore();

@@ -6,6 +6,5 @@ import zhigalin.predictions.model.user.Role;
 
 @Repository
 public interface RoleRepository extends JpaRepository<Role, Long> {
-
     Role findByRole(String name);
 }

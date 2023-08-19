@@ -1,16 +1,13 @@
 package zhigalin.predictions.model.football;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import zhigalin.predictions.model.event.Season;
+import lombok.*;
 
 import javax.persistence.*;
 
 @Builder
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
@@ -30,9 +27,6 @@ public class Standing {
     private Integer lost;
     private Integer goalsScored;
     private Integer goalsAgainst;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "season_id", referencedColumnName = "id")
-    private Season season;
 
     public int compareGoals(Standing st) {
         return Integer.compare(st.getGoalsScored() - st.getGoalsAgainst(), this.getGoalsScored() - this.getGoalsAgainst());
