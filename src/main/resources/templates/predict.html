@@ -104,7 +104,7 @@
         </thead>
         <tbody th:align="center">
         <tr th:each="prediction: ${list}">
-            <td class="align-middle" th:text="${prediction.match.week.wid}">Week</td>
+            <td class="align-middle" th:text="${prediction.match.week.id}">Week</td>
             <td class="d-none d-lg-table-cell align-middle" th:text="${#temporals.format(prediction.match.localDateTime, 'dd.MM')}">Date</td>
             <td class="d-none d-lg-table-cell align-middle" th:text="${#temporals.format(prediction.match.localDateTime, 'HH:mm')}">Time</td>
             <td class="align-middle" th:text="${prediction.match.homeTeam.code}">Home Team</td>

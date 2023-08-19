@@ -34,7 +34,7 @@ public class MainController {
         ModelAndView model = new ModelAndView("main");
         model.addObject("map", pointsService.getAll());
         model.addObject("todayDateTime", LocalDateTime.now());
-        model.addObject("currentWeek", weekService.findCurrentWeek().getWid());
+        model.addObject("currentWeek", weekService.findCurrentWeek().getId());
         model.addObject("matchList", matchService.findAllByCurrentWeek());
         model.addObject("h2h", headToHeadService.findAllByCurrentWeek());
         model.addObject("online", matchService.findOnline());

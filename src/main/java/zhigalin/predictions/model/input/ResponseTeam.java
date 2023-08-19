@@ -5,7 +5,7 @@ import lombok.Data;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Data
-public class Team {
+public class ResponseTeam {
     private Long id;
     private String name;
     private String logo;

@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.repository.predict.PredictionRepository;
-import zhigalin.predictions.util.FieldsUpdater;
 
 import java.util.List;
 
@@ -14,15 +13,14 @@ import java.util.List;
 @Slf4j
 public class PredictionService {
     private final PredictionRepository repository;
-    public Prediction save(Prediction prediction) {
-        Prediction predictionFromDB = repository.findByMatchIdAndUserIdAndSeasonIsCurrent(
-                prediction.getMatch().getId(), prediction.getUser().getId(), true
+    public void save(Prediction prediction) {
+        Prediction predictionFromDB = repository.findByMatchIdAndUserId(
+                prediction.getMatch().getId(), prediction.getUser().getId()
         );
-        repository.updateSequence();
         if (predictionFromDB != null) {
-            return repository.save(FieldsUpdater.update(predictionFromDB, prediction));
+            repository.update(prediction.getMatch().getId(), prediction.getUser().getId(), prediction.getHomeTeamScore(), prediction.getAwayTeamScore());
         }
-        return repository.save(prediction);
+        repository.save(prediction);
     }
 
     public Prediction findById(Long id) {
@@ -30,15 +28,15 @@ public class PredictionService {
     }
 
     public List<Prediction> findAllByWeekId(Long wid) {
-        return repository.findAllByMatchWeekWidAndMatchWeekSeasonIsCurrentTrueOrderByMatchLocalDateTimeDescMatchHomeTeamIdAsc(wid);
+        return repository.findAllByMatchWeekIdOrderByMatchLocalDateTimeDescMatchHomeTeamIdAsc(wid);
     }
 
     public List<Prediction> findAllByUserId(Long id) {
-        return repository.findAllByUserIdAndSeasonIsCurrentTrueOrderByMatchLocalDateTimeDesc(id);
+        return repository.findAllByUserIdOrderByMatchLocalDateTimeDesc(id);
     }
 
     public List<Prediction> findAllByUserIdAndWeekId(Long userId, Long wid) {
-        return repository.findAllByUserIdAndMatchWeekWidAndMatchWeekSeasonIsCurrentTrueOrderByMatchLocalDateTime(userId, wid);
+        return repository.findAllByUserIdAndMatchWeekIdOrderByMatchLocalDateTime(userId, wid);
     }
 
     public void deleteById(Long id) {
@@ -46,7 +44,7 @@ public class PredictionService {
     }
 
     public boolean isExist(Long userId, Long matchId) {
-        return repository.findAllByUserIdAndSeasonIsCurrentTrueOrderByMatchLocalDateTimeDesc(userId)
+        return repository.findAllByUserIdOrderByMatchLocalDateTimeDesc(userId)
                 .stream()
                 .anyMatch(prediction -> prediction.getMatch().getId().equals(matchId));
     }

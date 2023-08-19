@@ -8,7 +8,6 @@ import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.user.UserService;
-import zhigalin.predictions.util.FieldsUpdater;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,11 +25,17 @@ public class MatchService {
     private final UserService userService;
 
     public Match save(Match match) {
-        Match matchFromBD = repository.findByHomeTeamIdAndAwayTeamIdAndLocalDateTime(match.getHomeTeam().getId(),
-                match.getAwayTeam().getId(), match.getLocalDateTime());
-        if (matchFromBD != null) {
-            List<Prediction> predictions = matchFromBD.getPredictions();
-            if (predictions != null) {
+        if (repository.findByPublicId(match.getPublicId()) == null) {
+            return repository.save(match);
+        }
+        return null;
+    }
+    
+    public void update(Match match) {
+        Match m = repository.findByPublicId(match.getPublicId());
+        if (m != null) {
+            List<Prediction> predictions = m.getPredictions();
+            if (!predictions.isEmpty()) {
                 List<User> users = userService.findAll();
                 List<User> usersWithNoPredicts = users.stream()
                         .filter(user -> !predictions.stream()
@@ -40,19 +45,24 @@ public class MatchService {
                         .toList();
                 for (User user : usersWithNoPredicts) {
                     predictions.add(Prediction.builder()
-                            .match(matchFromBD)
+                            .match(match)
                             .homeTeamScore(null)
                             .awayTeamScore(null)
                             .user(user)
-                            .season(matchFromBD.getWeek().getSeason())
                             .build());
                 }
                 predictions.forEach(Prediction::setPoints);
             }
-            return repository.save(FieldsUpdater.update(matchFromBD, match));
+            repository.updateMatch(match.getPublicId(), match.getHomeTeamScore(), match.getAwayTeamScore(),
+                    match.getResult(), match.getStatus());
         }
-        repository.updateSequence();
-        return repository.save(match);
+    }
+
+    public void updateStatusAndLocalDateTime(Match match) {
+        Match m = repository.findByPublicId(match.getPublicId());
+        if (m != null) {
+            repository.updateStatusAndDateTime(match.getPublicId(), match.getStatus(), m.getLocalDateTime());
+        }
     }
 
     public Match findById(Long id) {
@@ -80,8 +90,8 @@ public class MatchService {
                         LocalDateTime.now().plusDays(days));
     }
 
-    public List<Match> findAllByWeekId(Long wid) {
-        return repository.findAllByWeekWidAndWeekSeasonIsCurrentTrueOrderByLocalDateTime(wid);
+    public List<Match> findAllByWeekId(Long id) {
+        return repository.findAllByWeekIdOrderByLocalDateTime(id);
     }
 
     public List<Match> findAllByCurrentWeek() {
@@ -89,20 +99,20 @@ public class MatchService {
     }
 
     public List<Match> findAll() {
-        return repository.findAllByWeekSeasonIsCurrentTrue();
+        return repository.findAll();
     }
 
     public Match findByTeamNames(String homeTeamName, String awayTeamName) {
-        return repository.findByHomeTeamNameAndAwayTeamNameAndWeekSeasonIsCurrentTrue(homeTeamName, awayTeamName);
+        return repository.findByHomeTeamNameAndAwayTeamName(homeTeamName, awayTeamName);
     }
 
     public Match findByTeamCodes(String homeTeamCode, String awayTeamCode) {
-        return repository.findByHomeTeamCodeAndAwayTeamCodeAndWeekSeasonIsCurrentTrue(homeTeamCode, awayTeamCode);
+        return repository.findByHomeTeamCodeAndAwayTeamCode(homeTeamCode, awayTeamCode);
     }
 
     public List<Integer> getResultByTeamNames(String homeTeamName, String awayTeamName) {
         List<Integer> result = new ArrayList<>();
-        Match match = repository.findByHomeTeamNameAndAwayTeamNameAndWeekSeasonIsCurrentTrue(homeTeamName, awayTeamName);
+        Match match = repository.findByHomeTeamNameAndAwayTeamName(homeTeamName, awayTeamName);
         result.add(match.getHomeTeamScore());
         result.add(match.getAwayTeamScore());
         return result;
@@ -144,11 +154,11 @@ public class MatchService {
 
     public List<Match> findOnline() {
         return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusMinutes(140),
-                        LocalDateTime.now().plusMinutes(20));
+                        LocalDateTime.now().plusMinutes(20)).stream().filter(match -> !match.getStatus().equals("pst")).toList();
     }
 
     public List<Match> findAllByStatus(String status) {
-        return repository.findAllByStatusAndWeekSeasonIsCurrentTrue(status);
+        return repository.findAllByStatus(status);
     }
 
     public Match getOnlineResult(String teamName) {

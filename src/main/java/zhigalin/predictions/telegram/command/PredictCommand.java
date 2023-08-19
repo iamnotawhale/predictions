@@ -3,7 +3,6 @@ package zhigalin.predictions.telegram.command;
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
@@ -63,14 +62,12 @@ public class PredictCommand implements Command {
         if (match == null) {
             return null;
         }
-        Season season = seasonService.currentSeason();
 
         return Prediction.builder()
                 .match(match)
                 .user(user)
                 .homeTeamScore(homePredict)
                 .awayTeamScore(awayPredict)
-                .season(season)
                 .build();
     }
 }

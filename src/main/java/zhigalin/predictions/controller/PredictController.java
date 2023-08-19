@@ -38,7 +38,6 @@ public class PredictController {
     @PostMapping("/saveAndUpdate")
     public ModelAndView saveAndUpdate(@ModelAttribute Prediction prediction, HttpServletRequest request) {
         ModelAndView model = new ModelAndView("redirect:" + request.getHeader("referer"));
-        prediction.setSeason(seasonService.currentSeason());
         service.save(prediction);
         return model;
     }
@@ -101,7 +100,7 @@ public class PredictController {
 
     @ModelAttribute("currentWeek")
     public Long getCurrentWeekId() {
-        return weekService.findCurrentWeek().getWid();
+        return weekService.findCurrentWeek().getId();
     }
 
     @ModelAttribute("todayDateTime")

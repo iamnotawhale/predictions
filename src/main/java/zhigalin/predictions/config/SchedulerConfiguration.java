@@ -16,6 +16,6 @@ public class SchedulerConfiguration {
     @Scheduled(fixedDelay = SIX_MINUTES_DELAY)
     public void start() {
         dataInitService.allInit();
-        notificationService.check();
+//        notificationService.check();
     }
 }
