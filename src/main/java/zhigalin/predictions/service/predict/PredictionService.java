@@ -13,6 +13,7 @@ import java.util.List;
 @Slf4j
 public class PredictionService {
     private final PredictionRepository repository;
+
     public void save(Prediction prediction) {
         Prediction predictionFromDB = repository.findByMatchIdAndUserId(
                 prediction.getMatch().getId(), prediction.getUser().getId()
@@ -41,6 +42,25 @@ public class PredictionService {
 
     public void deleteById(Long id) {
         repository.delete(repository.findById(id).orElseThrow());
+    }
+
+    public void updatePoints(Long matchId, Long userId) {
+        Prediction prediction = repository.findByMatchIdAndUserId(matchId, userId);
+        long points;
+        Integer realHomeScore = prediction.getMatch().getHomeTeamScore();
+        Integer realAwayScore = prediction.getMatch().getAwayTeamScore();
+        Integer predictHomeScore = prediction.getHomeTeamScore();
+        Integer predictAwayScore = prediction.getAwayTeamScore();
+        if (predictHomeScore == null || predictAwayScore == null) {
+            points = -1;
+        } else {
+            points = realHomeScore == null || realAwayScore == null ? 0
+                    : realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore) ? 4
+                    : realHomeScore - realAwayScore == predictHomeScore - predictAwayScore ? 2
+                    : realHomeScore > realAwayScore && predictHomeScore > predictAwayScore ? 1
+                    : realHomeScore < realAwayScore && predictHomeScore < predictAwayScore ? 1 : -1;
+        }
+        repository.updatePoints(matchId, userId, points);
     }
 
     public boolean isExist(Long userId, Long matchId) {

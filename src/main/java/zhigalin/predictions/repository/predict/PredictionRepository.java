@@ -21,5 +21,10 @@ public interface PredictionRepository extends JpaRepository<Prediction, Long> {
             "where p.match.id = :matchId and p.user.id = :userId")
     void update(Long matchId, Long userId, Integer homeTeamScore, Integer awayTeamScore);
 
+    @Transactional
+    @Modifying
+    @Query("update Prediction p set p.points = :points " +
+            "where p.match.id = :matchId and p.user.id = :userId")
+    void updatePoints(Long matchId, Long userId, Long points);
 }
 

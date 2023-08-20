@@ -19,7 +19,7 @@ public class UpdateCommand implements Command {
         if (update.getMessage().getChatId() == 739299) {
             Match match = getMatchDto(update);
             if (match != null) {
-                matchService.save(match);
+                matchService.update(match);
                 String message = "Матч обновлен";
                 messageService.sendMessage(update.getMessage().getChatId().toString(), message);
             } else {
