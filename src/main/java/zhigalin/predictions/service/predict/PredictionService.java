@@ -21,7 +21,7 @@ public class PredictionService {
         if (predictionFromDB != null) {
             repository.update(prediction.getMatch().getId(), prediction.getUser().getId(), prediction.getHomeTeamScore(), prediction.getAwayTeamScore());
         }
-        repository.save(prediction);
+        repository.saveAndFlush(prediction);
     }
 
     public Prediction findById(Long id) {
