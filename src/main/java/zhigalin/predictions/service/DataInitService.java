@@ -67,7 +67,6 @@ public class DataInitService {
     private final HeadToHeadService headToHeadService;
     private final StandingService standingService;
     private final UserService userService;
-    private List<Match> online;
     private final Set<Long> notificationBan = new HashSet<>();
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
@@ -368,7 +367,7 @@ public class DataInitService {
                             .append(match.getAwayTeamScore()).append(" ")
                             .append(match.getAwayTeam().getCode()).append("`").append("\n\n");
                     for (Prediction prediction : match.getPredictions()) {
-                        builder.append("`").append(prediction.getUser().getLogin().substring(0, 4).toUpperCase()).append(" ")
+                        builder.append("`").append(prediction.getUser().getLogin().substring(0, 3).toUpperCase()).append(" ")
                                 .append(prediction.getHomeTeamScore()).append(":").append(prediction.getAwayTeamScore()).append(" ");
                         if (prediction.getPoints() != -1) {
                             builder.append(" ");
