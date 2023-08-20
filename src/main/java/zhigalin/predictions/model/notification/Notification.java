@@ -14,4 +14,9 @@ import zhigalin.predictions.model.user.User;
 public class Notification {
     User user;
     Match match;
+
+    @Override
+    public String toString() {
+        return "notification#" + user.getId() + match.getId();
+    }
 }
