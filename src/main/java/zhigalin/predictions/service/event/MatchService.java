@@ -60,6 +60,12 @@ public class MatchService {
         }
     }
 
+    public void forceUpdatePoints(Match match) {
+        for (User user : userService.findAll()) {
+            predictionService.updatePoints(match.getId(), user.getId());
+        }
+    }
+
     private void updatePredictions(Match m, List<User> users) {
         for (User user : users) {
             predictionService.updatePoints(m.getId(), user.getId());
