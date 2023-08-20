@@ -1,5 +1,6 @@
 package zhigalin.predictions.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
@@ -7,10 +8,10 @@ import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,8 +36,10 @@ import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.user.UserService;
 
+import java.io.IOException;
 import java.net.URL;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.*;
 import java.util.*;
@@ -71,7 +74,7 @@ public class DataInitService {
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    public void allInit() {
+    public void allInit() throws UnirestException, IOException, FeedException, ParseException {
         LocalTime now = LocalTime.now();
         if (now.isAfter(LocalTime.of(9, 0)) &&
                 now.isBefore(LocalTime.of(9, 6))) {
@@ -79,14 +82,13 @@ public class DataInitService {
         }
         matchUpdateFromApiFootball();
         newsInit();
-//        fullTimeMatchNotification();
+        fullTimeMatchNotification();
 //        teamsInitFromApiFootball();
 //        matchInitFromApiFootball();
 //        headToHeadInitFromApiFootball();
     }
 
-    @SneakyThrows
-    private void matchUpdateFromApiFootball() {
+    private void matchUpdateFromApiFootball() throws UnirestException, JsonProcessingException {
         String result;
         if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
@@ -136,8 +138,7 @@ public class DataInitService {
         }
     }
 
-    @SneakyThrows
-    private void matchInitFromApiFootball() {
+    private void matchInitFromApiFootball() throws UnirestException, JsonProcessingException {
         Match match;
         String result;
         HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
@@ -280,8 +281,7 @@ public class DataInitService {
         }
     }
 
-    @SneakyThrows
-    private void matchDateTimeStatusUpdate() {
+    private void matchDateTimeStatusUpdate() throws UnirestException, JsonProcessingException {
         HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                 .header(xRapidApi, apiFootballToken)
                 .header(HOST_NAME, HOST)
@@ -400,8 +400,7 @@ public class DataInitService {
         }
     }
 
-    @SneakyThrows
-    private void postponedMatches() {
+    private void postponedMatches() throws UnirestException, JsonProcessingException {
         HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                 .header(xRapidApi, apiFootballToken)
                 .header(HOST_NAME, HOST)
@@ -417,7 +416,6 @@ public class DataInitService {
         }
     }
 
-    @SneakyThrows
     private void currentWeekUpdate() {
         Long id = weekService.findCurrentWeek().getId();
         Week currentWeek = weekService.findById(id);
@@ -426,8 +424,7 @@ public class DataInitService {
         weekService.updateCurrent(nextCurrentWeek, true);
     }
 
-    @SneakyThrows
-    private void newsInit() {
+    private void newsInit() throws IOException, ParseException, FeedException {
         if (newsService.findAll().size() > 30) {
             newsService.deleteAll();
         }
@@ -453,8 +450,7 @@ public class DataInitService {
         }
     }
 
-    @SneakyThrows
-    private void headToHeadInitFromApiFootball() {
+    private void headToHeadInitFromApiFootball() throws UnirestException, JsonProcessingException {
         List<Integer> leagues = Stream.of(39, 45, 48, 2).toList();
         List<Integer> seasons = Stream.of(2020, 2021, 2022).toList();
         for (int i = 0; i < 4; i++) {
@@ -500,8 +496,7 @@ public class DataInitService {
         }
     }
 
-    @SneakyThrows
-    private void teamsInitFromApiFootball() {
+    private void teamsInitFromApiFootball() throws UnirestException, JsonProcessingException {
         HttpResponse<String> resp = Unirest.get("https://v3.football.api-sports.io/teams")
                 .header(xRapidApi, apiFootballToken)
                 .header(HOST_NAME, HOST)
