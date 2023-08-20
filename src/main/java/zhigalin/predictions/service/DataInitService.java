@@ -72,17 +72,17 @@ public class DataInitService {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     public void allInit() {
-//        LocalTime now = LocalTime.now();
-//        online = matchService.findOnline();
-//        if (now.isAfter(LocalTime.of(9, 0)) &&
-//                now.isBefore(LocalTime.of(9, 6))) {
-//            sendTodaysMatchNotification();
-//        }
-//        matchUpdateFromApiFootball();
-//        newsInit();
+        LocalTime now = LocalTime.now();
+        online = matchService.findOnline();
+        if (now.isAfter(LocalTime.of(9, 0)) &&
+                now.isBefore(LocalTime.of(9, 6))) {
+            sendTodaysMatchNotification();
+        }
+        matchUpdateFromApiFootball();
+        newsInit();
 //        fullTimeMatchNotification();
-        teamsInitFromApiFootball();
-        matchInitFromApiFootball();
+//        teamsInitFromApiFootball();
+//        matchInitFromApiFootball();
 //        headToHeadInitFromApiFootball();
     }
 
