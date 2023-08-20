@@ -29,20 +29,4 @@ public class Prediction {
     private Integer homeTeamScore;
     private Integer awayTeamScore;
     private Long points;
-
-    public void setPoints() {
-        Integer realHomeScore = this.match.getHomeTeamScore();
-        Integer realAwayScore = this.match.getAwayTeamScore();
-        Integer predictHomeScore = this.getHomeTeamScore();
-        Integer predictAwayScore = this.getAwayTeamScore();
-        if (predictHomeScore == null || predictAwayScore == null) {
-            this.points = -1L;
-            return;
-        }
-        this.points = (long) (realHomeScore == null || realAwayScore == null ? 0
-                : realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore) ? 4
-                : realHomeScore - realAwayScore == predictHomeScore - predictAwayScore ? 2
-                : realHomeScore > realAwayScore && predictHomeScore > predictAwayScore ? 1
-                : realHomeScore < realAwayScore && predictHomeScore < predictAwayScore ? 1 : -1);
-    }
 }

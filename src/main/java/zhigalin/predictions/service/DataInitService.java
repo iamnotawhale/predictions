@@ -73,7 +73,6 @@ public class DataInitService {
 
     public void allInit() {
         LocalTime now = LocalTime.now();
-        online = matchService.findOnline();
         if (now.isAfter(LocalTime.of(9, 0)) &&
                 now.isBefore(LocalTime.of(9, 6))) {
             sendTodaysMatchNotification();
@@ -88,7 +87,6 @@ public class DataInitService {
 
     @SneakyThrows
     private void matchUpdateFromApiFootball() {
-        Match match;
         String result;
         if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
@@ -96,7 +94,7 @@ public class DataInitService {
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
         }
-        if (!online.isEmpty()) {
+        if (!matchService.findOnline().isEmpty()) {
             HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                     .header(xRapidApi, apiFootballToken)
                     .header(HOST_NAME, HOST)
@@ -117,9 +115,7 @@ public class DataInitService {
                     case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
                     default -> status = null;
                 }
-                if (response.getGoals().getHome() == null) {
-                    continue;
-                } else {
+                if (response.getGoals().getHome() != null) {
                     Integer homeTeamScore = response.getGoals().getHome();
                     Integer awayTeamScore = response.getGoals().getAway();
 
@@ -128,14 +124,14 @@ public class DataInitService {
                     } else {
                         result = homeTeamScore > awayTeamScore ? "H" : "A";
                     }
-                    match = new Match();
-                    match.setPublicId(fixture.getId());
-                    match.setStatus(status);
-                    match.setHomeTeamScore(homeTeamScore);
-                    match.setAwayTeamScore(awayTeamScore);
-                    match.setResult(result);
+                    matchService.update(Match.builder()
+                            .publicId(fixture.getPublicId())
+                            .status(status)
+                            .result(result)
+                            .homeTeamScore(homeTeamScore)
+                            .awayTeamScore(awayTeamScore)
+                            .build());
                 }
-                matchService.update(match);
             }
         }
     }
@@ -153,7 +149,7 @@ public class DataInitService {
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
             Fixture fixture = response.getFixture();
-            Long publicId = fixture.getId();
+            Long publicId = fixture.getPublicId();
             LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
                     TimeZone.getDefault().toZoneId());
             String status = fixture.getStatus().getMyshort();
@@ -295,7 +291,7 @@ public class DataInitService {
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
             Fixture fixture = response.getFixture();
-            Long publicId = fixture.getId();
+            Long publicId = fixture.getPublicId();
             LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
                     TimeZone.getDefault().toZoneId());
             String status = fixture.getStatus().getMyshort();
@@ -415,7 +411,7 @@ public class DataInitService {
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
-            Match match = matchService.findByPublicId(response.getFixture().getId());
+            Match match = matchService.findByPublicId(response.getFixture().getPublicId());
             match.setStatus("pst");
             matchService.save(match);
         }
@@ -460,9 +456,9 @@ public class DataInitService {
     @SneakyThrows
     private void headToHeadInitFromApiFootball() {
         List<Integer> leagues = Stream.of(39, 45, 48, 2).toList();
-        List<Integer> seasons = Stream.of(2021, 2022).toList();
+        List<Integer> seasons = Stream.of(2020, 2021, 2022).toList();
         for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 2; j++) {
+            for (int j = 0; j < 3; j++) {
                 HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                         .header(xRapidApi, apiFootballToken)
                         .queryString("league", leagues.get(i))

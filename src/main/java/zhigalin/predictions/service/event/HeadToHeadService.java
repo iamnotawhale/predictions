@@ -50,6 +50,4 @@ public class HeadToHeadService {
         }
         return listOfHeadToHeads;
     }
-
-
 }

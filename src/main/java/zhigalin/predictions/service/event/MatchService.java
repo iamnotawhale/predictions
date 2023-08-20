@@ -7,6 +7,7 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.MatchRepository;
+import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ import java.util.Objects;
 public class MatchService {
     private final MatchRepository repository;
     private final UserService userService;
+    private final PredictionService predictionService;
 
     public Match save(Match match) {
         if (repository.findByPublicId(match.getPublicId()) == null) {
@@ -44,17 +46,23 @@ public class MatchService {
                                 .contains(user.getId()))
                         .toList();
                 for (User user : usersWithNoPredicts) {
-                    predictions.add(Prediction.builder()
+                    predictionService.save(Prediction.builder()
                             .match(match)
                             .homeTeamScore(null)
                             .awayTeamScore(null)
                             .user(user)
                             .build());
                 }
-                predictions.forEach(Prediction::setPoints);
+                updatePredictions(m, users);
             }
             repository.updateMatch(match.getPublicId(), match.getHomeTeamScore(), match.getAwayTeamScore(),
                     match.getResult(), match.getStatus());
+        }
+    }
+
+    private void updatePredictions(Match m, List<User> users) {
+        for (User user : users) {
+            predictionService.updatePoints(m.getId(), user.getId());
         }
     }
 
