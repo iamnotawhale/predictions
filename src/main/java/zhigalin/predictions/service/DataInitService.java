@@ -359,6 +359,7 @@ public class DataInitService {
         List<Match> online = matchService.findOnline();
         if (!online.isEmpty()) {
             for (Match match : online) {
+                matchService.forceUpdatePoints(match);
                 StringBuilder builder = new StringBuilder();
                 if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
                     builder.append("`").append(match.getHomeTeam().getCode()).append(" ")
