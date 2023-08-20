@@ -27,6 +27,7 @@ import zhigalin.predictions.model.input.ResponseTeam;
 import zhigalin.predictions.model.input.Root;
 import zhigalin.predictions.model.news.News;
 import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.SeasonService;
@@ -34,6 +35,7 @@ import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
+import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.user.UserService;
 
 import java.io.IOException;
@@ -67,6 +69,7 @@ public class DataInitService {
     private final HeadToHeadService headToHeadService;
     private final StandingService standingService;
     private final UserService userService;
+    private final PointsService pointsService;
     private final Set<Long> notificationBan = new HashSet<>();
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
@@ -92,6 +95,7 @@ public class DataInitService {
         if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
                         || Objects.equals(m.getStatus(), "pst"))) {
+            weeklyResultNotification();
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
         }
@@ -134,6 +138,32 @@ public class DataInitService {
                             .build());
                 }
             }
+        }
+    }
+
+    private void weeklyResultNotification() {
+        Long id = weekService.findCurrentWeek().getId();
+        Map<User, Long> currentWeekUsersPoints = pointsService.getWeeklyUsersPoints(id);
+        StringBuilder builder = new StringBuilder();
+        builder.append("Очки за тур: ").append("\n");
+        for (Map.Entry<User, Long> entry : currentWeekUsersPoints.entrySet()) {
+            builder.append(entry.getKey().getLogin().toUpperCase(), 0, 3).append(" ")
+                    .append(entry.getValue()).append(" pts").append("\n");
+        }
+        try {
+            HttpResponse<JsonNode> response = Unirest.get(url)
+                    .queryString("chat_id", chatId)
+                    .queryString("text", builder.toString())
+                    .queryString("parse_mode", "Markdown")
+                    .asJson();
+            if (response.getStatus() == 200) {
+                log.info(response.getBody());
+                log.info("Message weekly results notification has been send");
+            } else {
+                log.warn("Don't send weekly results notification");
+            }
+        } catch (UnirestException e) {
+            log.error("Sending message error: " + e.getMessage());
         }
     }
 
