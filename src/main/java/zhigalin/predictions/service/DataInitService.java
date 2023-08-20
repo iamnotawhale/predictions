@@ -368,7 +368,9 @@ public class DataInitService {
                             .append(match.getAwayTeam().getCode()).append("`").append("\n\n");
                     for (Prediction prediction : match.getPredictions()) {
                         builder.append("`").append(prediction.getUser().getLogin().substring(0, 3).toUpperCase()).append(" ")
-                                .append(prediction.getHomeTeamScore()).append(":").append(prediction.getAwayTeamScore()).append(" ");
+                                .append(prediction.getHomeTeamScore() != null ? prediction.getHomeTeamScore() : " ").append(":")
+                                .append(prediction.getAwayTeamScore() != null ? prediction.getAwayTeamScore() : " ")
+                                .append(" ");
                         if (prediction.getPoints() != -1) {
                             builder.append(" ");
                         }

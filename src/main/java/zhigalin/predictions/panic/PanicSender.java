@@ -17,7 +17,7 @@ public class PanicSender {
 
     public void sendPanic(Exception e) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Predictions exception: ").append(e.getMessage());
+        builder.append("Predictions exception: ").append(e).append(" // ").append(e.getMessage());
         try {
             HttpResponse<String> response = Unirest.get(url)
                     .queryString("chat_id", chatId)
