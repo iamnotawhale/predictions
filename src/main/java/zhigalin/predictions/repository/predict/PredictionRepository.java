@@ -15,7 +15,6 @@ public interface PredictionRepository extends JpaRepository<Prediction, Long> {
     List<Prediction> findAllByMatchWeekIdOrderByMatchLocalDateTimeDescMatchHomeTeamIdAsc(Long id);
     List<Prediction> findAllByUserIdOrderByMatchLocalDateTimeDesc(Long id);
     List<Prediction> findAllByUserIdAndMatchWeekIdOrderByMatchLocalDateTime(Long userId, Long id);
-
     @Transactional
     @Modifying
     @Query("update Prediction p set p.homeTeamScore = :homeTeamScore, p.awayTeamScore = :awayTeamScore " +

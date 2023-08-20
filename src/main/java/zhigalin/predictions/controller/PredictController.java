@@ -8,7 +8,6 @@ import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.predict.PointsService;
@@ -28,7 +27,6 @@ public class PredictController {
     private final WeekService weekService;
     private final StandingService standingService;
     private final PointsService pointsService;
-    private final SeasonService seasonService;
 
     @GetMapping("/{id}")
     public Prediction getById(@PathVariable Long id) {
