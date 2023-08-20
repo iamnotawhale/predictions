@@ -33,7 +33,7 @@ public class NotificationService {
     private final List<Notification> notificationsToSend = new ArrayList<>();
     private final List<String> sentNotifications = new ArrayList<>();
 
-    public void check() {
+    public void check() throws UnirestException {
         List<User> users = userService.findAll();
         List<Match> nearest = matchService.findAllNearest();
         if (!nearest.isEmpty()) {
@@ -58,10 +58,10 @@ public class NotificationService {
         }
     }
 
-    public void sendNotification(List<Notification> list) {
+    public void sendNotification(List<Notification> list) throws UnirestException {
         for (Notification notification : list) {
             if (!sentNotifications.contains(String.valueOf(notification.getMatch().getId()) + notification.getUser().getId())) {
-                Duration duration = Duration.between(LocalTime.now().plusMinutes(5), notification.getMatch().getLocalDateTime().toLocalTime());
+                Duration duration = Duration.between(LocalTime.now().plusMinutes(6), notification.getMatch().getLocalDateTime().toLocalTime());
                 StringBuilder builder = new StringBuilder();
                 builder.append("Не проставлен прогноз на матч:\n")
                         .append(notification.getMatch().getHomeTeam().getCode()).append(" ")
@@ -88,6 +88,7 @@ public class NotificationService {
                     }
                 } catch (UnirestException e) {
                     log.error("Sending message error: " + e.getMessage());
+                    throw e;
                 }
             }
         }
