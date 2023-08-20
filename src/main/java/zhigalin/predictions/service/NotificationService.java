@@ -1,19 +1,9 @@
 package zhigalin.predictions.service;
 
-import java.sql.Date;
-import java.time.Duration;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +13,12 @@ import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.user.UserService;
+
+import java.time.Duration;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Log4j2
 @Service
@@ -35,29 +31,36 @@ public class NotificationService {
     private final MatchService matchService;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
     private final List<Notification> notificationsToSend = new ArrayList<>();
-    private final Set<Notification> sentNotifications = new HashSet<>();
+    private final List<String> sentNotifications = new ArrayList<>();
 
     public void check() {
         List<User> users = userService.findAll();
         List<Match> nearest = matchService.findAllNearest();
-        users.forEach(user -> {
-            for (Match match : nearest) {
-                boolean hasPredict = match.getPredictions().stream()
-                        .anyMatch(prediction -> prediction.getUser().getId().equals(user.getId()));
-                if (!hasPredict) {
-                    Notification notification = Notification.builder().user(user).match(match).build();
-                    if (!notificationsToSend.contains(notification)) {
-                        notificationsToSend.add(notification);
+        if (!nearest.isEmpty()) {
+            users.forEach(user -> {
+                for (Match match : nearest) {
+                    boolean hasPredict = match.getPredictions().stream()
+                            .anyMatch(prediction -> prediction.getUser().getId().equals(user.getId()));
+                    if (!hasPredict) {
+                        Notification notification = Notification.builder().user(user).match(match).build();
+                        if (!notificationsToSend.contains(notification)) {
+                            notificationsToSend.add(notification);
+                        } else {
+                            notificationsToSend.remove(notification);
+                        }
                     }
                 }
-            }
-        });
-        sendNotification(notificationsToSend);
+            });
+            sendNotification(notificationsToSend);
+        } else {
+         notificationsToSend.clear();
+         sentNotifications.clear();
+        }
     }
 
     public void sendNotification(List<Notification> list) {
         for (Notification notification : list) {
-            if (!sentNotifications.contains(notification)) {
+            if (!sentNotifications.contains(String.valueOf(notification.getMatch().getId()) + notification.getUser().getId())) {
                 Duration duration = Duration.between(LocalTime.now().plusMinutes(5), notification.getMatch().getLocalDateTime().toLocalTime());
                 StringBuilder builder = new StringBuilder();
                 builder.append("Не проставлен прогноз на матч:\n")
@@ -79,7 +82,7 @@ public class NotificationService {
                                 notification.getMatch().getAwayTeam().getCode(),
                                 notification.getUser().getLogin()
                         );
-                        sentNotifications.add(notification);
+                        sentNotifications.add(String.valueOf(notification.getMatch().getId()) + notification.getUser().getId());
                     } else {
                         log.warn("Don't send not predictable match notification");
                     }
