@@ -19,7 +19,7 @@ public class SchedulerConfiguration {
     public void start() {
         try {
             dataInitService.allInit();
-//        notificationService.check();
+            notificationService.check();
         } catch (Exception e) {
             panicSender.sendPanic(e);
         }
