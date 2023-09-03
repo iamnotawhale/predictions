@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableScheduling
 @SpringBootApplication
-@PropertySource("classpath:application-dev.properties")
+@PropertySource("classpath:application-prod.properties")
 public class PredictionsApplication {
     public static void main(String[] args) {
         SpringApplication.run(PredictionsApplication.class, args);
