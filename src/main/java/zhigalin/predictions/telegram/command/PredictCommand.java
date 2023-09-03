@@ -6,7 +6,6 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
@@ -19,17 +18,22 @@ public class PredictCommand implements Command {
     private final PredictionService predictionService;
     private final UserService userService;
     private final MatchService matchService;
-    private final SeasonService seasonService;
 
     private static final String REGEX = "[^A-Za-z0-9]";
 
     @Override
     public void execute(Update update) {
         String chatId = update.getMessage().getChatId().toString();
-        Prediction dto = getPredict(update, chatId);
-        if (dto != null) {
-            predictionService.save(dto);
-            messageService.sendMessage(chatId, "Ваш прогноз на матч сохранен");
+        Prediction predict = getPredict(update, chatId);
+        if (predict != null) {
+            String action;
+            if (predictionService.findByMatchIdAndUserId(predict.getMatch().getId(), predict.getUser().getId()) != null) {
+                action = "обновлен";
+            } else {
+                action = "сохранен";
+            }
+            predictionService.save(predict);
+            messageService.sendMessage(chatId, "Ваш прогноз на матч " + action);
         } else {
             messageService.sendMessage(chatId, "У вас нет прав делать прогноз" +
                     " из этого чата");
