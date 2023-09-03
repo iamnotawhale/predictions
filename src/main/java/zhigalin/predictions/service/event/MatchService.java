@@ -34,10 +34,10 @@ public class MatchService {
 
     public void update(Match match) {
         Match m = repository.findByPublicId(match.getPublicId());
+        List<User> users = userService.findAll();
         if (m != null) {
             List<Prediction> predictions = m.getPredictions();
-            if (!predictions.isEmpty()) {
-                List<User> users = userService.findAll();
+            if (!predictions.isEmpty() && predictions.size() < 4) {
                 List<User> usersWithNoPredicts = users.stream()
                         .filter(user -> !predictions.stream()
                                 .map(prediction -> prediction.getUser().getId())
@@ -47,13 +47,14 @@ public class MatchService {
                 for (User user : usersWithNoPredicts) {
                     predictionService.save(Prediction.builder()
                             .match(match)
+                            .points(-1L)
                             .homeTeamScore(null)
                             .awayTeamScore(null)
                             .user(user)
                             .build());
                 }
-                updatePredictions(m, users);
             }
+            updatePredictions(m, users);
             repository.updateMatch(match.getPublicId(), match.getHomeTeamScore(), match.getAwayTeamScore(),
                     match.getResult(), match.getStatus());
         }
