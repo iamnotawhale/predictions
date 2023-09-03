@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.user.User;
@@ -55,12 +56,13 @@ public class NotificationService {
     }
 
     private void sendNotification(Notification notification) throws UnirestException {
-        Duration duration = Duration.between(LocalTime.now().plusMinutes(6),
-                notification.getMatch().getLocalDateTime().toLocalTime());
+        Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
+        Duration duration = Duration.between(LocalTime.now(),
+                match.getLocalDateTime().toLocalTime());
         String builder = "Не проставлен прогноз на матч:\n" +
-                notification.getMatch().getHomeTeam().getCode() + " " +
-                notification.getMatch().getLocalDateTime().format(formatter) + " " +
-                notification.getMatch().getAwayTeam().getCode() + " " +
+                match.getHomeTeam().getCode() + " " +
+                match.getLocalDateTime().format(formatter) + " " +
+                match.getAwayTeam().getCode() + " " +
                 "осталось " + duration.toMinutes() % 60 + "мин.";
         String chatId = notification.getUser().getTelegramId();
 
@@ -71,12 +73,16 @@ public class NotificationService {
                 .asJson();
         if (response.getStatus() == 200) {
             log.info("Not predictable match {}:{} notification has been send to {}",
-                    notification.getMatch().getHomeTeam().getCode(),
-                    notification.getMatch().getAwayTeam().getCode(),
+                    match.getHomeTeam().getCode(),
+                    match.getAwayTeam().getCode(),
                     notification.getUser().getLogin()
             );
         } else {
             log.warn("Don't send not predictable match notification");
         }
+    }
+
+    private void sendingPhoto() {
+        InputFile inputFile = new InputFile();
     }
 }
