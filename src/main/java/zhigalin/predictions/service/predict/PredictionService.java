@@ -20,8 +20,9 @@ public class PredictionService {
         );
         if (predictionFromDB != null) {
             repository.update(prediction.getMatch().getId(), prediction.getUser().getId(), prediction.getHomeTeamScore(), prediction.getAwayTeamScore());
+        } else {
+            repository.saveAndFlush(prediction);
         }
-        repository.saveAndFlush(prediction);
     }
 
     public Prediction findById(Long id) {
@@ -70,9 +71,5 @@ public class PredictionService {
         return repository.findAllByUserIdOrderByMatchLocalDateTimeDesc(userId)
                 .stream()
                 .anyMatch(prediction -> prediction.getMatch().getId().equals(matchId));
-    }
-
-    public void updateUnpredictable() {
-
     }
 }
