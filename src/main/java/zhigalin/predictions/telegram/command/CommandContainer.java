@@ -24,7 +24,8 @@ public class CommandContainer {
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             StandingService standingService, TeamService teamService,
                             HeadToHeadService headToHeadService, NewsService newsService,
-                            PredictionService predictionService, UserService userService, SeasonService seasonService) {
+                            PredictionService predictionService, UserService userService,
+                            SeasonService seasonService) {
         commandMap = ImmutableMap.<String, Command>builder()
                 .put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService))
                 .put(START.getName(), new StartCommand(sendBotMessageService))
@@ -36,6 +37,7 @@ public class CommandContainer {
                 .put(TOUR_NUM.getName(), new TourNumCommand(sendBotMessageService, matchService))
                 .put(NEWS.getName(), new NewsCommand(sendBotMessageService, newsService))
                 .put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService))
+                .put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, matchService))
                 .build();
         unknownCommand = new UnknownCommand(sendBotMessageService);
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService);

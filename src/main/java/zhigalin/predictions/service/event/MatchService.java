@@ -10,17 +10,16 @@ import zhigalin.predictions.repository.event.MatchRepository;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 
+import javax.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @RequiredArgsConstructor
 @Service
 @Slf4j
+@Transactional
 public class MatchService {
     private final MatchRepository repository;
     private final UserService userService;
@@ -32,7 +31,7 @@ public class MatchService {
         }
         return null;
     }
-    
+
     public void update(Match match) {
         Match m = repository.findByPublicId(match.getPublicId());
         if (m != null) {
@@ -89,9 +88,9 @@ public class MatchService {
 
     public List<Match> findAllByTodayDate() {
         return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime
-                                .of(LocalDate.now(), LocalTime.of(0, 1)),
-                        LocalDateTime
-                                .of(LocalDate.now(), LocalTime.of(23, 59)));
+                        .of(LocalDate.now(), LocalTime.of(0, 1)),
+                LocalDateTime
+                        .of(LocalDate.now(), LocalTime.of(23, 59)));
     }
 
     public List<Match> findAllNearest() {
@@ -101,7 +100,7 @@ public class MatchService {
 
     public List<Match> findAllByUpcomingDays(Integer days) {
         return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now(),
-                        LocalDateTime.now().plusDays(days));
+                LocalDateTime.now().plusDays(days));
     }
 
     public List<Match> findAllByWeekId(Long id) {
@@ -168,7 +167,7 @@ public class MatchService {
 
     public List<Match> findOnline() {
         return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusMinutes(140),
-                        LocalDateTime.now().plusMinutes(20)).stream().filter(match -> !match.getStatus().equals("pst")).toList();
+                LocalDateTime.now().plusMinutes(20)).stream().filter(match -> !match.getStatus().equals("pst")).toList();
     }
 
     public List<Match> findAllByStatus(String status) {
@@ -201,5 +200,33 @@ public class MatchService {
             }
         }
         return null;
+    }
+
+    public void updateUnpredictableMatches() {
+        List<Match> allMatches = repository.findAll();
+        List<User> users = userService.findAll();
+        allMatches.stream()
+                .filter(m -> m.getLocalDateTime().isBefore(LocalDateTime.now()))
+                .filter(m -> m.getPredictions().size() < 4)
+                .forEach(m -> {
+                    List<Prediction> predictions = m.getPredictions();
+                    if (!predictions.isEmpty()) {
+                        List<User> usersWithNoPredicts = users.stream()
+                                .filter(user -> !predictions.stream()
+                                        .map(prediction -> prediction.getUser().getId())
+                                        .toList()
+                                        .contains(user.getId()))
+                                .toList();
+                        for (User user : usersWithNoPredicts) {
+                            predictionService.save(Prediction.builder()
+                                    .match(m)
+                                    .points(-1L)
+                                    .homeTeamScore(null)
+                                    .awayTeamScore(null)
+                                    .user(user)
+                                    .build());
+                        }
+                    }
+                });
     }
 }

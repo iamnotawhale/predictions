@@ -46,6 +46,9 @@ public class PredictionService {
 
     public void updatePoints(Long matchId, Long userId) {
         Prediction prediction = repository.findByMatchIdAndUserId(matchId, userId);
+        if (prediction == null) {
+            return;
+        }
         long points;
         Integer realHomeScore = prediction.getMatch().getHomeTeamScore();
         Integer realAwayScore = prediction.getMatch().getAwayTeamScore();
@@ -67,5 +70,9 @@ public class PredictionService {
         return repository.findAllByUserIdOrderByMatchLocalDateTimeDesc(userId)
                 .stream()
                 .anyMatch(prediction -> prediction.getMatch().getId().equals(matchId));
+    }
+
+    public void updateUnpredictable() {
+
     }
 }
