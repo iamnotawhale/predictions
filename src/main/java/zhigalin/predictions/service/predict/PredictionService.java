@@ -25,6 +25,10 @@ public class PredictionService {
         }
     }
 
+    public Prediction findByMatchIdAndUserId(Long matchId, Long userId) {
+        return repository.findByMatchIdAndUserId(matchId, userId);
+    }
+
     public Prediction findById(Long id) {
         return repository.findById(id).orElse(null);
     }
