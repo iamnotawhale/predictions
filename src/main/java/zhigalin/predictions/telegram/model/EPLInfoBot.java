@@ -10,6 +10,7 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
+import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.command.CommandContainer;
@@ -36,9 +37,10 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     @Autowired
     public EPLInfoBot(MatchService matchService, StandingService standingService, TeamService teamService,
                       HeadToHeadService headToHeadService, NewsService newsService,
-                      PredictionService predictionService, UserService userService) {
+                      PredictionService predictionService, UserService userService,
+                      PointsService pointsService) {
         commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, standingService,
-                teamService, headToHeadService, newsService, predictionService, userService);
+                teamService, headToHeadService, newsService, predictionService, userService, pointsService);
     }
 
     @Override

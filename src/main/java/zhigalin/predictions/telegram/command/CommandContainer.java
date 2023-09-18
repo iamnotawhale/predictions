@@ -6,6 +6,7 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.news.NewsService;
+import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
@@ -23,7 +24,8 @@ public class CommandContainer {
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             StandingService standingService, TeamService teamService,
                             HeadToHeadService headToHeadService, NewsService newsService,
-                            PredictionService predictionService, UserService userService) {
+                            PredictionService predictionService, UserService userService,
+                            PointsService pointsService) {
         commandMap = ImmutableMap.<String, Command>builder()
                 .put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService))
                 .put(START.getName(), new StartCommand(sendBotMessageService))
@@ -36,6 +38,7 @@ public class CommandContainer {
                 .put(NEWS.getName(), new NewsCommand(sendBotMessageService, newsService))
                 .put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService))
                 .put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, matchService))
+                .put(TOTAL.getName(), new TotalCommand(sendBotMessageService, pointsService))
                 .build();
         unknownCommand = new UnknownCommand(sendBotMessageService);
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService);
