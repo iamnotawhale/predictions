@@ -94,9 +94,9 @@ public class MatchService {
                         .of(LocalDate.now(), LocalTime.of(23, 59)));
     }
 
-    public List<Match> findAllNearest() {
+    public List<Match> findAllNearest(Long minutes) {
         LocalDateTime now = LocalDateTime.now();
-        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(now, now.plusMinutes(30));
+        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(now, now.plusMinutes(minutes));
     }
 
     public List<Match> findAllByUpcomingDays(Integer days) {

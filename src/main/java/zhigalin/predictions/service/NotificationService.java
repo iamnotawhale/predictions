@@ -4,11 +4,9 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.user.User;
@@ -19,23 +17,33 @@ import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Log4j2
 @Service
-@RequiredArgsConstructor
 public class NotificationService {
-    @Value("${bot.url}")
-    private String url;
+    @Value("${bot.urlMessage}")
+    private String urlMessage;
+    @Value("${bot.urlPhoto}")
+    private String urlPhoto;
 
     private final UserService userService;
     private final MatchService matchService;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-    private final List<String> notificationBLackList = new ArrayList<>();
+    private final Map<Long, List<String>> notificationBLackList = new HashMap<>();
 
-    public void check() throws UnirestException {
+    public NotificationService(UserService userService, MatchService matchService) {
+        this.userService = userService;
+        this.matchService = matchService;
+        notificationBLackList.put(30L, new ArrayList<>());
+        notificationBLackList.put(90L, new ArrayList<>());
+    }
+
+    public void check(Long minutes) throws UnirestException {
         List<User> users = userService.findAll();
-        List<Match> nearest = matchService.findAllNearest();
+        List<Match> nearest = matchService.findAllNearest(minutes);
         if (!nearest.isEmpty()) {
             for (User user : users) {
                 for (Match match : nearest) {
@@ -43,15 +51,45 @@ public class NotificationService {
                             .anyMatch(prediction -> prediction.getUser().getId().equals(user.getId()));
                     if (!hasPredict) {
                         Notification notification = Notification.builder().user(user).match(match).build();
-                        if (!notificationBLackList.contains(notification.toString())) {
-                            notificationBLackList.add(notification.toString());
-                            sendNotification(notification);
+                        if (!notificationBLackList.get(minutes).contains(notification.toString())) {
+                            notificationBLackList.get(minutes).add(notification.toString());
+                            if (minutes == 30) {
+                                sendPhoto(notification);
+                            } else {
+                                sendNotification(notification);
+                            }
                         }
                     }
                 }
             }
         } else {
-            notificationBLackList.clear();
+            notificationBLackList.get(minutes).clear();
+        }
+    }
+
+    private void sendPhoto(Notification notification) throws UnirestException {
+        Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
+        String chatId = notification.getUser().getTelegramId();
+        HttpResponse<JsonNode> response = Unirest.post(urlPhoto)
+                .headers(Map.of("accept", "application/json",
+                                "content-type", "application/json"
+                        )
+                )
+                .queryString("chat_id", chatId)
+                .body("{\"photo\":\"https://telegra.ph/file/fed7d1625ba24e824955b.jpg\"}")
+                .asJson();
+        if (response.getStatus() == 200) {
+            log.info("Send photo for match {}:{} notification has been send to {}",
+                    match.getHomeTeam().getCode(),
+                    match.getAwayTeam().getCode(),
+                    notification.getUser().getLogin()
+            );
+        } else {
+            log.warn("Don't send photo for for match {}:{} not send to {}",
+                    match.getHomeTeam().getCode(),
+                    match.getAwayTeam().getCode(),
+                    notification.getUser().getLogin()
+            );
         }
     }
 
@@ -66,7 +104,7 @@ public class NotificationService {
                 "осталось " + duration.toMinutes() % 60 + "мин.";
         String chatId = notification.getUser().getTelegramId();
 
-        HttpResponse<JsonNode> response = Unirest.get(url)
+        HttpResponse<JsonNode> response = Unirest.get(urlMessage)
                 .queryString("chat_id", chatId)
                 .queryString("text", builder)
                 .queryString("parse_mode", "Markdown")
@@ -80,9 +118,5 @@ public class NotificationService {
         } else {
             log.warn("Don't send not predictable match notification");
         }
-    }
-
-    private void sendingPhoto() {
-        InputFile inputFile = new InputFile();
     }
 }

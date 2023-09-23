@@ -19,7 +19,8 @@ public class SchedulerConfiguration {
     public void start() {
         try {
             dataInitService.allInit();
-            notificationService.check();
+            notificationService.check(90L);
+            notificationService.check(30L);
         } catch (Exception e) {
             panicSender.sendPanic(e);
         }

@@ -58,7 +58,7 @@ public class DataInitService {
     private String apiFootballToken;
     @Value("${bot.chatId}")
     private String chatId;
-    @Value("${bot.url}")
+    @Value("${bot.urlMessage}")
     private String url;
 
     private final TeamService teamService;
