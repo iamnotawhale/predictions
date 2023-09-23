@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class PanicSender {
     @Value("${chatId}")
     private String chatId;
-    @Value("${bot.url}")
+    @Value("${bot.urlMessage}")
     private String url;
 
     public void sendPanic(Exception e) {
