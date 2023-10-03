@@ -80,7 +80,6 @@ public class DataInitService {
         }
         matchUpdateFromApiFootball();
         fullTimeMatchNotification();
-        matchDateTimeStatusUpdate();
 //        teamsInitFromApiFootball();
 //        matchInitFromApiFootball();
 //        headToHeadInitFromApiFootball();
