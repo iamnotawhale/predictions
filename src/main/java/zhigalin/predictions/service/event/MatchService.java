@@ -75,7 +75,9 @@ public class MatchService {
     public void updateStatusAndLocalDateTime(Match match) {
         Match m = repository.findByPublicId(match.getPublicId());
         if (m != null) {
-            repository.updateStatusAndDateTime(match.getPublicId(), match.getStatus(), m.getLocalDateTime());
+            m.setStatus(match.getStatus());
+            m.setLocalDateTime(match.getLocalDateTime());
+            repository.save(m);
         }
     }
 
