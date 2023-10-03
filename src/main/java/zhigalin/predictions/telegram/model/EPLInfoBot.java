@@ -1,15 +1,16 @@
 package zhigalin.predictions.telegram.model;
 
+import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
@@ -36,11 +37,11 @@ public class EPLInfoBot extends TelegramLongPollingBot {
 
     @Autowired
     public EPLInfoBot(MatchService matchService, StandingService standingService, TeamService teamService,
-                      HeadToHeadService headToHeadService, NewsService newsService,
+                      HeadToHeadService headToHeadService, DataInitService dataInitService,
                       PredictionService predictionService, UserService userService,
                       PointsService pointsService) {
         commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, standingService,
-                teamService, headToHeadService, newsService, predictionService, userService, pointsService);
+                teamService, headToHeadService, dataInitService, predictionService, userService, pointsService);
     }
 
     @Override
@@ -53,6 +54,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         return token;
     }
 
+    @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {

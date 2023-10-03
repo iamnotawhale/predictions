@@ -1,11 +1,11 @@
 package zhigalin.predictions.telegram.command;
 
 import com.google.common.collect.ImmutableMap;
+import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
@@ -23,7 +23,7 @@ public class CommandContainer {
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             StandingService standingService, TeamService teamService,
-                            HeadToHeadService headToHeadService, NewsService newsService,
+                            HeadToHeadService headToHeadService, DataInitService dataInitService,
                             PredictionService predictionService, UserService userService,
                             PointsService pointsService) {
         commandMap = ImmutableMap.<String, Command>builder()
@@ -35,7 +35,7 @@ public class CommandContainer {
                 .put(TABLE.getName(), new TableCommand(sendBotMessageService, standingService))
                 .put(TOUR.getName(), new TourCommand(sendBotMessageService))
                 .put(TOUR_NUM.getName(), new TourNumCommand(sendBotMessageService, matchService))
-                .put(NEWS.getName(), new NewsCommand(sendBotMessageService, newsService))
+                .put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService))
                 .put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService))
                 .put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, matchService))
                 .put(TOTAL.getName(), new TotalCommand(sendBotMessageService, pointsService))

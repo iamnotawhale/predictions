@@ -34,9 +34,7 @@ import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.news.NewsService;
 import zhigalin.predictions.service.predict.PointsService;
-import zhigalin.predictions.service.user.UserService;
 
 import java.io.IOException;
 import java.net.URL;
@@ -65,10 +63,8 @@ public class DataInitService {
     private final SeasonService seasonService;
     private final WeekService weekService;
     private final MatchService matchService;
-    private final NewsService newsService;
     private final HeadToHeadService headToHeadService;
     private final StandingService standingService;
-    private final UserService userService;
     private final PointsService pointsService;
     private final Set<Long> notificationBan = new HashSet<>();
     private static final String HOST_NAME = "x-rapidapi-host";
@@ -76,15 +72,15 @@ public class DataInitService {
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    public void allInit() throws UnirestException, IOException, FeedException, ParseException {
+    public void allInit() throws UnirestException, IOException {
         LocalTime now = LocalTime.now();
         if (now.isAfter(LocalTime.of(9, 0)) &&
                 now.isBefore(LocalTime.of(9, 6))) {
             sendTodaysMatchNotification();
         }
         matchUpdateFromApiFootball();
-        newsInit();
         fullTimeMatchNotification();
+        matchDateTimeStatusUpdate();
 //        teamsInitFromApiFootball();
 //        matchInitFromApiFootball();
 //        headToHeadInitFromApiFootball();
@@ -444,7 +440,7 @@ public class DataInitService {
         for (Response response : root.getResponse()) {
             Match match = matchService.findByPublicId(response.getFixture().getPublicId());
             match.setStatus("pst");
-            matchService.save(match);
+            matchService.update(match);
         }
     }
 
@@ -456,10 +452,8 @@ public class DataInitService {
         weekService.updateCurrent(nextCurrentWeek, true);
     }
 
-    private void newsInit() throws IOException, ParseException, FeedException {
-        if (newsService.findAll().size() > 30) {
-            newsService.deleteAll();
-        }
+    public List<News> newsInit() throws IOException, ParseException, FeedException {
+        List<News> news = new LinkedList<>();
         String title;
         String link;
         LocalDateTime dateTime;
@@ -477,9 +471,10 @@ public class DataInitService {
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
             if (title.length() > 0) {
-                newsService.save(News.builder().title(title).link(link).localDateTime(dateTime).build());
+               news.add(News.builder().title(title).link(link).localDateTime(dateTime).build());
             }
         }
+        return news;
     }
 
     private void headToHeadInitFromApiFootball() throws UnirestException, JsonProcessingException {
