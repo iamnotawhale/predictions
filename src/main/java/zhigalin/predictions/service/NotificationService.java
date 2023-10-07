@@ -95,13 +95,13 @@ public class NotificationService {
 
     private void sendNotification(Notification notification) throws UnirestException {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
-        Duration duration = Duration.between(LocalTime.now(),
-                match.getLocalDateTime().toLocalTime());
+        long seconds = Duration.between(LocalTime.now(),
+                match.getLocalDateTime().toLocalTime()).getSeconds();
         String builder = "Не проставлен прогноз на матч:\n" +
                 match.getHomeTeam().getCode() + " " +
                 match.getLocalDateTime().format(formatter) + " " +
                 match.getAwayTeam().getCode() + " " +
-                "осталось " + duration.toMinutes() % 60 + "мин.";
+                "осталось " + (seconds / 60 + 1) + " мин.";
         String chatId = notification.getUser().getTelegramId();
 
         HttpResponse<JsonNode> response = Unirest.get(urlMessage)
