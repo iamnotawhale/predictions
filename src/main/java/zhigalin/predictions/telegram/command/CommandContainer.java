@@ -41,7 +41,7 @@ public class CommandContainer {
                 .put(TOTAL.getName(), new TotalCommand(sendBotMessageService, pointsService))
                 .build();
         unknownCommand = new UnknownCommand(sendBotMessageService);
-        teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService);
+        teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, headToHeadService);
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
         updateCommand = new UpdateCommand(sendBotMessageService, matchService);
         predictCommand = new PredictCommand(sendBotMessageService, predictionService,
