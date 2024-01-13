@@ -42,9 +42,9 @@ public class TeamCommand implements Command {
                                 m.getAwayTeam().getId().equals(team.getId())).findFirst().get();
                 Long anotherTeamId = !team.getId().equals(match.getHomeTeam().getId()) ? match.getHomeTeam().getId() : match.getAwayTeam().getId();
                 Team anotherTeam = teamService.findById(anotherTeamId);
-                builder.append("\n\n").append(anotherTeam.getCode());
+                builder.append("\n\n").append(anotherTeam.getCode()).append("\n");
                 getLastFiveMatchesInfoByTeam(anotherTeam, builder);
-                builder.append("\n\n").append("HEAD TO HEAD:");
+                builder.append("\n\n").append("HEAD TO HEAD:").append("\n");
                 List<HeadToHead> list = headToHeadService.findAllByTwoTeamsCode(team.getCode(), anotherTeam.getCode());
                 for (HeadToHead h2h : list) {
                     builder.append("`").append(h2h.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM.yy"))).append(" ")
@@ -53,7 +53,7 @@ public class TeamCommand implements Command {
                             .append(h2h.getHomeTeamScore()).append(" - ")
                             .append(h2h.getAwayTeamScore()).append(" ")
                             .append(h2h.getAwayTeam().getCode()).append(" ")
-                            .append("`").append("\n\n");
+                            .append("`").append("\n");
                 }
             }
         }
