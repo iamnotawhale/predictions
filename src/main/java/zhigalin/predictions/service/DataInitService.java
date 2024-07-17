@@ -1,5 +1,26 @@
 package zhigalin.predictions.service;
 
+import java.io.IOException;
+import java.net.URL;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TimeZone;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mashape.unirest.http.HttpResponse;
@@ -36,16 +57,6 @@ import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.predict.PointsService;
 
-import java.io.IOException;
-import java.net.URL;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.*;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 @Log4j2
 @Service
 @RequiredArgsConstructor
@@ -58,7 +69,7 @@ public class DataInitService {
     private String chatId;
     @Value("${bot.urlMessage}")
     private String url;
-
+    private boolean needInit = true;
     private final TeamService teamService;
     private final SeasonService seasonService;
     private final WeekService weekService;
@@ -73,6 +84,12 @@ public class DataInitService {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     public void allInit() throws UnirestException, IOException {
+        if (needInit) {
+            teamsInitFromApiFootball();
+            matchInitFromApiFootball();
+            needInit = false;
+        }
+
         LocalTime now = LocalTime.now();
         if (now.isAfter(LocalTime.of(9, 0)) &&
                 now.isBefore(LocalTime.of(9, 6))) {
@@ -80,8 +97,6 @@ public class DataInitService {
         }
         matchUpdateFromApiFootball();
         fullTimeMatchNotification();
-//        teamsInitFromApiFootball();
-//        matchInitFromApiFootball();
 //        headToHeadInitFromApiFootball();
     }
 
@@ -89,7 +104,7 @@ public class DataInitService {
         String result;
         if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
-                        || Objects.equals(m.getStatus(), "pst"))) {
+                               || Objects.equals(m.getStatus(), "pst"))) {
             weeklyResultNotification();
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
@@ -99,7 +114,7 @@ public class DataInitService {
                     .header(xRapidApi, apiFootballToken)
                     .header(HOST_NAME, HOST)
                     .queryString("league", 39)
-                    .queryString("season", 2023)
+                    .queryString("season", 2024)
                     .queryString("from", LocalDate.now().toString())
                     .queryString("to", LocalDate.now().toString())
                     .asString();
@@ -169,7 +184,7 @@ public class DataInitService {
                 .header(xRapidApi, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2023)
+                .queryString("season", 2024)
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
@@ -310,7 +325,7 @@ public class DataInitService {
                 .header(xRapidApi, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2023)
+                .queryString("season", 2024)
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
@@ -432,7 +447,7 @@ public class DataInitService {
                 .header(xRapidApi, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2023)
+                .queryString("season", 2024)
                 .queryString("status", "pst")
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
@@ -470,7 +485,7 @@ public class DataInitService {
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
             if (title.length() > 0) {
-               news.add(News.builder().title(title).link(link).localDateTime(dateTime).build());
+                news.add(News.builder().title(title).link(link).localDateTime(dateTime).build());
             }
         }
         return news;
@@ -527,7 +542,7 @@ public class DataInitService {
                 .header(xRapidApi, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2023)
+                .queryString("season", 2024)
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
