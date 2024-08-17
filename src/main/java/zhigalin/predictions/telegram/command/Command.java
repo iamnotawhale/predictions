@@ -1,10 +1,10 @@
 package zhigalin.predictions.telegram.command;
 
-import com.rometools.rome.io.FeedException;
-import org.telegram.telegrambots.meta.api.objects.Update;
-
 import java.io.IOException;
 import java.text.ParseException;
+
+import com.rometools.rome.io.FeedException;
+import org.telegram.telegrambots.meta.api.objects.Update;
 
 public interface Command {
 

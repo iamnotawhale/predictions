@@ -1,38 +1,32 @@
 package zhigalin.predictions.service.event;
 
-import lombok.RequiredArgsConstructor;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.repository.event.HeadToHeadRepository;
+import zhigalin.predictions.repository.event.HeadToHeadDao;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Stream;
-
-@RequiredArgsConstructor
-@Service
 @Slf4j
+@Service
 public class HeadToHeadService {
-    private final HeadToHeadRepository repository;
+    private final HeadToHeadDao dao;
     private final MatchService matchService;
 
-    public HeadToHead save(HeadToHead h2h) {
-        HeadToHead fromBD = repository.findByHomeTeamPublicIdAndAwayTeamPublicIdAndLocalDateTime(
-                h2h.getHomeTeam().getPublicId(),
-                h2h.getAwayTeam().getPublicId(),
-                h2h.getLocalDateTime()
-        );
-        return fromBD != null ? null : repository.save(h2h);
+    public HeadToHeadService(HeadToHeadDao dao, MatchService matchService) {
+        this.dao = dao;
+        this.matchService = matchService;
+    }
+
+    public void save(HeadToHead h2h) {
+        dao.save(h2h);
     }
 
     public List<HeadToHead> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode) {
-        List<HeadToHead> list1 = repository.findAllByHomeTeamCodeAndAwayTeamCode(homeTeamCode, awayTeamCode);
-        List<HeadToHead> list2 = repository.findAllByHomeTeamCodeAndAwayTeamCode(awayTeamCode, homeTeamCode);
-
-        return Stream.concat(list1.stream(), list2.stream())
+        return dao.getH2hByTeamsCode(homeTeamCode, awayTeamCode).stream()
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
                 .limit(7)
                 .toList();

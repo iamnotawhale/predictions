@@ -1,5 +1,9 @@
 package zhigalin.predictions.telegram.command;
 
+import java.time.format.DateTimeFormatter;
+import java.util.EnumSet;
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.HeadToHead;
@@ -9,10 +13,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-
-import java.time.format.DateTimeFormatter;
-import java.util.EnumSet;
-import java.util.List;
 
 @RequiredArgsConstructor
 public class TeamCommand implements Command {
@@ -36,7 +36,7 @@ public class TeamCommand implements Command {
             getLastFiveMatchesInfoByTeam(team, builder);
             if (matchService.findAllByTodayDate().stream().anyMatch(match ->
                     match.getHomeTeam().getId().equals(team.getId()) ||
-                    match.getAwayTeam().getId().equals(team.getId()))) {
+                            match.getAwayTeam().getId().equals(team.getId()))) {
                 Match match = matchService.findAllByTodayDate().stream().filter(m ->
                         m.getHomeTeam().getId().equals(team.getId()) ||
                                 m.getAwayTeam().getId().equals(team.getId())).findFirst().get();
@@ -61,8 +61,8 @@ public class TeamCommand implements Command {
     }
 
     private void getLastFiveMatchesInfoByTeam(Team team, StringBuilder builder) {
-        List<Match> lastFiveMatches = matchService.findLast5MatchesByTeamId(team.getId());
-        List<String> result = matchService.getLast5MatchesResultByTeamId(team.getId());
+        List<Match> lastFiveMatches = matchService.findLast5MatchesByTeamId(team.getPublicId());
+        List<String> result = matchService.getLast5MatchesResultByTeamId(team.getPublicId());
         int i = 0;
         for (Match match : lastFiveMatches) {
             builder.append("`").append(match.getHomeTeam().getCode()).append(" ")

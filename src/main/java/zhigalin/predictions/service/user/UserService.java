@@ -1,19 +1,19 @@
 package zhigalin.predictions.service.user;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.repository.user.UserRepository;
-
-import java.util.List;
+import zhigalin.predictions.repository.user.UserDao;
 
 @RequiredArgsConstructor
 @Service
 @Slf4j
 public class UserService {
-    private final UserRepository repository;
+    private final UserDao repository;
     private final PasswordEncoder bCryptPasswordEncoder;
 
     public User save(User user) {
@@ -29,7 +29,7 @@ public class UserService {
         return repository.findAll();
     }
 
-    public User findById(Long id) {
+    public User findById(int id) {
         return repository.findById(id).orElse(null);
     }
 

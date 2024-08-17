@@ -7,13 +7,13 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.repository.user.UserRepository;
+import zhigalin.predictions.repository.user.UserDao;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class UserDetailsService implements org.springframework.security.core.userdetails.UserDetailsService {
-    private final UserRepository repository;
+    private final UserDao repository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {

@@ -1,5 +1,11 @@
 package zhigalin.predictions.service;
 
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
@@ -13,14 +19,6 @@ import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.user.UserService;
 
-import java.time.Duration;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 @Log4j2
 @Service
 public class NotificationService {
@@ -32,7 +30,7 @@ public class NotificationService {
     private final UserService userService;
     private final MatchService matchService;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-    private final Map<Long, List<String>> notificationBLackList = new HashMap<>();
+    private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
 
     public NotificationService(UserService userService, MatchService matchService) {
         this.userService = userService;
@@ -41,7 +39,7 @@ public class NotificationService {
         notificationBLackList.put(90L, new ArrayList<>());
     }
 
-    public void check(Long minutes) throws UnirestException {
+    public void check(int minutes) throws UnirestException {
         List<User> users = userService.findAll();
         List<Match> nearest = matchService.findAllNearest(minutes);
         if (!nearest.isEmpty()) {
@@ -56,7 +54,7 @@ public class NotificationService {
                             if (minutes == 30) {
                                 sendPhoto(notification);
                             } else {
-                                sendNotification(notification);
+                                sendNotification(notification, minutes);
                             }
                         }
                     }
@@ -93,15 +91,13 @@ public class NotificationService {
         }
     }
 
-    private void sendNotification(Notification notification) throws UnirestException {
+    private void sendNotification(Notification notification, int minutes) throws UnirestException {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
-        long seconds = Duration.between(LocalTime.now(),
-                match.getLocalDateTime().toLocalTime()).getSeconds();
         String builder = "Не проставлен прогноз на матч:\n" +
                 match.getHomeTeam().getCode() + " " +
                 match.getLocalDateTime().format(formatter) + " " +
                 match.getAwayTeam().getCode() + " " +
-                "осталось " + (seconds / 60 + 1) + " мин.";
+                "осталось " + minutes + " мин.";
         String chatId = notification.getUser().getTelegramId();
 
         HttpResponse<JsonNode> response = Unirest.get(urlMessage)
