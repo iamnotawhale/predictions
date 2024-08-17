@@ -1,47 +1,47 @@
 package zhigalin.predictions.service.football;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.repository.football.StandingRepository;
+import zhigalin.predictions.repository.football.StandingDao;
 import zhigalin.predictions.service.event.MatchService;
-
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @RequiredArgsConstructor
 @Service
 @Slf4j
 public class StandingService {
-    private final StandingRepository repository;
+    private final StandingDao standingDao;
     private final MatchService matchService;
     private final TeamService teamService;
-    private final Map<Long, Integer> places = new HashMap<>();
+    private final Map<Integer, Integer> places = new HashMap<>();
 
-    public Standing save(Standing standing) {
-        return repository.findByTeamId(standing.getTeam().getId()) != null ? null : repository.save(standing);
+    public void save(Standing standing) {
+        standingDao.save(standing);
     }
 
     public void update(Standing standing) {
-        Standing st = findByPublicId(standing.getTeam().getPublicId());
-        if (st != null) {
-            repository.update(standing.getTeam().getId(), standing.getGames(), standing.getPoints(), standing.getWon(),
-                    standing.getDraw(), standing.getLost(), standing.getGoalsScored(), standing.getGoalsAgainst());
-        }
+        standingDao.update(standing);
     }
 
-    public Standing findByPublicId(Long publicId) {
-        return repository.findByTeamPublicId(publicId);
+    public Standing findByPublicId(int publicId) {
+        return standingDao.findByTeamPublicId(publicId);
     }
 
     public List<Standing> findAll() {
         List<Standing> list;
         AtomicInteger place = new AtomicInteger(1);
         if (matchService.findOnline().isEmpty()) {
-            list = repository.findAll();
+            list = standingDao.findAll();
         } else {
             list = currentOnlineTable();
         }
@@ -49,14 +49,14 @@ public class StandingService {
                 .sorted(Comparator.comparing(Standing::getPoints)
                         .reversed()
                         .thenComparing(Standing::compareGoals)
-                        .thenComparing((s1, s2) -> s2.getGoalsScored().compareTo(s1.getGoalsScored()))
-                        .thenComparing(s -> s.getTeam().getName()))
+                        .thenComparing(Standing::getGoalsScored)
+                        .thenComparing(Standing::getTeamId))
                 .toList();
-        list.forEach(st -> places.put(st.getTeam().getPublicId(), place.getAndIncrement()));
+        list.forEach(st -> places.put(st.getTeamId(), place.getAndIncrement()));
         return list;
     }
 
-    public Map<Long, Integer> getPlaces() {
+    public Map<Integer, Integer> getPlaces() {
         if (places.isEmpty()) {
             findAll();
         }
@@ -72,9 +72,9 @@ public class StandingService {
                 .toList();
 
         for (Team team : allTeams) {
-            Long teamId = team.getId();
+            int teamId = team.getPublicId();
             List<Match> allMatchesByTeam = allMatches.stream()
-                    .filter(m -> m.getHomeTeam().getId().equals(teamId) || m.getAwayTeam().getId().equals(teamId))
+                    .filter(m -> m.getHomeTeamId() == teamId || m.getAwayTeamId() == teamId)
                     .toList();
             Standing standing = Standing.builder()
                     .games(0)
@@ -82,7 +82,7 @@ public class StandingService {
                     .won(0)
                     .draw(0)
                     .lost(0)
-                    .team(team)
+                    .teamId(teamId)
                     .goalsScored(0)
                     .goalsAgainst(0)
                     .build();
@@ -96,13 +96,13 @@ public class StandingService {
     }
 
     public Standing updateByMatch(Standing standing, Match match) {
-        Team currentTeam = standing.getTeam();
+        int teamId = standing.getTeamId();
         String result = match.getResult();
-        Team homeTeam = match.getHomeTeam();
-        Team awayTeam = match.getAwayTeam();
-        if (result.equals("H") && currentTeam.equals(homeTeam)) {
+        int homeTeamId = match.getHomeTeamId();
+        int awayTeamId = match.getAwayTeamId();
+        if (result.equals("H") && teamId == homeTeamId) {
             return Standing.builder()
-                    .team(currentTeam)
+                    .teamId(teamId)
                     .points(standing.getPoints() + 3)
                     .games(standing.getGames() + 1)
                     .won(standing.getWon() + 1)
@@ -111,9 +111,9 @@ public class StandingService {
                     .goalsScored(standing.getGoalsScored() + match.getHomeTeamScore())
                     .goalsAgainst(standing.getGoalsAgainst() + match.getAwayTeamScore())
                     .build();
-        } else if (result.equals("H") && currentTeam.equals(awayTeam)) {
+        } else if (result.equals("H") && teamId == awayTeamId) {
             return Standing.builder()
-                    .team(currentTeam)
+                    .teamId(teamId)
                     .points(standing.getPoints())
                     .games(standing.getGames() + 1)
                     .won(standing.getWon())
@@ -124,7 +124,7 @@ public class StandingService {
                     .build();
         } else if (result.equals("D")) {
             return Standing.builder()
-                    .team(currentTeam)
+                    .teamId(teamId)
                     .points(standing.getPoints() + 1)
                     .games(standing.getGames() + 1)
                     .won(standing.getWon())
@@ -133,9 +133,9 @@ public class StandingService {
                     .goalsScored(standing.getGoalsScored() + match.getHomeTeamScore())
                     .goalsAgainst(standing.getGoalsAgainst() + match.getAwayTeamScore())
                     .build();
-        } else if (result.equals("A") && currentTeam.equals(homeTeam)) {
+        } else if (result.equals("A") && teamId == homeTeamId) {
             return Standing.builder()
-                    .team(currentTeam)
+                    .teamId(teamId)
                     .points(standing.getPoints())
                     .games(standing.getGames() + 1)
                     .won(standing.getWon())
@@ -146,7 +146,7 @@ public class StandingService {
                     .build();
         } else {
             return Standing.builder()
-                    .team(currentTeam)
+                    .teamId(teamId)
                     .points(standing.getPoints() + 3)
                     .games(standing.getGames() + 1)
                     .won(standing.getWon() + 1)

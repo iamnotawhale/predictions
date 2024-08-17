@@ -11,7 +11,18 @@ import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
-import static zhigalin.predictions.telegram.command.CommandName.*;
+import static zhigalin.predictions.telegram.command.CommandName.HELP;
+import static zhigalin.predictions.telegram.command.CommandName.NEWS;
+import static zhigalin.predictions.telegram.command.CommandName.NO;
+import static zhigalin.predictions.telegram.command.CommandName.REFRESH;
+import static zhigalin.predictions.telegram.command.CommandName.START;
+import static zhigalin.predictions.telegram.command.CommandName.STOP;
+import static zhigalin.predictions.telegram.command.CommandName.TABLE;
+import static zhigalin.predictions.telegram.command.CommandName.TODAY;
+import static zhigalin.predictions.telegram.command.CommandName.TOTAL;
+import static zhigalin.predictions.telegram.command.CommandName.TOUR;
+import static zhigalin.predictions.telegram.command.CommandName.TOUR_NUM;
+import static zhigalin.predictions.telegram.command.CommandName.UPCOMING;
 
 public class CommandContainer {
     private final ImmutableMap<String, Command> commandMap;

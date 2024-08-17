@@ -1,8 +1,17 @@
 package zhigalin.predictions.controller;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.model.event.Match;
@@ -12,10 +21,6 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
 
 @RequiredArgsConstructor
 @RestController
@@ -28,15 +33,15 @@ public class MatchController {
 
     @GetMapping("/team")
 
-    public ModelAndView findByTeamId(@RequestParam(value = "id") Long id) {
+    public ModelAndView findByTeamId(@RequestParam(value = "id") int publicId) {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("header", "Матчи " + teamService.findById(id).getName());
-        model.addObject("matchList", matchService.findAllByTeamId(id));
+        model.addObject("header", "Матчи " + teamService.findByPublicId(publicId).getName());
+        model.addObject("matchList", matchService.findByPublicId(publicId));
         return model;
     }
 
     @GetMapping("/week/{id}")
-    public ModelAndView findByWeekId(@PathVariable Long id) {
+    public ModelAndView findByWeekId(@PathVariable int id) {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи " + id + " тура");
         model.addObject("matchList", matchService.findAllByWeekId(id));
@@ -52,8 +57,8 @@ public class MatchController {
     }
 
     @GetMapping("/{id}")
-    public Match findById(@PathVariable Long id) {
-        return matchService.findById(id);
+    public Match findById(@PathVariable int id) {
+        return matchService.findByPublicId(id);
     }
 
     @GetMapping("/byNames")
@@ -100,7 +105,7 @@ public class MatchController {
     }
 
     @ModelAttribute("currentWeek")
-    public Long getCurrentWeekId() {
+    public Integer getCurrentWeekId() {
         return weekService.findCurrentWeek().getId();
     }
 
@@ -115,7 +120,7 @@ public class MatchController {
     }
 
     @ModelAttribute("places")
-    public Map<Long, Integer> places() {
+    public Map<Integer, Integer> places() {
         return standingService.getPlaces();
     }
 }

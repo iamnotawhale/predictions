@@ -1,15 +1,15 @@
 package zhigalin.predictions.telegram.command;
 
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-
-import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
 
 @RequiredArgsConstructor
 public class HeadToHeadCommand implements Command {

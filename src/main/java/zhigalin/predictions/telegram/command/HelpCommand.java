@@ -4,7 +4,14 @@ import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
-import static zhigalin.predictions.telegram.command.CommandName.*;
+import static zhigalin.predictions.telegram.command.CommandName.HELP;
+import static zhigalin.predictions.telegram.command.CommandName.NEWS;
+import static zhigalin.predictions.telegram.command.CommandName.START;
+import static zhigalin.predictions.telegram.command.CommandName.STOP;
+import static zhigalin.predictions.telegram.command.CommandName.TABLE;
+import static zhigalin.predictions.telegram.command.CommandName.TODAY;
+import static zhigalin.predictions.telegram.command.CommandName.TOUR;
+import static zhigalin.predictions.telegram.command.CommandName.UPCOMING;
 
 @RequiredArgsConstructor
 public class HelpCommand implements Command {

@@ -13,7 +13,7 @@ public class RefreshCommand implements Command {
     @Override
     public void execute(Update update) {
         if (update.getMessage().getChatId() == 739299) {
-           matchService.updateUnpredictableMatches();
+            matchService.updateUnpredictableMatches();
             String message = "update unpredictable";
             messageService.sendMessage(update.getMessage().getChatId().toString(), message);
         }

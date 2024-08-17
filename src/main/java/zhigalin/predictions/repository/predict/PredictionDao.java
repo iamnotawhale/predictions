@@ -1,0 +1,161 @@
+package zhigalin.predictions.repository.predict;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.predict.Prediction;
+
+@Slf4j
+@Repository
+public class PredictionDao {
+
+    private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    public PredictionDao(DataSource dataSource, JdbcTemplate jdbcTemplate) {
+        this.dataSource = dataSource;
+        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
+        this.jdbcTemplate = new JdbcTemplate(dataSource);
+    }
+
+    public void save(Prediction prediction) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    INSERT INTO predict (user_id, match_id, home_team_score, away_team_score, points)
+                    VALUES (:userId, :matchId, :homeTeamScore, :awayTeamScore, :points)
+                    ON CONFLICT ON CONSTRAINT unique_predict DO UPDATE SET
+                    home_team_score = excluded.home_team_score,
+                    away_team_score = excluded.away_team_score
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("userId", prediction.getUserId());
+            params.addValue("matchId", prediction.getMatchPublicId());
+            params.addValue("homeTeamScore", prediction.getHomeTeamScore());
+            params.addValue("awayTeamScore", prediction.getAwayTeamScore());
+            params.addValue("points", prediction.getPoints());
+            namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    public void delete(int userId, int matchPublicId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    DELETE FROM predict WHERE user_id = :userId AND match_id = :matchPublicId
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("userId", userId);
+            params.addValue("matchPublicId", matchPublicId);
+            namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    public Prediction findByMatchIdAndUserId(int matchId, int userId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT * FROM predict WHERE user_id = :userId AND match_id = :matchId
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("userId", userId);
+            params.addValue("matchId", matchId);
+            return namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper());
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Prediction> findAllByMatchIds(List<Integer> matchIds) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT * FROM predict
+                    JOIN match m ON match_id = m.public_id
+                    WHERE match_id IN (:matchIds)
+                    ORDER BY m.local_date_time DESC, m.home_team_id
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("matchIds", matchIds);
+            return namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Prediction> findAllByUserId(int userId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT * FROM predict
+                    JOIN match m ON match_id = m.public_id
+                    WHERE user_id = :userId
+                    ORDER BY m.local_date_time DESC
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("userId", userId);
+            return namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public void updatePoints(int matchId, int userId, int points) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                   UPDATE predict SET
+                   points = :points WHERE match_id = :matchId AND user_id = :userId
+                   """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("points", points);
+            params.addValue("matchId", matchId);
+            params.addValue("userId", userId);
+            namedParameterJdbcTemplate.update(sql, params);
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    public List<Prediction> getAllByMatches(List<Match> matches) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT * FROM predict
+                    WHERE match_id IN (:matchIds)
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("matchIds", matches.stream().map(Match::getPublicId).toList());
+            return namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    private static final class PredictionMapper implements RowMapper<Prediction> {
+        @Override
+        public Prediction mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return Prediction.builder()
+                    .userId(rs.getInt("user_id"))
+                    .matchPublicId(rs.getInt("match_id"))
+                    .homeTeamScore(rs.getInt("home_team_score"))
+                    .awayTeamScore(rs.getInt("away_team_score"))
+                    .points(rs.getInt("points"))
+                    .build();
+        }
+    }
+}
+

@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement
 @EnableScheduling
 @SpringBootApplication
-@PropertySource("classpath:application-prod.properties")
+@PropertySource("classpath:application-dev.properties")
 public class PredictionsApplication {
     public static void main(String[] args) {
         SpringApplication.run(PredictionsApplication.class, args);

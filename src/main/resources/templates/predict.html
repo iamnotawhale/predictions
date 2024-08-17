@@ -237,7 +237,7 @@
                                         Закрыть
                                     </button>
 
-                                    <a th:href="@{/predict/delete(id=${prediction.id})}"
+                                    <a th:href="@{/predict/delete(userId=${prediction.getUserId()}, matchId=${prediction.getMatchPublicId()})}"
                                        class="btn btn-danger btn-sm">Удалить</a>
 
                                     <input type="submit" class="btn btn-success btn-sm" value="Сохранить">

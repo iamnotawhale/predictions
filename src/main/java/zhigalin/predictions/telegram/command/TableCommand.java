@@ -1,12 +1,12 @@
 package zhigalin.predictions.telegram.command;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-
-import java.util.List;
 
 @RequiredArgsConstructor
 public class TableCommand implements Command {

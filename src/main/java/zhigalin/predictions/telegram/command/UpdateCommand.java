@@ -1,12 +1,12 @@
 package zhigalin.predictions.telegram.command;
 
+import java.util.EnumSet;
+
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-
-import java.util.EnumSet;
 
 @RequiredArgsConstructor
 public class UpdateCommand implements Command {

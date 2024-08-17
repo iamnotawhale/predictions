@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 public class Fixture {
     @JsonProperty("id")
-    private Long publicId;
+    private int publicId;
     private Long timestamp;
     private Status status;
 }

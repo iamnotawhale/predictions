@@ -1,9 +1,19 @@
 package zhigalin.predictions.controller;
 
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.model.predict.Prediction;
@@ -14,63 +24,54 @@ import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 
-import javax.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
-import java.util.Map;
-
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/predict")
 public class PredictController {
-    private final PredictionService service;
+    private final PredictionService predictionService;
     private final UserService userService;
     private final WeekService weekService;
     private final StandingService standingService;
     private final PointsService pointsService;
 
-    @GetMapping("/{id}")
-    public Prediction getById(@PathVariable Long id) {
-        return service.findById(id);
-    }
-
     @PostMapping("/saveAndUpdate")
     public ModelAndView saveAndUpdate(@ModelAttribute Prediction prediction, HttpServletRequest request) {
         ModelAndView model = new ModelAndView("redirect:" + request.getHeader("referer"));
-        service.save(prediction);
+        predictionService.save(prediction);
         return model;
     }
 
     @GetMapping("/delete")
-    public ModelAndView deletePredict(@RequestParam Long id, HttpServletRequest request) {
+    public ModelAndView deletePredict(@RequestParam int userId, @RequestParam int matchPublicId, HttpServletRequest request) {
         ModelAndView model = new ModelAndView("redirect:" + request.getHeader("referer"));
-        service.deleteById(id);
+        predictionService.deleteById(userId, matchPublicId);
         return model;
     }
 
     @GetMapping("/week/{id}")
-    public ModelAndView getByWeekId(@PathVariable Long id) {
+    public ModelAndView getByWeekId(@PathVariable int id) {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("weeklyUsersPoints", pointsService.getWeeklyUsersPoints(id));
         model.addObject("header", "Прогнозы " + id + " тура");
-        model.addObject("list", service.findAllByWeekId(id));
+        model.addObject("list", predictionService.findAllByWeekId(id));
         return model;
     }
 
     @GetMapping("/byUserAndWeek")
-    public ModelAndView getByUserAndWeek(@RequestParam Long user, @RequestParam Long week) {
+    public ModelAndView getByUserAndWeek(@RequestParam int userId, @RequestParam int weekId) {
         ModelAndView model = new ModelAndView("predict");
-        model.addObject("header", "Прогнозы " + userService.findById(user).getLogin() + " " + week + " тура");
-        model.addObject("list", service.findAllByUserIdAndWeekId(user, week));
+        model.addObject("header", "Прогнозы " + userService.findById(userId).getLogin() + " " + weekId + " тура");
+        model.addObject("list", predictionService.findAllByUserIdAndWeekId(userId, weekId));
         model.addObject("newPredict", Prediction.builder().build());
         return model;
     }
 
 
     @GetMapping("/week")
-    public ModelAndView getByCurrentUserAndWeek(@RequestParam Long id) {
+    public ModelAndView getByCurrentUserAndWeek(@RequestParam int weekId) {
         ModelAndView model = new ModelAndView("predict");
-        model.addObject("header", "Мои прогнозы " + id + " тура");
-        model.addObject("list", service.findAllByUserIdAndWeekId(getCurrentUser().getId(), id));
+        model.addObject("header", "Мои прогнозы " + weekId + " тура");
+        model.addObject("list", predictionService.findAllByUserIdAndWeekId(getCurrentUser().getId(), weekId));
         model.addObject("newPredict", Prediction.builder().build());
         return model;
     }
@@ -79,7 +80,7 @@ public class PredictController {
     public ModelAndView getByUser() {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("header", "Мои прогнозы ");
-        model.addObject("list", service.findAllByUserId(getCurrentUser().getId()));
+        model.addObject("list", predictionService.findAllByUserId(getCurrentUser().getId()));
         model.addObject("newPredict", Prediction.builder().build());
         return model;
     }
@@ -97,7 +98,7 @@ public class PredictController {
     }
 
     @ModelAttribute("currentWeek")
-    public Long getCurrentWeekId() {
+    public Integer getCurrentWeekId() {
         return weekService.findCurrentWeek().getId();
     }
 
@@ -107,7 +108,7 @@ public class PredictController {
     }
 
     @ModelAttribute("places")
-    public Map<Long, Integer> places() {
+    public Map<Integer, Integer> places() {
         return standingService.getPlaces();
     }
 }

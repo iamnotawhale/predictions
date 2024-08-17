@@ -1,5 +1,9 @@
 package zhigalin.predictions.controller;
 
+import java.io.IOException;
+import java.text.ParseException;
+import java.time.LocalDateTime;
+
 import com.rometools.rome.io.FeedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,10 +20,6 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.predict.PointsService;
-
-import java.io.IOException;
-import java.text.ParseException;
-import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
 @RestController

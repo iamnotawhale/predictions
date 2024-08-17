@@ -1,9 +1,9 @@
 package zhigalin.predictions.model.news;
 
+import java.time.LocalDateTime;
+
 import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDateTime;
 
 @Builder
 @Data

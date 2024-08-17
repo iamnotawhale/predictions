@@ -1,5 +1,7 @@
 package zhigalin.predictions.telegram.model;
 
+import java.util.EnumSet;
+
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +19,6 @@ import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.command.CommandContainer;
 import zhigalin.predictions.telegram.command.TeamName;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-
-import java.util.EnumSet;
 
 import static zhigalin.predictions.telegram.command.CommandName.NO;
 
@@ -75,9 +75,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                         EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
                     commandContainer.retrievePredictCommand().execute(update);
                 }
-            }
-
-            else if (message.startsWith(COMMAND_PREFIX)) {
+            } else if (message.startsWith(COMMAND_PREFIX)) {
                 String[] array = message.split(REGEX);
                 String commandIdentifier = array[1].toLowerCase();
                 if (array.length == 3 &&
