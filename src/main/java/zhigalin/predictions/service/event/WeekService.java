@@ -32,6 +32,10 @@ public class WeekService {
         return weekDao.findById(id);
     }
 
+    public Week findByMatchId(int matchId) {
+        return weekDao.findByMatchId(matchId);
+    }
+
     public Week findCurrentWeek() {
         return weekDao.findByIsCurrentTrue();
     }

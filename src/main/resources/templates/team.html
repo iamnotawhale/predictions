@@ -84,15 +84,15 @@
         </thead>
         <tbody th:align="center">
         <th:block th:each="match, iter: ${last5}">
-            <tr th:data-bs-target="${'#acc'+ match.id}" data-bs-toggle="collapse"
+            <tr th:data-bs-target="${'#acc'+ match.publicId}" data-bs-toggle="collapse"
                 class="accordion-toggle">
-                <td class="align-middle" th:text="${match.week.id}">Week</td>
+                <td class="align-middle" th:text="${match.weekId}">Week</td>
                 <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date</td>
-                <td class="align-middle" th:text="${match.homeTeam.name}">Home Team</td>
+                <td class="align-middle" th:text="${teams.get(match.homeTeamId).name}">Home Team</td>
                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
                 <td class="align-middle" th:text="${match.status}">Status</td>
                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
-                <td class="align-middle" th:text="${match.awayTeam.name}">Away Team</td>
+                <td class="align-middle" th:text="${teams.get(match.awayTeamId).name}">Away Team</td>
                 <td class="align-middle">
                     <span class="p-2 badge rounded-circle bg-success" th:if="${last5Result.get(iter.index) =='W'}">
                         <span class="visually-hidden" hidden>Победа</span>

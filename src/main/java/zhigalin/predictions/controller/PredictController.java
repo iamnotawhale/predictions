@@ -4,9 +4,10 @@ package zhigalin.predictions.controller;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,12 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import zhigalin.predictions.config.UserDetailsImpl;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
-import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 
@@ -32,7 +33,6 @@ public class PredictController {
     private final UserService userService;
     private final WeekService weekService;
     private final StandingService standingService;
-    private final PointsService pointsService;
 
     @PostMapping("/saveAndUpdate")
     public ModelAndView saveAndUpdate(@ModelAttribute Prediction prediction, HttpServletRequest request) {
@@ -51,7 +51,7 @@ public class PredictController {
     @GetMapping("/week/{id}")
     public ModelAndView getByWeekId(@PathVariable int id) {
         ModelAndView model = new ModelAndView("predict");
-        model.addObject("weeklyUsersPoints", pointsService.getWeeklyUsersPoints(id));
+        model.addObject("weeklyUsersPoints", predictionService.getWeeklyUsersPoints(id));
         model.addObject("header", "Прогнозы " + id + " тура");
         model.addObject("list", predictionService.findAllByWeekId(id));
         return model;
@@ -71,7 +71,7 @@ public class PredictController {
     public ModelAndView getByCurrentUserAndWeek(@RequestParam int weekId) {
         ModelAndView model = new ModelAndView("predict");
         model.addObject("header", "Мои прогнозы " + weekId + " тура");
-        model.addObject("list", predictionService.findAllByUserIdAndWeekId(getCurrentUser().getId(), weekId));
+        model.addObject("list", predictionService.getPredictionsByUserAndWeek(getCurrentUser().getId(), weekId));
         model.addObject("newPredict", Prediction.builder().build());
         return model;
     }
@@ -87,14 +87,12 @@ public class PredictController {
 
     @ModelAttribute("currentUser")
     public User getCurrentUser() {
-        UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
+        UserDetails userDetails = (UserDetails) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
-        return User.builder()
-                .id(userDetailsImpl.getId())
-                .login(userDetailsImpl.getLogin())
-                .build();
+
+        return userService.findByLogin(userDetails.getUsername());
     }
 
     @ModelAttribute("currentWeek")
@@ -111,4 +109,10 @@ public class PredictController {
     public Map<Integer, Integer> places() {
         return standingService.getPlaces();
     }
+
+    @ModelAttribute("teams")
+    public Map<Integer, Team> teams() { return DaoUtil.TEAMS; }
+
+    @ModelAttribute("users")
+    public Map<Integer, User> users() { return DaoUtil.USERS; }
 }

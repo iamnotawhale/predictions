@@ -6,12 +6,14 @@ import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 @RequiredArgsConstructor
 public class UpdateCommand implements Command {
     private final SendBotMessageService messageService;
     private final MatchService matchService;
+    private final PredictionService predictionService;
     private static final String REGEX = "[^A-Za-z0-9]";
 
     @Override
@@ -19,6 +21,7 @@ public class UpdateCommand implements Command {
         if (update.getMessage().getChatId() == 739299) {
             Match match = getMatchDto(update);
             if (match != null) {
+                predictionService.updateByMatch(match);
                 matchService.update(match);
                 String message = "Матч обновлен";
                 messageService.sendMessage(update.getMessage().getChatId().toString(), message);

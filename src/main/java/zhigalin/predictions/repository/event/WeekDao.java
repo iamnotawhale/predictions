@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Week;
+import zhigalin.predictions.util.DaoUtil;
 
 @Slf4j
 @Repository
@@ -31,8 +32,8 @@ public class WeekDao {
     public Week save(Week week) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
-                    INSERT into weeks (id, is_current, name, season_id)
-                    VALUES (:id, :isCurrent, :name, :seasonId)
+                    INSERT into weeks (is_current, name, season_id)
+                    VALUES (:isCurrent, :name, :seasonId)
                     RETURNING *
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
@@ -40,7 +41,7 @@ public class WeekDao {
             parameters.addValue("isCurrent", week.getIsCurrent());
             parameters.addValue("name", week.getName());
             parameters.addValue("seasonId", week.getSeasonId());
-            return namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -56,7 +57,7 @@ public class WeekDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("name", name);
             parameters.addValue("seasonId", seasonId);
-            return namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -69,7 +70,7 @@ public class WeekDao {
                     SELECT * FROM weeks
                     WHERE is_current = TRUE;
                     """;
-            return jdbcTemplate.queryForObject(sql, new WeekMapper());
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.queryForObject(sql, new WeekMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -93,11 +94,11 @@ public class WeekDao {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
                     SELECT * FROM weeks
-                    WHERE id = :id;
+                    WHERE id = :id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("id", id);
-            return namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -109,7 +110,23 @@ public class WeekDao {
             String sql = """
                     SELECT * FROM weeks
                     """;
-            return jdbcTemplate.query(sql, new WeekMapper());
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new WeekMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public Week findByMatchId(int matchId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT weeks.* FROM weeks
+                    JOIN match m ON weeks.id = m.week_id
+                    WHERE m.public_id = :matchId
+                    """;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("matchId", matchId);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;

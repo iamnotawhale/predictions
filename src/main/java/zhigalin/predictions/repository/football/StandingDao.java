@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.football.Standing;
+import zhigalin.predictions.util.DaoUtil;
 
 @Slf4j
 @Repository
@@ -78,7 +79,7 @@ public class StandingDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("teamId", publicId);
-            return namedParameterJdbcTemplate.queryForObject(sql, params, new StandingMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new StandingMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -90,7 +91,7 @@ public class StandingDao {
             String sql = """
                     SELECT * FROM standing
                     """;
-            return jdbcTemplate.query(sql, new StandingMapper());
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new StandingMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;

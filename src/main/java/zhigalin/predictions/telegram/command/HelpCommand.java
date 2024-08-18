@@ -19,14 +19,14 @@ public class HelpCommand implements Command {
     private final SendBotMessageService sendBotMessageService;
 
     public static final String HELP_MESSAGE = String.format("✨Доступные команды✨\n\n" +
-                    "/%s - начать работу со мной\n" +
-                    "/%s - приостановить работу со мной\n" +
-                    "/%s - получить помощь в работе со мной\n" +
-                    "/%s - получить информацию по сегодняшним матчам\n" +
-                    "/%s - посмотреть актуальную турнирную таблицу\n" +
-                    "/%s - рузультаты туров\n" +
-                    "/%s - новости АПЛ\n" +
-                    "/%s - матчи в ближайшие 7 дней\n",
+                                                            "/%s - начать работу со мной\n" +
+                                                            "/%s - приостановить работу со мной\n" +
+                                                            "/%s - получить помощь в работе со мной\n" +
+                                                            "/%s - получить информацию по сегодняшним матчам\n" +
+                                                            "/%s - посмотреть актуальную турнирную таблицу\n" +
+                                                            "/%s - рузультаты туров\n" +
+                                                            "/%s - новости АПЛ\n" +
+                                                            "/%s - матчи в ближайшие 7 дней\n",
             START.getName(), STOP.getName(), HELP.getName(), TODAY.getName(),
             TABLE.getName(), TOUR.getName(), NEWS.getName(), UPCOMING.getName());
 

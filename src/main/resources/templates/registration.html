@@ -3,8 +3,6 @@
 <head>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/lux/bootstrap.min.css"
           integrity="sha384-9+PGKSqjRdkeAU7Eu4nkJU8RFaH8ace8HGXnkiKMP9I9Te0GJ4/km3L1Z8tXigpG" crossorigin="anonymous">
-    <link href="https://getbootstrap.com/docs/5.1/examples/sign-in/signin.css" rel="stylesheet"
-          crossorigin="anonymous"/>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Login page</title>
@@ -14,23 +12,23 @@
     <form class="form-signin" th:action="@{/registration}" th:method="POST" th:object="${newUser}">
         <h2 class="form-signin-heading">Sign Up</h2>
         <p>
-            <label for="log" class="sr-only">login</label>
+            <label for="log" class="sr-only">Login</label>
             <input type="text" th:field="*{login}"
                    class="form-control"
                    id="log"
-                   placeholder="login"
+                   placeholder="Login"
                    required>
         </p>
         <p>
-            <label for="pass" class="sr-only">password</label>
-            <input type="text" th:field="*{password}"
+            <label for="pass" class="sr-only">Password</label>
+            <input type="password" th:field="*{password}"
                    class="form-control"
                    id="pass"
-                   placeholder="password"
+                   placeholder="Password"
                    required>
         </p>
-        <button class="btn btn-success btn-block" type="submit">confirm</button>
-        <a class="btn btn-primary btn-block" href="/login" role="button">cancel</a>
+        <button class="btn btn-success btn-block" type="submit">Register</button>
+        <a class="btn btn-primary btn-block" href="/login">Cancel</a>
     </form>
 </div>
 
