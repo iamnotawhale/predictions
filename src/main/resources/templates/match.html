@@ -90,46 +90,46 @@
             </thead>
             <tbody th:align="center">
             <th:block th:each="match: ${matchList}">
-                <tr th:data-bs-target="${'#acc'+ match.id}" data-bs-toggle="collapse"
+                <tr th:data-bs-target="${'#acc'+ match.publicId}" data-bs-toggle="collapse"
                     class="accordion-toggle">
-                    <td class="align-middle" th:text="${match.week.id}">Week</td>
+                    <td class="align-middle" th:text="${match.weekId}">Week</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'HH:mm')}">Time</td>
-                    <td class="align-middle" th:text="${match.homeTeam.code}">Home Team</td>
+                    <td class="align-middle" th:text="${teams.get(match.homeTeamId).code}">Home Team</td>
                     <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
                     <td class="align-middle" th:if="${match.status != 'ns'}" th:text="${match.status}">Status</td>
                     <td class="align-middle" th:unless="${match.status != 'ns'}" th:text="'-'">Status</td>
                     <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
-                    <td class="align-middle" th:text="${match.awayTeam.code}">Away Team</td>
+                    <td class="align-middle" th:text="${teams.get(match.awayTeamId).code}">Away Team</td>
 
 
                     <td th:if="${match.localDateTime < todayDateTime}">
                         <button type="button" class="btn btn-primary btn-sm2" disabled data-bs-toggle="modal"
-                                th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:if="${@predictionService.isExist(currentUser.id, match.id)}">Изменить
+                                th:data-bs-target="${'#create'+ match.publicId + currentUser.id}"
+                                th:if="${@predictionService.isExist(currentUser.id, match.publicId)}">Изменить
                         </button>
                         <button type="button" class="btn btn-primary btn-sm2" disabled data-bs-toggle="modal"
-                                th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:unless="${@predictionService.isExist(currentUser.id, match.id)}">Создать
+                                th:data-bs-target="${'#create'+ match.publicId + currentUser.id}"
+                                th:unless="${@predictionService.isExist(currentUser.id, match.publicId)}">Создать
                         </button>
                     </td>
                     <td th:unless="${match.localDateTime < todayDateTime}">
                         <button type="button" class="btn btn-warning btn-sm2" data-bs-toggle="modal"
-                                th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:if="${@predictionService.isExist(currentUser.id, match.id)}">Изменить
+                                th:data-bs-target="${'#create'+ match.publicId + currentUser.id}"
+                                th:if="${@predictionService.isExist(currentUser.id, match.publicId)}">Изменить
                         </button>
                         <button type="button" class="btn btn-success btn-sm2" data-bs-toggle="modal"
-                                th:data-bs-target="${'#create'+ match.id + currentUser.id}"
-                                th:unless="${@predictionService.isExist(currentUser.id, match.id)}">Создать
+                                th:data-bs-target="${'#create'+ match.publicId + currentUser.id}"
+                                th:unless="${@predictionService.isExist(currentUser.id, match.publicId)}">Создать
                         </button>
                     </td>
-                    <div class="modal fade" th:id="${'create'+ match.id + currentUser.id}" tabindex="-1"
-                         th:aria-labelledby="${'create'+ match.id + currentUser.id + 'Label'}" aria-hidden="true">
+                    <div class="modal fade" th:id="${'create'+ match.publicId + currentUser.id}" tabindex="-1"
+                         th:aria-labelledby="${'create'+ match.publicId + currentUser.id + 'Label'}" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content">
                                 <div class="modal-header">
-                                    <h6 class="modal-title" th:text="${match.homeTeam.name} + ' (' + ${places.get(match.homeTeam.publicId)} + ') - '
-                            + ${match.awayTeam.name} + ' (' + ${places.get(match.awayTeam.publicId)} + ')'"></h6>
+                                    <h6 class="modal-title" th:text="${teams.get(match.homeTeamId).name} + ' (' + ${places.get(match.homeTeamId)} + ') - '
+                            + ${teams.get(match.awayTeamId).name} + ' (' + ${places.get(match.awayTeamId)} + ')'"></h6>
                                 </div>
                                 <div class="modal-body text-center">
                                     <form th:action="@{/predict/saveAndUpdate}" th:method="POST"
@@ -147,13 +147,13 @@
                                             <input name="match"
                                                    th:id="${'match' + match}"
                                                    class="form-control"
-                                                   th:value="${match.id}"
+                                                   th:value="${match.publicId}"
                                                    readonly>
                                         </div>
                                         <div class="container">
                                             <div class="row align-items-center">
                                                 <div class="col-sm">
-                                                    <img th:src="${match.homeTeam.logo}" th:width="100"/>
+                                                    <img th:src="${teams.get(match.homeTeamId).logo}" th:width="100"/>
                                                 </div>
                                                 <div class="col-sm-2">
                                                     <div class="form-group">
@@ -179,7 +179,7 @@
                                                     </div>
                                                 </div>
                                                 <div class="col-sm">
-                                                    <img th:src="${match.awayTeam.logo}" th:width="100"/>
+                                                    <img th:src="${teams.get(match.awayTeamId).logo}" th:width="100"/>
                                                 </div>
                                             </div>
                                         </div>

@@ -1,8 +1,7 @@
 package zhigalin.predictions.controller;
 
-import java.util.Collections;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +16,8 @@ import zhigalin.predictions.service.user.UserService;
 @RequestMapping("/registration")
 public class RegistrationController {
     private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
+
 
     @GetMapping()
     public ModelAndView getRegistrationPage() {
@@ -30,8 +31,8 @@ public class RegistrationController {
         ModelAndView model = new ModelAndView("/login");
         User user = User.builder()
                 .login(userDto.getLogin())
-                .password(userDto.getPassword())
-                .role("ROLE_ADMIN")
+                .password(passwordEncoder.encode(userDto.getPassword()))
+                .role("ADMIN")
                 .build();
         userService.save(user);
         return model;

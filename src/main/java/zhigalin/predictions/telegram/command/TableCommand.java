@@ -5,6 +5,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.football.Standing;
+import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
@@ -26,7 +28,8 @@ public class TableCommand implements Command {
             if (i < 11) {
                 builder.append(" ");
             }
-            builder.append(standing.getTeam().getCode()).append(" ")
+            Team team = DaoUtil.TEAMS.get(standing.getTeamId());
+            builder.append(team.getCode()).append(" ")
                     .append(standing.getGames()).append(" ");
             if (standing.getGames() < 10) {
                 builder.append(" ");

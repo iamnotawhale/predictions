@@ -14,14 +14,18 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
+import zhigalin.predictions.util.DaoUtil;
 
 @Log4j2
 @Service
 public class NotificationService {
+    private final PredictionService predictionService;
     @Value("${bot.urlMessage}")
     private String urlMessage;
     @Value("${bot.urlPhoto}")
@@ -32,11 +36,12 @@ public class NotificationService {
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
     private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
 
-    public NotificationService(UserService userService, MatchService matchService) {
+    public NotificationService(UserService userService, MatchService matchService, PredictionService predictionService) {
         this.userService = userService;
         this.matchService = matchService;
-        notificationBLackList.put(30L, new ArrayList<>());
-        notificationBLackList.put(90L, new ArrayList<>());
+        notificationBLackList.put(30, new ArrayList<>());
+        notificationBLackList.put(90, new ArrayList<>());
+        this.predictionService = predictionService;
     }
 
     public void check(int minutes) throws UnirestException {
@@ -45,8 +50,8 @@ public class NotificationService {
         if (!nearest.isEmpty()) {
             for (User user : users) {
                 for (Match match : nearest) {
-                    boolean hasPredict = match.getPredictions().stream()
-                            .anyMatch(prediction -> prediction.getUser().getId().equals(user.getId()));
+                    boolean hasPredict = predictionService.getByMatchPublicId(match.getPublicId()).stream()
+                            .anyMatch(prediction -> prediction.getUserId() == user.getId());
                     if (!hasPredict) {
                         Notification notification = Notification.builder().user(user).match(match).build();
                         if (!notificationBLackList.get(minutes).contains(notification.toString())) {
@@ -76,16 +81,18 @@ public class NotificationService {
                 .queryString("chat_id", chatId)
                 .body("{\"photo\":\"https://telegra.ph/file/fed7d1625ba24e824955b.jpg\"}")
                 .asJson();
+        Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
+        Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
         if (response.getStatus() == 200) {
             log.info("Send photo for match {}:{} notification has been send to {}",
-                    match.getHomeTeam().getCode(),
-                    match.getAwayTeam().getCode(),
+                    homeTeam.getCode(),
+                    awayTeam.getCode(),
                     notification.getUser().getLogin()
             );
         } else {
             log.warn("Don't send photo for for match {}:{} not send to {}",
-                    match.getHomeTeam().getCode(),
-                    match.getAwayTeam().getCode(),
+                    homeTeam.getCode(),
+                    awayTeam.getCode(),
                     notification.getUser().getLogin()
             );
         }
@@ -93,11 +100,13 @@ public class NotificationService {
 
     private void sendNotification(Notification notification, int minutes) throws UnirestException {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
+        Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
+        Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
         String builder = "Не проставлен прогноз на матч:\n" +
-                match.getHomeTeam().getCode() + " " +
-                match.getLocalDateTime().format(formatter) + " " +
-                match.getAwayTeam().getCode() + " " +
-                "осталось " + minutes + " мин.";
+                         homeTeam.getCode() + " " +
+                         match.getLocalDateTime().format(formatter) + " " +
+                         awayTeam.getCode() + " " +
+                         "осталось " + minutes + " мин.";
         String chatId = notification.getUser().getTelegramId();
 
         HttpResponse<JsonNode> response = Unirest.get(urlMessage)
@@ -107,8 +116,8 @@ public class NotificationService {
                 .asJson();
         if (response.getStatus() == 200) {
             log.info("Not predictable match {}:{} notification has been send to {}",
-                    match.getHomeTeam().getCode(),
-                    match.getAwayTeam().getCode(),
+                    homeTeam.getCode(),
+                    awayTeam.getCode(),
                     notification.getUser().getLogin()
             );
         } else {

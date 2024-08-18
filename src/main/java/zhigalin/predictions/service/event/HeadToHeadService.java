@@ -33,7 +33,10 @@ public class HeadToHeadService {
     }
 
     public List<HeadToHead> findAllByMatch(Match match) {
-        return findAllByTwoTeamsCode(match.getHomeTeam().getCode(), match.getAwayTeam().getCode());
+        return dao.getAllByTeamsIds(match.getHomeTeamId(), match.getAwayTeamId()).stream()
+                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
+                .limit(7)
+                .toList();
     }
 
     public List<List<HeadToHead>> findAllByCurrentWeek() {

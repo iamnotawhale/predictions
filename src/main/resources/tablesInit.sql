@@ -25,7 +25,7 @@ create table if not exists match
 
 create table if not exists weeks
 (
-    id         integer,
+    id         serial primary key,
     is_current boolean,
     name       varchar(255),
     season_id  integer
@@ -52,12 +52,6 @@ create table if not exists teams
     logo      varchar(255)
 );
 
-create table if not exists points
-(
-    user_id integer unique,
-    value   integer
-);
-
 create table if not exists predict
 (
     user_id         integer,
@@ -66,6 +60,15 @@ create table if not exists predict
     away_team_score integer,
     points          integer,
     CONSTRAINT unique_predict UNIQUE (user_id, match_id)
+);
+
+create table if not exists users
+(
+    id          serial primary key,
+    login       varchar(255) unique,
+    password    varchar(255),
+    role        varchar(255),
+    telegram_id varchar(255)
 );
 
 

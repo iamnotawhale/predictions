@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.util.DaoUtil;
 
 @Slf4j
 @Repository
@@ -33,18 +34,19 @@ public class TeamDao {
             String sql = """
                     INSERT INTO teams (public_id, code, logo, name)
                     VALUES (:public_id, :code, :logo, :name)
+                    ON CONFLICT DO NOTHING
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("public_id", team.getPublicId());
             params.addValue("code", team.getCode());
             params.addValue("logo", team.getLogo());
             params.addValue("name", team.getName());
-            namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper());
+            namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
             log.error(e.getMessage());
         }
     }
-    
+
     public Team findByName(String name) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
@@ -52,7 +54,7 @@ public class TeamDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("name", name);
-            return namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -66,7 +68,7 @@ public class TeamDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("code", code);
-            return namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -80,7 +82,7 @@ public class TeamDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("publicId", publicId);
-            return namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -92,7 +94,7 @@ public class TeamDao {
             String sql = """
                     SELECT * FROM teams
                     """;
-            return namedParameterJdbcTemplate.query(sql, new TeamMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, new TeamMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;

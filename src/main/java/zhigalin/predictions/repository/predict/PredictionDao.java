@@ -3,28 +3,31 @@ package zhigalin.predictions.repository.predict;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.predict.Points;
 import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.util.DaoUtil;
 
 @Slf4j
 @Repository
 public class PredictionDao {
 
     private final DataSource dataSource;
-    private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
-    public PredictionDao(DataSource dataSource, JdbcTemplate jdbcTemplate) {
+    public PredictionDao(DataSource dataSource) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
@@ -45,7 +48,7 @@ public class PredictionDao {
             params.addValue("homeTeamScore", prediction.getHomeTeamScore());
             params.addValue("awayTeamScore", prediction.getAwayTeamScore());
             params.addValue("points", prediction.getPoints());
-            namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+            namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
             log.error(e.getMessage());
         }
@@ -73,7 +76,7 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", userId);
             params.addValue("matchId", matchId);
-            return namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -90,14 +93,14 @@ public class PredictionDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("matchIds", matchIds);
-            return namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
         }
     }
 
-    public List<Prediction> findAllByUserId(int userId) {
+    public List<MatchPrediction> findAllByUserId(int userId) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
                     SELECT * FROM predict
@@ -107,7 +110,7 @@ public class PredictionDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", userId);
-            return namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -117,9 +120,9 @@ public class PredictionDao {
     public void updatePoints(int matchId, int userId, int points) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
-                   UPDATE predict SET
-                   points = :points WHERE match_id = :matchId AND user_id = :userId
-                   """;
+                    UPDATE predict SET
+                    points = :points WHERE match_id = :matchId AND user_id = :userId
+                    """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("points", points);
             params.addValue("matchId", matchId);
@@ -138,10 +141,124 @@ public class PredictionDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("matchIds", matches.stream().map(Match::getPublicId).toList());
-            return namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
+        }
+    }
+
+    public List<MatchPrediction> findAllByWeekId(int weekId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT * FROM predict
+                    JOIN match m ON match_id = m.public_id
+                    WHERE m.week_id = :weekId
+                    ORDER BY m.local_date_time DESC, user_id
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("weekId", weekId);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public Points getPointsByUserId(int userId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT u.login as login, sum(points) as value
+                    FROM predict
+                    JOIN users u ON user_id = u.id
+                    WHERE u.id = :userId
+                    GROUP BY login
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("userId", userId);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PointsMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Points> getAllPointsByUsers() {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT u.login as login, sum(points) as value
+                    FROM predict
+                    JOIN users u ON user_id = u.id
+                    GROUP BY login
+                    """;
+
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new PointsMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Points> getAllPointsByWeekId(int weekId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT u.login as login, sum(points) as value
+                    FROM predict
+                    JOIN users u ON user_id = u.id
+                    JOIN match m ON match_id = m.public_id
+                    JOIN weeks w ON m.week_id = w.id
+                    WHERE w.id = :weekId
+                    GROUP BY login
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("weekId", weekId);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PointsMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<MatchPrediction> getPredictionsByUserAndWeek(int userId, int weekId) {
+        Map<Match, Prediction> result = new HashMap<>();
+
+        String sql = """
+                SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result, m.status, m.week_id, m.local_date_time, p.user_id, p.home_team_score, p.away_team_score, p.points
+                FROM match m
+                LEFT JOIN predict p ON m.public_id = p.match_id
+                WHERE m.week_id = :weekId AND user_id = :userId
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("weekId", weekId);
+        params.addValue("userId", userId);
+
+        return namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper());
+    }
+
+    private static class MatchPredictionMapper implements RowMapper<MatchPrediction> {
+        @Override
+        public MatchPrediction mapRow(ResultSet rs, int rowNum) throws SQLException {
+
+            Match match = Match.builder()
+                    .homeTeamId(rs.getInt("home_team_id"))
+                    .awayTeamId(rs.getInt("away_team_id"))
+                    .homeTeamScore(rs.getInt("home_team_score"))
+                    .awayTeamScore(rs.getInt("away_team_score"))
+                    .publicId(rs.getInt("public_id"))
+                    .result(rs.getString("result"))
+                    .status(rs.getString("status"))
+                    .weekId(rs.getInt("week_id"))
+                    .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                    .build();
+
+                Prediction prediction = Prediction.builder()
+                        .userId(rs.getInt("user_id"))
+                        .homeTeamScore(rs.getInt("home_team_score"))
+                        .awayTeamScore(rs.getInt("away_team_score"))
+                        .points(rs.getInt("points"))
+                        .build();
+                return new MatchPrediction(match, prediction);
         }
     }
 
@@ -157,5 +274,17 @@ public class PredictionDao {
                     .build();
         }
     }
+
+    private static final class PointsMapper implements RowMapper<Points> {
+        @Override
+        public Points mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return Points.builder()
+                    .login(rs.getString("login"))
+                    .value(rs.getInt("value"))
+                    .build();
+        }
+    }
+
+     public record MatchPrediction(Match match, Prediction prediction) {}
 }
 

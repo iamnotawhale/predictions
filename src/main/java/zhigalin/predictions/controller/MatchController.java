@@ -6,6 +6,7 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,14 +14,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
+import zhigalin.predictions.service.user.UserService;
 
 @RequiredArgsConstructor
 @RestController
@@ -30,9 +33,9 @@ public class MatchController {
     private final WeekService weekService;
     private final TeamService teamService;
     private final StandingService standingService;
+    private final UserService userService;
 
     @GetMapping("/team")
-
     public ModelAndView findByTeamId(@RequestParam(value = "id") int publicId) {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи " + teamService.findByPublicId(publicId).getName());
@@ -94,14 +97,12 @@ public class MatchController {
 
     @ModelAttribute("currentUser")
     public User getCurrentUser() {
-        UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
+        UserDetails userDetails = (UserDetails) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
-        return User.builder()
-                .id(userDetailsImpl.getId())
-                .login(userDetailsImpl.getLogin())
-                .build();
+
+        return userService.findByLogin(userDetails.getUsername());
     }
 
     @ModelAttribute("currentWeek")
@@ -123,4 +124,7 @@ public class MatchController {
     public Map<Integer, Integer> places() {
         return standingService.getPlaces();
     }
+
+    @ModelAttribute("teams")
+    public Map<Integer, Team> teams() { return DaoUtil.TEAMS; }
 }

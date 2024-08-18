@@ -6,7 +6,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
@@ -35,8 +34,7 @@ public class CommandContainer {
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             StandingService standingService, TeamService teamService,
                             HeadToHeadService headToHeadService, DataInitService dataInitService,
-                            PredictionService predictionService, UserService userService,
-                            PointsService pointsService) {
+                            PredictionService predictionService, UserService userService) {
         commandMap = ImmutableMap.<String, Command>builder()
                 .put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService))
                 .put(START.getName(), new StartCommand(sendBotMessageService))
@@ -48,13 +46,13 @@ public class CommandContainer {
                 .put(TOUR_NUM.getName(), new TourNumCommand(sendBotMessageService, matchService))
                 .put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService))
                 .put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService))
-                .put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, matchService))
-                .put(TOTAL.getName(), new TotalCommand(sendBotMessageService, pointsService))
+                .put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, predictionService))
+                .put(TOTAL.getName(), new TotalCommand(sendBotMessageService, predictionService))
                 .build();
         unknownCommand = new UnknownCommand(sendBotMessageService);
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, headToHeadService);
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
-        updateCommand = new UpdateCommand(sendBotMessageService, matchService);
+        updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService);
         predictCommand = new PredictCommand(sendBotMessageService, predictionService,
                 userService, matchService);
     }

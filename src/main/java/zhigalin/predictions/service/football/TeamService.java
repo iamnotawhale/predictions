@@ -2,17 +2,21 @@ package zhigalin.predictions.service.football;
 
 import java.util.List;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.repository.football.TeamDao;
 
-@RequiredArgsConstructor
-@Service
+
 @Slf4j
+@Service
 public class TeamService {
+
     private final TeamDao teamDao;
+
+    public TeamService(TeamDao teamDao) {
+        this.teamDao = teamDao;
+    }
 
     public void save(Team team) {
         teamDao.save(team);

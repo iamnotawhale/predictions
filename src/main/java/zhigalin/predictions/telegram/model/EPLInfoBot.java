@@ -13,7 +13,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.command.CommandContainer;
@@ -38,10 +37,9 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     @Autowired
     public EPLInfoBot(MatchService matchService, StandingService standingService, TeamService teamService,
                       HeadToHeadService headToHeadService, DataInitService dataInitService,
-                      PredictionService predictionService, UserService userService,
-                      PointsService pointsService) {
+                      PredictionService predictionService, UserService userService) {
         commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, standingService,
-                teamService, headToHeadService, dataInitService, predictionService, userService, pointsService);
+                teamService, headToHeadService, dataInitService, predictionService, userService);
     }
 
     @Override
@@ -63,24 +61,24 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                 String[] array = message.split("[^A-Za-z0-9]");
                 String commandIdentifier = array[1].toLowerCase();
                 if (array.length == 6 &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
+                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
+                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
                     commandContainer.retrieveUpdateCommand().execute(update);
                 }
             }
             if (message.contains("pred")) {
                 String[] array = message.split("[^A-Za-z0-9]");
                 if (array.length == 6 &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
+                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
+                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
                     commandContainer.retrievePredictCommand().execute(update);
                 }
             } else if (message.startsWith(COMMAND_PREFIX)) {
                 String[] array = message.split(REGEX);
                 String commandIdentifier = array[1].toLowerCase();
                 if (array.length == 3 &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[1])) &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2]))) {
+                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[1])) &&
+                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2]))) {
                     commandContainer.retrieveHeadToHeadCommand().execute(update);
                 } else {
                     if (EnumSet.allOf(TeamName.class).stream()

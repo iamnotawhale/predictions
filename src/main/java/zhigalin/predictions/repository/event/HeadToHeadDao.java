@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.HeadToHead;
+import zhigalin.predictions.util.DaoUtil;
 
 @Slf4j
 @Repository
@@ -30,6 +31,7 @@ public class HeadToHeadDao {
             String sql = """
                     INSERT INTO h2h (home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time)
                     VALUES (:homeTeamId, :awayTeamId, :homeTeamScore, :awayTeamScore, :leagueName, :local_date_time)
+                    ON CONFLICT ON CONSTRAINT unique_h2h DO NOTHING
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homeTeamId", headToHead.getHomeTeamId());
@@ -58,7 +60,27 @@ public class HeadToHeadDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homeTeamCode", homeTeamCode);
             parameters.addValue("awayTeamCode", awayTeamCode);
-            return namedParameterJdbcTemplate.query(sql, parameters, new HeadToHeadMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new HeadToHeadMapper()));
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<HeadToHead> getAllByTeamsIds(int homeTeamId, int awayTeamId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                        SELECT home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time
+                        FROM h2h
+                                 JOIN teams ht on ht.public_id = home_team_id
+                                 JOIN teams at on at.public_id = away_team_id
+                        WHERE ht.public_id in (:homeTeamId, :awayTeamId)
+                        AND at.public_id in (:homeTeamId, :awayTeamId);
+                    """;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("homeTeamId", homeTeamId);
+            parameters.addValue("awayTeamId", awayTeamId);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new HeadToHeadMapper()));
         } catch (Exception e) {
             log.error(e.getMessage());
             return null;

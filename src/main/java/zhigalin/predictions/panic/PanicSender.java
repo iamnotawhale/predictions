@@ -28,10 +28,10 @@ public class PanicSender {
                 log.info(response.getBody());
                 log.info("Message has been send");
             } else {
-                log.warn("Don't send exception notification" + response.getBody());
+                log.warn("Don't send exception notification{}", response.getBody());
             }
         } catch (UnirestException ex) {
-            log.error("Sending message error: " + ex.getMessage());
+            log.error("Sending message error: {}", ex.getMessage());
         }
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.util.DaoUtil;
 
 @Slf4j
 @Repository
@@ -34,6 +35,7 @@ public class MatchDao {
             String sql = """
                     INSERT INTO match (public_id, week_id, home_team_id, away_team_id, home_team_score, away_team_score, status, result, local_date_time)
                     VALUES (:publicId, :weekId, :homeId, :awayId, :homeScore, :awayScore, :status, :result, :date)
+                    ON CONFLICT ON CONSTRAINT unique_match DO NOTHING
                     """;
 
             MapSqlParameterSource parameters = new MapSqlParameterSource();
@@ -46,7 +48,7 @@ public class MatchDao {
             parameters.addValue("status", match.getStatus());
             parameters.addValue("result", match.getResult());
             parameters.addValue("date", match.getLocalDateTime());
-            namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper());
+            namedParameterJdbcTemplate.update(sql, parameters);
         } catch (SQLException e) {
             log.error(e.getMessage());
         }
@@ -55,7 +57,7 @@ public class MatchDao {
     public void updateMatch(Match match) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
-                    UPDATE Match
+                    UPDATE match
                     SET home_team_score = :homeScore, away_team_score = :awayScore, result = :result, status = :status
                     WHERE public_id = :publicId
                     """;
@@ -74,11 +76,12 @@ public class MatchDao {
     public Match findByPublicId(int publicId) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
-                    SELECT * FROM match WHERE public_id = :publicId;
+                    SELECT * FROM match WHERE public_id = :publicId
+                    ORDER BY local_date_time DESC
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("publicId", publicId);
-            return namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -93,7 +96,7 @@ public class MatchDao {
                     WHERE CAST(local_date_time AS DATE) = CURRENT_DATE
                     ORDER BY local_date_time
                     """;
-            return jdbcTemplate.query(sql, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -112,7 +115,7 @@ public class MatchDao {
             LocalDateTime now = LocalDateTime.now();
             parameters.addValue("from", now);
             parameters.addValue("to", now.plusMinutes(minutes));
-            return namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -129,7 +132,7 @@ public class MatchDao {
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("weekId", weekId);
-            return namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -142,7 +145,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     """;
-            return jdbcTemplate.query(sql, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -160,7 +163,7 @@ public class MatchDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homePublicId", homePublicId);
             parameters.addValue("awayPublicId", awayPublicId);
-            return namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -177,7 +180,7 @@ public class MatchDao {
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("teamPublicId", teamPublicId);
-            return namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -195,7 +198,7 @@ public class MatchDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("from", from);
             parameters.addValue("to", to);
-            return namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -212,7 +215,7 @@ public class MatchDao {
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("status", status);
-            return namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -224,7 +227,7 @@ public class MatchDao {
         public Match mapRow(ResultSet rs, int rowNum) throws SQLException {
             return Match.builder()
                     .publicId(rs.getInt("public_id"))
-                    .weekId(rs.getInt("weekId"))
+                    .weekId(rs.getInt("week_id"))
                     .homeTeamId(rs.getInt("home_team_id"))
                     .awayTeamId(rs.getInt("away_team_id"))
                     .homeTeamScore(rs.getInt("home_team_score"))
