@@ -11,12 +11,12 @@ public class Standing {
     private int points;
     private int games;
     private int won;
-    private int draw;
+    private int drawn;
     private int lost;
-    private int goalsScored;
+    private int goalsFor;
     private int goalsAgainst;
 
     public int compareGoals(Standing st) {
-        return Integer.compare(st.getGoalsScored() - st.getGoalsAgainst(), this.getGoalsScored() - this.getGoalsAgainst());
+        return Integer.compare(st.getGoalsFor() - st.getGoalsAgainst(), this.getGoalsFor() - this.getGoalsAgainst());
     }
 }

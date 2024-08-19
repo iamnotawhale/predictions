@@ -75,7 +75,11 @@ public class SecurityConfig {
             String password = user.getPassword();
             String role = user.getRole();
             userDetails.add(
-                    User.builder().username(name).password(passwordEncoder().encode(password)).roles(role).build()
+                    User.builder()
+                            .username(name)
+                            .password(password)
+                            .roles(role)
+                            .build()
             );
         });
         return new InMemoryUserDetailsManager(userDetails);

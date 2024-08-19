@@ -3,10 +3,16 @@ package zhigalin.predictions.repository.event;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -19,11 +25,13 @@ import zhigalin.predictions.util.DaoUtil;
 public class HeadToHeadDao {
 
     private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     public HeadToHeadDao(DataSource dataSource) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
+        jdbcTemplate = new JdbcTemplate(dataSource);
     }
 
     public void save(HeadToHead headToHead) {
@@ -87,6 +95,55 @@ public class HeadToHeadDao {
         }
     }
 
+    public Map<Integer, List<HeadToHead>> findAllByCurrentWeek() {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                        SELECT
+                            m.public_id,
+                            h2h.home_team_id,
+                            h2h.away_team_id,
+                            h2h.home_team_score,
+                            h2h.away_team_score,
+                            h2h.league_name,
+                            h2h.local_date_time
+                        FROM match m
+                        JOIN weeks w ON m.week_id = w.id
+                        JOIN h2h ON
+                            (m.home_team_id = h2h.home_team_id AND m.away_team_id = h2h.away_team_id)
+                                OR
+                            (m.home_team_id = h2h.away_team_id AND m.away_team_id = h2h.home_team_id)
+                        WHERE w.is_current = TRUE
+                        ORDER BY m.local_date_time, h2h.local_date_time DESC
+                    """;
+            List<MatchHeadToHead> allMatchHeadToHeads = DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchHeadToHeadMapper()));
+
+            if (allMatchHeadToHeads != null && !allMatchHeadToHeads.isEmpty()) {
+                Map<Integer, List<HeadToHead>> headToHeadsByMatch = new HashMap<>();
+                for (MatchHeadToHead matchHeadToHead : allMatchHeadToHeads) {
+                    headToHeadsByMatch.computeIfAbsent(matchHeadToHead.matchPublicId, k -> new ArrayList<>()).add(matchHeadToHead.headToHead);
+                }
+
+
+                Map<Integer, List<HeadToHead>> result = new HashMap<>();
+                headToHeadsByMatch.forEach((matchPublicId, headToHeads) -> {
+                    result.put(
+                            matchPublicId,
+                            headToHeads.stream()
+                                    .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
+                                    .limit(7)
+                                    .toList()
+                    );
+                });
+
+                return result;
+            }
+            return Collections.emptyMap();
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
     private static final class HeadToHeadMapper implements RowMapper<HeadToHead> {
 
         @Override
@@ -100,5 +157,26 @@ public class HeadToHeadDao {
                     .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
                     .build();
         }
+    }
+
+    private static final class MatchHeadToHeadMapper implements RowMapper<MatchHeadToHead> {
+
+        @Override
+        public MatchHeadToHead mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new MatchHeadToHead(
+                    rs.getInt("public_id"),
+                    HeadToHead.builder()
+                            .homeTeamId(rs.getInt("home_team_id"))
+                            .awayTeamId(rs.getInt("away_team_id"))
+                            .homeTeamScore(rs.getInt("home_team_score"))
+                            .awayTeamScore(rs.getInt("away_team_score"))
+                            .leagueName(rs.getString("league_name"))
+                            .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                            .build()
+            );
+        }
+    }
+
+    private final record MatchHeadToHead(int matchPublicId, HeadToHead headToHead) {
     }
 }

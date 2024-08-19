@@ -3,6 +3,7 @@ package zhigalin.predictions.service.event;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,27 +14,27 @@ import zhigalin.predictions.repository.event.HeadToHeadDao;
 @Slf4j
 @Service
 public class HeadToHeadService {
-    private final HeadToHeadDao dao;
+    private final HeadToHeadDao headToHeadDao;
     private final MatchService matchService;
 
-    public HeadToHeadService(HeadToHeadDao dao, MatchService matchService) {
-        this.dao = dao;
+    public HeadToHeadService(HeadToHeadDao headToHeadDao, MatchService matchService) {
+        this.headToHeadDao = headToHeadDao;
         this.matchService = matchService;
     }
 
     public void save(HeadToHead h2h) {
-        dao.save(h2h);
+        headToHeadDao.save(h2h);
     }
 
     public List<HeadToHead> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode) {
-        return dao.getH2hByTeamsCode(homeTeamCode, awayTeamCode).stream()
+        return headToHeadDao.getH2hByTeamsCode(homeTeamCode, awayTeamCode).stream()
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
                 .limit(7)
                 .toList();
     }
 
     public List<HeadToHead> findAllByMatch(Match match) {
-        return dao.getAllByTeamsIds(match.getHomeTeamId(), match.getAwayTeamId()).stream()
+        return headToHeadDao.getAllByTeamsIds(match.getHomeTeamId(), match.getAwayTeamId()).stream()
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
                 .limit(7)
                 .toList();
@@ -46,5 +47,9 @@ public class HeadToHeadService {
             listOfHeadToHeads.add(findAllByMatch(match));
         }
         return listOfHeadToHeads;
+    }
+
+    public Map<Integer, List<HeadToHead>> findAllByCurrentWeekNew() {
+        return headToHeadDao.findAllByCurrentWeek();
     }
 }

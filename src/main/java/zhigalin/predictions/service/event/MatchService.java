@@ -3,28 +3,34 @@ package zhigalin.predictions.service.event;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.event.Week;
+import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.repository.event.MatchDao;
 import zhigalin.predictions.service.football.TeamService;
+import zhigalin.predictions.util.DaoUtil;
 
 
 @Slf4j
 @Service
 public class MatchService {
     private final MatchDao matchDao;
-    private final WeekService weekService;
     private final TeamService teamService;
 
-    public MatchService(MatchDao matchDao, WeekService weekService, TeamService teamService) {
+    @Getter
+    private final Map<Integer, Integer> places = new HashMap<>();
+
+    public MatchService(MatchDao matchDao, TeamService teamService) {
         this.matchDao = matchDao;
-        this.weekService = weekService;
         this.teamService = teamService;
     }
 
@@ -67,8 +73,7 @@ public class MatchService {
     }
 
     public List<Match> findAllByCurrentWeek() {
-        Week currentWeek = weekService.findCurrentWeek();
-        return matchDao.findAllByWeekIdOrderByLocalDateTime(currentWeek.getId());
+        return matchDao.findAllByCurrentWeek();
     }
 
     public List<Match> findAll() {
@@ -120,7 +125,14 @@ public class MatchService {
         return result;
     }
 
-    public List<Match> findOnline() {
+    public List<Standing> getStandings() {
+        List<Standing> standings = matchDao.getStandings();
+        AtomicInteger place = new AtomicInteger(1);
+        standings.forEach(standing -> places.put(standing.getTeamId(), place.getAndIncrement()));
+        return standings;
+    }
+
+    public List<Match> findOnlineMatches() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime from = now.minusMinutes(140);
         LocalDateTime to = now.plusMinutes(20);
@@ -129,14 +141,9 @@ public class MatchService {
                 .toList();
     }
 
-    public Match getOnlineResult(String teamName) {
-        Team team = teamService.findByName(teamName);
-        Match match = matchDao.findAllBetweenToDates(LocalDateTime.now().minusHours(2), LocalDateTime.now())
-                .stream()
-                .filter(m -> m.getHomeTeamId() == team.getPublicId() || m.getAwayTeamId() == team.getPublicId())
-                .findFirst()
-                .orElse(null);
-
+    public Match getOnlineResult(int teamId) {
+        Team team = DaoUtil.TEAMS.get(teamId);
+        Match match = matchDao.findOnlineMatchByTeamId(teamId);
         if (match != null && match.getResult() != null) {
             if (match.getHomeTeamId() == team.getPublicId()) {
                 return Match.builder()
@@ -155,6 +162,10 @@ public class MatchService {
             }
         }
         return null;
+    }
+
+    public List<Integer> findOnlineTeamsIds() {
+        return matchDao.findOnlineTeamIds();
     }
 }
 

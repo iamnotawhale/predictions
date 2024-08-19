@@ -38,7 +38,6 @@ import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.Week;
-import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.input.Fixture;
 import zhigalin.predictions.model.input.Response;
@@ -51,7 +50,6 @@ import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
@@ -75,7 +73,6 @@ public class DataInitService {
     private final WeekService weekService;
     private final MatchService matchService;
     private final HeadToHeadService headToHeadService;
-    private final StandingService standingService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
     private final Set<Integer> notificationBan = new HashSet<>();
@@ -87,13 +84,12 @@ public class DataInitService {
 
     public DataInitService(TeamService teamService, WeekService weekService,
                            MatchService matchService, HeadToHeadService headToHeadService,
-                           StandingService standingService, NotificationService notificationService,
-                           PanicSender panicSender, PredictionService predictionService, UserService userService) {
+                           NotificationService notificationService, PanicSender panicSender,
+                           PredictionService predictionService, UserService userService) {
         this.teamService = teamService;
         this.weekService = weekService;
         this.matchService = matchService;
         this.headToHeadService = headToHeadService;
-        this.standingService = standingService;
         this.notificationService = notificationService;
         this.panicSender = panicSender;
         this.predictionService = predictionService;
@@ -170,7 +166,7 @@ public class DataInitService {
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
         }
-        if (!matchService.findOnline().isEmpty()) {
+        if (!matchService.findOnlineTeamsIds().isEmpty()) {
             HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                     .header(X_RAPIDAPI_KEY, apiFootballToken)
                     .header(HOST_NAME, HOST)
@@ -304,34 +300,6 @@ public class DataInitService {
                 teamService.save(awayTeam);
             }
 
-            if (standingService.findByPublicId(htpid) == null) {
-                Standing st = Standing.builder()
-                        .games(0)
-                        .points(0)
-                        .won(0)
-                        .draw(0)
-                        .lost(0)
-                        .teamId(homeTeam.getPublicId())
-                        .goalsScored(0)
-                        .goalsAgainst(0)
-                        .build();
-                standingService.save(st);
-            }
-
-            if (standingService.findByPublicId(atpid) == null) {
-                Standing st = Standing.builder()
-                        .games(0)
-                        .points(0)
-                        .won(0)
-                        .draw(0)
-                        .lost(0)
-                        .teamId(awayTeam.getPublicId())
-                        .goalsScored(0)
-                        .goalsAgainst(0)
-                        .build();
-                standingService.save(st);
-            }
-
             if (response.getGoals().getHome() == null) {
                 match = Match.builder()
                         .publicId(publicId)
@@ -393,7 +361,7 @@ public class DataInitService {
     }
 
     private void fullTimeMatchNotification() {
-        List<Match> online = matchService.findOnline();
+        List<Match> online = matchService.findOnlineMatches();
         if (!online.isEmpty()) {
             for (Match match : online) {
                 Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
