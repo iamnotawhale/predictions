@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.util.DaoUtil;
 
 @Slf4j
@@ -205,6 +206,51 @@ public class MatchDao {
         }
     }
 
+    public Match findOnlineMatchByTeamId(int teamId) {
+        LocalDateTime now = LocalDateTime.now();
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT *
+                    FROM match
+                    WHERE local_date_time BETWEEN :from AND :to
+                    AND (home_team_id = :teamId OR away_team_id = :teamId)
+                    """;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("teamId", teamId);
+            parameters.addValue("from", now.minusMinutes(140));
+            parameters.addValue("to", now.plusMinutes(20));
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Integer> findOnlineTeamIds() {
+        LocalDateTime now = LocalDateTime.now();
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT DISTINCT team_id
+                    FROM (
+                             SELECT home_team_id AS team_id
+                             FROM match
+                             WHERE local_date_time BETWEEN :from AND :to
+                             UNION ALL
+                             SELECT away_team_id AS team_id
+                             FROM match
+                             WHERE local_date_time BETWEEN :from AND :to
+                         ) AS team_ids
+                    """;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("from", now.minusHours(2));
+            parameters.addValue("to", now);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForList(sql, parameters, Integer.class));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
     public List<Match> findAllByStatus(String status) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
@@ -216,6 +262,68 @@ public class MatchDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("status", status);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Match> findAllByCurrentWeek() {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT *
+                    FROM match JOIN weeks w ON week_id = w.id
+                    WHERE w.is_current is TRUE
+                    ORDER BY local_date_time
+                    """;
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Standing> getStandings() {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    WITH MatchResults AS (
+                        SELECT
+                            m.home_team_id AS team_id,
+                            m.away_team_id AS opponent_team_id,
+                            m.home_team_score AS team_score,
+                            m.away_team_score AS opponent_score
+                        FROM match m
+                        WHERE m.status NOT IN ('ns', 'pst')
+                        UNION ALL
+                        SELECT
+                            m.away_team_id AS team_id,
+                            m.home_team_id AS opponent_team_id,
+                            m.away_team_score AS team_score,
+                            m.home_team_score AS opponent_score
+                        FROM match m
+                        WHERE m.status NOT IN ('ns', 'pst')
+                    )
+                    SELECT
+                        team_id,
+                        COUNT(*) AS games,
+                        SUM(CASE WHEN team_score > opponent_score THEN 1 ELSE 0 END) AS won,
+                        SUM(CASE WHEN team_score = opponent_score THEN 1 ELSE 0 END) AS drawn,
+                        SUM(CASE WHEN team_score < opponent_score THEN 1 ELSE 0 END) AS lost,
+                        SUM(team_score) AS gf,
+                        SUM(opponent_score) AS ga,
+                        SUM(team_score) - SUM(opponent_score) AS gd,
+                        SUM(CASE WHEN team_score > opponent_score THEN 3 ELSE 0 END) +
+                        SUM(CASE WHEN team_score = opponent_score THEN 1 ELSE 0 END) AS points
+                    FROM MatchResults
+                    GROUP BY team_id
+                    UNION ALL
+                    SELECT
+                        team_id, 0, 0, 0, 0, 0, 0, 0, 0
+                    FROM (SELECT DISTINCT home_team_id AS team_id FROM match UNION SELECT DISTINCT away_team_id AS team_id FROM match) AS all_teams
+                    WHERE team_id NOT IN (SELECT DISTINCT team_id FROM MatchResults)
+                    ORDER BY points DESC, gd DESC, gf DESC, team_id
+                    """;
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new StandingMapper()));
         } catch (SQLException e) {
             log.error(e.getMessage());
             return null;
@@ -235,6 +343,22 @@ public class MatchDao {
                     .status(rs.getString("status"))
                     .result(rs.getString("result"))
                     .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                    .build();
+        }
+    }
+
+    private static final class StandingMapper implements RowMapper<Standing> {
+        @Override
+        public Standing mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return Standing.builder()
+                    .teamId(rs.getInt("team_id"))
+                    .games(rs.getInt("games"))
+                    .won(rs.getInt("won"))
+                    .drawn(rs.getInt("drawn"))
+                    .lost(rs.getInt("lost"))
+                    .goalsFor(rs.getInt("gf"))
+                    .goalsAgainst(rs.getInt("ga"))
+                    .points(rs.getInt("points"))
                     .build();
         }
     }

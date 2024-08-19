@@ -19,11 +19,11 @@ import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 @RestController
@@ -32,7 +32,7 @@ public class PredictController {
     private final PredictionService predictionService;
     private final UserService userService;
     private final WeekService weekService;
-    private final StandingService standingService;
+    private final MatchService matchService;
 
     @PostMapping("/saveAndUpdate")
     public ModelAndView saveAndUpdate(@ModelAttribute Prediction prediction, HttpServletRequest request) {
@@ -107,12 +107,16 @@ public class PredictController {
 
     @ModelAttribute("places")
     public Map<Integer, Integer> places() {
-        return standingService.getPlaces();
+        return matchService.getPlaces();
     }
 
     @ModelAttribute("teams")
-    public Map<Integer, Team> teams() { return DaoUtil.TEAMS; }
+    public Map<Integer, Team> teams() {
+        return DaoUtil.TEAMS;
+    }
 
     @ModelAttribute("users")
-    public Map<Integer, User> users() { return DaoUtil.USERS; }
+    public Map<Integer, User> users() {
+        return DaoUtil.USERS;
+    }
 }

@@ -31,19 +31,6 @@ create table if not exists weeks
     season_id  integer
 );
 
-create table if not exists standing
-(
-    team_id       integer unique,
-    games         integer,
-    won           integer,
-    draw          integer,
-    lost          integer,
-    goals_against integer,
-    goals_scored  integer,
-    points        integer
-
-);
-
 create table if not exists teams
 (
     public_id integer unique,

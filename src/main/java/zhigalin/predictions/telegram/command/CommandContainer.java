@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableMap;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
@@ -32,8 +31,7 @@ public class CommandContainer {
     private final Command predictCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
-                            StandingService standingService, TeamService teamService,
-                            HeadToHeadService headToHeadService, DataInitService dataInitService,
+                            TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
                             PredictionService predictionService, UserService userService) {
         commandMap = ImmutableMap.<String, Command>builder()
                 .put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService))
@@ -41,7 +39,7 @@ public class CommandContainer {
                 .put(STOP.getName(), new StopCommand(sendBotMessageService))
                 .put(HELP.getName(), new HelpCommand(sendBotMessageService))
                 .put(NO.getName(), new NoCommand(sendBotMessageService))
-                .put(TABLE.getName(), new TableCommand(sendBotMessageService, standingService))
+                .put(TABLE.getName(), new TableCommand(sendBotMessageService, matchService))
                 .put(TOUR.getName(), new TourCommand(sendBotMessageService))
                 .put(TOUR_NUM.getName(), new TourNumCommand(sendBotMessageService, matchService))
                 .put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService))

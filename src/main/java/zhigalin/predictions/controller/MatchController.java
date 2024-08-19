@@ -21,7 +21,6 @@ import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.user.UserService;
 
@@ -32,7 +31,6 @@ public class MatchController {
     private final MatchService matchService;
     private final WeekService weekService;
     private final TeamService teamService;
-    private final StandingService standingService;
     private final UserService userService;
 
     @GetMapping("/team")
@@ -122,7 +120,7 @@ public class MatchController {
 
     @ModelAttribute("places")
     public Map<Integer, Integer> places() {
-        return standingService.getPlaces();
+        return matchService.getPlaces();
     }
 
     @ModelAttribute("teams")

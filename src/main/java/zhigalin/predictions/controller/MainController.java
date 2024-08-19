@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 import com.rometools.rome.io.FeedException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,16 +20,15 @@ import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping
 public class MainController {
     private final MatchService matchService;
-    private final StandingService standingService;
     private final HeadToHeadService headToHeadService;
     private final WeekService weekService;
     private final DataInitService dataInitService;
@@ -42,9 +42,10 @@ public class MainController {
         model.addObject("todayDateTime", LocalDateTime.now());
         model.addObject("currentWeek", weekService.findCurrentWeek().getId());
         model.addObject("matchList", matchService.findAllByCurrentWeek());
-        model.addObject("h2h", headToHeadService.findAllByCurrentWeek());
-        model.addObject("online", matchService.findOnline());
-        model.addObject("standings", standingService.findAll());
+        model.addObject("h2h", headToHeadService.findAllByCurrentWeekNew());
+        model.addObject("online", matchService.findOnlineTeamsIds());
+        model.addObject("onlineMatches", matchService.findOnlineMatches());
+        model.addObject("standings", matchService.getStandings());
         model.addObject("news", dataInitService.newsInit());
         model.addObject("teams", DaoUtil.TEAMS);
         return model;
