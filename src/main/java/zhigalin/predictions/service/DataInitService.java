@@ -166,7 +166,7 @@ public class DataInitService {
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
         }
-        if (!matchService.findOnlineTeamsIds().isEmpty()) {
+        if (!matchService.findOnlineMatches().isEmpty()) {
             HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                     .header(X_RAPIDAPI_KEY, apiFootballToken)
                     .header(HOST_NAME, HOST)
