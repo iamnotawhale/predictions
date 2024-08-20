@@ -58,7 +58,6 @@ public class EPLInfoBot extends TelegramLongPollingBot {
             String message = update.getMessage().getText().trim();
             if (message.contains("update")) {
                 String[] array = message.split("[^A-Za-z0-9]");
-                String commandIdentifier = array[1].toLowerCase();
                 if (array.length == 6 &&
                     EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
                     EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
