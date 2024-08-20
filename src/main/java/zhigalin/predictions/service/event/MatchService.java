@@ -163,9 +163,5 @@ public class MatchService {
         }
         return null;
     }
-
-    public List<Integer> findOnlineTeamsIds() {
-        return matchDao.findOnlineTeamIds();
-    }
 }
 
