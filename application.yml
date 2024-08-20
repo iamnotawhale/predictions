@@ -15,7 +15,7 @@ bot:
   urlMessage: https://api.telegram.org/bot${bot.token}/sendMessage
   urlPhoto: https://api.telegram.org/bot${bot.token}/sendPhoto
 
-chatId:
+chatId: 739299
 
 api:
   football:
