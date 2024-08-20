@@ -6,10 +6,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
+import kong.unirest.core.HttpResponse;
+import kong.unirest.core.JsonNode;
+import kong.unirest.core.Unirest;
+import kong.unirest.core.UnirestException;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,29 +44,31 @@ public class NotificationService {
         this.predictionService = predictionService;
     }
 
-    public void check(int minutes) throws UnirestException {
-        List<User> users = userService.findAll();
-        List<Match> nearest = matchService.findAllNearest(minutes);
-        if (!nearest.isEmpty()) {
-            for (User user : users) {
-                for (Match match : nearest) {
-                    boolean hasPredict = predictionService.getByMatchPublicId(match.getPublicId()).stream()
-                            .anyMatch(prediction -> prediction.getUserId() == user.getId());
-                    if (!hasPredict) {
-                        Notification notification = Notification.builder().user(user).match(match).build();
-                        if (!notificationBLackList.get(minutes).contains(notification.toString())) {
-                            notificationBLackList.get(minutes).add(notification.toString());
-                            if (minutes == 30) {
-                                sendPhoto(notification);
-                            } else {
-                                sendNotification(notification, minutes);
+    public void check() throws UnirestException {
+        for (Integer minutes : List.of(90, 30)) {
+            List<User> users = userService.findAll();
+            List<Match> nearest = matchService.findAllNearest(minutes);
+            if (!nearest.isEmpty()) {
+                for (User user : users) {
+                    for (Match match : nearest) {
+                        boolean hasPredict = predictionService.getByMatchPublicId(match.getPublicId()).stream()
+                                .anyMatch(prediction -> prediction.getUserId() == user.getId());
+                        if (!hasPredict) {
+                            Notification notification = Notification.builder().user(user).match(match).build();
+                            if (!notificationBLackList.get(minutes).contains(notification.toString())) {
+                                notificationBLackList.get(minutes).add(notification.toString());
+                                if (minutes == 30) {
+                                    sendPhoto(notification);
+                                } else {
+                                    sendNotification(notification, minutes);
+                                }
                             }
                         }
                     }
                 }
+            } else {
+                notificationBLackList.get(minutes).clear();
             }
-        } else {
-            notificationBLackList.get(minutes).clear();
         }
     }
 

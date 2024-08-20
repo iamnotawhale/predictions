@@ -22,15 +22,15 @@ import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
+import kong.unirest.core.HttpResponse;
+import kong.unirest.core.JsonNode;
+import kong.unirest.core.Unirest;
+import kong.unirest.core.UnirestException;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -144,14 +144,12 @@ public class DataInitService {
         }
     }
 
-    //    @Scheduled(cron = "0 */6 * * * *")
-//    @Scheduled(initialDelay = 5000, fixedDelay = 50000000)
+    @Scheduled(cron = "0 */6 * * * *")
     private void start() {
         try {
             matchUpdateFromApiFootball();
             fullTimeMatchNotification();
-            notificationService.check(90);
-            notificationService.check(30);
+            notificationService.check();
         } catch (Exception e) {
             panicSender.sendPanic(e);
         }

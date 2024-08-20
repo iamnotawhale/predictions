@@ -4,7 +4,6 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 

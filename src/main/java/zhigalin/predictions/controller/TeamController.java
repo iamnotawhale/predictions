@@ -61,5 +61,7 @@ public class TeamController {
     }
 
     @ModelAttribute("teams")
-    public Map<Integer, Team> teams() { return DaoUtil.TEAMS; }
+    public Map<Integer, Team> teams() {
+        return DaoUtil.TEAMS;
+    }
 }

@@ -252,13 +252,13 @@ public class PredictionDao {
                     .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
                     .build();
 
-                Prediction prediction = Prediction.builder()
-                        .userId(rs.getInt("user_id"))
-                        .homeTeamScore(rs.getInt("home_team_score"))
-                        .awayTeamScore(rs.getInt("away_team_score"))
-                        .points(rs.getInt("points"))
-                        .build();
-                return new MatchPrediction(match, prediction);
+            Prediction prediction = Prediction.builder()
+                    .userId(rs.getInt("user_id"))
+                    .homeTeamScore(rs.getInt("home_team_score"))
+                    .awayTeamScore(rs.getInt("away_team_score"))
+                    .points(rs.getInt("points"))
+                    .build();
+            return new MatchPrediction(match, prediction);
         }
     }
 
@@ -285,6 +285,7 @@ public class PredictionDao {
         }
     }
 
-     public record MatchPrediction(Match match, Prediction prediction) {}
+    public record MatchPrediction(Match match, Prediction prediction) {
+    }
 }
 

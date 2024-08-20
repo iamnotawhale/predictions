@@ -3,7 +3,6 @@ package zhigalin.predictions.config;
 import java.io.IOException;
 import java.util.Set;
 
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
