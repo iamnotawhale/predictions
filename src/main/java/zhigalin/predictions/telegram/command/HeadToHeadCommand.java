@@ -9,9 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 public class HeadToHeadCommand implements Command {

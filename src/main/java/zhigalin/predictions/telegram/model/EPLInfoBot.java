@@ -3,7 +3,6 @@ package zhigalin.predictions.telegram.model;
 import java.util.EnumSet;
 
 import lombok.SneakyThrows;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -23,20 +22,20 @@ import static zhigalin.predictions.telegram.command.CommandName.NO;
 @Component
 public class EPLInfoBot extends TelegramLongPollingBot {
 
-    private static final String COMMAND_PREFIX = "/";
-
-    private static final String REGEX = "[^A-Za-z]";
-    @Value("${bot.username}")
-    private String name;
-    @Value("${bot.token}")
-    private String token;
-
+    private final String name;
     private final CommandContainer commandContainer;
 
-    @Autowired
-    public EPLInfoBot(MatchService matchService, TeamService teamService,
+    private static final String COMMAND_PREFIX = "/";
+    private static final String REGEX = "[^A-Za-z]";
+
+    public EPLInfoBot(@Value("${bot.token}") String token,
+                      @Value("${bot.username}") String name,
+                      MatchService matchService, TeamService teamService,
                       HeadToHeadService headToHeadService, DataInitService dataInitService,
-                      PredictionService predictionService, UserService userService) {
+                      PredictionService predictionService, UserService userService
+    ) {
+        super(token);
+        this.name = name;
         commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, teamService,
                 headToHeadService, dataInitService, predictionService, userService);
     }
@@ -44,11 +43,6 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     @Override
     public String getBotUsername() {
         return name;
-    }
-
-    @Override
-    public String getBotToken() {
-        return token;
     }
 
     @SneakyThrows

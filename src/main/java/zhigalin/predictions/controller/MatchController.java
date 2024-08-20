@@ -18,11 +18,11 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.user.UserService;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 @RestController
@@ -124,5 +124,7 @@ public class MatchController {
     }
 
     @ModelAttribute("teams")
-    public Map<Integer, Team> teams() { return DaoUtil.TEAMS; }
+    public Map<Integer, Team> teams() {
+        return DaoUtil.TEAMS;
+    }
 }

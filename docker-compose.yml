@@ -4,3 +4,5 @@ services:
     restart: always
     image: imnotawhale/predicts:latest
     network_mode: host
+    volumes:
+      - ./application.yml:/app/application.yml

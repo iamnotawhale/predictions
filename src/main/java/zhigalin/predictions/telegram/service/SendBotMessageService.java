@@ -35,22 +35,7 @@ public class SendBotMessageService {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         if (stackTrace[3].getClassName().endsWith("TourCommand")) {
             InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
-            List<InlineKeyboardButton> listOfButtons = null;
-            List<List<InlineKeyboardButton>> list = new ArrayList<>();
-            for (int i = 0; i < 39; i++) {
-                if (i % 8 == 0 || i == 38) {
-                    if (listOfButtons != null) {
-                        list.add(listOfButtons);
-                        if (i == 38) {
-                            continue;
-                        }
-                    }
-                    listOfButtons = new ArrayList<>();
-                }
-                InlineKeyboardButton button = new InlineKeyboardButton(String.valueOf(i + 1));
-                button.setCallbackData("/tour" + (i + 1));
-                listOfButtons.add(button);
-            }
+            List<List<InlineKeyboardButton>> list = getButtonsList();
             keyBoard.setKeyboard(list);
             sendMessage.setReplyMarkup(keyBoard);
         } else {
@@ -58,5 +43,25 @@ public class SendBotMessageService {
             replyKeyboardRemove.setRemoveKeyboard(true);
             sendMessage.setReplyMarkup(replyKeyboardRemove);
         }
+    }
+
+    private static List<List<InlineKeyboardButton>> getButtonsList() {
+        List<InlineKeyboardButton> listOfButtons = null;
+        List<List<InlineKeyboardButton>> list = new ArrayList<>();
+        for (int i = 0; i < 39; i++) {
+            if (i % 8 == 0 || i == 38) {
+                if (listOfButtons != null) {
+                    list.add(listOfButtons);
+                    if (i == 38) {
+                        continue;
+                    }
+                }
+                listOfButtons = new ArrayList<>();
+            }
+            InlineKeyboardButton button = new InlineKeyboardButton(String.valueOf(i + 1));
+            button.setCallbackData("/tour" + (i + 1));
+            listOfButtons.add(button);
+        }
+        return list;
     }
 }

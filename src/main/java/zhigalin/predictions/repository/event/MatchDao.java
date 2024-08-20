@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import javax.sql.DataSource;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
