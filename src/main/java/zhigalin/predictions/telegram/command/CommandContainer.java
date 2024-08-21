@@ -31,6 +31,7 @@ public class CommandContainer {
     private final Command headToHeadCommand;
     private final Command updateCommand;
     private final Command predictCommand;
+    private final Command predictKeyboardCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
@@ -53,6 +54,7 @@ public class CommandContainer {
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
         updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService);
         predictCommand = new PredictCommand(sendBotMessageService, predictionService, userService, matchService);
+        predictKeyboardCommand = new PredictKeyboardCommand(sendBotMessageService);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
@@ -73,5 +75,9 @@ public class CommandContainer {
 
     public Command retrievePredictCommand() {
         return predictCommand;
+    }
+
+    public Command retrievePredictKeyBoardCommand() {
+        return predictKeyboardCommand;
     }
 }
