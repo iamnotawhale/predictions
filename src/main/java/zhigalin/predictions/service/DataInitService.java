@@ -139,16 +139,17 @@ public class DataInitService {
                     log.warn("Don't send todays match notification");
                 }
             } catch (UnirestException e) {
-                log.error("Sending message error: " + e.getMessage());
+                log.error("Sending message error: {}", e.getMessage());
             }
         }
     }
 
-    @Scheduled(cron = "0 */6 * * * *")
+//    @Scheduled(cron = "0 */6 * * * *")
+    @Scheduled(initialDelay = 5000, fixedDelay = 60000000)
     private void start() {
         try {
-            matchUpdateFromApiFootball();
-            fullTimeMatchNotification();
+//            matchUpdateFromApiFootball();
+//            fullTimeMatchNotification();
             notificationService.check();
         } catch (Exception e) {
             panicSender.sendPanic(e);
@@ -207,7 +208,7 @@ public class DataInitService {
     }
 
     private void weeklyResultNotification() {
-        int id = weekService.findCurrentWeek().getId();
+        int id = DaoUtil.currentWeekId;
         Map<String, Integer> currentWeekUsersPoints = predictionService.getWeeklyUsersPoints(id);
         StringBuilder builder = new StringBuilder();
         builder.append("Очки за тур: ").append("\n");
@@ -426,7 +427,7 @@ public class DataInitService {
     }
 
     private void currentWeekUpdate() {
-        int id = weekService.findCurrentWeek().getId();
+        int id = DaoUtil.currentWeekId;
         Week currentWeek = weekService.findById(id);
         Week nextCurrentWeek = weekService.findById(id + 1);
         weekService.updateCurrent(currentWeek, false);

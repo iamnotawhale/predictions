@@ -52,7 +52,7 @@ public class MatchController {
     @GetMapping("/week/current")
     public ModelAndView findByCurrentWeek() {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("header", "Матчи " + weekService.findCurrentWeek().getId() + " тура");
+        model.addObject("header", "Матчи " + DaoUtil.currentWeekId + " тура");
         model.addObject("matchList", matchService.findAllByCurrentWeek());
         return model;
     }
@@ -105,7 +105,7 @@ public class MatchController {
 
     @ModelAttribute("currentWeek")
     public Integer getCurrentWeekId() {
-        return weekService.findCurrentWeek().getId();
+        return DaoUtil.currentWeekId;
     }
 
     @ModelAttribute("todayDateTime")

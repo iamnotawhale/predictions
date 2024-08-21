@@ -31,7 +31,6 @@ import zhigalin.predictions.util.DaoUtil;
 public class PredictController {
     private final PredictionService predictionService;
     private final UserService userService;
-    private final WeekService weekService;
     private final MatchService matchService;
 
     @PostMapping("/saveAndUpdate")
@@ -97,7 +96,7 @@ public class PredictController {
 
     @ModelAttribute("currentWeek")
     public Integer getCurrentWeekId() {
-        return weekService.findCurrentWeek().getId();
+        return DaoUtil.currentWeekId;
     }
 
     @ModelAttribute("todayDateTime")

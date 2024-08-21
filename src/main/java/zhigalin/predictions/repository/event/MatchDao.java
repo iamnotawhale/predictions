@@ -109,7 +109,7 @@ public class MatchDao {
             String sql = """
                     SELECT *
                     FROM match
-                    WHERE local_date_time BETWEEN :from AND :now
+                    WHERE local_date_time BETWEEN :from AND :to
                     ORDER BY local_date_time
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();

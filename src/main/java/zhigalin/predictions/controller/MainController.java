@@ -31,9 +31,9 @@ import zhigalin.predictions.util.DaoUtil;
 @RestController
 @RequestMapping
 public class MainController {
+
     private final MatchService matchService;
     private final HeadToHeadService headToHeadService;
-    private final WeekService weekService;
     private final DataInitService dataInitService;
     private final UserService userService;
     private final PredictionService predictionService;
@@ -44,7 +44,7 @@ public class MainController {
         List<Match> onlineMatches = matchService.findOnlineMatches();
         model.addObject("map", predictionService.getAllPointsByUsers());
         model.addObject("todayDateTime", LocalDateTime.now());
-        model.addObject("currentWeek", weekService.findCurrentWeek().getId());
+        model.addObject("currentWeek", DaoUtil.currentWeekId);
         model.addObject("matchList", matchService.findAllByCurrentWeek());
         model.addObject("h2h", headToHeadService.findAllByCurrentWeekNew());
         model.addObject("onlineTeamsIds", onlineMatches.stream()

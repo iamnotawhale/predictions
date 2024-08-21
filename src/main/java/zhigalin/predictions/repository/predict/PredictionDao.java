@@ -103,8 +103,11 @@ public class PredictionDao {
     public List<MatchPrediction> findAllByUserId(int userId) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
-                    SELECT * FROM predict
-                    JOIN match m ON match_id = m.public_id
+                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
+                       m.status, m.week_id, m.local_date_time,
+                       p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
+                    FROM match m
+                    JOIN predict p ON m.public_id = p.match_id
                     WHERE user_id = :userId
                     ORDER BY m.local_date_time DESC
                     """;
@@ -151,10 +154,13 @@ public class PredictionDao {
     public List<MatchPrediction> findAllByWeekId(int weekId) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
-                    SELECT * FROM predict
-                    JOIN match m ON match_id = m.public_id
+                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
+                       m.status, m.week_id, m.local_date_time,
+                       p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
+                    FROM match m
+                    JOIN predict p ON m.public_id = p.match_id
                     WHERE m.week_id = :weekId
-                    ORDER BY m.local_date_time DESC, user_id
+                    ORDER BY m.local_date_time DESC, p.user_id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("weekId", weekId);
@@ -221,19 +227,40 @@ public class PredictionDao {
 
     public List<MatchPrediction> getPredictionsByUserAndWeek(int userId, int weekId) {
         Map<Match, Prediction> result = new HashMap<>();
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
+                           m.status, m.week_id, m.local_date_time,
+                           p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
+                    FROM match m
+                    JOIN predict p ON m.public_id = p.match_id
+                    WHERE m.week_id = :weekId AND user_id = :userId
+                    """;
 
-        String sql = """
-                SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result, m.status, m.week_id, m.local_date_time, p.user_id, p.home_team_score, p.away_team_score, p.points
-                FROM match m
-                LEFT JOIN predict p ON m.public_id = p.match_id
-                WHERE m.week_id = :weekId AND user_id = :userId
-                """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("weekId", weekId);
+            params.addValue("userId", userId);
 
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("weekId", weekId);
-        params.addValue("userId", userId);
+            return namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper());
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
 
-        return namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper());
+    public boolean isExist(int userId, int matchId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT EXISTS(SELECT 1 FROM predict WHERE match_id = :matchId AND user_id = :userId)
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("matchId", matchId);
+            params.addValue("userId", userId);
+            return Boolean.TRUE.equals(namedParameterJdbcTemplate.queryForObject(sql, params, Boolean.class));
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+            return false;
+        }
     }
 
     private static class MatchPredictionMapper implements RowMapper<MatchPrediction> {
@@ -254,8 +281,8 @@ public class PredictionDao {
 
             Prediction prediction = Prediction.builder()
                     .userId(rs.getInt("user_id"))
-                    .homeTeamScore(rs.getInt("home_team_score"))
-                    .awayTeamScore(rs.getInt("away_team_score"))
+                    .homeTeamScore(rs.getInt("predict_hts"))
+                    .awayTeamScore(rs.getInt("predict_ats"))
                     .points(rs.getInt("points"))
                     .build();
             return new MatchPrediction(match, prediction);
