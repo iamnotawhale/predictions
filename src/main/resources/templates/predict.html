@@ -183,7 +183,7 @@
                                 <div class="container-fluid">
                                     <div class="row align-items-center">
                                         <div class="col-sm">
-                                            <img th:src="${teams.get(mp.match().homeTeamId).logo}" th:width="100" alt=""/>
+                                            <img th:src="@{/img/teams/__${mp.match().homeTeamId}__.webp}" th:width="100" alt=""/>
                                         </div>
                                         <div class="col-sm-2">
                                             <div class="form-group">
@@ -215,7 +215,7 @@
                                             </div>
                                         </div>
                                         <div class="col-sm">
-                                            <img th:src="${teams.get(mp.match().awayTeamId).logo}" th:width="100" alt=""/>
+                                            <img th:src="@{/img/teams/__${mp.match().awayTeamId}__.webp}" th:width="100" alt=""/>
                                         </div>
                                     </div>
                                 </div>

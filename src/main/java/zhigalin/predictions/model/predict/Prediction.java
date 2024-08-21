@@ -11,5 +11,5 @@ public class Prediction {
     private int userId;
     private Integer homeTeamScore;
     private Integer awayTeamScore;
-    private int points;
+    private Integer points;
 }

@@ -35,7 +35,12 @@ public class SendBotMessageService {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         if (stackTrace[3].getClassName().endsWith("TourCommand")) {
             InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> list = getButtonsList();
+            List<List<InlineKeyboardButton>> list = getTourButtonsList();
+            keyBoard.setKeyboard(list);
+            sendMessage.setReplyMarkup(keyBoard);
+        } if (stackTrace[3].getClassName().endsWith("TourCommand")) {
+            InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> list = getTourButtonsList();
             keyBoard.setKeyboard(list);
             sendMessage.setReplyMarkup(keyBoard);
         } else {
@@ -45,7 +50,7 @@ public class SendBotMessageService {
         }
     }
 
-    private static List<List<InlineKeyboardButton>> getButtonsList() {
+    private static List<List<InlineKeyboardButton>> getTourButtonsList() {
         List<InlineKeyboardButton> listOfButtons = null;
         List<List<InlineKeyboardButton>> list = new ArrayList<>();
         for (int i = 0; i < 39; i++) {

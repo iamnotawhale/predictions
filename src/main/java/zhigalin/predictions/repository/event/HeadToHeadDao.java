@@ -60,8 +60,8 @@ public class HeadToHeadDao {
             String sql = """
                         SELECT home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time
                         FROM h2h
-                                 JOIN teams ht on ht.id = home_team_id
-                                 JOIN teams at on at.id = away_team_id
+                                 JOIN teams ht on ht.public_id = home_team_id
+                                 JOIN teams at on at.public_id = away_team_id
                         WHERE ht.code in (:homeTeamCode, :awayTeamCode)
                         AND at.code in (:homeTeamCode, :awayTeamCode);
                     """;

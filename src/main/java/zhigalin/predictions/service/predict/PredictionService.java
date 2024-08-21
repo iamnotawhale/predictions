@@ -80,9 +80,7 @@ public class PredictionService {
     }
 
     public boolean isExist(int userId, int matchId) {
-        return findAllByUserId(userId)
-                .stream()
-                .anyMatch(prediction -> prediction.prediction().getMatchPublicId() == matchId);
+        return predictionDao.isExist(userId, matchId);
     }
 
     public List<Prediction> getByMatchPublicId(int publicId) {

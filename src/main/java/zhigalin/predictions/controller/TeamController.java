@@ -26,7 +26,6 @@ import zhigalin.predictions.util.DaoUtil;
 public class TeamController {
     private final TeamService teamService;
     private final MatchService matchService;
-    private final WeekService weekService;
     private final UserService userService;
 
 
@@ -34,7 +33,7 @@ public class TeamController {
     public ModelAndView getTeamById(@PathVariable("id") int publicId) {
         ModelAndView model = new ModelAndView("team");
         model.addObject("header", teamService.findByPublicId(publicId).getName());
-        model.addObject("currentWeek", weekService.findCurrentWeek().getId());
+        model.addObject("currentWeek", DaoUtil.currentWeekId);
         model.addObject("last5", matchService.findLast5MatchesByTeamId(publicId));
         model.addObject("last5Result", matchService.getLast5MatchesResultByTeamId(publicId));
         return model;

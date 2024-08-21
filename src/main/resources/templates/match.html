@@ -90,8 +90,7 @@
             </thead>
             <tbody th:align="center">
             <th:block th:each="match: ${matchList}">
-                <tr th:data-bs-target="${'#acc'+ match.publicId}" data-bs-toggle="collapse"
-                    class="accordion-toggle">
+                <tr th:data-bs-target="${'#acc'+ match.publicId}" data-bs-toggle="collapse" class="accordion-toggle">
                     <td class="align-middle" th:text="${match.weekId}">Week</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date</td>
                     <td class="align-middle" th:text="${#temporals.format(match.localDateTime, 'HH:mm')}">Time</td>
@@ -138,13 +137,13 @@
                                             <label class="font-weight-bold" th:for="${'user' + currentUser.id}">ID
                                                 пользователя</label>
                                             <input type="text"
-                                                   name="user"
+                                                   name="userId"
                                                    th:id="${'user' + currentUser.id}"
                                                    class="form-control"
                                                    th:value="${currentUser.id}"
                                                    readonly>
                                             <label class="font-weight-bold" th:for="${'match' + match}"></label>
-                                            <input name="match"
+                                            <input name="matchPublicId"
                                                    th:id="${'match' + match}"
                                                    class="form-control"
                                                    th:value="${match.publicId}"
@@ -153,7 +152,7 @@
                                         <div class="container">
                                             <div class="row align-items-center">
                                                 <div class="col-sm">
-                                                    <img th:src="@{/img/teams/__${match.homeTeamId}__.png}" th:width="100"/>
+                                                    <img th:src="@{/img/teams/__${match.homeTeamId}__.webp}" th:width="100"/>
                                                 </div>
                                                 <div class="col-sm-2">
                                                     <div class="form-group">
@@ -179,7 +178,7 @@
                                                     </div>
                                                 </div>
                                                 <div class="col-sm">
-                                                    <img th:src=" @{/img/teams/__${match.awayTeamId}__.png}" th:width="100"/>
+                                                    <img th:src=" @{/img/teams/__${match.awayTeamId}__.webp}" th:width="100"/>
                                                 </div>
                                             </div>
                                         </div>

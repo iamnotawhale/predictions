@@ -4,9 +4,15 @@ import java.util.EnumSet;
 
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -28,16 +34,22 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private static final String COMMAND_PREFIX = "/";
     private static final String REGEX = "[^A-Za-z]";
 
-    public EPLInfoBot(@Value("${bot.token}") String token,
-                      @Value("${bot.username}") String name,
-                      MatchService matchService, TeamService teamService,
-                      HeadToHeadService headToHeadService, DataInitService dataInitService,
-                      PredictionService predictionService, UserService userService
+    public EPLInfoBot(@Value("${bot.token}") String token, @Value("${bot.username}") String name,
+                      MatchService matchService, TeamService teamService, HeadToHeadService headToHeadService,
+                      DataInitService dataInitService, PredictionService predictionService, UserService userService,
+                      PanicSender panicSender
     ) {
         super(token);
         this.name = name;
-        commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, teamService,
+        this.commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, teamService,
                 headToHeadService, dataInitService, predictionService, userService);
+
+        try{
+            TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
+            telegramBotsApi.registerBot(this);
+        } catch (TelegramApiException e){
+            panicSender.sendPanic(e);
+        }
     }
 
     @Override

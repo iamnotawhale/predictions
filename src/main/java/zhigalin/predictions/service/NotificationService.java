@@ -2,6 +2,7 @@ package zhigalin.predictions.service;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,9 @@ import kong.unirest.core.UnirestException;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.notification.Notification;
@@ -102,24 +106,32 @@ public class NotificationService {
 
     private void sendNotification(Notification notification, int minutes) throws UnirestException {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
-        Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
-        Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
+        String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
+        String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
         String builder = "Не проставлен прогноз на матч:\n" +
-                         homeTeam.getCode() + " " +
+                         homeTeam + " " +
                          match.getLocalDateTime().format(formatter) + " " +
-                         awayTeam.getCode() + " " +
+                         awayTeam + " " +
                          "осталось " + minutes + " мин.";
         String chatId = notification.getUser().getTelegramId();
 
+        InlineKeyboardButton button = InlineKeyboardButton.builder()
+                .text(builder)
+                .callbackData("/" + homeTeam + ":" + awayTeam)
+                .build();
+        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                .keyboard(Collections.singleton(List.of(button)))
+                .build();
+
         HttpResponse<JsonNode> response = Unirest.get(urlMessage)
                 .queryString("chat_id", chatId)
-                .queryString("text", builder)
+                .queryString("reply_markup", objectMapper)
                 .queryString("parse_mode", "Markdown")
                 .asJson();
         if (response.getStatus() == 200) {
             log.info("Not predictable match {}:{} notification has been send to {}",
-                    homeTeam.getCode(),
-                    awayTeam.getCode(),
+                    homeTeam,
+                    awayTeam,
                     notification.getUser().getLogin()
             );
         } else {

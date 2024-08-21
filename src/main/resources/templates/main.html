@@ -101,7 +101,7 @@
                                 <td class="align-middle"
                                     th:text="${#temporals.format(match.localDateTime, 'HH:mm')}">Time
                                 </td>
-                                <td><img th:src="@{/img/teams/__${match.homeTeamId}__.png}" th:width="20" th:height="20" loading="lazy"/></td>
+                                <td><img th:src="@{/img/teams/__${match.homeTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                                 <td class="align-middle" th:if="${match.status != 'ns'}"
                                     th:text="${match.homeTeamScore}">HT Score
                                 </td>
@@ -114,24 +114,24 @@
                                 <td colspan="3" class="align-middle" th:unless="${match.status != 'ns'}">
                                     <div th:text="'-'"></div>
                                 </td>
-                                <td><img th:src="@{/img/teams/__${match.awayTeamId}__.png}" th:width="20" th:height="20" loading="lazy"/></td>
+                                <td><img th:src="@{/img/teams/__${match.awayTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                             </tr>
                             <tr class="accordion-body collapse" th:id="${'acco'+ iter.index}"
                                 th:each="hth: ${h2h.get(match.publicId)}">
                                 <td colspan="2" class="align-middle">
                                     <div>
-                                        <img th:src="@{/img/leagues/__${#strings.substringBefore(hth.leagueName, ' ')}__.png}"
+                                        <img th:src="@{/img/leagues/__${#strings.substringBefore(hth.leagueName, ' ')}__.webp}"
                                              th:width="15"
                                              th:height="15"
                                              loading="lazy"/>
                                         <span th:text="${#temporals.format(hth.localDateTime, 'dd.MM.YY')}"/>
                                     </div>
                                 </td>
-                                <td><img th:src="@{/img/teams/__${hth.homeTeamId}__.png}" th:width="20" th:height="20" loading="lazy"/></td>
+                                <td><img th:src="@{/img/teams/__${hth.homeTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                                 <td colspan="3" class="align-middle"
                                     th:text="${hth.homeTeamScore + ' - ' + hth.awayTeamScore}">Status
                                 </td>
-                                <td><img th:src="@{/img/teams/__${hth.awayTeamId}__.png}" th:width="20" th:height="20" loading="lazy"/></td>
+                                <td><img th:src="@{/img/teams/__${hth.awayTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                             </tr>
                         </th:block>
                         </tbody>
@@ -189,7 +189,7 @@
                                 class="accordion-toggle">
                                 <td th:text="${iter.index + 1}">Position</td>
                                 <td>
-                                    <img th:src="@{/img/teams/__${standing.teamId}__.png}" th:width="20" th:height="20"
+                                    <img th:src="@{/img/teams/__${standing.teamId}__.webp}" th:width="20" th:height="20"
                                          style="display:inline;" loading="lazy"/>
                                 </td>
                                 <td class="d-none d-xl-table-cell">
@@ -306,7 +306,7 @@
                         <tbody th:align="center">
                         <th:block th:each="match: ${onlineMatches}">
                             <tr>
-                                <td style="width: 35%"><img th:src="@{/img/teams/__${match.homeTeamId}__.png}" th:width="20" th:height="20" loading="lazy"/>
+                                <td style="width: 35%"><img th:src="@{/img/teams/__${match.homeTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/>
                                 </td>
                                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
                                 <td class="align-middle" th:if="${match.status != 'ns'}" th:text="${match.status}">
@@ -314,7 +314,7 @@
                                 </td>
                                 <td class="align-middle" th:unless="${match.status != 'ns'}" th:text="'-'">Status</td>
                                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
-                                <td style="width: 35%"><img th:src="@{/img/teams/__${match.awayTeamId}__.png}" th:width="20" th:height="20" loading="lazy"/>
+                                <td style="width: 35%"><img th:src="@{/img/teams/__${match.awayTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/>
                                 </td>
                             </tr>
                         </th:block>
