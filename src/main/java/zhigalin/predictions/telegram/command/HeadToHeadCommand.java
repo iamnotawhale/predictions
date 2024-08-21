@@ -25,7 +25,7 @@ public class HeadToHeadCommand implements Command {
         List<HeadToHead> list = getHeadToHead(update);
         StringBuilder builder = new StringBuilder();
 
-        if (list == null) {
+        if (list == null || list.isEmpty()) {
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Эти команды еще не играли друг против друга");
         } else {
             for (HeadToHead h2h : list) {

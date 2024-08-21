@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import zhigalin.predictions.telegram.model.EPLInfoBot;
 
@@ -26,23 +26,23 @@ public class SendBotMessageService {
         sendMessage.enableMarkdown(true);
         sendMessage.setText(message);
 
-        createKeyBoard(sendMessage);
-
         bot.execute(sendMessage);
     }
 
-    public void createKeyBoard(SendMessage sendMessage) {
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        if (stackTrace[3].getClassName().endsWith("TourCommand")) {
-            InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> list = getTourButtonsList();
-            keyBoard.setKeyboard(list);
-            sendMessage.setReplyMarkup(keyBoard);
-        } else {
-            ReplyKeyboardRemove replyKeyboardRemove = new ReplyKeyboardRemove();
-            replyKeyboardRemove.setRemoveKeyboard(true);
-            sendMessage.setReplyMarkup(replyKeyboardRemove);
-        }
+    @SneakyThrows
+    public void sendMessageDeletingKeyboard(Integer messageId, String chatId, String message) {
+        DeleteMessage deleteMessage = new DeleteMessage();
+        deleteMessage.setChatId(chatId);
+        deleteMessage.setMessageId(messageId);
+        bot.execute(deleteMessage);
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.enableHtml(true);
+        sendMessage.enableMarkdown(true);
+        sendMessage.setText(message);
+
+        bot.execute(sendMessage);
     }
 
     @SneakyThrows
@@ -54,14 +54,24 @@ public class SendBotMessageService {
         sendMessage.setText("Выбери прогноз");
 
         createPredictKeyBoard(sendMessage, homeTeam, awayTeam);
+        bot.execute(sendMessage);
+    }
 
+    @SneakyThrows
+    public void sendTourKeyBoard(String chatId, String message) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.enableHtml(true);
+        sendMessage.enableMarkdown(true);
+        sendMessage.setText(message);
+
+        createTourKeyBoard(sendMessage);
         bot.execute(sendMessage);
     }
 
     private void createPredictKeyBoard(SendMessage sendMessage, String homeTeam, String awayTeam) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboard = new ArrayList<>();
-
         for (int i = 0; i < 6; i++) {
             List<InlineKeyboardButton> innerList = new ArrayList<>();
             for (int j = 0; j < 6; j++) {
@@ -72,28 +82,29 @@ public class SendBotMessageService {
             listOfKeyboard.add(innerList);
         }
 
-
         keyBoard.setKeyboard(listOfKeyboard);
         sendMessage.setReplyMarkup(keyBoard);
     }
 
-    private static List<List<InlineKeyboardButton>> getTourButtonsList() {
-        List<InlineKeyboardButton> listOfButtons = null;
-        List<List<InlineKeyboardButton>> list = new ArrayList<>();
-        for (int i = 0; i < 39; i++) {
-            if (i % 8 == 0 || i == 38) {
-                if (listOfButtons != null) {
-                    list.add(listOfButtons);
-                    if (i == 38) {
-                        continue;
-                    }
+    private static void createTourKeyBoard(SendMessage sendMessage) {
+        InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
+        int rows = 5;
+        int columns = 8;
+        for (int i = 0; i < rows; i++) {
+            List<InlineKeyboardButton> innerList = new ArrayList<>();
+            for (int j = 0; j < columns; j++) {
+                int tour = i * columns + j + 1;
+                if (tour > 38) {
+                    continue;
                 }
-                listOfButtons = new ArrayList<>();
+                InlineKeyboardButton button = new InlineKeyboardButton(String.valueOf(tour));
+                button.setCallbackData("/tour" + tour);
+                innerList.add(button);
             }
-            InlineKeyboardButton button = new InlineKeyboardButton(String.valueOf(i + 1));
-            button.setCallbackData("/tour" + (i + 1));
-            listOfButtons.add(button);
+            listOfKeyboardRows.add(innerList);
         }
-        return list;
+        keyBoard.setKeyboard(listOfKeyboardRows);
+        sendMessage.setReplyMarkup(keyBoard);
     }
 }

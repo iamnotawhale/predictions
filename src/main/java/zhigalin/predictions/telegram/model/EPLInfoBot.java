@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
@@ -129,11 +130,17 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                 ) {
                     commandContainer.retrieveTeamCommand().execute(update);
                 } else {
-                    commandContainer.retrieveCommand(matcher.group(1)).execute(update);
+                    String[] array = message.split(REGEX);
+                    String commandIdentifier = array[1].toLowerCase();
+                    commandContainer.retrieveCommand(commandIdentifier).execute(update);
                 }
             }
         } else {
             commandContainer.retrieveCommand(NO.getName()).execute(update);
         }
+    }
+
+    void deleteMessage(Message message) {
+
     }
 }

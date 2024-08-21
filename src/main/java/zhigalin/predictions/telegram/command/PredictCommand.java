@@ -1,11 +1,8 @@
 package zhigalin.predictions.telegram.command;
 
-import java.io.IOException;
-import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 
-import com.rometools.rome.io.FeedException;
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -37,7 +34,8 @@ public class PredictCommand implements Command {
     @Override
     public void executeCallback(CallbackQuery callback) {
         String chatId = callback.getMessage().getChatId().toString();
-        messageService.sendMessage(chatId, getMessage(callback.getData(), chatId));
+        Integer messageId = callback.getMessage().getMessageId();
+        messageService.sendMessageDeletingKeyboard(messageId, chatId, getMessage(callback.getData(), chatId));
     }
 
     private String getMessage(String text, String chatId) {
@@ -82,9 +80,7 @@ public class PredictCommand implements Command {
                 }
                 predictionService.save(predict);
 
-                int tour = match.getWeekId();
-
-                return "Ваш прогноз на матч " + tour + " тура " + action;
+                return "Прогноз на матч " + homeTeam + " - " + awayTeam + " " + action;
             }
         } catch (Exception e) {
             return "Ошибка в сохранении прогноза";
