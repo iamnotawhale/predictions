@@ -1,14 +1,16 @@
 package zhigalin.predictions.telegram.model;
 
 import java.util.EnumSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.event.ContextRefreshedEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
@@ -33,6 +35,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
 
     private static final String COMMAND_PREFIX = "/";
     private static final String REGEX = "[^A-Za-z]";
+    private static final Pattern PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3})$");
 
     public EPLInfoBot(@Value("${bot.token}") String token, @Value("${bot.username}") String name,
                       MatchService matchService, TeamService teamService, HeadToHeadService headToHeadService,
@@ -44,10 +47,10 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         this.commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, teamService,
                 headToHeadService, dataInitService, predictionService, userService);
 
-        try{
+        try {
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(this);
-        } catch (TelegramApiException e){
+        } catch (TelegramApiException e) {
             panicSender.sendPanic(e);
         }
     }
@@ -96,20 +99,41 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                 commandContainer.retrieveCommand(NO.getName()).execute(update);
             }
         } else if (update.hasCallbackQuery()) {
-            String message = update.getCallbackQuery().getData();
-            if (message.startsWith(COMMAND_PREFIX)) {
-                String[] array = message.split(REGEX);
-                String commandIdentifier = array[1].toLowerCase();
-                if (EnumSet.allOf(TeamName.class).stream()
-                        .anyMatch(n -> n.getName().toLowerCase().contains(commandIdentifier))) {
+            CallbackQuery callbackQuery = update.getCallbackQuery();
+            String message = callbackQuery.getData();
+            if (message.contains(COMMAND_PREFIX + "pred")) {
+                String[] array = message.split("[^A-Za-z0-9]");
+                String homeTeam = array[2].toLowerCase();
+                String awayTeam = array[4].toLowerCase();
+                if (
+                        array.length == 6 &&
+                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(homeTeam)) &&
+                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(awayTeam))
+                ) {
+                    commandContainer.retrievePredictCommand().executeCallback(callbackQuery);
+                }
+            } else if (message.startsWith(COMMAND_PREFIX)) {
+                Matcher matcher = PATTERN.matcher(message);
+                if (
+                        matcher.find() &&
+                        matcher.groupCount() == 2 &&
+                        Stream.of(matcher.group(1), matcher.group(2)).allMatch(team -> EnumSet.allOf(TeamName.class).stream()
+                                .anyMatch(t -> t.getName().toLowerCase().contains(team.toLowerCase())))
+                ) {
+                    commandContainer.retrievePredictKeyBoardCommand().execute(update);
+                } else if (
+                        matcher.find() &&
+                        matcher.groupCount() == 1 &&
+                        EnumSet.allOf(TeamName.class).stream()
+                                .anyMatch(t -> t.getName().toLowerCase().contains(matcher.group(1).toLowerCase()))
+                ) {
                     commandContainer.retrieveTeamCommand().execute(update);
                 } else {
-                    commandContainer.retrieveCommand(commandIdentifier).execute(update);
+                    commandContainer.retrieveCommand(matcher.group(1)).execute(update);
                 }
-            } else {
-                commandContainer.retrieveCommand(NO.getName()).execute(update);
             }
+        } else {
+            commandContainer.retrieveCommand(NO.getName()).execute(update);
         }
-
     }
 }

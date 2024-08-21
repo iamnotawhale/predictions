@@ -1,5 +1,7 @@
 package zhigalin.predictions.service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.JsonNode;
 import kong.unirest.core.Unirest;
@@ -48,7 +52,7 @@ public class NotificationService {
         this.predictionService = predictionService;
     }
 
-    public void check() throws UnirestException {
+    public void check() throws UnirestException, JsonProcessingException {
         for (Integer minutes : List.of(90, 30)) {
             List<User> users = userService.findAll();
             List<Match> nearest = matchService.findAllNearest(minutes);
@@ -79,14 +83,14 @@ public class NotificationService {
     private void sendPhoto(Notification notification) throws UnirestException {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
         String chatId = notification.getUser().getTelegramId();
-        HttpResponse<JsonNode> response = Unirest.post(urlPhoto)
+        HttpResponse<String> response = Unirest.post(urlPhoto)
                 .headers(Map.of("accept", "application/json",
                                 "content-type", "application/json"
                         )
                 )
                 .queryString("chat_id", chatId)
                 .body("{\"photo\":\"https://telegra.ph/file/fed7d1625ba24e824955b.jpg\"}")
-                .asJson();
+                .asString();
         Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
         if (response.getStatus() == 200) {
@@ -104,30 +108,32 @@ public class NotificationService {
         }
     }
 
-    private void sendNotification(Notification notification, int minutes) throws UnirestException {
+    private void sendNotification(Notification notification, int minutes) throws UnirestException, JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
         String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
         String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-        String builder = "Не проставлен прогноз на матч:\n" +
+        String builder = "Не проставлен прогноз на матч\n\n" +
                          homeTeam + " " +
                          match.getLocalDateTime().format(formatter) + " " +
-                         awayTeam + " " +
-                         "осталось " + minutes + " мин.";
+                         awayTeam + " \n\n" +
+                         "осталось " + Duration.between(LocalDateTime.now(), match.getLocalDateTime()).toMinutes() + " мин.";
         String chatId = notification.getUser().getTelegramId();
 
         InlineKeyboardButton button = InlineKeyboardButton.builder()
-                .text(builder)
+                .text("Сделать прогноз")
                 .callbackData("/" + homeTeam + ":" + awayTeam)
                 .build();
         InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
                 .keyboard(Collections.singleton(List.of(button)))
                 .build();
 
-        HttpResponse<JsonNode> response = Unirest.get(urlMessage)
+        HttpResponse<String> response = Unirest.get(urlMessage)
                 .queryString("chat_id", chatId)
-                .queryString("reply_markup", objectMapper)
+                .queryString("text", builder)
+                .queryString("reply_markup", objectMapper.writeValueAsString(markup))
                 .queryString("parse_mode", "Markdown")
-                .asJson();
+                .asString();
         if (response.getStatus() == 200) {
             log.info("Not predictable match {}:{} notification has been send to {}",
                     homeTeam,

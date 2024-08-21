@@ -1,9 +1,14 @@
 package zhigalin.predictions.telegram.command;
 
+import java.io.IOException;
+import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 
+import com.rometools.rome.io.FeedException;
 import lombok.RequiredArgsConstructor;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
@@ -24,14 +29,20 @@ public class PredictCommand implements Command {
 
     @Override
     public void execute(Update update) {
-        String chatId = update.getMessage().getChatId().toString();
-        String message = getMessage(update, chatId);
-        messageService.sendMessage(chatId, message);
+        Message message = update.getMessage();
+        String chatId = message.getChatId().toString();
+        messageService.sendMessage(chatId, getMessage(message.getText(), chatId));
     }
 
-    private String getMessage(Update update, String chatId) {
+    @Override
+    public void executeCallback(CallbackQuery callback) {
+        String chatId = callback.getMessage().getChatId().toString();
+        messageService.sendMessage(chatId, getMessage(callback.getData(), chatId));
+    }
+
+    private String getMessage(String text, String chatId) {
         try {
-            String[] matchToUpdate = update.getMessage().getText().split(REGEX);
+            String[] matchToUpdate = text.split(REGEX);
             String homeTeam = EnumSet.allOf(TeamName.class).stream()
                     .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[2].toLowerCase()))
                     .map(Enum::name).findFirst().orElse(null);

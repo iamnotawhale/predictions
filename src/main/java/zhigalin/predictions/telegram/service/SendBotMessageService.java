@@ -38,16 +38,43 @@ public class SendBotMessageService {
             List<List<InlineKeyboardButton>> list = getTourButtonsList();
             keyBoard.setKeyboard(list);
             sendMessage.setReplyMarkup(keyBoard);
-        } if (stackTrace[3].getClassName().endsWith("TourCommand")) {
-            InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
-            List<List<InlineKeyboardButton>> list = getTourButtonsList();
-            keyBoard.setKeyboard(list);
-            sendMessage.setReplyMarkup(keyBoard);
         } else {
             ReplyKeyboardRemove replyKeyboardRemove = new ReplyKeyboardRemove();
             replyKeyboardRemove.setRemoveKeyboard(true);
             sendMessage.setReplyMarkup(replyKeyboardRemove);
         }
+    }
+
+    @SneakyThrows
+    public void sendPredictKeyBoard(String chatId, String homeTeam, String awayTeam) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.enableHtml(true);
+        sendMessage.enableMarkdown(true);
+        sendMessage.setText("Выбери прогноз");
+
+        createPredictKeyBoard(sendMessage, homeTeam, awayTeam);
+
+        bot.execute(sendMessage);
+    }
+
+    private void createPredictKeyBoard(SendMessage sendMessage, String homeTeam, String awayTeam) {
+        InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> listOfKeyboard = new ArrayList<>();
+
+        for (int i = 0; i < 6; i++) {
+            List<InlineKeyboardButton> innerList = new ArrayList<>();
+            for (int j = 0; j < 6; j++) {
+                InlineKeyboardButton button = new InlineKeyboardButton(j + ":" + i);
+                button.setCallbackData("/pred " + homeTeam + " " + j + " " + awayTeam + " " + i);
+                innerList.add(button);
+            }
+            listOfKeyboard.add(innerList);
+        }
+
+
+        keyBoard.setKeyboard(listOfKeyboard);
+        sendMessage.setReplyMarkup(keyBoard);
     }
 
     private static List<List<InlineKeyboardButton>> getTourButtonsList() {
