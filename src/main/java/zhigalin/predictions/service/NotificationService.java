@@ -1,11 +1,12 @@
 package zhigalin.predictions.service;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.time.Duration;
-import java.time.LocalDateTime;
+import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,9 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.imageio.ImageIO;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.MultipartBody;
 import kong.unirest.core.Unirest;
@@ -28,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
@@ -47,12 +48,14 @@ public class NotificationService {
 
     private final UserService userService;
     private final MatchService matchService;
-    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+    private final ObjectMapper objectMapper;
     private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
+    private final Map<String, TeamColor> teamColors = new HashMap<>();
 
-    public NotificationService(UserService userService, MatchService matchService, PredictionService predictionService) {
+    public NotificationService(UserService userService, MatchService matchService, PredictionService predictionService, ObjectMapper objectMapper) {
         this.userService = userService;
         this.matchService = matchService;
+        this.objectMapper = objectMapper;
         notificationBLackList.put(30, new ArrayList<>());
         notificationBLackList.put(90, new ArrayList<>());
         this.predictionService = predictionService;
@@ -71,11 +74,7 @@ public class NotificationService {
                             Notification notification = Notification.builder().user(user).match(match).build();
                             if (!notificationBLackList.get(minutes).contains(notification.toString())) {
                                 notificationBLackList.get(minutes).add(notification.toString());
-                                if (minutes == 30) {
-                                    sendPhoto(notification);
-                                } else {
-                                    sendNotification(notification);
-                                }
+                                sendPhoto(notification);
                             }
                         }
                     }
@@ -90,52 +89,8 @@ public class NotificationService {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
         String chatId = notification.getUser().getTelegramId();
 
-        MultipartBody body = Unirest.post(urlPhoto)
-                .headers(Map.of("accept", "application/json",
-                                "content-type", "application/json"
-                        )
-                )
-                .queryString("chat_id", chatId)
-                .queryString("text", "text")
-                .field("photo", new File(Objects.requireNonNull(createImage(match))));
-        body.asString();
-
-//        HttpResponse<String> response = Unirest.post(urlPhoto)
-//                .headers(Map.of("accept", "application/json",
-//                                "content-type", "application/json"
-//                        )
-//                )
-//                .queryString("chat_id", chatId)
-//                .body("{\"photo\":\"https://telegra.ph/file/fed7d1625ba24e824955b.jpg\"}")
-//                .asString();
-//        Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
-//        Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
-//        if (response.getStatus() == 200) {
-//            log.info("Send photo for match {}:{} notification has been send to {}",
-//                    homeTeam.getCode(),
-//                    awayTeam.getCode(),
-//                    notification.getUser().getLogin()
-//            );
-//        } else {
-//            log.warn("Don't send photo for for match {}:{} not send to {}",
-//                    homeTeam.getCode(),
-//                    awayTeam.getCode(),
-//                    notification.getUser().getLogin()
-//            );
-//        }
-    }
-
-    private void sendNotification(Notification notification) throws UnirestException, JsonProcessingException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
         String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
         String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-        String builder = "Не проставлен прогноз на матч\n\n" +
-                         homeTeam + " " +
-                         match.getLocalDateTime().format(formatter) + " " +
-                         awayTeam + " \n\n" +
-                         "осталось " + Duration.between(LocalDateTime.now(), match.getLocalDateTime()).toMinutes() + " мин.";
-        String chatId = notification.getUser().getTelegramId();
 
         InlineKeyboardButton button = InlineKeyboardButton.builder()
                 .text("Сделать прогноз")
@@ -145,12 +100,23 @@ public class NotificationService {
                 .keyboard(Collections.singleton(List.of(button)))
                 .build();
 
-        HttpResponse<String> response = Unirest.get(urlMessage)
+        Unirest.get(urlMessage)
                 .queryString("chat_id", chatId)
-                .queryString("text", builder)
-                .queryString("reply_markup", objectMapper.writeValueAsString(markup))
+                .queryString("text", "Не проставлен прогноз на матч")
                 .queryString("parse_mode", "Markdown")
                 .asString();
+
+        MultipartBody body = Unirest.post(urlPhoto)
+                .headers(Map.of("accept", "application/json",
+                                "content-type", "application/json"
+                        )
+                )
+                .queryString("chat_id", chatId)
+                .queryString("text", "Не проставлен прогноз на матч")
+                .queryString("reply_markup", objectMapper.writeValueAsString(markup))
+                .field("photo", new File(Objects.requireNonNull(createImage(match))));
+
+        HttpResponse<String> response = body.asString();
         if (response.getStatus() == 200) {
             log.info("Not predictable match {}:{} notification has been send to {}",
                     homeTeam,
@@ -164,33 +130,23 @@ public class NotificationService {
 
     private String createImage(Match match) {
         try {
-            // Create the base image
-            BufferedImage image = new BufferedImage(512, 256, BufferedImage.TYPE_INT_RGB);
+            BufferedImage image = generateWithGradient(match.getHomeTeamId(), match.getAwayTeamId());
             Graphics2D g2d = image.createGraphics();
 
-            BufferedImage backgroundImage = ImageIO.read(new ClassPathResource("static/img/back.webp").getFile());
-            g2d.drawImage(backgroundImage, 0, 0, 512, 256, null);
+            BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getHomeTeamId() + ".webp").getFile());
+            BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getAwayTeamId() + ".webp").getFile());
 
-            // Load the two 100x100 images
-            BufferedImage pic1 = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getHomeTeamId() + ".webp").getFile());
-            BufferedImage pic2 = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getAwayTeamId() + ".webp").getFile());
-
-            // Calculate vertical middle position
             int middleY = (image.getHeight() - 100) / 2;
-
-            // Draw pic1 on the left with outline
-            g2d.drawImage(pic1, 512 / 4 - 50, middleY, 100, 100, null);
-
-            // Draw pic2 on the right with outline
-            g2d.drawImage(pic2, 512 * 3 / 4 - 50, middleY, 100, 100, null);
+            g2d.drawImage(homeTeamPic, 512 / 4 - 50, middleY, 100, 100, null);
+            g2d.drawImage(awayTeamPic, 512 * 3 / 4 - 50, middleY, 100, 100, null);
 
             String text = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
-            g2d.setColor(Color.WHITE);// Set text color
-            Font font = new Font("Arial", Font.BOLD, 30); // Choose a font
+            g2d.setColor(Color.WHITE);
+            Font font = loadFontFromFile().deriveFont(30f);
             g2d.setFont(font);
             int textWidth = g2d.getFontMetrics().stringWidth(text);
             int textX = (512 / 2) - (textWidth / 2);
-            g2d.drawString(text, textX, middleY + 50); // Position the text
+            g2d.drawString(text, textX, middleY + 70);
 
             g2d.setColor(Color.WHITE);
             g2d.setFont(font);
@@ -209,13 +165,10 @@ public class NotificationService {
 
             g2d.dispose();
 
-            // Create a temporary file in the system's temporary directory
             File tempFile = File.createTempFile("combined", ".png");
             ImageIO.write(image, "png", tempFile);
 
-            // Return the path to the created image
             return tempFile.getAbsolutePath();
-
         } catch (IOException e) {
             log.error("Error creating image: {}", e.getMessage());
             return null;
@@ -223,4 +176,72 @@ public class NotificationService {
 
     }
 
+    private BufferedImage generateWithGradient(int homeTeamId, int awayTeamId) {
+        BufferedImage image = new BufferedImage(512, 256, BufferedImage.TYPE_INT_RGB);
+
+        TeamColor homeColors = teamColors.get(String.valueOf(homeTeamId));
+        TeamColor awayColors = teamColors.get(String.valueOf(awayTeamId));
+
+        Color homeColor = new Color(homeColors.red, homeColors.green, homeColors.blue);
+        Color awayColor = new Color(awayColors.red, awayColors.green, awayColors.blue);
+
+        int startRed = homeColor.getRed();
+        int startGreen = homeColor.getGreen();
+        int startBlue = homeColor.getBlue();
+
+        int endRed = awayColor.getRed();
+        int endGreen = awayColor.getGreen();
+        int endBlue = awayColor.getBlue();
+
+        int redDifference = endRed - startRed;
+        int greenDifference = endGreen - startGreen;
+        int blueDifference = endBlue - startBlue;
+
+        Graphics2D g2d = image.createGraphics();
+        for (int x = 0; x < 512; x++) {
+            int red = startRed + (int) (((double) x / 512) * redDifference);
+            int green = startGreen + (int) (((double) x / 512) * greenDifference);
+            int blue = startBlue + (int) (((double) x / 512) * blueDifference);
+            g2d.setColor(new Color(red, green, blue));
+            g2d.fillRect(x, 0, 1, 256);
+        }
+
+        g2d.dispose();
+        return image;
+    }
+
+    @PostConstruct
+    public void initTeamColors() {
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream("team_colors.json")) {
+            if (input != null) {
+                JsonNode jsonNode = new ObjectMapper().readTree(input);
+                jsonNode.fields().forEachRemaining(teamNode -> {
+                    String teamId = teamNode.getKey();
+                    JsonNode teamColorNode = teamNode.getValue();
+                    teamColors.put(
+                            teamId,
+                            new TeamColor(
+                                    teamColorNode.get("r").asInt(),
+                                    teamColorNode.get("g").asInt(),
+                                    teamColorNode.get("b").asInt()
+                            )
+                    );
+                });
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private record TeamColor(int red, int green, int blue) {
+    }
+
+    private Font loadFontFromFile() {
+        try {
+            return Font.createFont(Font.TRUETYPE_FONT, new ClassPathResource("static/pl-bold.ttf").getFile());
+        } catch (Exception e) {
+            System.err.println("Error loading font: " + e.getMessage());
+            return new Font("Arial", Font.BOLD, 30);
+        }
+    }
 }

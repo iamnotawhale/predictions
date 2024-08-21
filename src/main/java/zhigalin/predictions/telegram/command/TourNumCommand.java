@@ -25,10 +25,12 @@ public class TourNumCommand implements Command {
     public void execute(Update update) {
         String chatId;
         int tourId;
+        Integer messageIdToDelete = null;
 
         if (update.hasCallbackQuery()) {
             chatId = update.getCallbackQuery().getMessage().getChatId().toString();
             tourId = Integer.parseInt(update.getCallbackQuery().getData().split(REGEX)[1]);
+            messageIdToDelete = update.getCallbackQuery().getMessage().getMessageId();
         } else {
             if (update.getMessage().getText().equals("/tour")) {
                 sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Нужно указать тур");
@@ -60,7 +62,11 @@ public class TourNumCommand implements Command {
                 }
                 builder.append("`").append("\n");
             }
-            sendBotMessageService.sendMessage(chatId, builder.toString());
+            if (messageIdToDelete != null) {
+                sendBotMessageService.sendMessageDeletingKeyboard(messageIdToDelete, chatId, builder.toString());
+            } else {
+                sendBotMessageService.sendMessage(chatId, builder.toString());
+            }
         } else {
             sendBotMessageService.sendMessage(chatId, "Такого тура нет. Попробуй 1-38 туры");
         }

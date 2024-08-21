@@ -11,5 +11,5 @@ public interface Command {
 
     void execute(Update update) throws FeedException, IOException, ParseException;
 
-    default void executeCallback(CallbackQuery callbackQuery) throws FeedException, IOException, ParseException {}
+    default void executeCallback(CallbackQuery callbackQuery) {}
 }
