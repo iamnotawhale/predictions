@@ -1,12 +1,12 @@
 package zhigalin.predictions.service;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,10 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.imageio.ImageIO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import javax.imageio.ImageIO;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.MultipartBody;
 import kong.unirest.core.Unirest;
@@ -52,6 +52,9 @@ public class NotificationService {
     private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
     private final Map<String, TeamColor> teamColors = new HashMap<>();
 
+    private static final int WIDTH = 1024;
+    private static final int HEIGHT = 512;
+
     public NotificationService(UserService userService, MatchService matchService, PredictionService predictionService, ObjectMapper objectMapper) {
         this.userService = userService;
         this.matchService = matchService;
@@ -74,7 +77,7 @@ public class NotificationService {
                             Notification notification = Notification.builder().user(user).match(match).build();
                             if (!notificationBLackList.get(minutes).contains(notification.toString())) {
                                 notificationBLackList.get(minutes).add(notification.toString());
-                                sendPhoto(notification);
+                                sendNotification(notification);
                             }
                         }
                     }
@@ -85,8 +88,9 @@ public class NotificationService {
         }
     }
 
-    private void sendPhoto(Notification notification) throws UnirestException, IOException {
+    private void sendNotification(Notification notification) throws UnirestException, IOException {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
+        long minutesBeforeMatch = Duration.between(LocalDateTime.now(), match.getLocalDateTime()).toMinutes();
         String chatId = notification.getUser().getTelegramId();
 
         String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
@@ -100,19 +104,19 @@ public class NotificationService {
                 .keyboard(Collections.singleton(List.of(button)))
                 .build();
 
-        Unirest.get(urlMessage)
-                .queryString("chat_id", chatId)
-                .queryString("text", "Не проставлен прогноз на матч")
-                .queryString("parse_mode", "Markdown")
-                .asString();
-
         MultipartBody body = Unirest.post(urlPhoto)
                 .headers(Map.of("accept", "application/json",
                                 "content-type", "application/json"
                         )
                 )
                 .queryString("chat_id", chatId)
-                .queryString("text", "Не проставлен прогноз на матч")
+                .queryString("caption",
+                        "Не проставлен прогноз на матч\n" +
+                        "Осталось " + minutesBeforeMatch +
+                        (minutesBeforeMatch % 10 == 1 ? " минута" :
+                                minutesBeforeMatch > 20 && List.of(2, 3, 4).contains(minutesBeforeMatch % 10) ? " минуты" : " минут"
+                        )
+                )
                 .queryString("reply_markup", objectMapper.writeValueAsString(markup))
                 .field("photo", new File(Objects.requireNonNull(createImage(match))));
 
@@ -130,37 +134,38 @@ public class NotificationService {
 
     private String createImage(Match match) {
         try {
+            int scale = WIDTH / 512;
             BufferedImage image = generateWithGradient(match.getHomeTeamId(), match.getAwayTeamId());
             Graphics2D g2d = image.createGraphics();
 
             BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getHomeTeamId() + ".webp").getFile());
             BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getAwayTeamId() + ".webp").getFile());
 
-            int middleY = (image.getHeight() - 100) / 2;
-            g2d.drawImage(homeTeamPic, 512 / 4 - 50, middleY, 100, 100, null);
-            g2d.drawImage(awayTeamPic, 512 * 3 / 4 - 50, middleY, 100, 100, null);
+            int middleY = (image.getHeight() - scale * 100) / 2;
+            g2d.drawImage(homeTeamPic, WIDTH / 4 - scale * 50, middleY, scale * 100, scale * 100, null);
+            g2d.drawImage(awayTeamPic, WIDTH * 3 / 4 - scale * 50, middleY, scale * 100, scale * 100, null);
 
-            String text = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
+            String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
             g2d.setColor(Color.WHITE);
-            Font font = loadFontFromFile().deriveFont(30f);
+            Font font = loadFontFromFile(scale).deriveFont(scale * 30f);
             g2d.setFont(font);
-            int textWidth = g2d.getFontMetrics().stringWidth(text);
-            int textX = (512 / 2) - (textWidth / 2);
-            g2d.drawString(text, textX, middleY + 70);
+            int textWidth = g2d.getFontMetrics().stringWidth(matchTime);
+            int textX = (WIDTH / 2) - (textWidth / 2);
+            g2d.drawString(matchTime, textX, middleY + scale * 70);
 
             g2d.setColor(Color.WHITE);
             g2d.setFont(font);
 
             String homeTeamCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
             int text1Width = g2d.getFontMetrics().stringWidth(homeTeamCode);
-            int text1X = 512 / 4 - (text1Width / 2);
-            int text1Y = middleY + 100 + 30;
+            int text1X = WIDTH / 4 - (text1Width / 2);
+            int text1Y = middleY + scale * 100 + scale * 30;
             g2d.drawString(homeTeamCode, text1X, text1Y);
 
             String awayTeamCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
             int text2Width = g2d.getFontMetrics().stringWidth(awayTeamCode);
-            int text2X = 512 * 3 / 4 - (text2Width / 2);
-            int text2Y = middleY + 100 + 30;
+            int text2X = WIDTH * 3 / 4 - (text2Width / 2);
+            int text2Y = middleY + scale * 100 + scale * 30;
             g2d.drawString(awayTeamCode, text2X, text2Y);
 
             g2d.dispose();
@@ -177,34 +182,20 @@ public class NotificationService {
     }
 
     private BufferedImage generateWithGradient(int homeTeamId, int awayTeamId) {
-        BufferedImage image = new BufferedImage(512, 256, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
 
-        TeamColor homeColors = teamColors.get(String.valueOf(homeTeamId));
-        TeamColor awayColors = teamColors.get(String.valueOf(awayTeamId));
+        Color homeColors = teamColors.get(String.valueOf(homeTeamId)).home();
+        Color awayColors = teamColors.get(String.valueOf(awayTeamId)).away();
 
-        Color homeColor = new Color(homeColors.red, homeColors.green, homeColors.blue);
-        Color awayColor = new Color(awayColors.red, awayColors.green, awayColors.blue);
-
-        int startRed = homeColor.getRed();
-        int startGreen = homeColor.getGreen();
-        int startBlue = homeColor.getBlue();
-
-        int endRed = awayColor.getRed();
-        int endGreen = awayColor.getGreen();
-        int endBlue = awayColor.getBlue();
-
-        int redDifference = endRed - startRed;
-        int greenDifference = endGreen - startGreen;
-        int blueDifference = endBlue - startBlue;
+        if (similarTo(homeColors, awayColors)) {
+            awayColors = teamColors.get(String.valueOf(awayTeamId)).third();
+        }
 
         Graphics2D g2d = image.createGraphics();
-        for (int x = 0; x < 512; x++) {
-            int red = startRed + (int) (((double) x / 512) * redDifference);
-            int green = startGreen + (int) (((double) x / 512) * greenDifference);
-            int blue = startBlue + (int) (((double) x / 512) * blueDifference);
-            g2d.setColor(new Color(red, green, blue));
-            g2d.fillRect(x, 0, 1, 256);
-        }
+
+        GradientPaint gradient = new GradientPaint(0, 0, homeColors, WIDTH, 0, awayColors);
+        g2d.setPaint(gradient);
+        g2d.fillRect(0, 0, WIDTH, HEIGHT);
 
         g2d.dispose();
         return image;
@@ -218,12 +209,15 @@ public class NotificationService {
                 jsonNode.fields().forEachRemaining(teamNode -> {
                     String teamId = teamNode.getKey();
                     JsonNode teamColorNode = teamNode.getValue();
+                    JsonNode homeColoreNode = teamColorNode.get("home");
+                    JsonNode awayColoreNode = teamColorNode.get("away");
+                    JsonNode thirdColoreNode = teamColorNode.get("third");
                     teamColors.put(
                             teamId,
                             new TeamColor(
-                                    teamColorNode.get("r").asInt(),
-                                    teamColorNode.get("g").asInt(),
-                                    teamColorNode.get("b").asInt()
+                                    new Color(homeColoreNode.get("r").asInt(), homeColoreNode.get("g").asInt(), homeColoreNode.get("b").asInt()),
+                                    new Color(awayColoreNode.get("r").asInt(), awayColoreNode.get("g").asInt(), awayColoreNode.get("b").asInt()),
+                                    new Color(thirdColoreNode.get("r").asInt(), thirdColoreNode.get("g").asInt(), thirdColoreNode.get("b").asInt())
                             )
                     );
                 });
@@ -233,15 +227,35 @@ public class NotificationService {
         }
     }
 
-    private record TeamColor(int red, int green, int blue) {
+    private record TeamColor(Color home, Color away, Color third) {
     }
 
-    private Font loadFontFromFile() {
+    private Font loadFontFromFile(int scale) {
         try {
             return Font.createFont(Font.TRUETYPE_FONT, new ClassPathResource("static/pl-bold.ttf").getFile());
         } catch (Exception e) {
             System.err.println("Error loading font: " + e.getMessage());
-            return new Font("Arial", Font.BOLD, 30);
+            return new Font("Arial", Font.BOLD, scale * 30);
         }
+    }
+
+    private boolean similarTo(Color home, Color away) {
+        int r1 = home.getRed();
+        int g1 = home.getGreen();
+        int b1 = home.getBlue();
+
+        int r2 = away.getRed();
+        int g2 = away.getGreen();
+        int b2 = away.getBlue();
+
+        int rDiffSquared = (r2 - r1) * (r2 - r1);
+        int gDiffSquared = (g2 - g1) * (g2 - g1);
+        int bDiffSquared = (b2 - b1) * (b2 - b1);
+
+        int sumSquared = rDiffSquared + gDiffSquared + bDiffSquared;
+
+        double distance = Math.sqrt(sumSquared);
+
+        return distance > 30;
     }
 }
