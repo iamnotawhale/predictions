@@ -66,7 +66,7 @@ public class NotificationService {
 
     public void check() throws UnirestException, IOException {
         for (Integer minutes : List.of(90, 30)) {
-            List<User> users = userService.findAll();
+            List<User> users = userService.findAll().stream().filter(user -> !user.getTelegramId().isEmpty()).toList();
             List<Match> nearest = matchService.findAllNearest(minutes);
             if (!nearest.isEmpty()) {
                 for (User user : users) {
@@ -209,15 +209,15 @@ public class NotificationService {
                 jsonNode.fields().forEachRemaining(teamNode -> {
                     String teamId = teamNode.getKey();
                     JsonNode teamColorNode = teamNode.getValue();
-                    JsonNode homeColoreNode = teamColorNode.get("home");
-                    JsonNode awayColoreNode = teamColorNode.get("away");
-                    JsonNode thirdColoreNode = teamColorNode.get("third");
+                    JsonNode homeColorNode = teamColorNode.get("home");
+                    JsonNode awayColorNode = teamColorNode.get("away");
+                    JsonNode thirdColorNode = teamColorNode.get("third");
                     teamColors.put(
                             teamId,
                             new TeamColor(
-                                    new Color(homeColoreNode.get("r").asInt(), homeColoreNode.get("g").asInt(), homeColoreNode.get("b").asInt()),
-                                    new Color(awayColoreNode.get("r").asInt(), awayColoreNode.get("g").asInt(), awayColoreNode.get("b").asInt()),
-                                    new Color(thirdColoreNode.get("r").asInt(), thirdColoreNode.get("g").asInt(), thirdColoreNode.get("b").asInt())
+                                    new Color(homeColorNode.get("r").asInt(), homeColorNode.get("g").asInt(), homeColorNode.get("b").asInt()),
+                                    new Color(awayColorNode.get("r").asInt(), awayColorNode.get("g").asInt(), awayColorNode.get("b").asInt()),
+                                    new Color(thirdColorNode.get("r").asInt(), thirdColorNode.get("g").asInt(), thirdColorNode.get("b").asInt())
                             )
                     );
                 });
@@ -248,14 +248,69 @@ public class NotificationService {
         int g2 = away.getGreen();
         int b2 = away.getBlue();
 
-        int rDiffSquared = (r2 - r1) * (r2 - r1);
-        int gDiffSquared = (g2 - g1) * (g2 - g1);
-        int bDiffSquared = (b2 - b1) * (b2 - b1);
+        double[] homeCieLab = rgbToCIELAB(r1, g1, b1);
+        double[] awayCieLab = rgbToCIELAB(r2, g2, b2);
 
-        int sumSquared = rDiffSquared + gDiffSquared + bDiffSquared;
+        double lDiffSquared = (awayCieLab[0] - homeCieLab[0]) * (awayCieLab[0] - homeCieLab[0]);
+        double aDiffSquared = (awayCieLab[1] - homeCieLab[1]) * (awayCieLab[1] - homeCieLab[1]);
+        double bDiffSquared = (awayCieLab[2] - homeCieLab[2]) * (awayCieLab[2] - homeCieLab[2]);
+
+        double sumSquared = lDiffSquared + aDiffSquared + bDiffSquared;
 
         double distance = Math.sqrt(sumSquared);
 
-        return distance > 30;
+        return distance < 49;
+    }
+
+    public static double[] rgbToCIELAB(int red, int green, int blue) {
+        double[] xyz = rgbToXYZ(red, green, blue);
+        return xyzToCIELAB(xyz[0], xyz[1], xyz[2]);
+    }
+
+    private static double[] rgbToXYZ(int red, int green, int blue) {
+        // Convert RGB to sRGB
+        double r = red / 255.0;
+        double g = green / 255.0;
+        double b = blue / 255.0;
+
+        // Apply sRGB to linear RGB conversion
+        r = (r <= 0.04045) ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+        g = (g <= 0.04045) ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+        b = (b <= 0.04045) ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+
+        r *= 100;
+        g *= 100;
+        b *= 100;
+
+        // Calculate XYZ values
+        double X = r * 0.4124 + g * 0.3577 + b * 0.1805;
+        double Y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+        double Z = r * 0.0193 + g * 0.1192 + b * 0.9505;
+
+        return new double[]{X, Y, Z};
+    }
+
+    private static double[] xyzToCIELAB(double x, double y, double z) {
+        // Reference white point (D65)
+        double xref = 95.044;
+        double yref = 100.0;
+        double zref = 108.755;
+
+        // Convert XYZ to normalized XYZ
+        x /= xref;
+        y /= yref;
+        z /= zref;
+
+        // Apply non-linear transformation
+        x = (x > 0.008856) ? Math.pow(x, 1 / 3.0) : (7.787 * x + 16.0 / 116.0);
+        y = (y > 0.008856) ? Math.pow(y, 1 / 3.0) : (7.787 * y + 16.0 / 116.0);
+        z = (z > 0.008856) ? Math.pow(z, 1 / 3.0) : (7.787 * z + 16.0 / 116.0);
+
+        // Calculate CIELAB values
+        double L = 116.0 * y - 16.0;
+        double a = 500.0 * (x - y);
+        double b = 200.0 * (y - z);
+
+        return new double[]{L, a, b};
     }
 }
