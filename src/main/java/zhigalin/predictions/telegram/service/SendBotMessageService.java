@@ -3,6 +3,7 @@ package zhigalin.predictions.telegram.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
@@ -10,7 +11,10 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.telegram.model.EPLInfoBot;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 @Service
@@ -30,11 +34,8 @@ public class SendBotMessageService {
     }
 
     @SneakyThrows
-    public void sendMessageDeletingKeyboard(Integer messageId, String chatId, String message) {
-        DeleteMessage deleteMessage = new DeleteMessage();
-        deleteMessage.setChatId(chatId);
-        deleteMessage.setMessageId(messageId);
-        bot.execute(deleteMessage);
+    public void sendMessageDeletingKeyboard(Integer deleteMessageId, String chatId, String message) {
+        deletePreviousMessage(deleteMessageId, chatId);
 
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
@@ -52,8 +53,8 @@ public class SendBotMessageService {
         sendMessage.enableHtml(true);
         sendMessage.enableMarkdown(true);
         sendMessage.setText("Выбери прогноз");
+        sendMessage.setReplyMarkup(createPredictKeyBoard(homeTeam, awayTeam));
 
-        createPredictKeyBoard(sendMessage, homeTeam, awayTeam);
         bot.execute(sendMessage);
     }
 
@@ -64,12 +65,39 @@ public class SendBotMessageService {
         sendMessage.enableHtml(true);
         sendMessage.enableMarkdown(true);
         sendMessage.setText(message);
+        sendMessage.setReplyMarkup(createTourKeyBoard());
 
-        createTourKeyBoard(sendMessage);
         bot.execute(sendMessage);
     }
 
-    private void createPredictKeyBoard(SendMessage sendMessage, String homeTeam, String awayTeam) {
+
+    @SneakyThrows
+    public void sendMessageDeletingKeyboardTourMatches(Integer messageIdToDelete, List<Match> tourMatches, String chatId, String message) {
+        deletePreviousMessage(messageIdToDelete, chatId);
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.enableHtml(true);
+        sendMessage.enableMarkdown(true);
+        sendMessage.setText(message);
+        sendMessage.setReplyMarkup(createTourMatchKeyBoard(tourMatches));
+
+        bot.execute(sendMessage);
+    }
+
+    @SneakyThrows
+    public void sendMessageTourMatches(List<Match> tourMatches, String chatId, String message) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.enableHtml(true);
+        sendMessage.enableMarkdown(true);
+        sendMessage.setText(message);
+        sendMessage.setReplyMarkup(createTourMatchKeyBoard(tourMatches));
+
+        bot.execute(sendMessage);
+    }
+
+    private static InlineKeyboardMarkup createPredictKeyBoard(String homeTeam, String awayTeam) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboard = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
@@ -83,10 +111,10 @@ public class SendBotMessageService {
         }
 
         keyBoard.setKeyboard(listOfKeyboard);
-        sendMessage.setReplyMarkup(keyBoard);
+        return keyBoard;
     }
 
-    private static void createTourKeyBoard(SendMessage sendMessage) {
+    private static InlineKeyboardMarkup createTourKeyBoard() {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
         int rows = 5;
@@ -105,6 +133,37 @@ public class SendBotMessageService {
             listOfKeyboardRows.add(innerList);
         }
         keyBoard.setKeyboard(listOfKeyboardRows);
-        sendMessage.setReplyMarkup(keyBoard);
+        return keyBoard;
+    }
+
+    private static InlineKeyboardMarkup createTourMatchKeyBoard(List<Match> matches) {
+        InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
+        int matchNum = 1;
+        List<InlineKeyboardButton> innerList = new ArrayList<>();
+        for (Match match : matches) {
+            if (matchNum > 1 && matchNum % 2 == 1) {
+                listOfKeyboardRows.add(innerList);
+                innerList = new ArrayList<>();
+            }
+            String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
+            String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+            InlineKeyboardButton button = new InlineKeyboardButton(String.join("-", homeTeam, awayTeam));
+            button.setCallbackData("/" + homeTeam + ":" + awayTeam);
+            innerList.add(button);
+            if (matchNum == matches.size()) {
+                listOfKeyboardRows.add(innerList);
+            }
+            matchNum++;
+        }
+        keyBoard.setKeyboard(listOfKeyboardRows);
+        return keyBoard;
+    }
+
+    private void deletePreviousMessage(Integer messageIdToDelete, String chatId) throws TelegramApiException {
+        DeleteMessage deleteMessage = new DeleteMessage();
+        deleteMessage.setChatId(chatId);
+        deleteMessage.setMessageId(messageIdToDelete);
+        bot.execute(deleteMessage);
     }
 }
