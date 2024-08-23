@@ -144,12 +144,11 @@ public class DataInitService {
         }
     }
 
-//    @Scheduled(cron = "0 */6 * * * *")
-    @Scheduled(initialDelay = 5000, fixedDelay = 60000000)
+    @Scheduled(cron = "0 */6 * * * *")
     private void start() {
         try {
-//            matchUpdateFromApiFootball();
-//            fullTimeMatchNotification();
+            matchUpdateFromApiFootball();
+            fullTimeMatchNotification();
             notificationService.check();
         } catch (Exception e) {
             panicSender.sendPanic(e);
