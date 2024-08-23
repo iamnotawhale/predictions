@@ -62,7 +62,7 @@ public class PredictCommand implements Command {
             }
 
             Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
-            if (match.getLocalDateTime().isBefore(LocalDateTime.now().minusMinutes(5L))) {
+            if (LocalDateTime.now().isAfter(match.getLocalDateTime().plusMinutes(5))) {
                 return "Время для прогноза истекло. Матч уже начался";
             } else {
                 Prediction predict = Prediction.builder()
