@@ -1,8 +1,8 @@
 package zhigalin.predictions.panic;
 
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
+import kong.unirest.core.HttpResponse;
+import kong.unirest.core.Unirest;
+import kong.unirest.core.UnirestException;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -28,10 +28,10 @@ public class PanicSender {
                 log.info(response.getBody());
                 log.info("Message has been send");
             } else {
-                log.warn("Don't send exception notification" + response.getBody());
+                log.warn("Don't send exception notification{}", response.getBody());
             }
         } catch (UnirestException ex) {
-            log.error("Sending message error: " + ex.getMessage());
+            log.error("Sending message error: {}", ex.getMessage());
         }
     }
 }

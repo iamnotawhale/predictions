@@ -8,7 +8,6 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -23,24 +22,22 @@ import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import lombok.RequiredArgsConstructor;
+import kong.unirest.core.HttpResponse;
+import kong.unirest.core.JsonNode;
+import kong.unirest.core.Unirest;
+import kong.unirest.core.UnirestException;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.event.Season;
 import zhigalin.predictions.model.event.Week;
-import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.input.Fixture;
 import zhigalin.predictions.model.input.Response;
@@ -49,55 +46,114 @@ import zhigalin.predictions.model.input.Root;
 import zhigalin.predictions.model.news.News;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.event.SeasonService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.predict.PointsService;
+import zhigalin.predictions.service.predict.PredictionService;
+import zhigalin.predictions.service.user.UserService;
+import zhigalin.predictions.util.DaoUtil;
 
 @Log4j2
 @Service
-@RequiredArgsConstructor
 public class DataInitService {
-    @Value("${x.rapid.api}")
-    private String xRapidApi;
+    private final PredictionService predictionService;
+    private final UserService userService;
     @Value("${api.football.token}")
     private String apiFootballToken;
     @Value("${bot.chatId}")
     private String chatId;
     @Value("${bot.urlMessage}")
     private String url;
-    private boolean needInit = true;
+    @Value("${season}")
+    private int season;
+
     private final TeamService teamService;
-    private final SeasonService seasonService;
     private final WeekService weekService;
     private final MatchService matchService;
     private final HeadToHeadService headToHeadService;
-    private final StandingService standingService;
-    private final PointsService pointsService;
-    private final Set<Long> notificationBan = new HashSet<>();
+    private final NotificationService notificationService;
+    private final PanicSender panicSender;
+    private final Set<Integer> notificationBan = new HashSet<>();
+    private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    public void allInit() throws UnirestException, IOException {
-        if (needInit) {
-            teamsInitFromApiFootball();
-            matchInitFromApiFootball();
-            needInit = false;
-        }
+    public DataInitService(TeamService teamService, WeekService weekService,
+                           MatchService matchService, HeadToHeadService headToHeadService,
+                           NotificationService notificationService, PanicSender panicSender,
+                           PredictionService predictionService, UserService userService) {
+        this.teamService = teamService;
+        this.weekService = weekService;
+        this.matchService = matchService;
+        this.headToHeadService = headToHeadService;
+        this.notificationService = notificationService;
+        this.panicSender = panicSender;
+        this.predictionService = predictionService;
+        this.userService = userService;
+    }
 
-        LocalTime now = LocalTime.now();
-        if (now.isAfter(LocalTime.of(9, 0)) &&
-                now.isBefore(LocalTime.of(9, 6))) {
-            sendTodaysMatchNotification();
+    @Scheduled(cron = "0 0 9 * * *")
+    private void sendTodayMatchNotification() {
+        int tour = 0;
+        List<Match> todayMatches = matchService.findAllByTodayDate();
+        StringBuilder builder = new StringBuilder();
+        if (!todayMatches.isEmpty()) {
+            builder.append("`").append("МАТЧИ СЕГОДНЯ").append("`").append("\n\n");
+            for (Match match : todayMatches) {
+                builder.append("`");
+                if (match.getWeekId() != tour) {
+                    builder.append(match.getWeekId()).append(" тур").append("\n");
+                    tour = match.getWeekId();
+                }
+                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
+                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
+                builder.append(homeTeam.getCode()).append(" ");
+                if (!Objects.equals(match.getStatus(), "ns") && !Objects.equals(match.getStatus(), "pst")) {
+                    builder.append(match.getHomeTeamScore()).append(" - ")
+                            .append(match.getAwayTeamScore()).append(" ")
+                            .append(awayTeam.getCode()).append(" ")
+                            .append(match.getStatus()).append(" ");
+                } else if (Objects.equals(match.getStatus(), "pst")) {
+                    builder.append("- ").append(awayTeam.getCode())
+                            .append(" ⏰ ").append(match.getStatus());
+                } else {
+                    builder.append("- ").append(awayTeam.getCode())
+                            .append(" ⏱ ").append(match.getLocalDateTime().toLocalTime());
+                }
+                builder.append("`").append("\n");
+            }
+            try {
+                HttpResponse<JsonNode> response = Unirest.get(url)
+                        .queryString("chat_id", chatId)
+                        .queryString("text", builder.toString())
+                        .queryString("parse_mode", "Markdown")
+                        .asJson();
+                if (response.getStatus() == 200) {
+                    log.info(response.getBody());
+                    log.info("Message todays match notification has been send");
+                } else {
+                    log.warn("Don't send todays match notification");
+                }
+            } catch (UnirestException e) {
+                log.error("Sending message error: {}", e.getMessage());
+            }
         }
-        matchUpdateFromApiFootball();
-        fullTimeMatchNotification();
-//        headToHeadInitFromApiFootball();
+    }
+
+//    @Scheduled(cron = "0 */6 * * * *")
+    @Scheduled(initialDelay = 5000, fixedDelay = 60000000)
+    private void start() {
+        try {
+//            matchUpdateFromApiFootball();
+//            fullTimeMatchNotification();
+            notificationService.check();
+        } catch (Exception e) {
+            panicSender.sendPanic(e);
+        }
     }
 
     private void matchUpdateFromApiFootball() throws UnirestException, JsonProcessingException {
@@ -109,9 +165,9 @@ public class DataInitService {
             currentWeekUpdate();
             matchDateTimeStatusUpdate();
         }
-        if (!matchService.findOnline().isEmpty()) {
+        if (!matchService.findOnlineMatches().isEmpty()) {
             HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                    .header(xRapidApi, apiFootballToken)
+                    .header(X_RAPIDAPI_KEY, apiFootballToken)
                     .header(HOST_NAME, HOST)
                     .queryString("league", 39)
                     .queryString("season", 2024)
@@ -152,12 +208,12 @@ public class DataInitService {
     }
 
     private void weeklyResultNotification() {
-        Long id = weekService.findCurrentWeek().getId();
-        Map<User, Long> currentWeekUsersPoints = pointsService.getWeeklyUsersPoints(id);
+        int id = DaoUtil.currentWeekId;
+        Map<String, Integer> currentWeekUsersPoints = predictionService.getWeeklyUsersPoints(id);
         StringBuilder builder = new StringBuilder();
         builder.append("Очки за тур: ").append("\n");
-        for (Map.Entry<User, Long> entry : currentWeekUsersPoints.entrySet()) {
-            builder.append(entry.getKey().getLogin().toUpperCase(), 0, 3).append(" ")
+        for (Map.Entry<String, Integer> entry : currentWeekUsersPoints.entrySet()) {
+            builder.append(entry.getKey().toUpperCase(), 0, 3).append(" ")
                     .append(entry.getValue()).append(" pts").append("\n");
         }
         try {
@@ -181,7 +237,7 @@ public class DataInitService {
         Match match;
         String result;
         HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                .header(xRapidApi, apiFootballToken)
+                .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2024)
@@ -189,7 +245,7 @@ public class DataInitService {
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
             Fixture fixture = response.getFixture();
-            Long publicId = fixture.getPublicId();
+            int publicId = fixture.getPublicId();
             LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
                     TimeZone.getDefault().toZoneId());
             String status = fixture.getStatus().getMyshort();
@@ -201,39 +257,29 @@ public class DataInitService {
                 case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
                 default -> status = null;
             }
-            Season season;
-            if (seasonService.findByName(response.getLeague().getSeason().toString()) == null) {
-                season = seasonService.save(
-                        Season.builder()
-                                .name(response.getLeague().getSeason().toString())
+
+            int weekId = Integer.parseInt(response.getLeague().getRound().replaceAll("\\D+", ""));
+            Week week = weekService.findById(weekId);
+            if (week == null) {
+                String weekName = "week " + weekId;
+                week = weekService.save(
+                        Week.builder()
+                                .name(weekName)
+                                .isCurrent(weekName.equals("week 1"))
+                                .seasonId(season)
                                 .build()
                 );
-                log.info("Season " + season + " saved");
-            } else {
-                season = seasonService.findByName(response.getLeague().getSeason().toString());
-            }
-
-            long weekId = Long.parseLong(response.getLeague().getRound().replaceAll("\\D+", ""));
-            Week week;
-            if (weekService.findById(weekId) == null) {
-                String weekName = "week " + weekId;
-                week = weekService.save(Week.builder().name(weekName)
-                        .isCurrent(weekName.equals("week 1"))
-                        .season(season)
-                        .build());
-                log.info("Week " + week + " saved");
-            } else {
-                week = weekService.findById(weekId);
+                log.info("Week {} saved", week);
             }
 
             ResponseTeam home = response.getTeams().getHome();
             ResponseTeam away = response.getTeams().getAway();
 
-            Long htpid = home.getId();
-            Long atpid = away.getId();
+            int htpid = home.getId();
+            int atpid = away.getId();
 
-            Team homeTeam;
-            if (teamService.findByPublicId(htpid) == null) {
+            Team homeTeam = teamService.findByPublicId(htpid);
+            if (homeTeam == null) {
                 homeTeam = Team.builder()
                         .publicId(home.getId())
                         .logo(home.getLogo())
@@ -241,11 +287,9 @@ public class DataInitService {
                         .code(home.getCode())
                         .build();
                 teamService.save(homeTeam);
-            } else {
-                homeTeam = teamService.findByPublicId(htpid);
             }
-            Team awayTeam;
-            if (teamService.findByPublicId(atpid) == null) {
+            Team awayTeam = teamService.findByPublicId(atpid);
+            if (awayTeam == null) {
                 awayTeam = Team.builder()
                         .publicId(away.getId())
                         .logo(away.getLogo())
@@ -253,37 +297,6 @@ public class DataInitService {
                         .code(away.getCode())
                         .build();
                 teamService.save(awayTeam);
-            } else {
-                awayTeam = teamService.findByPublicId(atpid);
-            }
-
-
-            if (standingService.findByPublicId(htpid) == null) {
-                Standing st = Standing.builder()
-                        .games(0)
-                        .points(0)
-                        .won(0)
-                        .draw(0)
-                        .lost(0)
-                        .team(homeTeam)
-                        .goalsScored(0)
-                        .goalsAgainst(0)
-                        .build();
-                standingService.save(st);
-            }
-
-            if (standingService.findByPublicId(atpid) == null) {
-                Standing st = Standing.builder()
-                        .games(0)
-                        .points(0)
-                        .won(0)
-                        .draw(0)
-                        .lost(0)
-                        .team(awayTeam)
-                        .goalsScored(0)
-                        .goalsAgainst(0)
-                        .build();
-                standingService.save(st);
             }
 
             if (response.getGoals().getHome() == null) {
@@ -291,9 +304,9 @@ public class DataInitService {
                         .publicId(publicId)
                         .status(status)
                         .localDateTime(matchDateTime)
-                        .week(week)
-                        .homeTeam(homeTeam)
-                        .awayTeam(awayTeam)
+                        .weekId(week.getId())
+                        .homeTeamId(homeTeam.getPublicId())
+                        .awayTeamId(awayTeam.getPublicId())
                         .build();
             } else {
                 Integer homeTeamScore = response.getGoals().getHome();
@@ -307,22 +320,22 @@ public class DataInitService {
                         .publicId(publicId)
                         .status(status)
                         .localDateTime(matchDateTime)
-                        .week(week)
-                        .homeTeam(homeTeam)
-                        .awayTeam(awayTeam)
+                        .weekId(week.getId())
+                        .homeTeamId(homeTeam.getPublicId())
+                        .awayTeamId(awayTeam.getPublicId())
                         .homeTeamScore(homeTeamScore)
                         .awayTeamScore(awayTeamScore)
                         .result(result)
                         .build();
             }
             matchService.save(match);
-            log.info("Match " + match + " saved");
+            log.info("Match {} saved", match);
         }
     }
 
     private void matchDateTimeStatusUpdate() throws UnirestException, JsonProcessingException {
         HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                .header(xRapidApi, apiFootballToken)
+                .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2024)
@@ -330,7 +343,7 @@ public class DataInitService {
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
             Fixture fixture = response.getFixture();
-            Long publicId = fixture.getPublicId();
+            int publicId = fixture.getPublicId();
             LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
                     TimeZone.getDefault().toZoneId());
             String status = fixture.getStatus().getMyshort();
@@ -342,73 +355,28 @@ public class DataInitService {
                 case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
                 default -> status = null;
             }
-            Match match = new Match();
-            match.setPublicId(publicId);
-            match.setStatus(status);
-            match.setLocalDateTime(matchDateTime);
-            matchService.updateStatusAndLocalDateTime(match);
-        }
-    }
-
-    private void sendTodaysMatchNotification() {
-        Long tour = null;
-        List<Match> todayMatches = matchService.findAllByTodayDate();
-        StringBuilder builder = new StringBuilder();
-        if (!todayMatches.isEmpty()) {
-            builder.append("`").append("МАТЧИ СЕГОДНЯ").append("`").append("\n\n");
-            for (Match match : todayMatches) {
-                builder.append("`");
-                if (!match.getWeek().getId().equals(tour)) {
-                    builder.append(match.getWeek().getId()).append(" тур").append("\n");
-                    tour = match.getWeek().getId();
-                }
-                builder.append(match.getHomeTeam().getCode()).append(" ");
-                if (!Objects.equals(match.getStatus(), "ns") && !Objects.equals(match.getStatus(), "pst")) {
-                    builder.append(match.getHomeTeamScore()).append(" - ")
-                            .append(match.getAwayTeamScore()).append(" ")
-                            .append(match.getAwayTeam().getCode()).append(" ")
-                            .append(match.getStatus()).append(" ");
-                } else if (Objects.equals(match.getStatus(), "pst")) {
-                    builder.append("- ").append(match.getAwayTeam().getCode())
-                            .append(" ⏰ ").append(match.getStatus());
-                } else {
-                    builder.append("- ").append(match.getAwayTeam().getCode())
-                            .append(" ⏱ ").append(match.getLocalDateTime().toLocalTime());
-                }
-                builder.append("`").append("\n");
-            }
-            try {
-                HttpResponse<JsonNode> response = Unirest.get(url)
-                        .queryString("chat_id", chatId)
-                        .queryString("text", builder.toString())
-                        .queryString("parse_mode", "Markdown")
-                        .asJson();
-                if (response.getStatus() == 200) {
-                    log.info(response.getBody());
-                    log.info("Message todays match notification has been send");
-                } else {
-                    log.warn("Don't send todays match notification");
-                }
-            } catch (UnirestException e) {
-                log.error("Sending message error: " + e.getMessage());
-            }
+            matchService.updateStatusAndLocalDateTime(publicId, status, matchDateTime);
         }
     }
 
     private void fullTimeMatchNotification() {
-        List<Match> online = matchService.findOnline();
+        List<Match> online = matchService.findOnlineMatches();
         if (!online.isEmpty()) {
             for (Match match : online) {
-                matchService.forceUpdatePoints(match);
+                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
+                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
+                predictionService.forceUpdatePoints(match);
                 StringBuilder builder = new StringBuilder();
                 if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
-                    builder.append("`").append(match.getHomeTeam().getCode()).append(" ")
+                    builder.append("`").append(homeTeam.getCode()).append(" ")
                             .append(match.getHomeTeamScore()).append(" ")
                             .append(match.getStatus()).append(" ")
                             .append(match.getAwayTeamScore()).append(" ")
-                            .append(match.getAwayTeam().getCode()).append("`").append("\n\n");
-                    for (Prediction prediction : match.getPredictions()) {
-                        builder.append("`").append(prediction.getUser().getLogin().substring(0, 3).toUpperCase()).append(" ")
+                            .append(awayTeam.getCode()).append("`").append("\n\n");
+                    ;
+                    for (Prediction prediction : predictionService.getByMatchPublicId(match.getPublicId())) {
+                        User user = userService.findById(prediction.getUserId());
+                        builder.append("`").append(user.getLogin().substring(0, 3).toUpperCase()).append(" ")
                                 .append(prediction.getHomeTeamScore() != null ? prediction.getHomeTeamScore() : " ").append(":")
                                 .append(prediction.getAwayTeamScore() != null ? prediction.getAwayTeamScore() : " ")
                                 .append(" ");
@@ -444,7 +412,7 @@ public class DataInitService {
 
     private void postponedMatches() throws UnirestException, JsonProcessingException {
         HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                .header(xRapidApi, apiFootballToken)
+                .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2024)
@@ -459,7 +427,7 @@ public class DataInitService {
     }
 
     private void currentWeekUpdate() {
-        Long id = weekService.findCurrentWeek().getId();
+        int id = DaoUtil.currentWeekId;
         Week currentWeek = weekService.findById(id);
         Week nextCurrentWeek = weekService.findById(id + 1);
         weekService.updateCurrent(currentWeek, false);
@@ -484,7 +452,7 @@ public class DataInitService {
                     .toInstant()
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
-            if (title.length() > 0) {
+            if (!title.isEmpty()) {
                 news.add(News.builder().title(title).link(link).localDateTime(dateTime).build());
             }
         }
@@ -493,11 +461,11 @@ public class DataInitService {
 
     private void headToHeadInitFromApiFootball() throws UnirestException, JsonProcessingException {
         List<Integer> leagues = Stream.of(39, 45, 48, 2).toList();
-        List<Integer> seasons = Stream.of(2020, 2021, 2022).toList();
+        List<Integer> seasons = Stream.of(2020, 2021, 2022, 2023).toList();
         for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 3; j++) {
+            for (int j = 0; j < 4; j++) {
                 HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                        .header(xRapidApi, apiFootballToken)
+                        .header(X_RAPIDAPI_KEY, apiFootballToken)
                         .queryString("league", leagues.get(i))
                         .queryString("season", seasons.get(j))
                         .asString();
@@ -513,8 +481,8 @@ public class DataInitService {
                         case "Championship" -> "CH ";
                         default -> response.getLeague().getName();
                     } + response.getLeague().getSeason();
-                    Team homeTeam = teamService.findByPublicId(response.getTeams().getHome().getId());
-                    Team awayTeam = teamService.findByPublicId(response.getTeams().getAway().getId());
+                    Team homeTeam = DaoUtil.TEAMS.getOrDefault(response.getTeams().getHome().getId(), null);
+                    Team awayTeam = DaoUtil.TEAMS.getOrDefault(response.getTeams().getAway().getId(), null);
                     if (homeTeam == null || awayTeam == null) {
                         continue;
                     }
@@ -525,13 +493,14 @@ public class DataInitService {
                     Integer awayTeamScore = response.getGoals().getAway();
                     HeadToHead headToHead = HeadToHead.builder()
                             .leagueName(leagueName)
-                            .homeTeam(homeTeam)
-                            .awayTeam(awayTeam)
+                            .homeTeamId(homeTeam.getPublicId())
+                            .awayTeamId(awayTeam.getPublicId())
                             .homeTeamScore(homeTeamScore)
                             .awayTeamScore(awayTeamScore)
                             .localDateTime(matchDateTime)
                             .build();
                     headToHeadService.save(headToHead);
+                    log.info("Saved head to head: {}", headToHead);
                 }
             }
         }
@@ -539,7 +508,7 @@ public class DataInitService {
 
     private void teamsInitFromApiFootball() throws UnirestException, JsonProcessingException {
         HttpResponse<String> resp = Unirest.get("https://v3.football.api-sports.io/teams")
-                .header(xRapidApi, apiFootballToken)
+                .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
                 .queryString("season", 2024)

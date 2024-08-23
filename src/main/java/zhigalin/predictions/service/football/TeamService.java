@@ -1,44 +1,40 @@
 package zhigalin.predictions.service.football;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.repository.football.TeamRepository;
+import zhigalin.predictions.repository.football.TeamDao;
 
-import java.util.List;
 
-@RequiredArgsConstructor
-@Service
 @Slf4j
+@Service
 public class TeamService {
-    private final TeamRepository repository;
 
-    public Team save(Team team) {
-        Team teamFromDB = repository.findByName(team.getName());
-        if (teamFromDB != null) {
-            return teamFromDB;
-        }
-        return repository.save(team);
+    private final TeamDao teamDao;
+
+    public TeamService(TeamDao teamDao) {
+        this.teamDao = teamDao;
+    }
+
+    public void save(Team team) {
+        teamDao.save(team);
     }
 
     public List<Team> findAll() {
-        return repository.findAll();
-    }
-
-    public Team findById(Long id) {
-        return repository.findById(id).orElse(null);
+        return teamDao.findAll();
     }
 
     public Team findByName(String name) {
-        return repository.findByName(name);
+        return teamDao.findByName(name);
     }
 
     public Team findByCode(String code) {
-        return repository.findByCode(code);
+        return teamDao.findByCode(code);
     }
 
-    public Team findByPublicId(Long publicId) {
-        return repository.findByPublicId(publicId);
+    public Team findByPublicId(int publicId) {
+        return teamDao.findByPublicId(publicId);
     }
 }

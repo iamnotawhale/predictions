@@ -17,6 +17,6 @@ public class Notification {
 
     @Override
     public String toString() {
-        return "notification#" + user.getId() + match.getId();
+        return "notification#" + user.getId() + match.getPublicId();
     }
 }
