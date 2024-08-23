@@ -1,51 +1,60 @@
 package zhigalin.predictions.telegram.command;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.HashMap;
+import java.util.Map;
+
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.predict.PointsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
-import static zhigalin.predictions.telegram.command.CommandName.*;
+import static zhigalin.predictions.telegram.command.CommandName.HELP;
+import static zhigalin.predictions.telegram.command.CommandName.NEWS;
+import static zhigalin.predictions.telegram.command.CommandName.NO;
+import static zhigalin.predictions.telegram.command.CommandName.REFRESH;
+import static zhigalin.predictions.telegram.command.CommandName.START;
+import static zhigalin.predictions.telegram.command.CommandName.STOP;
+import static zhigalin.predictions.telegram.command.CommandName.TABLE;
+import static zhigalin.predictions.telegram.command.CommandName.TODAY;
+import static zhigalin.predictions.telegram.command.CommandName.TOTAL;
+import static zhigalin.predictions.telegram.command.CommandName.TOUR;
+import static zhigalin.predictions.telegram.command.CommandName.TOUR_NUM;
+import static zhigalin.predictions.telegram.command.CommandName.UPCOMING;
 
 public class CommandContainer {
-    private final ImmutableMap<String, Command> commandMap;
+    private final Map<String, Command> commandMap;
     private final Command unknownCommand;
     private final Command teamCommand;
     private final Command headToHeadCommand;
     private final Command updateCommand;
     private final Command predictCommand;
+    private final Command predictKeyboardCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
-                            StandingService standingService, TeamService teamService,
-                            HeadToHeadService headToHeadService, DataInitService dataInitService,
-                            PredictionService predictionService, UserService userService,
-                            PointsService pointsService) {
-        commandMap = ImmutableMap.<String, Command>builder()
-                .put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService))
-                .put(START.getName(), new StartCommand(sendBotMessageService))
-                .put(STOP.getName(), new StopCommand(sendBotMessageService))
-                .put(HELP.getName(), new HelpCommand(sendBotMessageService))
-                .put(NO.getName(), new NoCommand(sendBotMessageService))
-                .put(TABLE.getName(), new TableCommand(sendBotMessageService, standingService))
-                .put(TOUR.getName(), new TourCommand(sendBotMessageService))
-                .put(TOUR_NUM.getName(), new TourNumCommand(sendBotMessageService, matchService))
-                .put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService))
-                .put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService))
-                .put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, matchService))
-                .put(TOTAL.getName(), new TotalCommand(sendBotMessageService, pointsService))
-                .build();
+                            TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
+                            PredictionService predictionService, UserService userService) {
+        commandMap = new HashMap<>();
+        commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService));
+        commandMap.put(START.getName(), new StartCommand(sendBotMessageService));
+        commandMap.put(STOP.getName(), new StopCommand(sendBotMessageService));
+        commandMap.put(HELP.getName(), new HelpCommand(sendBotMessageService));
+        commandMap.put(NO.getName(), new NoCommand(sendBotMessageService));
+        commandMap.put(TABLE.getName(), new TableCommand(sendBotMessageService, matchService));
+        commandMap.put(TOUR.getName(), new TourCommand(sendBotMessageService));
+        commandMap.put(TOUR_NUM.getName(), new TourNumCommand(sendBotMessageService, matchService));
+        commandMap.put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService));
+        commandMap.put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService));
+        commandMap.put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, predictionService));
+        commandMap.put(TOTAL.getName(), new TotalCommand(sendBotMessageService, predictionService));
         unknownCommand = new UnknownCommand(sendBotMessageService);
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, headToHeadService);
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
-        updateCommand = new UpdateCommand(sendBotMessageService, matchService);
-        predictCommand = new PredictCommand(sendBotMessageService, predictionService,
-                userService, matchService);
+        updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService);
+        predictCommand = new PredictCommand(sendBotMessageService, predictionService, userService, matchService);
+        predictKeyboardCommand = new PredictKeyboardCommand(sendBotMessageService);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
@@ -66,5 +75,9 @@ public class CommandContainer {
 
     public Command retrievePredictCommand() {
         return predictCommand;
+    }
+
+    public Command retrievePredictKeyBoardCommand() {
+        return predictKeyboardCommand;
     }
 }

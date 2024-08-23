@@ -1,5 +1,9 @@
 package zhigalin.predictions.telegram.command;
 
+import java.time.format.DateTimeFormatter;
+import java.util.EnumSet;
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.HeadToHead;
@@ -9,10 +13,7 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-
-import java.time.format.DateTimeFormatter;
-import java.util.EnumSet;
-import java.util.List;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 public class TeamCommand implements Command {
@@ -35,24 +36,26 @@ public class TeamCommand implements Command {
         } else {
             getLastFiveMatchesInfoByTeam(team, builder);
             if (matchService.findAllByTodayDate().stream().anyMatch(match ->
-                    match.getHomeTeam().getId().equals(team.getId()) ||
-                    match.getAwayTeam().getId().equals(team.getId()))) {
+                    match.getHomeTeamId() == team.getPublicId() ||
+                    match.getAwayTeamId() == team.getPublicId())) {
                 Match match = matchService.findAllByTodayDate().stream().filter(m ->
-                        m.getHomeTeam().getId().equals(team.getId()) ||
-                                m.getAwayTeam().getId().equals(team.getId())).findFirst().get();
-                Long anotherTeamId = !team.getId().equals(match.getHomeTeam().getId()) ? match.getHomeTeam().getId() : match.getAwayTeam().getId();
-                Team anotherTeam = teamService.findById(anotherTeamId);
+                        m.getHomeTeamId() == team.getPublicId() ||
+                        m.getAwayTeamId() == team.getPublicId()).findFirst().get();
+                int anotherTeamId = team.getPublicId() != match.getHomeTeamId() ? match.getHomeTeamId() : match.getAwayTeamId();
+                Team anotherTeam = DaoUtil.TEAMS.get(anotherTeamId);
                 builder.append("\n\n").append(anotherTeam.getCode()).append("\n");
                 getLastFiveMatchesInfoByTeam(anotherTeam, builder);
                 builder.append("\n\n").append("HEAD TO HEAD:").append("\n");
                 List<HeadToHead> list = headToHeadService.findAllByTwoTeamsCode(team.getCode(), anotherTeam.getCode());
                 for (HeadToHead h2h : list) {
+                    Team homeTeam = DaoUtil.TEAMS.get(h2h.getHomeTeamId());
+                    Team awayTeam = DaoUtil.TEAMS.get(h2h.getAwayTeamId());
                     builder.append("`").append(h2h.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM.yy"))).append(" ")
                             .append(h2h.getLeagueName()).append("\n")
-                            .append(h2h.getHomeTeam().getCode()).append(" ")
+                            .append(homeTeam.getCode()).append(" ")
                             .append(h2h.getHomeTeamScore()).append(" - ")
                             .append(h2h.getAwayTeamScore()).append(" ")
-                            .append(h2h.getAwayTeam().getCode()).append(" ")
+                            .append(awayTeam.getCode()).append(" ")
                             .append("`").append("\n");
                 }
             }
@@ -61,14 +64,16 @@ public class TeamCommand implements Command {
     }
 
     private void getLastFiveMatchesInfoByTeam(Team team, StringBuilder builder) {
-        List<Match> lastFiveMatches = matchService.findLast5MatchesByTeamId(team.getId());
-        List<String> result = matchService.getLast5MatchesResultByTeamId(team.getId());
+        List<Match> lastFiveMatches = matchService.findLast5MatchesByTeamId(team.getPublicId());
+        List<String> result = matchService.getLast5MatchesResultByTeamId(team.getPublicId());
         int i = 0;
         for (Match match : lastFiveMatches) {
-            builder.append("`").append(match.getHomeTeam().getCode()).append(" ")
+            Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
+            Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
+            builder.append("`").append(homeTeam.getCode()).append(" ")
                     .append(match.getHomeTeamScore()).append(" - ")
                     .append(match.getAwayTeamScore()).append(" ")
-                    .append(match.getAwayTeam().getCode());
+                    .append(awayTeam.getCode());
             String str = result.get(i++);
             if (str.equals("W")) {
                 builder.append(" \uD83D\uDFE2");

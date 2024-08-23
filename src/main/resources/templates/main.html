@@ -71,12 +71,12 @@
 </nav>
 
 <div class="container-fluid bg-primary">
-    <img th:src="@{/img/banner3.webp}" class="img-fluid bg-primary">
+    <img th:src="@{/img/banner3.webp}" class="img-fluid bg-primary" loading="lazy">
     <div class="row">
         <div class="col-lg-4 col-md-6 col-sm-12 col-xs-12">
             <div class="card text-white bg-primary border-0">
                 <div class="card-header border-0"
-                     th:text="${'Текущий тур ' + matchList.get(1).week.id}"
+                     th:text="${'Текущий тур ' + matchList.get(1).weekId}"
                      onclick="window.location.assign('/matches/week/current');"></div>
                 <div class="card-body" style="padding-left: 0;">
                     <table class="table table-striped table-hover table-sm">
@@ -96,10 +96,12 @@
                             <tr th:data-bs-target="${'#acco'+ iter.index}" data-bs-toggle="collapse"
                                 class="accordion-toggle">
                                 <td class="align-middle"
-                                    th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date</td>
+                                    th:text="${#temporals.format(match.localDateTime, 'dd.MM')}">Date
+                                </td>
                                 <td class="align-middle"
-                                    th:text="${#temporals.format(match.localDateTime, 'HH:mm')}">Time</td>
-                                <td><img th:src="${match.homeTeam.logo}" th:width="20"/></td>
+                                    th:text="${#temporals.format(match.localDateTime, 'HH:mm')}">Time
+                                </td>
+                                <td><img th:src="@{/img/teams/__${match.homeTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                                 <td class="align-middle" th:if="${match.status != 'ns'}"
                                     th:text="${match.homeTeamScore}">HT Score
                                 </td>
@@ -112,35 +114,24 @@
                                 <td colspan="3" class="align-middle" th:unless="${match.status != 'ns'}">
                                     <div th:text="'-'"></div>
                                 </td>
-                                <td><img th:src="${match.awayTeam.logo}" th:width="20"/></td>
+                                <td><img th:src="@{/img/teams/__${match.awayTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                             </tr>
                             <tr class="accordion-body collapse" th:id="${'acco'+ iter.index}"
-                                th:each="hth: ${h2h.get(iter.index)}">
+                                th:each="hth: ${h2h.get(match.publicId)}">
                                 <td colspan="2" class="align-middle">
                                     <div>
-                                        <img th:if="${hth.leagueName.contains('PL') }"
-                                             th:src="'https://media.api-sports.io/football/leagues/39.png'"
-                                             th:width="20"/>
-                                        <img th:if="${hth.leagueName.contains('UCL') }"
-                                             th:src="'https://media.api-sports.io/football/leagues/2.png'"
-                                             th:width="20"/>
-                                        <img th:if="${hth.leagueName.contains('CH') }"
-                                             th:src="'https://media.api-sports.io/football/leagues/40.png'"
-                                             th:width="15"/>
-                                        <img th:if="${hth.leagueName.contains('LC') }"
-                                             th:src="'https://media.api-sports.io/football/leagues/48.png'"
-                                             th:width="15"/>
-                                        <img th:if="${hth.leagueName.contains('FA') }"
-                                             th:src="'https://media.api-sports.io/football/leagues/45.png'"
-                                             th:width="20"/>
+                                        <img th:src="@{/img/leagues/__${#strings.substringBefore(hth.leagueName, ' ')}__.webp}"
+                                             th:width="15"
+                                             th:height="15"
+                                             loading="lazy"/>
                                         <span th:text="${#temporals.format(hth.localDateTime, 'dd.MM.YY')}"/>
                                     </div>
                                 </td>
-                                <td><img th:src="${hth.homeTeam.logo}" th:width="20"/></td>
+                                <td><img th:src="@{/img/teams/__${hth.homeTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                                 <td colspan="3" class="align-middle"
                                     th:text="${hth.homeTeamScore + ' - ' + hth.awayTeamScore}">Status
                                 </td>
-                                <td><img th:src="${hth.awayTeam.logo}" th:width="20"/></td>
+                                <td><img th:src="@{/img/teams/__${hth.awayTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/></td>
                             </tr>
                         </th:block>
                         </tbody>
@@ -161,7 +152,7 @@
                         <tbody th:align="center">
                         <tr th:each="points, iter: ${map}">
                             <td th:text="${iter.index + 1}">Position</td>
-                            <td th:text="${points.key.login}">User</td>
+                            <td th:text="${points.key}">User</td>
                             <td th:text="${points.value}">Points</td>
                         </tr>
                         </tbody>
@@ -178,20 +169,14 @@
                         <tr>
                             <th></th>
                             <th></th>
-                            <th class="d-none d-xl-table-cell">
-                                Клуб
-                            </th>
+                            <th class="d-none d-xl-table-cell">Клуб</th>
                             <th></th>
                             <th>И</th>
                             <th>В</th>
                             <th>Н</th>
                             <th>П</th>
-                            <th class="d-none d-xl-table-cell">
-                                ЗМ
-                            </th>
-                            <th class="d-none d-xl-table-cell">
-                                ПМ
-                            </th>
+                            <th class="d-none d-xl-table-cell">ЗМ</th>
+                            <th class="d-none d-xl-table-cell">ПМ</th>
                             <th>РМ</th>
                             <th>О</th>
                         </tr>
@@ -200,37 +185,42 @@
                         <tbody th:align="center">
 
                         <th:block th:each="standing, iter: ${standings}">
-                            <tr th:data-bs-target="${'#acc'+ standing.team}" data-bs-toggle="collapse"
+                            <tr th:data-bs-target="${'#acc'+ standing.teamId}" data-bs-toggle="collapse"
                                 class="accordion-toggle">
                                 <td th:text="${iter.index + 1}">Position</td>
                                 <td>
-                                    <img th:src="${standing.team.logo}" th:width="20" style="display:inline;"/>
+                                    <img th:src="@{/img/teams/__${standing.teamId}__.webp}" th:width="20" th:height="20"
+                                         style="display:inline;" loading="lazy"/>
                                 </td>
                                 <td class="d-none d-xl-table-cell">
                                     <p class="text-truncate"
-                                       th:text="${standing.team.code.toUpperCase()}"
+                                       th:text="${teams.get(standing.teamId).code.toUpperCase()}"
                                        style="display:inline; max-width: 100px;">
                                     </p>
                                 </td>
-                                <td style="padding-left: 0; padding-right: 0" th:if="${!online.isEmpty()}" th:with="match=${@matchService.getOnlineResult(standing.team.name)}">
-                                    <span class="text-white p-03 badge rounded-pill bg-success" th:if="${match != null && match.result == 'H'}"
-                                    th:text="${match.homeTeamScore + ':' + match.awayTeamScore}">
-                                    </span>
-                                    <span class="text-white p-03 badge rounded-pill bg-warning" th:if="${match != null && match.result == 'D'}"
+                                <td style="padding-left: 0; padding-right: 0" th:if="${!onlineTeamsIds.isEmpty() && onlineTeamsIds.contains(standing.teamId)}"
+                                    th:with="match=${@matchService.getOnlineResult(standing.teamId)}">
+                                    <span class="text-white p-03 badge rounded-pill bg-success"
+                                          th:if="${match != null && match.result == 'H'}"
                                           th:text="${match.homeTeamScore + ':' + match.awayTeamScore}">
                                     </span>
-                                    <span class="text-white p-03 badge rounded-pill bg-danger" th:if="${match != null && match.result == 'A'}"
+                                    <span class="text-white p-03 badge rounded-pill bg-warning"
+                                          th:if="${match != null && match.result == 'D'}"
+                                          th:text="${match.homeTeamScore + ':' + match.awayTeamScore}">
+                                    </span>
+                                    <span class="text-white p-03 badge rounded-pill bg-danger"
+                                          th:if="${match != null && match.result == 'A'}"
                                           th:text="${match.homeTeamScore + ':' + match.awayTeamScore}">
                                     </span>
                                 </td>
-                                <td th:if="${online.isEmpty()}"></td>
+                                <td th:if="${onlineTeamsIds.isEmpty()}"></td>
                                 <td th:text="${standing.games}">Games</td>
                                 <td th:text="${standing.won}">Won</td>
-                                <td th:text="${standing.draw}">Draw</td>
+                                <td th:text="${standing.drawn}">Drawn</td>
                                 <td th:text="${standing.lost}">Lost</td>
                                 <td class="d-none d-xl-table-cell">
                                     <p class="text-truncate"
-                                       th:text="${standing.goalsScored}"
+                                       th:text="${standing.goalsFor}"
                                        style="display:inline; max-width: 100px;">
                                     </p>
                                 </td>
@@ -240,22 +230,22 @@
                                        style="display:inline; max-width: 100px;">
                                     </p>
                                 </td>
-                                <td th:text="${standing.goalsScored} - ${standing.goalsAgainst}"></td>
+                                <td th:text="${standing.goalsFor} - ${standing.goalsAgainst}"></td>
                                 <td th:text="${standing.points}">Points</td>
                             </tr>
-                            <tr class="accordion-body collapse" th:id="${'acc'+ standing.team}">
+                            <tr class="accordion-body collapse" th:id="${'acc'+ standing.teamId}">
                                 <td colspan="4">
                                     <div>
                                         <p class="h7" style="margin-bottom: 0;"
                                            th:text="${'Все игры '}"
-                                           th:onclick="'javascript:allGames(\'' + ${standing.team.id} + '\');'"></p>
+                                           th:onclick="'javascript:allGames(\'' + ${standing.teamId} + '\');'"></p>
                                     </div>
                                 </td>
                                 <td colspan="4">
                                     <div>
                                         <p class="h7" style="margin-bottom: 0;"
                                            th:text="${'Последние 5 игр'}"
-                                           th:onclick="'javascript:lastFiveGames(\'' + ${standing.team.id} + '\');'"></p>
+                                           th:onclick="'javascript:lastFiveGames(\'' + ${standing.teamId} + '\');'"></p>
                                     </div>
                                 </td>
                             </tr>
@@ -303,7 +293,7 @@
                     </p>
                 </div>
                 <div class="card-body">
-                    <table class="table table-striped table-hover table-sm text-white" th:if="${!online.isEmpty()}">
+                    <table class="table table-striped table-hover table-sm text-white" th:if="${!onlineMatches.isEmpty()}">
                         <thead th:align="center">
                         <tr>
                             <th>Хозяева</th>
@@ -314,21 +304,23 @@
                         </tr>
                         </thead>
                         <tbody th:align="center">
-                        <th:block th:each="match: ${online}">
+                        <th:block th:each="match: ${onlineMatches}">
                             <tr>
-                                <td style="width: 35%"><img th:src="${match.homeTeam.logo}" th:width="20"/></td>
+                                <td style="width: 35%"><img th:src="@{/img/teams/__${match.homeTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/>
+                                </td>
                                 <td class="align-middle" th:text="${match.homeTeamScore}">HT Score</td>
                                 <td class="align-middle" th:if="${match.status != 'ns'}" th:text="${match.status}">
                                     Status
                                 </td>
                                 <td class="align-middle" th:unless="${match.status != 'ns'}" th:text="'-'">Status</td>
                                 <td class="align-middle" th:text="${match.awayTeamScore}">AT Score</td>
-                                <td style="width: 35%"><img th:src="${match.awayTeam.logo}" th:width="20"/></td>
+                                <td style="width: 35%"><img th:src="@{/img/teams/__${match.awayTeamId}__.webp}" th:width="20" th:height="20" loading="lazy"/>
+                                </td>
                             </tr>
                         </th:block>
                         </tbody>
                     </table>
-                    <p th:unless="${!online.isEmpty()}">Матчей онлайн нет</p>
+                    <p th:unless="${!onlineMatches.isEmpty()}">Матчей онлайн нет</p>
                 </div>
             </div>
         </div>
@@ -338,7 +330,7 @@
                 <div class="card-body">
                     <div class="video-container">
                         <iframe id="ytplayer" type="text/html" width="560" height="315"
-                                src="https://www.youtube.com/embed/?listType=playlist&list=PLQ_voP4Q3cffZYz6sVkSigiLfAZI_5vba&iv_load_policy=3"
+                                src="https://www.youtube.com/embed/?listType=playlist&list=PLQ_voP4Q3cffdA4JuRiRtGT-lQxfvO4YY&iv_load_policy=3"
                                 frameborder="0" allowfullscreen></iframe>
                     </div>
                 </div>

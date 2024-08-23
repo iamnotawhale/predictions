@@ -1,21 +1,28 @@
 package zhigalin.predictions.controller;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import zhigalin.predictions.config.UserDetailsImpl;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.StandingService;
 import zhigalin.predictions.service.football.TeamService;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
+import zhigalin.predictions.service.user.UserService;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 @RestController
@@ -24,19 +31,18 @@ public class MatchController {
     private final MatchService matchService;
     private final WeekService weekService;
     private final TeamService teamService;
-    private final StandingService standingService;
+    private final UserService userService;
 
     @GetMapping("/team")
-
-    public ModelAndView findByTeamId(@RequestParam(value = "id") Long id) {
+    public ModelAndView findByTeamId(@RequestParam(value = "id") int publicId) {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("header", "Матчи " + teamService.findById(id).getName());
-        model.addObject("matchList", matchService.findAllByTeamId(id));
+        model.addObject("header", "Матчи " + teamService.findByPublicId(publicId).getName());
+        model.addObject("matchList", matchService.findByPublicId(publicId));
         return model;
     }
 
     @GetMapping("/week/{id}")
-    public ModelAndView findByWeekId(@PathVariable Long id) {
+    public ModelAndView findByWeekId(@PathVariable int id) {
         ModelAndView model = new ModelAndView("match");
         model.addObject("header", "Матчи " + id + " тура");
         model.addObject("matchList", matchService.findAllByWeekId(id));
@@ -46,14 +52,14 @@ public class MatchController {
     @GetMapping("/week/current")
     public ModelAndView findByCurrentWeek() {
         ModelAndView model = new ModelAndView("match");
-        model.addObject("header", "Матчи " + weekService.findCurrentWeek().getId() + " тура");
+        model.addObject("header", "Матчи " + DaoUtil.currentWeekId + " тура");
         model.addObject("matchList", matchService.findAllByCurrentWeek());
         return model;
     }
 
     @GetMapping("/{id}")
-    public Match findById(@PathVariable Long id) {
-        return matchService.findById(id);
+    public Match findById(@PathVariable int id) {
+        return matchService.findByPublicId(id);
     }
 
     @GetMapping("/byNames")
@@ -89,19 +95,17 @@ public class MatchController {
 
     @ModelAttribute("currentUser")
     public User getCurrentUser() {
-        UserDetailsImpl userDetailsImpl = (UserDetailsImpl) SecurityContextHolder
+        UserDetails userDetails = (UserDetails) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
-        return User.builder()
-                .id(userDetailsImpl.getId())
-                .login(userDetailsImpl.getLogin())
-                .build();
+
+        return userService.findByLogin(userDetails.getUsername());
     }
 
     @ModelAttribute("currentWeek")
-    public Long getCurrentWeekId() {
-        return weekService.findCurrentWeek().getId();
+    public Integer getCurrentWeekId() {
+        return DaoUtil.currentWeekId;
     }
 
     @ModelAttribute("todayDateTime")
@@ -115,7 +119,12 @@ public class MatchController {
     }
 
     @ModelAttribute("places")
-    public Map<Long, Integer> places() {
-        return standingService.getPlaces();
+    public Map<Integer, Integer> places() {
+        return matchService.getPlaces();
+    }
+
+    @ModelAttribute("teams")
+    public Map<Integer, Team> teams() {
+        return DaoUtil.TEAMS;
     }
 }

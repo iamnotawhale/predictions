@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url:
+    username:
+    password:
+    driverClassName: org.postgresql.Driver
+  main:
+    banner-mode: off
+
+
+bot:
+  username:
+  token:
+  chatId:
+  urlMessage: https://api.telegram.org/bot${bot.token}/sendMessage
+  urlPhoto: https://api.telegram.org/bot${bot.token}/sendPhoto
+
+chatId: 739299
+
+api:
+  football:
+    token:
+
+season: 2024
+
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG

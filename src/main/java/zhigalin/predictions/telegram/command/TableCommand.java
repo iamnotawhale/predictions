@@ -1,22 +1,24 @@
 package zhigalin.predictions.telegram.command;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.football.Standing;
-import zhigalin.predictions.service.football.StandingService;
+import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-
-import java.util.List;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 public class TableCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
-    private final StandingService standingService;
+    private final MatchService matchService;
 
     @Override
     public void execute(Update update) {
-        List<Standing> list = standingService.findAll();
+        List<Standing> list = matchService.getStandings();
         int i = 1;
         StringBuilder builder = new StringBuilder();
         builder.append("`").append("  ").append("КЛУБ ").append("И  ").append("В  ").append("Н  ").append("П  ")
@@ -26,7 +28,8 @@ public class TableCommand implements Command {
             if (i < 11) {
                 builder.append(" ");
             }
-            builder.append(standing.getTeam().getCode()).append(" ")
+            Team team = DaoUtil.TEAMS.get(standing.getTeamId());
+            builder.append(team.getCode()).append(" ")
                     .append(standing.getGames()).append(" ");
             if (standing.getGames() < 10) {
                 builder.append(" ");
@@ -35,16 +38,16 @@ public class TableCommand implements Command {
             if (standing.getWon() < 10) {
                 builder.append(" ");
             }
-            builder.append(standing.getDraw()).append(" ");
-            if (standing.getDraw() < 10) {
+            builder.append(standing.getDrawn()).append(" ");
+            if (standing.getDrawn() < 10) {
                 builder.append(" ");
             }
             builder.append(standing.getLost()).append(" ");
             if (standing.getLost() < 10) {
                 builder.append(" ");
             }
-            builder.append(standing.getGoalsScored()).append(" ");
-            if (standing.getGoalsScored() < 10) {
+            builder.append(standing.getGoalsFor()).append(" ");
+            if (standing.getGoalsFor() < 10) {
                 builder.append(" ");
             }
             builder.append(standing.getGoalsAgainst()).append(" ");

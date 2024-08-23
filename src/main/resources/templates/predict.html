@@ -21,14 +21,10 @@
         <div class="collapse navbar-collapse" id="navbarColor01">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="/">Главная
-                        <span class="visually-hidden"></span>
-                    </a>
+                    <a class="nav-link" href="/">Главная</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active text-dark" th:text="${header}">
-                        <span class="visually-hidden">Header</span>
-                    </a>
+                    <a class="nav-link active text-dark" th:text="${header}">Header</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/matches/today">Матчи сегодня</a>
@@ -78,13 +74,13 @@
         </thead>
         <tbody th:align="center">
         <tr th:each="map: ${weeklyUsersPoints}">
-            <td class="align-middle" th:text="${map.key.login}">Week</td>
+            <td class="align-middle" th:text="${map.key}">Week</td>
             <td class="align-middle" th:text="${map.value}">Week</td>
         </tbody>
     </table>
     <table class="table table-dark table-striped table-hover table-sm"
-    data-group-by="true"
-    data-group-by-field="tour">
+           data-group-by="true"
+           data-group-by-field="tour">
         <thead th:align="center">
         <tr>
             <th>tour</th>
@@ -103,108 +99,102 @@
             <th></th>
         </thead>
         <tbody th:align="center">
-        <tr th:each="prediction: ${list}">
-            <td class="align-middle" th:text="${prediction.match.week.id}">Week</td>
-            <td class="d-none d-lg-table-cell align-middle" th:text="${#temporals.format(prediction.match.localDateTime, 'dd.MM')}">Date</td>
-            <td class="d-none d-lg-table-cell align-middle" th:text="${#temporals.format(prediction.match.localDateTime, 'HH:mm')}">Time</td>
-            <td class="align-middle" th:text="${prediction.match.homeTeam.code}">Home Team</td>
-            <td class="align-middle" th:text="${prediction.match.homeTeamScore}">HT Score</td>
-            <td class="align-middle" th:if="${prediction.match.status != 'ns'}" th:text="${prediction.match.status}">
+        <tr th:each="mp: ${list}">
+            <td class="align-middle" th:text="${mp.match().weekId}">Week</td>
+            <td class="d-none d-lg-table-cell align-middle"
+                th:text="${#temporals.format(mp.match().localDateTime, 'dd.MM')}">Date
+            </td>
+            <td class="d-none d-lg-table-cell align-middle"
+                th:text="${#temporals.format(mp.match().localDateTime, 'HH:mm')}">Time
+            </td>
+            <td class="align-middle" th:text="${teams.get(mp.match().homeTeamId).code}">Home Team</td>
+            <td class="align-middle" th:text="${mp.match().homeTeamScore}">HT Score</td>
+            <td class="align-middle" th:if="${mp.match().status != 'ns'}" th:text="${mp.match().status}">
                 Status
             </td>
-            <td class="align-middle" th:unless="${prediction.match.status != 'ns'}" th:text="'-'">Status</td>
-            <td class="align-middle" th:text="${prediction.match.awayTeamScore}">AT Score</td>
-            <td class="align-middle" th:text="${prediction.match.awayTeam.code}">Away Team</td>
+            <td class="align-middle" th:unless="${mp.match().status != 'ns'}" th:text="'-'">Status</td>
+            <td class="align-middle" th:text="${mp.match().awayTeamScore}">AT Score</td>
+            <td class="align-middle" th:text="${teams.get(mp.match().awayTeamId).code}">Away Team</td>
 
-
-            <td class="align-middle text-warning" th:if="${currentUser == prediction.user}"
-                th:text="${prediction.user.login}">Login
+            <td class="align-middle text-warning" th:if="${currentUser.id == mp.prediction().userId}"
+                th:text="${users.get(mp.prediction().userId).login}">Login
             </td>
-            <td class="align-middle" th:unless="${currentUser == prediction.user}"
-                th:text="${prediction.user.login}">Login
+            <td class="align-middle" th:unless="${currentUser.id == mp.prediction().userId}"
+                th:text="${users.get(mp.prediction().userId).login}">Login
             </td>
 
 
-            <td class="align-middle" th:text="${prediction.homeTeamScore}">Predict HT Score</td>
+            <td class="align-middle" th:text="${mp.prediction().homeTeamScore}">Predict HT Score</td>
             <td class="align-middle">-</td>
-            <td class="align-middle" th:text="${prediction.awayTeamScore}">Predict AT Score</td>
+            <td class="align-middle" th:text="${mp.prediction().awayTeamScore}">Predict AT Score</td>
 
-
-            <td class="align-middle text-warning" th:if="${prediction.points == 5}" th:text="${prediction.points}">
+            <td class="align-middle text-warning" th:if="${mp.prediction().points == 5}" th:text="${mp.prediction().points}">
                 Points
             </td>
-            <td class="align-middle" th:unless="${prediction.points == 5}" th:text="${prediction.points}">
+            <td class="align-middle" th:unless="${mp.prediction().points == 5}" th:text="${mp.prediction().points}">
                 Points
             </td>
-
 
             <td>
                 <button type="button" class="btn btn-primary btn-sm" disabled data-bs-toggle="modal"
-                        th:data-bs-target="${'#Edit'+ prediction.id}"
-                        th:if="${prediction.match.localDateTime < todayDateTime or currentUser.id != prediction.user.id}">
+                        th:data-bs-target="${'#Edit'+ mp.prediction().userId + mp.prediction().matchPublicId}"
+                        th:if="${mp.match().localDateTime < todayDateTime or currentUser.id != mp.prediction().userId}">
                     Изменить
                 </button>
                 <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
-                        th:data-bs-target="${'#Edit'+ prediction.id}"
-                        th:unless="${prediction.match.localDateTime < todayDateTime or currentUser.id != prediction.user.id}">
+                        th:data-bs-target="${'#Edit'+ mp.prediction().userId + mp.prediction().matchPublicId}"
+                        th:unless="${mp.match().localDateTime < todayDateTime or currentUser.id != mp.prediction().userId}">
                     Изменить
                 </button>
             </td>
-            <div class="modal fade" th:id="${'Edit'+ prediction.id}" tabindex="-1"
-                 th:aria-labelledby="${'Edit'+ prediction.id + 'Label'}" aria-hidden="true">
+            <div class="modal fade" th:id="${'Edit'+ mp.prediction().userId + mp.prediction().matchPublicId}" tabindex="-1"
+                 th:aria-labelledby="${'Edit'+ mp.prediction().userId + mp.prediction().matchPublicId + 'Label'}"
+                 aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h6 class="modal-title" th:text="${prediction.match.homeTeam.name} + ' (' + ${places.get(prediction.match.homeTeam.publicId)} + ') - '
-                            + ${prediction.match.awayTeam.name} + ' (' + ${places.get(prediction.match.awayTeam.publicId)} + ')'"></h6>
+                            <h6 class="modal-title" th:text="${teams.get(mp.match().homeTeamId).name} + ' (' + ${places.get(mp.match().homeTeamId)} + ') - '
+                            + ${teams.get(mp.match().awayTeamId).name} + ' (' + ${places.get(mp.match().awayTeamId)} + ')'"></h6>
                         </div>
                         <div class="modal-body text-center">
                             <form th:method="POST"
                                   th:action="@{/predict/saveAndUpdate}"
-                                  th:id="${'EditForm' + prediction.id}"
+                                  th:id="${'EditForm' + mp.prediction().userId + mp.prediction().matchPublicId}"
                                   th:object="${newPredict}">
                                 <div class="form-group" hidden>
-                                    <label class="font-weight-bold" th:for="${'id' + prediction.id}">ID</label>
-                                    <input type="text"
-                                           name="id"
-                                           th:id="${'id' + prediction.id}"
-                                           class="form-control"
-                                           th:value="${prediction.id}"
-                                           readonly>
-
                                     <label class="font-weight-bold"
-                                           th:for="${'match' + prediction.id}">Match</label>
+                                           th:for="${'match' + mp.prediction().userId + mp.prediction().matchPublicId}">Match</label>
                                     <input type="text"
                                            name="match"
-                                           th:id="${'match' + prediction.id}"
+                                           th:id="${'match' + mp.prediction().userId + mp.prediction().matchPublicId}"
                                            class="form-control"
-                                           th:value="${prediction.match.id}"
+                                           th:value="${mp.match().publicId}"
                                            readonly>
 
                                     <label class="font-weight-bold"
-                                           th:for="${'user' + prediction.id}">User</label>
+                                           th:for="${'user' + mp.prediction().userId + mp.prediction().matchPublicId}">User</label>
                                     <input type="text"
                                            name="user"
-                                           th:id="${'user' + prediction.id}"
+                                           th:id="${'user' + mp.prediction().userId + mp.prediction().matchPublicId}"
                                            class="form-control"
-                                           th:value="${prediction.user.id}"
+                                           th:value="${mp.prediction().userId}"
                                            readonly>
                                 </div>
                                 <div class="container-fluid">
                                     <div class="row align-items-center">
                                         <div class="col-sm">
-                                            <img th:src="${prediction.match.homeTeam.logo}" th:width="100"/>
+                                            <img th:src="@{/img/teams/__${mp.match().homeTeamId}__.webp}" th:width="100" alt=""/>
                                         </div>
                                         <div class="col-sm-2">
                                             <div class="form-group">
                                                 <label class="font-weight-bold"
-                                                       th:for="${'homeTeamScore' + prediction.id}"></label>
+                                                       th:for="${'homeTeamScore' + mp.prediction().userId + mp.prediction().matchPublicId}"></label>
 
                                                 <input type="text"
                                                        name="homeTeamScore"
-                                                       th:id="${'homeTeamScore' + prediction.id}"
+                                                       th:id="${'homeTeamScore' + mp.prediction().userId + mp.prediction().matchPublicId}"
                                                        class="form-control form-control-sm"
-                                                       th:value="${prediction.homeTeamScore}"
+                                                       th:value="${mp.prediction().homeTeamScore}"
                                                        pattern="[0-9]">
                                             </div>
                                         </div>
@@ -214,18 +204,18 @@
                                         <div class="col-sm-2">
                                             <div class="form-group">
                                                 <label class="font-weight-bold"
-                                                       th:for="${'awayTeamScore' + prediction.id}"></label>
+                                                       th:for="${'awayTeamScore' + mp.prediction().userId + mp.prediction().matchPublicId}"></label>
 
                                                 <input type="text"
                                                        name="awayTeamScore"
-                                                       th:id="${'awayTeamScore' + prediction.id}"
+                                                       th:id="${'awayTeamScore' + mp.prediction().userId + mp.prediction().matchPublicId}"
                                                        class="form-control form-control-sm"
-                                                       th:value="${prediction.awayTeamScore}"
+                                                       th:value="${mp.prediction().awayTeamScore}"
                                                        pattern="[0-9]">
                                             </div>
                                         </div>
                                         <div class="col-sm">
-                                            <img th:src="${prediction.match.awayTeam.logo}" th:width="100"/>
+                                            <img th:src="@{/img/teams/__${mp.match().awayTeamId}__.webp}" th:width="100" alt=""/>
                                         </div>
                                     </div>
                                 </div>
@@ -237,7 +227,7 @@
                                         Закрыть
                                     </button>
 
-                                    <a th:href="@{/predict/delete(id=${prediction.id})}"
+                                    <a th:href="@{/predict/delete(userId=${mp.prediction().userId}, matchId=${mp.prediction().matchPublicId})}"
                                        class="btn btn-danger btn-sm">Удалить</a>
 
                                     <input type="submit" class="btn btn-success btn-sm" value="Сохранить">
@@ -266,4 +256,5 @@
 <script src="https://unpkg.com/bootstrap-table@1.21.0/dist/bootstrap-table.min.js"></script>
 <script src="extensions/group-by-v2/bootstrap-table-group-by.js"></script>
 </body>
+
 </html>

@@ -1,165 +1,122 @@
 package zhigalin.predictions.service.event;
 
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.predict.Prediction;
-import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.repository.event.MatchRepository;
-import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
+import zhigalin.predictions.model.football.Standing;
+import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.repository.event.MatchDao;
+import zhigalin.predictions.service.football.TeamService;
+import zhigalin.predictions.util.DaoUtil;
 
-import javax.transaction.Transactional;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.*;
 
-@RequiredArgsConstructor
-@Service
 @Slf4j
-@Transactional
+@Service
 public class MatchService {
-    private final MatchRepository repository;
-    private final UserService userService;
-    private final PredictionService predictionService;
+    private final MatchDao matchDao;
+    private final TeamService teamService;
 
-    public Match save(Match match) {
-        if (repository.findByPublicId(match.getPublicId()) == null) {
-            return repository.save(match);
-        }
-        return null;
+    @Getter
+    private final Map<Integer, Integer> places = new HashMap<>();
+
+    public MatchService(MatchDao matchDao, TeamService teamService) {
+        this.matchDao = matchDao;
+        this.teamService = teamService;
     }
 
-    public void update(Match match) {
-        Match m = repository.findByPublicId(match.getPublicId());
-        List<User> users = userService.findAll();
-        if (m != null) {
-            List<Prediction> predictions = m.getPredictions();
-            if (!predictions.isEmpty() && predictions.size() < 4) {
-                List<User> usersWithNoPredicts = users.stream()
-                        .filter(user -> !predictions.stream()
-                                .map(prediction -> prediction.getUser().getId())
-                                .toList()
-                                .contains(user.getId()))
-                        .toList();
-                for (User user : usersWithNoPredicts) {
-                    predictionService.save(Prediction.builder()
-                            .match(match)
-                            .points(-1L)
-                            .homeTeamScore(null)
-                            .awayTeamScore(null)
-                            .user(user)
-                            .build());
-                }
-            }
-            updatePredictions(m, users);
-            repository.updateMatch(match.getPublicId(), match.getHomeTeamScore(), match.getAwayTeamScore(),
-                    match.getResult(), match.getStatus());
+    public void save(Match match) {
+        matchDao.save(match);
+    }
+
+    public void update(Match matchToUpdate) {
+        matchDao.updateMatch(matchToUpdate);
+    }
+
+
+    public void updateStatusAndLocalDateTime(int matchPublicId, String status, LocalDateTime matchDateTime) {
+        Match match = matchDao.findByPublicId(matchPublicId);
+        if (match != null) {
+            match.setStatus(match.getStatus());
+            match.setLocalDateTime(match.getLocalDateTime());
+            matchDao.save(match);
         }
     }
 
-    public void forceUpdatePoints(Match match) {
-        for (User user : userService.findAll()) {
-            predictionService.updatePoints(match.getId(), user.getId());
-        }
-    }
-
-    private void updatePredictions(Match m, List<User> users) {
-        for (User user : users) {
-            predictionService.updatePoints(m.getId(), user.getId());
-        }
-    }
-
-    public void updateStatusAndLocalDateTime(Match match) {
-        Match m = repository.findByPublicId(match.getPublicId());
-        if (m != null) {
-            m.setStatus(match.getStatus());
-            m.setLocalDateTime(match.getLocalDateTime());
-            repository.save(m);
-        }
-    }
-
-    public Match findById(Long id) {
-        return repository.findById(id).orElse(null);
-    }
-
-    public Match findByPublicId(Long publicId) {
-        return repository.findByPublicId(publicId);
+    public Match findByPublicId(int publicId) {
+        return matchDao.findByPublicId(publicId);
     }
 
     public List<Match> findAllByTodayDate() {
-        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime
-                        .of(LocalDate.now(), LocalTime.of(0, 1)),
-                LocalDateTime
-                        .of(LocalDate.now(), LocalTime.of(23, 59)));
+        return matchDao.findAllTodayMatches();
     }
 
-    public List<Match> findAllNearest(Long minutes) {
-        LocalDateTime now = LocalDateTime.now();
-        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(now, now.plusMinutes(minutes));
+    public List<Match> findAllNearest(int minutes) {
+        return matchDao.findAllMatchesInTheNextMinutes(minutes);
     }
 
-    public List<Match> findAllByUpcomingDays(Integer days) {
-        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now(),
-                LocalDateTime.now().plusDays(days));
+    public List<Match> findAllByUpcomingDays(int days) {
+        return matchDao.findAllMatchesInTheNextMinutes(days * 24 * 60);
     }
 
-    public List<Match> findAllByWeekId(Long id) {
-        return repository.findAllByWeekIdOrderByLocalDateTime(id);
+    public List<Match> findAllByWeekId(int weekId) {
+        return matchDao.findAllByWeekIdOrderByLocalDateTime(weekId);
     }
 
     public List<Match> findAllByCurrentWeek() {
-        return repository.findAllByWeekIsCurrentTrueOrderByLocalDateTime();
+        return matchDao.findAllByCurrentWeek();
     }
 
     public List<Match> findAll() {
-        return repository.findAll();
+        return matchDao.findAll();
     }
 
     public Match findByTeamNames(String homeTeamName, String awayTeamName) {
-        return repository.findByHomeTeamNameAndAwayTeamName(homeTeamName, awayTeamName);
+        Team homeTeam = teamService.findByName(homeTeamName);
+        Team awayTeam = teamService.findByName(awayTeamName);
+        return matchDao.findMatchByTeamsPublicId(homeTeam.getPublicId(), awayTeam.getPublicId());
     }
 
     public Match findByTeamCodes(String homeTeamCode, String awayTeamCode) {
-        return repository.findByHomeTeamCodeAndAwayTeamCode(homeTeamCode, awayTeamCode);
+        Team homeTeam = teamService.findByCode(homeTeamCode);
+        Team awayTeam = teamService.findByCode(awayTeamCode);
+        return matchDao.findMatchByTeamsPublicId(homeTeam.getPublicId(), awayTeam.getPublicId());
     }
 
     public List<Integer> getResultByTeamNames(String homeTeamName, String awayTeamName) {
         List<Integer> result = new ArrayList<>();
-        Match match = repository.findByHomeTeamNameAndAwayTeamName(homeTeamName, awayTeamName);
+        Match match = findByTeamNames(homeTeamName, awayTeamName);
         result.add(match.getHomeTeamScore());
         result.add(match.getAwayTeamScore());
         return result;
     }
 
-    public List<Match> findAllByTeamId(Long id) {
-        return repository.findAllByTeamId(id);
-    }
-
-    public List<Match> findLast5MatchesByTeamId(Long id) {
-        return repository.findAllByTeamId(id)
-                .stream()
+    public List<Match> findLast5MatchesByTeamId(int teamPublicId) {
+        return matchDao.findAllByTeamPublicId(teamPublicId).stream()
                 .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
                 .filter(m -> m.getResult() != null)
                 .limit(5)
                 .toList();
     }
 
-    public List<String> getLast5MatchesResultByTeamId(Long id) {
+    public List<String> getLast5MatchesResultByTeamId(int teamPublicId) {
         List<String> result = new ArrayList<>();
-        List<Match> list = repository.findAllByTeamId(id).stream()
-                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
-                .filter(m -> m.getResult() != null)
-                .limit(5)
-                .toList();
+        List<Match> list = findLast5MatchesByTeamId(teamPublicId);
         for (Match match : list) {
-            if (match.getHomeTeam().getId().equals(id) && match.getResult().equals("H") ||
-                    match.getAwayTeam().getId().equals(id) && match.getResult().equals("A")) {
+            if (match.getHomeTeamId() == teamPublicId && match.getResult().equals("H") ||
+                match.getAwayTeamId() == teamPublicId && match.getResult().equals("A")) {
                 result.add("W");
-            } else if (match.getHomeTeam().getId().equals(id) && match.getResult().equals("A") ||
-                    match.getAwayTeam().getId().equals(id) && match.getResult().equals("H")) {
+            } else if (match.getHomeTeamId() == teamPublicId && match.getResult().equals("A") ||
+                       match.getAwayTeamId() == teamPublicId && match.getResult().equals("H")) {
                 result.add("L");
             } else {
                 result.add("D");
@@ -168,25 +125,27 @@ public class MatchService {
         return result;
     }
 
-    public List<Match> findOnline() {
-        return repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusMinutes(140),
-                LocalDateTime.now().plusMinutes(20)).stream().filter(match -> !match.getStatus().equals("pst")).toList();
+    public List<Standing> getStandings() {
+        List<Standing> standings = matchDao.getStandings();
+        AtomicInteger place = new AtomicInteger(1);
+        standings.forEach(standing -> places.put(standing.getTeamId(), place.getAndIncrement()));
+        return standings;
     }
 
-    public List<Match> findAllByStatus(String status) {
-        return repository.findAllByStatus(status);
+    public List<Match> findOnlineMatches() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime from = now.minusMinutes(140);
+        LocalDateTime to = now.plusMinutes(20);
+        return matchDao.findAllBetweenToDates(from, to).stream()
+                .filter(match -> !match.getStatus().equals("pst"))
+                .toList();
     }
 
-    public Match getOnlineResult(String teamName) {
-        Match match = repository.findAllByLocalDateTimeBetweenOrderByLocalDateTime(LocalDateTime.now().minusHours(2),
-                        LocalDateTime.now())
-                .stream()
-                .filter(m -> m.getHomeTeam().getName().equals(teamName) || m.getAwayTeam().getName().equals(teamName))
-                .findFirst()
-                .orElse(null);
-
+    public Match getOnlineResult(int teamId) {
+        Team team = DaoUtil.TEAMS.get(teamId);
+        Match match = matchDao.findOnlineMatchByTeamId(teamId);
         if (match != null && match.getResult() != null) {
-            if (match.getHomeTeam().getName().equals(teamName)) {
+            if (match.getHomeTeamId() == team.getPublicId()) {
                 return Match.builder()
                         .homeTeamScore(match.getHomeTeamScore())
                         .awayTeamScore(match.getAwayTeamScore())
@@ -204,32 +163,5 @@ public class MatchService {
         }
         return null;
     }
-
-    public void updateUnpredictableMatches() {
-        List<Match> allMatches = repository.findAll();
-        List<User> users = userService.findAll();
-        allMatches.stream()
-                .filter(m -> m.getLocalDateTime().isBefore(LocalDateTime.now()))
-                .filter(m -> m.getPredictions().size() < 4)
-                .forEach(m -> {
-                    List<Prediction> predictions = m.getPredictions();
-                    if (!predictions.isEmpty()) {
-                        List<User> usersWithNoPredicts = users.stream()
-                                .filter(user -> !predictions.stream()
-                                        .map(prediction -> prediction.getUser().getId())
-                                        .toList()
-                                        .contains(user.getId()))
-                                .toList();
-                        for (User user : usersWithNoPredicts) {
-                            predictionService.save(Prediction.builder()
-                                    .match(m)
-                                    .points(-1L)
-                                    .homeTeamScore(null)
-                                    .awayTeamScore(null)
-                                    .user(user)
-                                    .build());
-                        }
-                    }
-                });
-    }
 }
+
