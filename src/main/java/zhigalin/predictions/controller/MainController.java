@@ -8,7 +8,6 @@ import java.util.stream.Stream;
 
 import com.rometools.rome.io.FeedException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,12 +20,10 @@ import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
 
-@Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping

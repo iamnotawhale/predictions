@@ -13,6 +13,6 @@ public class TourCommand implements Command {
 
     @Override
     public void execute(Update update) {
-        sendBotMessageService.sendTourKeyBoard(update.getMessage().getChatId().toString(), MESSAGE) ;
+        sendBotMessageService.sendTourKeyBoard(update.getMessage().getChatId().toString(), MESSAGE);
     }
 }

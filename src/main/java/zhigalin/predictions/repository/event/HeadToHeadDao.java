@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -20,13 +21,13 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.util.DaoUtil;
 
-@Slf4j
 @Repository
 public class HeadToHeadDao {
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public HeadToHeadDao(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -50,7 +51,7 @@ public class HeadToHeadDao {
             parameters.addValue("localDateTime", headToHead.getLocalDateTime());
             namedParameterJdbcTemplate.update(sql, parameters);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -70,7 +71,7 @@ public class HeadToHeadDao {
             parameters.addValue("awayTeamCode", awayTeamCode);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new HeadToHeadMapper()));
         } catch (Exception e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -90,7 +91,7 @@ public class HeadToHeadDao {
             parameters.addValue("awayTeamId", awayTeamId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new HeadToHeadMapper()));
         } catch (Exception e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -139,7 +140,7 @@ public class HeadToHeadDao {
             }
             return Collections.emptyMap();
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return Collections.emptyMap();
         }
     }

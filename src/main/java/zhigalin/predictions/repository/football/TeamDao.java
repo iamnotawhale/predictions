@@ -6,7 +6,8 @@ import java.sql.SQLException;
 import java.util.List;
 
 import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -15,13 +16,13 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.util.DaoUtil;
 
-@Slf4j
 @Repository
 public class TeamDao {
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public TeamDao(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -43,7 +44,7 @@ public class TeamDao {
             params.addValue("name", team.getName());
             namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -56,7 +57,7 @@ public class TeamDao {
             params.addValue("name", name);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -70,7 +71,7 @@ public class TeamDao {
             params.addValue("code", code);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -84,7 +85,7 @@ public class TeamDao {
             params.addValue("publicId", publicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -96,7 +97,7 @@ public class TeamDao {
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, new TeamMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }

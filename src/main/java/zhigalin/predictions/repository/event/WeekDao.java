@@ -6,7 +6,8 @@ import java.sql.SQLException;
 import java.util.List;
 
 import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -15,13 +16,13 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.util.DaoUtil;
 
-@Slf4j
 @Repository
 public class WeekDao {
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public WeekDao(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -43,7 +44,7 @@ public class WeekDao {
             parameters.addValue("seasonId", week.getSeasonId());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -59,7 +60,7 @@ public class WeekDao {
             parameters.addValue("seasonId", seasonId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -72,7 +73,7 @@ public class WeekDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.queryForObject(sql, new WeekMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -86,7 +87,7 @@ public class WeekDao {
                     """;
             jdbcTemplate.update(sql);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -100,7 +101,7 @@ public class WeekDao {
             parameters.addValue("id", id);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -112,7 +113,7 @@ public class WeekDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new WeekMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -128,7 +129,7 @@ public class WeekDao {
             parameters.addValue("matchId", matchId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }

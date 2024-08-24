@@ -5,9 +5,6 @@ import java.util.regex.Pattern;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 @RequiredArgsConstructor

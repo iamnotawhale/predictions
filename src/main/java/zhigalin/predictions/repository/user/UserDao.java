@@ -6,7 +6,8 @@ import java.sql.SQLException;
 import java.util.List;
 
 import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -15,13 +16,13 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.util.DaoUtil;
 
-@Slf4j
 @Repository
 public class UserDao {
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public UserDao(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -38,7 +39,7 @@ public class UserDao {
             params.addValue("login", login);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new UserMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -52,7 +53,7 @@ public class UserDao {
             params.addValue("telegramId", telegramId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new UserMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -70,7 +71,7 @@ public class UserDao {
             params.addValue("telegramId", user.getTelegramId());
             namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -81,7 +82,7 @@ public class UserDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new UserMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -95,7 +96,7 @@ public class UserDao {
             params.addValue("id", id);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new UserMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }

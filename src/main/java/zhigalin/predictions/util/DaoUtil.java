@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;

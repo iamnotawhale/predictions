@@ -10,7 +10,6 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
@@ -19,8 +18,6 @@ import zhigalin.predictions.repository.event.MatchDao;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.util.DaoUtil;
 
-
-@Slf4j
 @Service
 public class MatchService {
     private final MatchDao matchDao;

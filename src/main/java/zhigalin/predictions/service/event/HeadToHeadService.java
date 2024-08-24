@@ -5,13 +5,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.repository.event.HeadToHeadDao;
 
-@Slf4j
 @Service
 public class HeadToHeadService {
     private final HeadToHeadDao headToHeadDao;
