@@ -1,6 +1,6 @@
 package zhigalin.predictions.util;
 
-import java.awt.*;
+import java.awt.Color;
 
 public class ColorComparator {
 

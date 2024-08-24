@@ -1,4 +1,3 @@
-version: "3.3"
 services:
   predicts:
     restart: always
@@ -6,3 +5,4 @@ services:
     network_mode: host
     volumes:
       - ./application.yml:/app/application.yml
+      - ./logs:/app/logs

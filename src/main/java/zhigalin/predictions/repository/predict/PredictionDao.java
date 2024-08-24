@@ -8,7 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -19,13 +20,13 @@ import zhigalin.predictions.model.predict.Points;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.util.DaoUtil;
 
-@Slf4j
 @Repository
 public class PredictionDao {
 
     private final DataSource dataSource;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final JdbcTemplate jdbcTemplate;
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public PredictionDao(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -50,7 +51,7 @@ public class PredictionDao {
             params.addValue("points", prediction.getPoints());
             namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -64,7 +65,7 @@ public class PredictionDao {
             params.addValue("matchPublicId", matchPublicId);
             namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -78,7 +79,7 @@ public class PredictionDao {
             params.addValue("matchId", matchId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -95,7 +96,7 @@ public class PredictionDao {
             params.addValue("matchIds", matchIds);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -115,7 +116,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -132,7 +133,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -146,7 +147,7 @@ public class PredictionDao {
             params.addValue("matchIds", matches.stream().map(Match::getPublicId).toList());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -166,7 +167,7 @@ public class PredictionDao {
             params.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -184,7 +185,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PointsMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -196,11 +197,12 @@ public class PredictionDao {
                     FROM predict
                     JOIN users u ON user_id = u.id
                     GROUP BY login
+                    ORDER BY value;
                     """;
 
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new PointsMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -220,7 +222,7 @@ public class PredictionDao {
             params.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PointsMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -243,7 +245,7 @@ public class PredictionDao {
 
             return namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper());
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -258,7 +260,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             return Boolean.TRUE.equals(namedParameterJdbcTemplate.queryForObject(sql, params, Boolean.class));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return false;
         }
     }

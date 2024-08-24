@@ -2,13 +2,11 @@ package zhigalin.predictions.service.user;
 
 import java.util.List;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.user.UserDao;
 
 
-@Slf4j
 @Service
 public class UserService {
     private final UserDao userDao;

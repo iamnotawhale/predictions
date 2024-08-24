@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Points;
@@ -18,7 +17,6 @@ import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.user.UserService;
 
-@Slf4j
 @Service
 public class PredictionService {
 

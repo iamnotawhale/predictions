@@ -7,7 +7,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -17,13 +18,13 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.util.DaoUtil;
 
-@Slf4j
 @Repository
 public class MatchDao {
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public MatchDao(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -51,7 +52,7 @@ public class MatchDao {
             parameters.addValue("date", match.getLocalDateTime());
             namedParameterJdbcTemplate.update(sql, parameters);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -70,7 +71,7 @@ public class MatchDao {
             parameters.addValue("publicId", match.getPublicId());
             namedParameterJdbcTemplate.update(sql, parameters);
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
         }
     }
 
@@ -84,7 +85,7 @@ public class MatchDao {
             parameters.addValue("publicId", publicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -99,7 +100,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -118,7 +119,7 @@ public class MatchDao {
             parameters.addValue("to", now.plusMinutes(minutes));
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -135,7 +136,7 @@ public class MatchDao {
             parameters.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -148,7 +149,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -166,7 +167,7 @@ public class MatchDao {
             parameters.addValue("awayPublicId", awayPublicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -183,7 +184,7 @@ public class MatchDao {
             parameters.addValue("teamPublicId", teamPublicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -201,7 +202,7 @@ public class MatchDao {
             parameters.addValue("to", to);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -221,7 +222,7 @@ public class MatchDao {
             parameters.addValue("to", now.plusMinutes(20));
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -246,7 +247,7 @@ public class MatchDao {
             parameters.addValue("to", now);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForList(sql, parameters, Integer.class));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -263,7 +264,7 @@ public class MatchDao {
             parameters.addValue("status", status);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -278,7 +279,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }
@@ -325,7 +326,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new StandingMapper()));
         } catch (SQLException e) {
-            log.error(e.getMessage());
+            serverLogger.error(e.getMessage());
             return null;
         }
     }

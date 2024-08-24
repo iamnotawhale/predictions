@@ -15,7 +15,6 @@ import org.springframework.web.servlet.ModelAndView;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
