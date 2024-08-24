@@ -143,8 +143,8 @@ public class NotificationService {
             BufferedImage image = generateWithGradient(match.getHomeTeamId(), match.getAwayTeamId());
             Graphics2D g2d = image.createGraphics();
 
-            BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getHomeTeamId() + ".webp").getFile());
-            BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getAwayTeamId() + ".webp").getFile());
+            BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getHomeTeamId() + ".webp").getInputStream());
+            BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getAwayTeamId() + ".webp").getInputStream());
 
             int middleY = (image.getHeight() - scale * 100) / 2;
             g2d.drawImage(homeTeamPic, WIDTH / 4 - scale * 50, middleY, scale * 100, scale * 100, null);
@@ -237,7 +237,7 @@ public class NotificationService {
 
     private Font loadFontFromFile(int scale) {
         try {
-            return Font.createFont(Font.TRUETYPE_FONT, new ClassPathResource("static/pl-bold.ttf").getFile());
+            return Font.createFont(Font.TRUETYPE_FONT, new ClassPathResource("static/pl-bold.ttf").getInputStream());
         } catch (Exception e) {
             System.err.println("Error loading font: " + e.getMessage());
             return new Font("Arial", Font.BOLD, scale * 30);
