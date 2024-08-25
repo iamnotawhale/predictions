@@ -80,7 +80,7 @@ public class PredictCommand implements Command {
                 }
                 predictionService.save(predict);
 
-                return "Прогноз на матч " + homeTeam + " - " + awayTeam + " " + action;
+                return String.format("Прогноз %s %d %s %d %s", homeTeam, homePredict, awayTeam, awayPredict, action) ;
             }
         } catch (Exception e) {
             return "Ошибка в сохранении прогноза";
