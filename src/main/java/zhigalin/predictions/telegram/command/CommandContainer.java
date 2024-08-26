@@ -3,6 +3,7 @@ package zhigalin.predictions.telegram.command;
 import java.util.HashMap;
 import java.util.Map;
 
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -35,7 +36,7 @@ public class CommandContainer {
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
-                            PredictionService predictionService, UserService userService) {
+                            PredictionService predictionService, UserService userService, PanicSender panicSender) {
         commandMap = new HashMap<>();
         commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService));
         commandMap.put(START.getName(), new StartCommand(sendBotMessageService));
@@ -53,7 +54,7 @@ public class CommandContainer {
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, headToHeadService);
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
         updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService);
-        predictCommand = new PredictCommand(sendBotMessageService, predictionService, userService, matchService);
+        predictCommand = new PredictCommand(sendBotMessageService, predictionService, userService, matchService, panicSender);
         predictKeyboardCommand = new PredictKeyboardCommand(sendBotMessageService);
     }
 

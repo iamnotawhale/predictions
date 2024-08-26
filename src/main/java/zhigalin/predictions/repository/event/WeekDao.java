@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Week;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.util.DaoUtil;
 
 @Repository
@@ -23,11 +24,13 @@ public class WeekDao {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+    private final PanicSender panicSender;
 
-    public WeekDao(DataSource dataSource) {
+    public WeekDao(DataSource dataSource, PanicSender panicSender) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
+        this.panicSender = panicSender;
     }
 
     public Week save(Week week) {
@@ -44,6 +47,7 @@ public class WeekDao {
             parameters.addValue("seasonId", week.getSeasonId());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while saving week", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -60,6 +64,7 @@ public class WeekDao {
             parameters.addValue("seasonId", seasonId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding week by name and season id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -73,20 +78,33 @@ public class WeekDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.queryForObject(sql, new WeekMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding current week", e);
             serverLogger.error(e.getMessage());
             return null;
         }
     }
 
-    public void updateCurrentWeek(int id, Boolean isCurrent) {
+    public void updateCurrentWeek() {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
                     UPDATE weeks
-                    SET is_current = :isCurrent
-                    WHERE id = :id;
+                    SET is_current = false
+                    WHERE id = (
+                        SELECT id
+                        FROM weeks
+                        WHERE is_current = true
+                    )
+                    RETURNING id
                     """;
-            jdbcTemplate.update(sql);
+            Integer id = jdbcTemplate.queryForObject(sql, Integer.class);
+            sql = """
+                    UPDATE weeks
+                    SET is_current = true
+                    WHERE id = :id
+                    """;
+            namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource().addValue("id", id + 1));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while updating current week", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -101,6 +119,7 @@ public class WeekDao {
             parameters.addValue("id", id);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding week by id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -113,6 +132,7 @@ public class WeekDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new WeekMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding all weeks", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -129,6 +149,7 @@ public class WeekDao {
             parameters.addValue("matchId", matchId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding week by match id", e);
             serverLogger.error(e.getMessage());
             return null;
         }

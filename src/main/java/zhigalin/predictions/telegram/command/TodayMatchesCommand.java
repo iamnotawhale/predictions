@@ -47,7 +47,7 @@ public class TodayMatchesCommand implements Command {
                 }
                 builder.append("`").append("\n");
             }
-            sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), builder.toString());
+            sendBotMessageService.sendMessageWithMatchesKeyboard(list, update.getMessage().getChatId().toString(), builder.toString());
         } else {
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Сегодня матчей нет");
         }

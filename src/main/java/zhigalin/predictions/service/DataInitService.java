@@ -28,10 +28,10 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import kong.unirest.core.HttpResponse;
-import kong.unirest.core.JsonNode;
 import kong.unirest.core.Unirest;
 import kong.unirest.core.UnirestException;
-import lombok.extern.log4j.Log4j2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -51,15 +51,13 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
+import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
 
-@Log4j2
 @Service
 public class DataInitService {
-    private final PredictionService predictionService;
-    private final UserService userService;
     @Value("${api.football.token}")
     private String apiFootballToken;
     @Value("${bot.chatId}")
@@ -69,11 +67,14 @@ public class DataInitService {
     @Value("${season}")
     private int season;
 
+    private final UserService userService;
     private final TeamService teamService;
     private final WeekService weekService;
     private final MatchService matchService;
+    private final OddsService oddsService;
     private final HeadToHeadService headToHeadService;
     private final NotificationService notificationService;
+    private final PredictionService predictionService;
     private final PanicSender panicSender;
     private final Set<Integer> notificationBan = new HashSet<>();
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
@@ -81,11 +82,12 @@ public class DataInitService {
     private static final String HOST = "v3.football.api-sports.io";
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
     private static final ObjectMapper mapper = new ObjectMapper();
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public DataInitService(TeamService teamService, WeekService weekService,
                            MatchService matchService, HeadToHeadService headToHeadService,
                            NotificationService notificationService, PanicSender panicSender,
-                           PredictionService predictionService, UserService userService) {
+                           PredictionService predictionService, UserService userService, OddsService oddsService) {
         this.teamService = teamService;
         this.weekService = weekService;
         this.matchService = matchService;
@@ -94,6 +96,7 @@ public class DataInitService {
         this.panicSender = panicSender;
         this.predictionService = predictionService;
         this.userService = userService;
+        this.oddsService = oddsService;
     }
 
     @Scheduled(cron = "0 0 9 * * *")
@@ -102,6 +105,7 @@ public class DataInitService {
         List<Match> todayMatches = matchService.findAllByTodayDate();
         StringBuilder builder = new StringBuilder();
         if (!todayMatches.isEmpty()) {
+            oddsService.oddsInit(todayMatches);
             builder.append("`").append("МАТЧИ СЕГОДНЯ").append("`").append("\n\n");
             for (Match match : todayMatches) {
                 builder.append("`");
@@ -127,19 +131,20 @@ public class DataInitService {
                 builder.append("`").append("\n");
             }
             try {
-                HttpResponse<JsonNode> response = Unirest.get(url)
+                HttpResponse<String> response = Unirest.get(url)
                         .queryString("chat_id", chatId)
                         .queryString("text", builder.toString())
                         .queryString("parse_mode", "Markdown")
-                        .asJson();
+                        .asString();
                 if (response.getStatus() == 200) {
-                    log.info(response.getBody());
-                    log.info("Message todays match notification has been send");
+                    serverLogger.info("Message today's match notification has been send");
                 } else {
-                    log.warn("Don't send todays match notification");
+                    serverLogger.warn("Don't send today's match notification");
                 }
             } catch (UnirestException e) {
-                log.error("Sending message error: {}", e.getMessage());
+                String message = "Sending today matches notification message error";
+                panicSender.sendPanic(message, e);
+                serverLogger.error("{}: {}", message, e.getMessage());
             }
         }
     }
@@ -151,7 +156,7 @@ public class DataInitService {
             fullTimeMatchNotification();
             notificationService.check();
         } catch (Exception e) {
-            panicSender.sendPanic(e);
+            panicSender.sendPanic("Main method", e);
         }
     }
 
@@ -161,7 +166,7 @@ public class DataInitService {
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
                                || Objects.equals(m.getStatus(), "pst"))) {
             weeklyResultNotification();
-            currentWeekUpdate();
+            weekService.updateCurrent();
             matchDateTimeStatusUpdate();
         }
         if (!matchService.findOnlineMatches().isEmpty()) {
@@ -216,19 +221,20 @@ public class DataInitService {
                     .append(entry.getValue()).append(" pts").append("\n");
         }
         try {
-            HttpResponse<JsonNode> response = Unirest.get(url)
+            HttpResponse<String> response = Unirest.get(url)
                     .queryString("chat_id", chatId)
                     .queryString("text", builder.toString())
                     .queryString("parse_mode", "Markdown")
-                    .asJson();
+                    .asString();
             if (response.getStatus() == 200) {
-                log.info(response.getBody());
-                log.info("Message weekly results notification has been send");
+                serverLogger.info("Message weekly results notification has been send");
             } else {
-                log.warn("Don't send weekly results notification");
+                serverLogger.warn("Don't send weekly results notification");
             }
         } catch (UnirestException e) {
-            log.error("Sending message error: " + e.getMessage());
+            String message = "Sending weekly result notification message error";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
         }
     }
 
@@ -268,7 +274,7 @@ public class DataInitService {
                                 .seasonId(season)
                                 .build()
                 );
-                log.info("Week {} saved", week);
+                serverLogger.info("Week {} saved", week);
             }
 
             ResponseTeam home = response.getTeams().getHome();
@@ -328,7 +334,7 @@ public class DataInitService {
                         .build();
             }
             matchService.save(match);
-            log.info("Match {} saved", match);
+            serverLogger.info("Match {} saved", match);
         }
     }
 
@@ -372,7 +378,6 @@ public class DataInitService {
                             .append(match.getStatus()).append(" ")
                             .append(match.getAwayTeamScore()).append(" ")
                             .append(awayTeam.getCode()).append("`").append("\n\n");
-                    ;
                     for (Prediction prediction : predictionService.getByMatchPublicId(match.getPublicId())) {
                         User user = userService.findById(prediction.getUserId());
                         builder.append("`").append(user.getLogin().substring(0, 3).toUpperCase()).append(" ")
@@ -392,13 +397,13 @@ public class DataInitService {
                                 .queryString("parse_mode", "Markdown")
                                 .asString();
                         if (response.getStatus() == 200) {
-                            log.info(response.getBody());
-                            log.info("Message has been send");
+                            serverLogger.info(response.getBody());
+                            serverLogger.info("Message has been send");
                         } else {
-                            log.warn("Don't send full-time notification" + response.getBody());
+                            serverLogger.warn("Don't send full-time notification{}", response.getBody());
                         }
                     } catch (UnirestException e) {
-                        log.error("Sending message error: " + e.getMessage());
+                        serverLogger.error("Sending message error: {}", e.getMessage());
                     }
                 }
             }
@@ -423,14 +428,6 @@ public class DataInitService {
             match.setStatus("pst");
             matchService.update(match);
         }
-    }
-
-    private void currentWeekUpdate() {
-        int id = DaoUtil.currentWeekId;
-        Week currentWeek = weekService.findById(id);
-        Week nextCurrentWeek = weekService.findById(id + 1);
-        weekService.updateCurrent(currentWeek, false);
-        weekService.updateCurrent(nextCurrentWeek, true);
     }
 
     public List<News> newsInit() throws IOException, ParseException, FeedException {
@@ -499,7 +496,7 @@ public class DataInitService {
                             .localDateTime(matchDateTime)
                             .build();
                     headToHeadService.save(headToHead);
-                    log.info("Saved head to head: {}", headToHead);
+                    serverLogger.info("Saved head to head: {}", headToHead);
                 }
             }
         }

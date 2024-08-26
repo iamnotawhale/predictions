@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
@@ -46,13 +45,14 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         super(token);
         this.name = name;
         this.commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, teamService,
-                headToHeadService, dataInitService, predictionService, userService);
+                headToHeadService, dataInitService, predictionService, userService, panicSender);
 
         try {
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(this);
         } catch (TelegramApiException e) {
-            panicSender.sendPanic(e);
+            String message = "Telegram bots API init error";
+            panicSender.sendPanic(message, e);
         }
     }
 
@@ -138,9 +138,5 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         } else {
             commandContainer.retrieveCommand(NO.getName()).execute(update);
         }
-    }
-
-    void deleteMessage(Message message) {
-
     }
 }

@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
@@ -21,6 +22,7 @@ public class PredictCommand implements Command {
     private final PredictionService predictionService;
     private final UserService userService;
     private final MatchService matchService;
+    private final PanicSender panicSender;
 
     private static final String REGEX = "[^A-Za-z0-9]";
 
@@ -80,10 +82,12 @@ public class PredictCommand implements Command {
                 }
                 predictionService.save(predict);
 
-                return String.format("Прогноз %s %d %s %d %s", homeTeam, homePredict, awayTeam, awayPredict, action) ;
+                return String.format("Прогноз %s %d %s %d %s", homeTeam, homePredict, awayTeam, awayPredict, action);
             }
         } catch (Exception e) {
-            return "Ошибка в сохранении прогноза";
+            String message = "Ошибка в сохранении прогноза";
+            panicSender.sendPanic(message + "text " + text + " chatId " + chatId, e);
+            return message;
         }
 
     }

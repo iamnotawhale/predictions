@@ -3,21 +3,25 @@ package zhigalin.predictions.panic;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.Unirest;
 import kong.unirest.core.UnirestException;
-import lombok.extern.log4j.Log4j2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-@Log4j2
 @Component
 public class PanicSender {
     @Value("${chatId}")
     private String chatId;
     @Value("${bot.urlMessage}")
     private String url;
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
-    public void sendPanic(Exception e) {
+    public void sendPanic(String message, Exception e) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Predictions exception: ").append(e).append(" // ").append(e.getMessage());
+        builder.append("Predictions exception: ")
+                .append(message).append("\n")
+                .append(e).append("\n")
+                .append(e.getMessage());
         try {
             HttpResponse<String> response = Unirest.get(url)
                     .queryString("chat_id", chatId)
@@ -25,13 +29,12 @@ public class PanicSender {
                     .queryString("parse_mode", "Markdown")
                     .asString();
             if (response.getStatus() == 200) {
-                log.info(response.getBody());
-                log.info("Message has been send");
+                serverLogger.info("Message has been send");
             } else {
-                log.warn("Don't send exception notification{}", response.getBody());
+                serverLogger.warn("Don't send exception notification{}", response.getBody());
             }
         } catch (UnirestException ex) {
-            log.error("Sending message error: {}", ex.getMessage());
+            serverLogger.error("Sending message error: {}", ex.getMessage());
         }
     }
 }
