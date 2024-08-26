@@ -25,6 +25,6 @@ public class PredictKeyboardCommand implements Command {
         } else {
             return;
         }
-        messageService.sendPredictKeyBoard(chatId, homeTeam, awayTeam);
+        messageService.sendPredictKeyBoard(chatId, "Выбери прогноз", homeTeam, awayTeam);
     }
 }

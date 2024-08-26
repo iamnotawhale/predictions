@@ -5,9 +5,12 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import jakarta.annotation.PostConstruct;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.WeekService;
@@ -32,7 +35,7 @@ public class DaoUtil {
         this.weekService = weekService;
     }
 
-    @PostConstruct
+    @EventListener(ApplicationStartedEvent.class)
     public void init() {
         teamService.findAll().forEach(team -> {
             TEAMS.put(team.getPublicId(), team);
@@ -40,7 +43,12 @@ public class DaoUtil {
         userService.findAll().forEach(user -> {
             USERS.put(user.getId(), user);
         });
-        currentWeekId = weekService.findCurrentWeek().getId();
+        Week currentWeek = weekService.findCurrentWeek();
+        if (currentWeek != null) {
+            currentWeekId = currentWeek.getId();
+        } else {
+            currentWeekId = 1;
+        }
     }
 
     @Scheduled(cron = "0 */30 * * * *")

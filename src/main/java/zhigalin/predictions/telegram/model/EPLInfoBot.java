@@ -74,6 +74,9 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                     commandContainer.retrieveUpdateCommand().execute(update);
                 }
             }
+            if (message.contains("predicts")) {
+                commandContainer.retrieveMyPredictsCommand().execute(update);
+            }
             if (message.contains("pred")) {
                 String[] array = message.split("[^A-Za-z0-9]");
                 if (array.length == 6 &&
@@ -102,7 +105,9 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         } else if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String message = callbackQuery.getData();
-            if (message.contains(COMMAND_PREFIX + "pred")) {
+            if (message.contains("predictTour")) {
+                commandContainer.retrieveMyPredictsCommand().executeCallback(update.getCallbackQuery());
+            } else if (message.contains("pred")) {
                 String[] array = message.split("[^A-Za-z0-9]");
                 String homeTeam = array[2].toLowerCase();
                 String awayTeam = array[4].toLowerCase();

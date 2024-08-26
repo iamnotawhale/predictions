@@ -9,10 +9,10 @@ public class TourCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
 
-    private static final String MESSAGE = "Выберете тур";
+    private static final String MESSAGE = "Выбери тур";
 
     @Override
     public void execute(Update update) {
-        sendBotMessageService.sendTourKeyBoard(update.getMessage().getChatId().toString(), MESSAGE);
+        sendBotMessageService.sendTourKeyBoard(update.getMessage().getChatId().toString(), MESSAGE, "tour");
     }
 }

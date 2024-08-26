@@ -12,6 +12,9 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.repository.predict.PredictionDao;
+import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.telegram.model.EPLInfoBot;
 import zhigalin.predictions.util.DaoUtil;
 
@@ -46,25 +49,39 @@ public class SendBotMessageService {
     }
 
     @SneakyThrows
-    public void sendPredictKeyBoard(String chatId, String homeTeam, String awayTeam) {
+    public void sendPredictKeyBoard(String chatId, String message, String homeTeam, String awayTeam) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.enableHtml(true);
         sendMessage.enableMarkdown(true);
-        sendMessage.setText("Выбери прогноз");
+        sendMessage.setText(message);
         sendMessage.setReplyMarkup(createPredictKeyBoard(homeTeam, awayTeam));
 
         bot.execute(sendMessage);
     }
 
     @SneakyThrows
-    public void sendTourKeyBoard(String chatId, String message) {
+    public void sendTourKeyBoard(String chatId, String message, String prefix) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.enableHtml(true);
         sendMessage.enableMarkdown(true);
         sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createTourKeyBoard());
+        sendMessage.setReplyMarkup(createTourKeyBoard(prefix));
+
+        bot.execute(sendMessage);
+    }
+
+    @SneakyThrows
+    public void sendWeeklyPredictsByUserKeyBoard(Integer deleteMessageId, String chatId, String message, List<MatchPrediction> matchPredictions) {
+        deletePreviousMessage(deleteMessageId, chatId);
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.enableHtml(true);
+        sendMessage.enableMarkdown(true);
+        sendMessage.setText(message);
+        sendMessage.setReplyMarkup(createPredictTourUsersKeyBoard(matchPredictions));
 
         bot.execute(sendMessage);
     }
@@ -113,7 +130,7 @@ public class SendBotMessageService {
         return keyBoard;
     }
 
-    private static InlineKeyboardMarkup createTourKeyBoard() {
+    private static InlineKeyboardMarkup createTourKeyBoard(String prefix) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
         int rows = 5;
@@ -126,7 +143,7 @@ public class SendBotMessageService {
                     continue;
                 }
                 InlineKeyboardButton button = new InlineKeyboardButton(String.valueOf(tour));
-                button.setCallbackData("/tour" + tour);
+                button.setCallbackData("/" + prefix + tour);
                 innerList.add(button);
             }
             listOfKeyboardRows.add(innerList);
@@ -154,6 +171,34 @@ public class SendBotMessageService {
                 listOfKeyboardRows.add(innerList);
             }
             matchNum++;
+        }
+        keyBoard.setKeyboard(listOfKeyboardRows);
+        return keyBoard;
+    }
+
+    private static InlineKeyboardMarkup createPredictTourUsersKeyBoard(List<MatchPrediction> matchPredictions) {
+        InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
+        int predictNum = 1;
+        List<InlineKeyboardButton> innerList = new ArrayList<>();
+        for (MatchPrediction matchPrediction : matchPredictions) {
+            if (predictNum > 1 && predictNum % 2 == 1) {
+                listOfKeyboardRows.add(innerList);
+                innerList = new ArrayList<>();
+            }
+            String homeTeam = DaoUtil.TEAMS.get(matchPrediction.match().getHomeTeamId()).getCode();
+            String awayTeam = DaoUtil.TEAMS.get(matchPrediction.match().getAwayTeamId()).getCode();
+
+            String homeTeamScore = String.valueOf(matchPrediction.prediction().getHomeTeamScore());
+            String awayTeamScore = String.valueOf(matchPrediction.prediction().getAwayTeamScore());
+
+            InlineKeyboardButton button = new InlineKeyboardButton(String.join(" ", homeTeam, homeTeamScore, awayTeam, awayTeamScore));
+            button.setCallbackData("/" + homeTeam + ":" + awayTeam);
+            innerList.add(button);
+            if (predictNum == matchPredictions.size()) {
+                listOfKeyboardRows.add(innerList);
+            }
+            predictNum++;
         }
         keyBoard.setKeyboard(listOfKeyboardRows);
         return keyBoard;
