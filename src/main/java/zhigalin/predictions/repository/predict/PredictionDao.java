@@ -183,6 +183,29 @@ public class PredictionDao {
         }
     }
 
+    public List<MatchPrediction> findAllByWeekIdAndUserTelegramId(int weekId, String telegramId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
+                       m.status, m.week_id, m.local_date_time,
+                       p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
+                    FROM match m
+                    JOIN predict p ON m.public_id = p.match_id
+                    JOIN users u ON p.user_id = u.id
+                    WHERE m.week_id = :weekId AND u.telegram_id = :telegramId
+                    ORDER BY m.local_date_time DESC, p.user_id
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("weekId", weekId);
+            params.addValue("telegramId", telegramId);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all by week id", e);
+            serverLogger.error(e.getMessage());
+            return null;
+        }
+    }
+
     public Points getPointsByUserId(int userId) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """

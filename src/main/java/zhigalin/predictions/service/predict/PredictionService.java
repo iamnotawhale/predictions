@@ -173,5 +173,8 @@ public class PredictionService {
     public List<MatchPrediction> getPredictionsByUserAndWeek(int userId, int weekId) {
         return predictionDao.getPredictionsByUserAndWeek(userId, weekId);
     }
-
+    
+    public List<MatchPrediction> getAllWeeklyPredictionsByUserTelegramId(int weekId, String telegramId) {
+        return predictionDao.findAllByWeekIdAndUserTelegramId(weekId, telegramId);
+    }
 }

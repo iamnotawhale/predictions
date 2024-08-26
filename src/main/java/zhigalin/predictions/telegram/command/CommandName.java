@@ -16,7 +16,8 @@ public enum CommandName {
     UPDATE("update"),
     PRED("pred"),
     REFRESH("refresh"),
-    TOTAL("total");
+    TOTAL("total"),
+    PREDICTS("predicts"),;
 
     private final String name;
 
