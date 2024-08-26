@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.HeadToHead;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.util.DaoUtil;
 
 @Repository
@@ -28,11 +29,13 @@ public class HeadToHeadDao {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+    private final PanicSender panicSender;
 
-    public HeadToHeadDao(DataSource dataSource) {
+    public HeadToHeadDao(DataSource dataSource, PanicSender panicSender) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         jdbcTemplate = new JdbcTemplate(dataSource);
+        this.panicSender = panicSender;
     }
 
     public void save(HeadToHead headToHead) {
@@ -51,6 +54,7 @@ public class HeadToHeadDao {
             parameters.addValue("localDateTime", headToHead.getLocalDateTime());
             namedParameterJdbcTemplate.update(sql, parameters);
         } catch (SQLException e) {
+            panicSender.sendPanic("Saving h2h DB error", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -71,6 +75,7 @@ public class HeadToHeadDao {
             parameters.addValue("awayTeamCode", awayTeamCode);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new HeadToHeadMapper()));
         } catch (Exception e) {
+            panicSender.sendPanic("Getting h2h by team codes error", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -91,6 +96,7 @@ public class HeadToHeadDao {
             parameters.addValue("awayTeamId", awayTeamId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new HeadToHeadMapper()));
         } catch (Exception e) {
+            panicSender.sendPanic("Getting all h2h by teams ids error", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -140,6 +146,7 @@ public class HeadToHeadDao {
             }
             return Collections.emptyMap();
         } catch (SQLException e) {
+            panicSender.sendPanic("Getting all h2h by current week error", e);
             serverLogger.error(e.getMessage());
             return Collections.emptyMap();
         }
@@ -178,6 +185,6 @@ public class HeadToHeadDao {
         }
     }
 
-    private final record MatchHeadToHead(int matchPublicId, HeadToHead headToHead) {
+    private record MatchHeadToHead(int matchPublicId, HeadToHead headToHead) {
     }
 }

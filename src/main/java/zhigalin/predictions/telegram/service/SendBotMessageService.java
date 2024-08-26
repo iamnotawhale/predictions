@@ -79,19 +79,19 @@ public class SendBotMessageService {
         sendMessage.enableHtml(true);
         sendMessage.enableMarkdown(true);
         sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createTourMatchKeyBoard(tourMatches));
+        sendMessage.setReplyMarkup(createMatchesKeyBoard(tourMatches));
 
         bot.execute(sendMessage);
     }
 
     @SneakyThrows
-    public void sendMessageTourMatches(List<Match> tourMatches, String chatId, String message) {
+    public void sendMessageWithMatchesKeyboard(List<Match> matches, String chatId, String message) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.enableHtml(true);
         sendMessage.enableMarkdown(true);
         sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createTourMatchKeyBoard(tourMatches));
+        sendMessage.setReplyMarkup(createMatchesKeyBoard(matches));
 
         bot.execute(sendMessage);
     }
@@ -135,7 +135,7 @@ public class SendBotMessageService {
         return keyBoard;
     }
 
-    private static InlineKeyboardMarkup createTourMatchKeyBoard(List<Match> matches) {
+    private static InlineKeyboardMarkup createMatchesKeyBoard(List<Match> matches) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
         int matchNum = 1;

@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.util.DaoUtil;
 
 @Repository
@@ -23,11 +24,13 @@ public class TeamDao {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+    private final PanicSender panicSender;
 
-    public TeamDao(DataSource dataSource) {
+    public TeamDao(DataSource dataSource, PanicSender panicSender) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
+        this.panicSender = panicSender;
     }
 
     public void save(Team team) {
@@ -44,6 +47,7 @@ public class TeamDao {
             params.addValue("name", team.getName());
             namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
+            panicSender.sendPanic("Error saving team: " + team.getCode(), e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -57,6 +61,7 @@ public class TeamDao {
             params.addValue("name", name);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding team: " + name, e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -71,6 +76,7 @@ public class TeamDao {
             params.addValue("code", code);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding team: " + code, e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -85,6 +91,7 @@ public class TeamDao {
             params.addValue("publicId", publicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding team: " + publicId, e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -97,6 +104,7 @@ public class TeamDao {
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, new TeamMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error while finding teams", e);
             serverLogger.error(e.getMessage());
             return null;
         }

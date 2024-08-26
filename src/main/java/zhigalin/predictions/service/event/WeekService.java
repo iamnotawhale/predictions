@@ -3,27 +3,23 @@ package zhigalin.predictions.service.event;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.repository.event.WeekDao;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 @Service
 public class WeekService {
-    @Value("${season}")
-    private int season;
+
     private final WeekDao weekDao;
 
     public Week save(Week week) {
         return weekDao.save(week);
     }
 
-    public void updateCurrent(Week week, Boolean isCurrent) {
-        Week w = weekDao.findByNameAndSeasonId(week.getName(), season);
-        if (w != null) {
-            weekDao.updateCurrentWeek(week.getId(), isCurrent);
-        }
+    public void updateCurrent() {
+        weekDao.updateCurrentWeek();
     }
 
     public Week findById(int id) {

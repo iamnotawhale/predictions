@@ -65,7 +65,7 @@ public class TourNumCommand implements Command {
             if (messageIdToDelete != null) {
                 sendBotMessageService.sendMessageDeletingKeyboardTourMatches(messageIdToDelete, tourMatches, chatId, builder.toString());
             } else {
-                sendBotMessageService.sendMessageTourMatches(tourMatches, chatId, builder.toString());
+                sendBotMessageService.sendMessageWithMatchesKeyboard(tourMatches, chatId, builder.toString());
             }
         } else {
             sendBotMessageService.sendMessage(chatId, "Такого тура нет. Попробуй 1-38 туры");

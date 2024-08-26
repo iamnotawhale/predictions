@@ -18,6 +18,7 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Points;
 import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.util.DaoUtil;
 
 @Repository
@@ -27,11 +28,13 @@ public class PredictionDao {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final JdbcTemplate jdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+    private final PanicSender panicSender;
 
-    public PredictionDao(DataSource dataSource) {
+    public PredictionDao(DataSource dataSource, PanicSender panicSender) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
+        this.panicSender = panicSender;
     }
 
     public void save(Prediction prediction) {
@@ -51,6 +54,7 @@ public class PredictionDao {
             params.addValue("points", prediction.getPoints());
             namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
+            panicSender.sendPanic("Error saving prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -65,6 +69,7 @@ public class PredictionDao {
             params.addValue("matchPublicId", matchPublicId);
             namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
         } catch (SQLException e) {
+            panicSender.sendPanic("Error deleting prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -79,6 +84,7 @@ public class PredictionDao {
             params.addValue("matchId", matchId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding prediction by match id and user id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -96,6 +102,7 @@ public class PredictionDao {
             params.addValue("matchIds", matchIds);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding prediction by match ids", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -116,6 +123,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding prediction by user id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -133,6 +141,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
+            panicSender.sendPanic("Error updating prediction points", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -147,6 +156,7 @@ public class PredictionDao {
             params.addValue("matchIds", matches.stream().map(Match::getPublicId).toList());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding prediction by matches", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -167,6 +177,7 @@ public class PredictionDao {
             params.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all by week id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -185,6 +196,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PointsMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding get points by user id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -202,6 +214,7 @@ public class PredictionDao {
 
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new PointsMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error get all points by users", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -222,6 +235,7 @@ public class PredictionDao {
             params.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PointsMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error get all points by week id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -245,6 +259,7 @@ public class PredictionDao {
 
             return namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper());
         } catch (SQLException e) {
+            panicSender.sendPanic("Error get predictions by user id and week id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -260,6 +275,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             return Boolean.TRUE.equals(namedParameterJdbcTemplate.queryForObject(sql, params, Boolean.class));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error prediction is exist", e);
             serverLogger.error(e.getMessage());
             return false;
         }

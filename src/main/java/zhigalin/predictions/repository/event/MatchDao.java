@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.util.DaoUtil;
 
 @Repository
@@ -25,11 +26,13 @@ public class MatchDao {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+    private final PanicSender panicSender;
 
-    public MatchDao(DataSource dataSource) {
+    public MatchDao(DataSource dataSource, PanicSender panicSender) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
+        this.panicSender = panicSender;
     }
 
     public void save(Match match) {
@@ -52,6 +55,7 @@ public class MatchDao {
             parameters.addValue("date", match.getLocalDateTime());
             namedParameterJdbcTemplate.update(sql, parameters);
         } catch (SQLException e) {
+            panicSender.sendPanic("Error saving match", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -71,6 +75,7 @@ public class MatchDao {
             parameters.addValue("publicId", match.getPublicId());
             namedParameterJdbcTemplate.update(sql, parameters);
         } catch (SQLException e) {
+            panicSender.sendPanic("Error updating match", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -85,6 +90,7 @@ public class MatchDao {
             parameters.addValue("publicId", publicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding match by public id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -100,6 +106,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all matches today", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -119,6 +126,7 @@ public class MatchDao {
             parameters.addValue("to", now.plusMinutes(minutes));
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all matches in the next minutes", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -136,6 +144,7 @@ public class MatchDao {
             parameters.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all matches by week id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -149,6 +158,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all matches", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -167,6 +177,7 @@ public class MatchDao {
             parameters.addValue("awayPublicId", awayPublicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding match by teams public id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -184,6 +195,7 @@ public class MatchDao {
             parameters.addValue("teamPublicId", teamPublicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding match by team public id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -202,6 +214,7 @@ public class MatchDao {
             parameters.addValue("to", to);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding matches between dates", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -222,6 +235,7 @@ public class MatchDao {
             parameters.addValue("to", now.plusMinutes(20));
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding online match by team id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -247,6 +261,7 @@ public class MatchDao {
             parameters.addValue("to", now);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForList(sql, parameters, Integer.class));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding online team ids", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -264,6 +279,7 @@ public class MatchDao {
             parameters.addValue("status", status);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all matches by status", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -279,6 +295,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error finding all matches by current week", e);
             serverLogger.error(e.getMessage());
             return null;
         }
@@ -326,6 +343,7 @@ public class MatchDao {
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new StandingMapper()));
         } catch (SQLException e) {
+            panicSender.sendPanic("Error get standings", e);
             serverLogger.error(e.getMessage());
             return null;
         }

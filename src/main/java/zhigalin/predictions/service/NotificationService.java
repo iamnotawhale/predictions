@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +27,8 @@ import kong.unirest.core.HttpResponse;
 import kong.unirest.core.MultipartBody;
 import kong.unirest.core.Unirest;
 import kong.unirest.core.UnirestException;
-import lombok.extern.log4j.Log4j2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -35,17 +37,20 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
 
+import static zhigalin.predictions.service.odds.OddsService.ODDS;
+import static zhigalin.predictions.service.odds.OddsService.Odd;
 import static zhigalin.predictions.util.ColorComparator.similarTo;
 
-@Log4j2
 @Service
 public class NotificationService {
     private final PredictionService predictionService;
+    private final PanicSender panicSender;
     @Value("${bot.urlMessage}")
     private String urlMessage;
     @Value("${bot.urlPhoto}")
@@ -56,17 +61,19 @@ public class NotificationService {
     private final ObjectMapper objectMapper;
     private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
     private final Map<String, TeamColor> teamColors = new HashMap<>();
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     private static final int WIDTH = 1024;
     private static final int HEIGHT = 512;
 
-    public NotificationService(UserService userService, MatchService matchService, PredictionService predictionService, ObjectMapper objectMapper) {
+    public NotificationService(UserService userService, MatchService matchService, PredictionService predictionService, ObjectMapper objectMapper, PanicSender panicSender) {
         this.userService = userService;
         this.matchService = matchService;
         this.objectMapper = objectMapper;
         notificationBLackList.put(30, new ArrayList<>());
         notificationBLackList.put(90, new ArrayList<>());
         this.predictionService = predictionService;
+        this.panicSender = panicSender;
     }
 
     public void check() throws UnirestException, IOException {
@@ -119,7 +126,7 @@ public class NotificationService {
                         "Не проставлен прогноз на матч\n" +
                         "Осталось " + minutesBeforeMatch +
                         (minutesBeforeMatch % 10 == 1 ? " минута" :
-                                minutesBeforeMatch > 20 && List.of(2, 3, 4).contains(minutesBeforeMatch % 10) ? " минуты" : " минут"
+                                minutesBeforeMatch > 20 && List.of(2L, 3L, 4L).contains(minutesBeforeMatch % 10) ? " минуты" : " минут"
                         )
                 )
                 .queryString("reply_markup", objectMapper.writeValueAsString(markup))
@@ -127,13 +134,13 @@ public class NotificationService {
 
         HttpResponse<String> response = body.asString();
         if (response.getStatus() == 200) {
-            log.info("Not predictable match {}:{} notification has been send to {}",
+            serverLogger.info("Not predictable match {}:{} notification has been send to {}",
                     homeTeam,
                     awayTeam,
                     notification.getUser().getLogin()
             );
         } else {
-            log.warn("Don't send not predictable match notification");
+            serverLogger.warn("Don't send not predictable match notification");
         }
     }
 
@@ -156,22 +163,54 @@ public class NotificationService {
             g2d.setFont(font);
             int textWidth = g2d.getFontMetrics().stringWidth(matchTime);
             int textX = (WIDTH / 2) - (textWidth / 2);
-            g2d.drawString(matchTime, textX, middleY + scale * 70);
-
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(font);
+            g2d.drawString(matchTime, textX, middleY + scale * 50);
 
             String homeTeamCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
             int text1Width = g2d.getFontMetrics().stringWidth(homeTeamCode);
             int text1X = WIDTH / 4 - (text1Width / 2);
-            int text1Y = middleY + scale * 100 + scale * 30;
+            int text1Y = middleY + scale * -10;
             g2d.drawString(homeTeamCode, text1X, text1Y);
 
             String awayTeamCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
             int text2Width = g2d.getFontMetrics().stringWidth(awayTeamCode);
             int text2X = WIDTH * 3 / 4 - (text2Width / 2);
-            int text2Y = middleY + scale * 100 + scale * 30;
+            int text2Y = middleY + scale * -10;
             g2d.drawString(awayTeamCode, text2X, text2Y);
+
+            font = loadFontFromFile(scale).deriveFont(scale * 20f);
+            g2d.setFont(font);
+
+            Odd odd = ODDS.getOrDefault(match, null);
+            if (odd != null) {
+                Double homeTeamOdd = odd.home();
+                int text3Width = g2d.getFontMetrics().stringWidth(String.valueOf(homeTeamOdd));
+                int text3X = WIDTH / 4 - (text3Width / 2);
+                int text3Y = middleY + scale * 140;
+                g2d.drawString(String.valueOf(homeTeamOdd), text3X, text3Y);
+
+                Double drawOdd = odd.draw();
+                int text4Width = g2d.getFontMetrics().stringWidth(String.valueOf(drawOdd));
+                int text4X = (WIDTH / 2) - (text4Width / 2);
+                int text4Y = middleY + scale * 140;
+                g2d.drawString(String.valueOf(drawOdd), text4X, text4Y);
+
+                Double awayTeamOdd = odd.away();
+                int text5Width = g2d.getFontMetrics().stringWidth(String.valueOf(awayTeamOdd));
+                int text5X = WIDTH * 3 / 4 - (text5Width / 2);
+                int text5Y = middleY + scale * 140;
+                g2d.drawString(String.valueOf(awayTeamOdd), text5X, text5Y);
+
+                g2d.setColor(new Color(255, 255, 255, 50));
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int rectWidth = scale * 80;
+                int rectHeight = scale * 40;
+                int arcRadius = scale * 20;
+
+                g2d.fillRoundRect(WIDTH / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+            }
 
             g2d.dispose();
 
@@ -180,10 +219,11 @@ public class NotificationService {
 
             return tempFile.getAbsolutePath();
         } catch (IOException e) {
-            log.error("Error creating image: {}", e.getMessage());
+            String message = "Error creating image";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
             return null;
         }
-
     }
 
     private BufferedImage generateWithGradient(int homeTeamId, int awayTeamId) {
@@ -228,7 +268,9 @@ public class NotificationService {
                 });
             }
         } catch (Exception e) {
-            log.error(e.getMessage());
+            String message = "Error creating team colors";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
         }
     }
 

@@ -43,7 +43,7 @@ public class DaoUtil {
         currentWeekId = weekService.findCurrentWeek().getId();
     }
 
-    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 */30 * * * *")
     private void currentWeekUpdate() {
         currentWeekId = weekService.findCurrentWeek().getId();
     }
