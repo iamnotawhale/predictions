@@ -349,6 +349,47 @@ public class MatchDao {
         }
     }
 
+    public List<Integer> getPredictableMatchIdsByUserTelegramAndWeek(String telegramId, int weekId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                        SELECT m.public_id
+                        FROM match m
+                        JOIN weeks w ON m.week_id = w.id
+                        JOIN predict p ON m.public_id = p.match_id
+                        JOIN users u ON p.user_id = u.id
+                        WHERE w.id = :weekId AND u.telegram_id = :telegramId
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("telegramId", telegramId);
+            params.addValue("weekId", weekId);
+            return namedParameterJdbcTemplate.queryForList(sql, params, Integer.class);
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error get predictable match public ids", e);
+            serverLogger.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Integer> getPredictableTodayMatchIdsByUserTelegram(String telegramId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                        SELECT m.public_id
+                        FROM match m
+                        JOIN predict p ON m.public_id = p.match_id
+                        JOIN users u ON p.user_id = u.id
+                        WHERE u.telegram_id = :telegramId
+                        AND CAST(m.local_date_time AS DATE) = CURRENT_DATE
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("telegramId", telegramId);
+            return namedParameterJdbcTemplate.queryForList(sql, params, Integer.class);
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error get predictable today match public ids", e);
+            serverLogger.error(e.getMessage());
+            return null;
+        }
+    }
+
     private static final class MatchMapper implements RowMapper<Match> {
         @Override
         public Match mapRow(ResultSet rs, int rowNum) throws SQLException {

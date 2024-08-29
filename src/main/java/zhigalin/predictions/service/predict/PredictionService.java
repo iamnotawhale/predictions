@@ -34,6 +34,10 @@ public class PredictionService {
         predictionDao.save(prediction);
     }
 
+    public void save(String telegramId, String homeTeam, String awayTeam, int homeScore, int awayScore) {
+        predictionDao.save(telegramId, homeTeam, awayTeam, homeScore, awayScore);
+    }
+
     public Prediction findByMatchIdAndUserId(int matchId, int userId) {
         return predictionDao.findByMatchIdAndUserId(matchId, userId);
     }
@@ -52,6 +56,10 @@ public class PredictionService {
 
     public void deleteById(int userId, int matchPublicId) {
         predictionDao.delete(userId, matchPublicId);
+    }
+
+    public void deleteByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
+        predictionDao.deleteByUserTelegramIdAndTeams(telegramId, homeTeam, awayTeam);
     }
 
     public void updatePoints(int matchId, int userId) {
@@ -79,6 +87,14 @@ public class PredictionService {
 
     public boolean isExist(int userId, int matchId) {
         return predictionDao.isExist(userId, matchId);
+    }
+
+    public boolean isExist(String userTelegramId, int matchId) {
+        return predictionDao.isExist(userTelegramId, matchId);
+    }
+
+    public Prediction getByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
+        return predictionDao.getByUserTelegramIdAndTeams(telegramId, homeTeam, awayTeam);
     }
 
     public List<Prediction> getByMatchPublicId(int publicId) {
@@ -173,8 +189,12 @@ public class PredictionService {
     public List<MatchPrediction> getPredictionsByUserAndWeek(int userId, int weekId) {
         return predictionDao.getPredictionsByUserAndWeek(userId, weekId);
     }
-    
+
     public List<MatchPrediction> getAllWeeklyPredictionsByUserTelegramId(int weekId, String telegramId) {
         return predictionDao.findAllByWeekIdAndUserTelegramId(weekId, telegramId);
+    }
+
+    public List<Integer> getPredictableWeeksByUserTelegramId(String telegramId) {
+        return predictionDao.findPredictableWeeksByUserTelegramId(telegramId);
     }
 }

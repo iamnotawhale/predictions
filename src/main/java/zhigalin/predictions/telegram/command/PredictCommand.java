@@ -8,19 +8,15 @@ import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.predict.Prediction;
-import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 @RequiredArgsConstructor
 public class PredictCommand implements Command {
     private final SendBotMessageService messageService;
     private final PredictionService predictionService;
-    private final UserService userService;
     private final MatchService matchService;
     private final PanicSender panicSender;
 
@@ -30,19 +26,37 @@ public class PredictCommand implements Command {
     public void execute(Update update) {
         Message message = update.getMessage();
         String chatId = message.getChatId().toString();
-        messageService.sendMessage(chatId, getMessage(message.getText(), chatId));
+        messageService.sendMessageDeletingKeyboard(chatId, getMessage(message.getText(), chatId));
     }
 
     @Override
     public void executeCallback(CallbackQuery callback) {
         String chatId = callback.getMessage().getChatId().toString();
-        Integer messageId = callback.getMessage().getMessageId();
-        messageService.sendMessageDeletingKeyboard(messageId, chatId, getMessage(callback.getData(), chatId));
+        messageService.sendMessageDeletingKeyboard(chatId, getMessage(callback.getData(), chatId));
     }
 
     private String getMessage(String text, String chatId) {
         try {
             String[] matchToUpdate = text.split(REGEX);
+
+            if (matchToUpdate[1].equals("delete")) {
+                String homeTeam = EnumSet.allOf(TeamName.class).stream()
+                        .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[2].toLowerCase()))
+                        .map(Enum::name).findFirst().orElse(null);
+                if (homeTeam == null) {
+                    return "Неизвестная домашняя команда";
+                }
+                String awayTeam = EnumSet.allOf(TeamName.class).stream()
+                        .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[3].toLowerCase()))
+                        .map(Enum::name).findFirst().orElse(null);
+                if (awayTeam == null) {
+                    return "Неизвестная гостевая команда";
+                }
+
+                predictionService.deleteByUserTelegramIdAndTeams(chatId, homeTeam.toUpperCase(), awayTeam.toUpperCase());
+                return "Прогноз " + homeTeam + "-" + awayTeam + " удален";
+            }
+
             String homeTeam = EnumSet.allOf(TeamName.class).stream()
                     .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[2].toLowerCase()))
                     .map(Enum::name).findFirst().orElse(null);
@@ -55,37 +69,27 @@ public class PredictCommand implements Command {
             if (awayTeam == null) {
                 return "Неизвестная гостевая команда";
             }
+
             int homePredict = Integer.parseInt(matchToUpdate[3]);
             int awayPredict = Integer.parseInt(matchToUpdate[5]);
-
-            User user = userService.findByTelegramId(chatId);
-            if (user == null) {
-                return "Пользователь не найден";
-            }
 
             Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
             if (LocalDateTime.now().isAfter(match.getLocalDateTime().plusMinutes(5))) {
                 return "Время для прогноза истекло. Матч уже начался";
             } else {
-                Prediction predict = Prediction.builder()
-                        .matchPublicId(match.getPublicId())
-                        .userId(user.getId())
-                        .homeTeamScore(homePredict)
-                        .awayTeamScore(awayPredict)
-                        .build();
 
                 String action;
-                if (predictionService.findByMatchIdAndUserId(predict.getMatchPublicId(), predict.getUserId()) != null) {
+                if (predictionService.isExist(chatId, match.getPublicId())) {
                     action = "обновлен";
                 } else {
                     action = "сохранен";
                 }
-                predictionService.save(predict);
+                predictionService.save(chatId, homeTeam, awayTeam, homePredict, awayPredict);
 
                 return String.format("Прогноз %s %d %s %d %s", homeTeam, homePredict, awayTeam, awayPredict, action);
             }
         } catch (Exception e) {
-            String message = "Ошибка в сохранении прогноза";
+            String message = "Ошибка в обработке прогноза: ";
             panicSender.sendPanic(message + "text " + text + " chatId " + chatId, e);
             return message;
         }
