@@ -160,5 +160,13 @@ public class MatchService {
         }
         return null;
     }
+
+    public List<Integer> predictableMatchesByUserTelegramIdAndWeekId(String telegramId, int weekId) {
+        return matchDao.getPredictableMatchIdsByUserTelegramAndWeek(telegramId, weekId);
+    }
+
+    public List<Integer> predictableTodayMatchesByUserTelegramIdAndWeekId(String telegramId) {
+        return matchDao.getPredictableTodayMatchIdsByUserTelegram(telegramId);
+    }
 }
 

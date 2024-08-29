@@ -3,6 +3,7 @@ package zhigalin.predictions.repository.predict;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,42 @@ public class PredictionDao {
         }
     }
 
+    public void save(String telegramId, String homeTeam, String awayTeam, int homeTeamScore, int awayTeamScore) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    WITH user_id AS (
+                        SELECT id FROM users WHERE telegram_id = :telegramId
+                    ), match_id AS (
+                        SELECT public_id FROM match
+                        WHERE home_team_id IN (SELECT public_id FROM teams WHERE code = :homeTeam)
+                        AND away_team_id IN (SELECT public_id FROM teams WHERE code = :awayTeam)
+                    )
+                    INSERT INTO predict (user_id, match_id, home_team_score, away_team_score, points)
+                    VALUES (
+                        (SELECT id FROM user_id),
+                        (SELECT public_id FROM match_id),
+                        :homeTeamScore,
+                        :awayTeamScore,
+                        :points
+                    )
+                    ON CONFLICT ON CONSTRAINT unique_predict DO UPDATE SET
+                    home_team_score = excluded.home_team_score,
+                    away_team_score = excluded.away_team_score;
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("telegramId", telegramId);
+            params.addValue("homeTeam", homeTeam);
+            params.addValue("awayTeam", awayTeam);
+            params.addValue("homeTeamScore", homeTeamScore);
+            params.addValue("awayTeamScore", awayTeamScore);
+            params.addValue("points", null);
+            namedParameterJdbcTemplate.update(sql, params);
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error saving prediction", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
     public void delete(int userId, int matchPublicId) {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
@@ -67,9 +104,44 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", userId);
             params.addValue("matchPublicId", matchPublicId);
-            namedParameterJdbcTemplate.query(sql, params, new PredictionMapper());
+            namedParameterJdbcTemplate.update(sql, params);
         } catch (SQLException e) {
             panicSender.sendPanic("Error deleting prediction", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
+    public void deleteByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    DELETE FROM predict
+                    WHERE user_id IN (
+                        SELECT id
+                        FROM users
+                        WHERE telegram_id = :telegramId
+                    )
+                    AND match_id IN (
+                        SELECT public_id
+                        FROM match
+                        WHERE home_team_id IN (
+                            SELECT public_id
+                            FROM teams
+                            WHERE code = :homeTeam
+                        )
+                          AND away_team_id IN (
+                            SELECT public_id
+                            FROM teams
+                            WHERE code = :awayTeam
+                        )
+                    )
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("telegramId", telegramId);
+            params.addValue("homeTeam", homeTeam);
+            params.addValue("awayTeam", awayTeam);
+            namedParameterJdbcTemplate.update(sql, params);
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error deleting prediction by user telegram id and teams", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -301,6 +373,77 @@ public class PredictionDao {
             panicSender.sendPanic("Error prediction is exist", e);
             serverLogger.error(e.getMessage());
             return false;
+        }
+    }
+
+    public boolean isExist(String userTelegramId, int matchId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT EXISTS(
+                        SELECT 1 FROM predict
+                        JOIN users u ON user_id = u.id
+                        WHERE match_id = :matchId AND u.telegram_id = :userTelegramId
+                    )
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("matchId", matchId);
+            params.addValue("userTelegramId", userTelegramId);
+            return Boolean.TRUE.equals(namedParameterJdbcTemplate.queryForObject(sql, params, Boolean.class));
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error prediction is exist", e);
+            serverLogger.error(e.getMessage());
+            return false;
+        }
+    }
+
+    public Prediction getByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT *
+                    FROM predict
+                    WHERE user_id IN (SELECT id
+                                      FROM users
+                                      WHERE telegram_id = :telegramId)
+                      AND match_id IN (SELECT public_id
+                                       FROM match
+                                       WHERE home_team_id IN (SELECT public_id
+                                                              FROM teams
+                                                              WHERE code = :homeTeam)
+                                         AND away_team_id IN (SELECT public_id
+                                                              FROM teams
+                                                              WHERE code = :awayTeam))
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("telegramId", telegramId);
+            params.addValue("homeTeam", homeTeam);
+            params.addValue("awayTeam", awayTeam);
+            return namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper());
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error prediction is exist", e);
+            serverLogger.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public List<Integer> findPredictableWeeksByUserTelegramId(String telegramId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    SELECT DISTINCT w.id
+                    FROM weeks w
+                    JOIN (
+                        SELECT DISTINCT m.week_id
+                        FROM predict p
+                        JOIN match m ON p.match_id = m.public_id
+                        WHERE p.user_id IN (SELECT id FROM users WHERE telegram_id = :telegramId)
+                    ) AS subquery ON w.id = subquery.week_id;
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("telegramId", telegramId);
+            return namedParameterJdbcTemplate.queryForList(sql, params, Integer.class);
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error on find predictable weeks by user telegram id", e);
+            serverLogger.error(e.getMessage());
+            return Collections.emptyList();
         }
     }
 

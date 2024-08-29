@@ -9,7 +9,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 import static zhigalin.predictions.telegram.command.CommandName.HELP;
@@ -21,8 +20,6 @@ import static zhigalin.predictions.telegram.command.CommandName.STOP;
 import static zhigalin.predictions.telegram.command.CommandName.TABLE;
 import static zhigalin.predictions.telegram.command.CommandName.TODAY;
 import static zhigalin.predictions.telegram.command.CommandName.TOTAL;
-import static zhigalin.predictions.telegram.command.CommandName.TOUR;
-import static zhigalin.predictions.telegram.command.CommandName.TOUR_NUM;
 import static zhigalin.predictions.telegram.command.CommandName.UPCOMING;
 
 public class CommandContainer {
@@ -34,10 +31,14 @@ public class CommandContainer {
     private final Command predictCommand;
     private final Command predictKeyboardCommand;
     private final Command myPredictsCommand;
+    private final Command toursCommand;
+    private final Command tourNumCommand;
+    private final Command cancelMessageCommand;
+    private final Command menuCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
-                            PredictionService predictionService, UserService userService, PanicSender panicSender) {
+                            PredictionService predictionService, PanicSender panicSender) {
         commandMap = new HashMap<>();
         commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService));
         commandMap.put(START.getName(), new StartCommand(sendBotMessageService));
@@ -45,8 +46,6 @@ public class CommandContainer {
         commandMap.put(HELP.getName(), new HelpCommand(sendBotMessageService));
         commandMap.put(NO.getName(), new NoCommand(sendBotMessageService));
         commandMap.put(TABLE.getName(), new TableCommand(sendBotMessageService, matchService));
-        commandMap.put(TOUR.getName(), new TourCommand(sendBotMessageService));
-        commandMap.put(TOUR_NUM.getName(), new TourNumCommand(sendBotMessageService, matchService));
         commandMap.put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService));
         commandMap.put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService));
         commandMap.put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, predictionService));
@@ -55,9 +54,13 @@ public class CommandContainer {
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, headToHeadService);
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
         updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService);
-        predictCommand = new PredictCommand(sendBotMessageService, predictionService, userService, matchService, panicSender);
-        predictKeyboardCommand = new PredictKeyboardCommand(sendBotMessageService);
+        predictCommand = new PredictCommand(sendBotMessageService, predictionService, matchService, panicSender);
+        predictKeyboardCommand = new PredictKeyboardCommand(sendBotMessageService, predictionService);
         myPredictsCommand = new MyPredictsCommand(sendBotMessageService, predictionService);
+        toursCommand = new TourCommand(sendBotMessageService, predictionService);
+        tourNumCommand = new TourNumCommand(sendBotMessageService, matchService);
+        cancelMessageCommand = new CancelMessageCommand(sendBotMessageService);
+        menuCommand = new MenuCommand(sendBotMessageService);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
@@ -86,5 +89,21 @@ public class CommandContainer {
 
     public Command retrieveMyPredictsCommand() {
         return myPredictsCommand;
+    }
+
+    public Command retrieveToursCommand() {
+        return toursCommand;
+    }
+
+    public Command retrieveTourNumCommand() {
+        return tourNumCommand;
+    }
+
+    public Command retrieveCancelMessageCommand() {
+        return cancelMessageCommand;
+    }
+
+    public Command retrieveMenuCommand() {
+        return menuCommand;
     }
 }

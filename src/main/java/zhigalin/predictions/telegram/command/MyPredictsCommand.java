@@ -30,22 +30,25 @@ public class MyPredictsCommand implements Command {
     public void execute(Update update) throws FeedException, IOException, ParseException {
         Message message = update.getMessage();
         String chatId = message.getChatId().toString();
-        messageService.sendTourKeyBoard(chatId, MESSAGE, "predictTour");
+
+        List<Integer> weeksIds = predictionService.getPredictableWeeksByUserTelegramId(chatId);
+        messageService.sendTourKeyBoard(chatId, weeksIds, MESSAGE, "predictTour");
     }
 
     @Override
     public void executeCallback(CallbackQuery callback) {
         String chatId = callback.getMessage().getChatId().toString();
-        Integer messageId = callback.getMessage().getMessageId();
-        String message = callback.getData();
-
-        int weekId = Integer.parseInt(message.split(REGEX)[1]);
-
-        List<MatchPrediction> matchPredictions = predictionService.getAllWeeklyPredictionsByUserTelegramId(weekId, chatId);
-        if (matchPredictions.isEmpty()) {
-            messageService.sendMessageDeletingKeyboard(messageId, chatId, "Прогнозов на " + weekId + " тур нет");
-        } else {
-            messageService.sendWeeklyPredictsByUserKeyBoard(messageId, chatId, "Прогнозы " + weekId + " тура", matchPredictions);
+        if (callback.getData().contains("predictTour")) {
+            int weekId = Integer.parseInt(callback.getData().split(REGEX)[1]);
+            List<MatchPrediction> matchPredictions = predictionService.getAllWeeklyPredictionsByUserTelegramId(weekId, chatId);
+            if (matchPredictions.isEmpty()) {
+                messageService.sendMessage(chatId, "Прогнозов на " + weekId + " тур нет");
+            } else {
+                messageService.sendWeeklyPredictsByUserKeyBoard(chatId, "Прогнозы " + weekId + " тура", matchPredictions);
+            }
+        } else if (callback.getData().contains("predicts")) {
+            List<Integer> weeksIds = predictionService.getPredictableWeeksByUserTelegramId(chatId);
+            messageService.sendTourKeyBoard(chatId, weeksIds, MESSAGE, "predictTour");
         }
     }
 }
