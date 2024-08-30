@@ -7,7 +7,7 @@ public enum CommandName {
     HELP("help"),
     NO("nocommand"),
     TABLE("table"),
-    TOUR("tours"),
+    TOURS("tours"),
     TOUR_NUM("tour"),
     TODAY("today"),
     TEAM("team"),
@@ -16,7 +16,12 @@ public enum CommandName {
     UPDATE("update"),
     PRED("pred"),
     REFRESH("refresh"),
-    TOTAL("total");
+    TOTAL("total"),
+    PREDICTS("predicts"),
+    CANCEL("cancel"),
+    DELETE("delete"),
+    MENU("menu"),
+    ;
 
     private final String name;
 

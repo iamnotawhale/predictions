@@ -1,11 +1,19 @@
 package zhigalin.predictions.telegram.model;
 
+import java.io.IOException;
+import java.text.ParseException;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import com.rometools.rome.io.FeedException;
+import lombok.Getter;
 import lombok.SneakyThrows;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -20,7 +28,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.telegram.command.CommandContainer;
 import zhigalin.predictions.telegram.command.TeamName;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
@@ -29,6 +36,10 @@ import static zhigalin.predictions.telegram.command.CommandName.NO;
 
 @Component
 public class EPLInfoBot extends TelegramLongPollingBot {
+    @Getter
+    private final Map<Long, Update> usersStates = new HashMap<>();
+    @Getter
+    private final Map<Long, Integer> messageToDelete = new HashMap<>();
 
     private final String name;
     private final CommandContainer commandContainer;
@@ -36,16 +47,16 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private static final String COMMAND_PREFIX = "/";
     private static final String REGEX = "[^A-Za-z]";
     private static final Pattern PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3})$");
+    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public EPLInfoBot(@Value("${bot.token}") String token, @Value("${bot.username}") String name,
                       MatchService matchService, TeamService teamService, HeadToHeadService headToHeadService,
-                      DataInitService dataInitService, PredictionService predictionService, UserService userService,
-                      PanicSender panicSender
+                      DataInitService dataInitService, PredictionService predictionService, PanicSender panicSender
     ) {
         super(token);
         this.name = name;
         this.commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, teamService,
-                headToHeadService, dataInitService, predictionService, userService, panicSender);
+                headToHeadService, dataInitService, predictionService, panicSender);
 
         try {
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
@@ -64,79 +75,141 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
+        if (update == null) {
+            return;
+        }
+        Long chatId;
+        Integer messageId;
+        String message;
         if (update.hasMessage() && update.getMessage().hasText()) {
-            String message = update.getMessage().getText().trim();
-            if (message.contains("update")) {
-                String[] array = message.split("[^A-Za-z0-9]");
-                if (array.length == 6 &&
-                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
-                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
-                    commandContainer.retrieveUpdateCommand().execute(update);
-                }
-            }
-            if (message.contains("pred")) {
-                String[] array = message.split("[^A-Za-z0-9]");
-                if (array.length == 6 &&
-                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
-                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]))) {
-                    commandContainer.retrievePredictCommand().execute(update);
-                }
-            } else if (message.startsWith(COMMAND_PREFIX)) {
-                String[] array = message.split(REGEX);
-                String commandIdentifier = array[1].toLowerCase();
-                if (array.length == 3 &&
-                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[1])) &&
-                    EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2]))) {
-                    commandContainer.retrieveHeadToHeadCommand().execute(update);
-                } else {
-                    if (EnumSet.allOf(TeamName.class).stream()
-                            .anyMatch(n -> n.getName().toLowerCase().contains(commandIdentifier))) {
-                        commandContainer.retrieveTeamCommand().execute(update);
-                    } else {
-                        commandContainer.retrieveCommand(commandIdentifier).execute(update);
-                    }
-                }
-            } else {
-                commandContainer.retrieveCommand(NO.getName()).execute(update);
-            }
+            chatId = update.getMessage().getFrom().getId();
+            messageId = update.getMessage().getMessageId();
+            message = update.getMessage().getText().trim();
+
+            handleTextMessage(update, chatId, messageId, message);
         } else if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
-            String message = callbackQuery.getData();
-            if (message.contains(COMMAND_PREFIX + "pred")) {
-                String[] array = message.split("[^A-Za-z0-9]");
-                String homeTeam = array[2].toLowerCase();
-                String awayTeam = array[4].toLowerCase();
-                if (
-                        array.length == 6 &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(homeTeam)) &&
-                        EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(awayTeam))
-                ) {
-                    commandContainer.retrievePredictCommand().executeCallback(callbackQuery);
-                }
-            } else if (message.startsWith(COMMAND_PREFIX)) {
-                Matcher matcher = PATTERN.matcher(message);
-                if (
-                        matcher.find() &&
-                        matcher.groupCount() == 2 &&
-                        Stream.of(matcher.group(1), matcher.group(2)).allMatch(team -> EnumSet.allOf(TeamName.class).stream()
-                                .anyMatch(t -> t.getName().toLowerCase().contains(team.toLowerCase())))
-                ) {
-                    commandContainer.retrievePredictKeyBoardCommand().execute(update);
-                } else if (
-                        matcher.find() &&
-                        matcher.groupCount() == 1 &&
-                        EnumSet.allOf(TeamName.class).stream()
-                                .anyMatch(t -> t.getName().toLowerCase().contains(matcher.group(1).toLowerCase()))
-                ) {
-                    commandContainer.retrieveTeamCommand().execute(update);
-                } else {
-                    String[] array = message.split(REGEX);
-                    String commandIdentifier = array[1].toLowerCase();
-                    commandContainer.retrieveCommand(commandIdentifier).execute(update);
-                }
+            messageId = callbackQuery.getMessage().getMessageId();
+            chatId = callbackQuery.getFrom().getId();
+            message = callbackQuery.getData();
+
+            handleCallbackQuery(update, chatId, messageId, message);
+        } else {
+            commandContainer.retrieveCommand(NO.getName()).execute(update);
+        }
+    }
+
+    private void handleTextMessage(Update update, Long chatId, Integer messageId, String message) throws FeedException, IOException, ParseException {
+        messageToDelete.clear();
+        if (message.contains("menu")) {
+            commandContainer.retrieveMenuCommand().execute(update);
+        } else if (message.contains("update")) {
+            String[] array = message.split("[^A-Za-z0-9]");
+            if (isValidTeamCommand(array)) {
+                commandContainer.retrieveUpdateCommand().execute(update);
+            }
+        } else if (message.contains("predicts")) {
+            commandContainer.retrieveMyPredictsCommand().execute(update);
+        } else if (message.contains("pred")) {
+            String[] array = message.split("[^A-Za-z0-9]");
+            if (isValidTeamCommand(array)) {
+                commandContainer.retrievePredictCommand().execute(update);
+            }
+        } else if (message.contains("tours")) {
+            commandContainer.retrieveToursCommand().execute(update);
+        } else if (message.contains("tour")) {
+            usersStates.put(chatId, update);
+            commandContainer.retrieveTourNumCommand().execute(update);
+        } else if (message.startsWith(COMMAND_PREFIX)) {
+            String[] array = message.split(REGEX);
+            String commandIdentifier = array[1].toLowerCase();
+            if (isValidTeamCommand(array)) {
+                commandContainer.retrieveHeadToHeadCommand().execute(update);
+            } else if (isTeamName(commandIdentifier)) {
+                commandContainer.retrieveTeamCommand().execute(update);
+            } else {
+                commandContainer.retrieveCommand(commandIdentifier).execute(update);
             }
         } else {
             commandContainer.retrieveCommand(NO.getName()).execute(update);
+        }
+    }
+
+    private void handleCallbackQuery(Update update, Long chatId, Integer messageId, String message) throws FeedException, IOException, ParseException {
+        putMessageToDelete(chatId, messageId);
+        if (message.contains("menu")) {
+            commandContainer.retrieveMenuCommand().executeCallback(update.getCallbackQuery());
+        } else if (message.contains("cancel")) {
+            commandContainer.retrieveCancelMessageCommand().executeCallback(update.getCallbackQuery());
+            Update previous = usersStates.get(chatId);
+            onUpdateReceived(previous);
+        } else if (message.contains("delete")) {
+            commandContainer.retrievePredictCommand().executeCallback(update.getCallbackQuery());
+            Update previous = usersStates.get(chatId);
+            onUpdateReceived(previous);
+        } else if (message.contains("predictTour")) {
+            usersStates.put(chatId, update);
+            commandContainer.retrieveMyPredictsCommand().executeCallback(update.getCallbackQuery());
+        } else if (message.contains("predicts")) {
+            commandContainer.retrieveMyPredictsCommand().executeCallback(update.getCallbackQuery());
+        } else if (message.contains("pred")) {
+            String[] array = message.split("[^A-Za-z0-9]");
+            if (isValidTeamCommand(array)) {
+                commandContainer.retrievePredictCommand().executeCallback(update.getCallbackQuery());
+                Update previous = usersStates.get(chatId);
+                onUpdateReceived(previous);
+            }
+        } else if (message.contains("tours")) {
+            commandContainer.retrieveToursCommand().executeCallback(update.getCallbackQuery());
+        } else if (message.contains("tour")) {
+            usersStates.put(chatId, update);
+            commandContainer.retrieveTourNumCommand().execute(update);
+        } else if (message.startsWith(COMMAND_PREFIX)) {
+            Matcher matcher = PATTERN.matcher(message);
+            if (isValidTeamCommand(matcher)) {
+                commandContainer.retrievePredictKeyBoardCommand().executeCallback(update.getCallbackQuery());
+            } else if (isValidTeamName(matcher)) {
+                commandContainer.retrieveTeamCommand().execute(update);
+            } else {
+                String[] array = message.split(REGEX);
+                String commandIdentifier = array[1].toLowerCase();
+                commandContainer.retrieveCommand(commandIdentifier).execute(update);
+            }
+        }
+    }
+
+    private boolean isValidTeamCommand(String[] array) {
+        return array.length == 6 &&
+               EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
+               EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]));
+    }
+
+    private boolean isValidTeamCommand(Matcher matcher) {
+        return matcher.find() &&
+               matcher.groupCount() == 2 &&
+               Stream.of(matcher.group(1), matcher.group(2)).allMatch(team -> EnumSet.allOf(TeamName.class).stream()
+                       .anyMatch(t -> t.getName().toLowerCase().contains(team.toLowerCase())));
+    }
+
+    private boolean isValidTeamName(Matcher matcher) {
+        return matcher.find() &&
+               matcher.groupCount() == 1 &&
+               EnumSet.allOf(TeamName.class).stream()
+                       .anyMatch(t -> t.getName().toLowerCase().contains(matcher.group(1).toLowerCase()));
+    }
+
+    private boolean isTeamName(String commandIdentifier) {
+        return EnumSet.allOf(TeamName.class).stream()
+                .anyMatch(n -> n.getName().toLowerCase().contains(commandIdentifier));
+    }
+
+    private void putMessageToDelete(Long chatId, Integer messageId) {
+        StackTraceElement[] stackTrace = Thread.currentThread()
+                .getStackTrace();
+        if (!stackTrace[2].getMethodName().equals(stackTrace[4].getMethodName())) {
+            messageToDelete.put(chatId, messageId);
+        } else {
+            messageToDelete.clear();
         }
     }
 }

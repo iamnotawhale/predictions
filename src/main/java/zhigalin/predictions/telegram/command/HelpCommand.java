@@ -10,7 +10,7 @@ import static zhigalin.predictions.telegram.command.CommandName.START;
 import static zhigalin.predictions.telegram.command.CommandName.STOP;
 import static zhigalin.predictions.telegram.command.CommandName.TABLE;
 import static zhigalin.predictions.telegram.command.CommandName.TODAY;
-import static zhigalin.predictions.telegram.command.CommandName.TOUR;
+import static zhigalin.predictions.telegram.command.CommandName.TOURS;
 import static zhigalin.predictions.telegram.command.CommandName.UPCOMING;
 
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class HelpCommand implements Command {
                                                             "/%s - новости АПЛ\n" +
                                                             "/%s - матчи в ближайшие 7 дней\n",
             START.getName(), STOP.getName(), HELP.getName(), TODAY.getName(),
-            TABLE.getName(), TOUR.getName(), NEWS.getName(), UPCOMING.getName());
+            TABLE.getName(), TOURS.getName(), NEWS.getName(), UPCOMING.getName());
 
     @Override
     public void execute(Update update) {
