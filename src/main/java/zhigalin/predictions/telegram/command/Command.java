@@ -9,7 +9,9 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 
 public interface Command {
 
-    void execute(Update update) throws FeedException, IOException, ParseException;
+    default void execute(Update update) throws FeedException, IOException, ParseException {
+
+    }
 
     default void executeCallback(CallbackQuery callbackQuery) {
     }

@@ -1,6 +1,7 @@
 package zhigalin.predictions.config;
 
 import javax.sql.DataSource;
+import jakarta.annotation.Priority;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,7 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 @Configuration
 public class DBConfig {
 
+    @Priority(1)
     @Bean
     public DataSource dataSource(
             @Value("${spring.datasource.driverClassName}") String driverClassName,
@@ -27,6 +29,7 @@ public class DBConfig {
         return dataSource;
     }
 
+    @Priority(2)
     @Bean
     public DataSourceInitializer dataSourceInitializer(DataSource dataSource) {
         DataSourceInitializer initializer = new DataSourceInitializer();

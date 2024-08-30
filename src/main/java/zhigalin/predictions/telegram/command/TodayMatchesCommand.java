@@ -21,10 +21,12 @@ public class TodayMatchesCommand implements Command {
     @Override
     public void execute(Update update) {
         int tour = 0;
-        List<Match> list = matchService.findAllByTodayDate();
+        String chatId = update.getMessage().getChatId().toString();
+        List<Match> matches = matchService.findAllByTodayDate();
+        List<Integer> predictableMatches = matchService.predictableTodayMatchesByUserTelegramIdAndWeekId(chatId);
         StringBuilder builder = new StringBuilder();
-        if (!list.isEmpty()) {
-            for (Match match : list) {
+        if (!matches.isEmpty()) {
+            for (Match match : matches) {
                 builder.append("`");
                 if (match.getWeekId() != tour) {
                     builder.append(match.getWeekId()).append(" тур").append("\n");
@@ -47,9 +49,9 @@ public class TodayMatchesCommand implements Command {
                 }
                 builder.append("`").append("\n");
             }
-            sendBotMessageService.sendMessageWithMatchesKeyboard(list, update.getMessage().getChatId().toString(), builder.toString());
+            sendBotMessageService.sendMessageWithMatchesKeyboard(matches, predictableMatches, chatId, builder.toString());
         } else {
-            sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Сегодня матчей нет");
+            sendBotMessageService.sendMessage(chatId, "Сегодня матчей нет");
         }
 
     }

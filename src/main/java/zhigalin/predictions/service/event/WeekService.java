@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.repository.event.WeekDao;
-import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 @Service
