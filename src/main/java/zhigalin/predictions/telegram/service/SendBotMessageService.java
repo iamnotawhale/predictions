@@ -7,6 +7,7 @@ import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -49,6 +50,19 @@ public class SendBotMessageService {
         sendMessage.setText(message);
 
         bot.execute(sendMessage);
+    }
+
+    @SneakyThrows
+    public void sendAlertDeletingKeyboard(String chatId, String callbackId, String message) {
+        deletePreviousMessage(chatId);
+
+        AnswerCallbackQuery query = new AnswerCallbackQuery();
+        query.setCallbackQueryId(callbackId);
+        query.setText(message);
+        query.setShowAlert(true);
+        query.setCacheTime(10);
+
+        bot.execute(query);
     }
 
     @SneakyThrows
@@ -96,20 +110,6 @@ public class SendBotMessageService {
 
     @SneakyThrows
     public void sendMessageWithMatchesKeyboard(List<Match> matches, List<Integer> predictableMatches, String chatId, String message) {
-        deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createMatchesKeyBoard(matches, predictableMatches));
-
-        bot.execute(sendMessage);
-    }
-
-    @SneakyThrows
-    public void sendMessageWithTodayMatchesKeyboard(List<Match> matches, List<Integer> predictableMatches, String chatId, String message) {
         deletePreviousMessage(chatId);
 
         SendMessage sendMessage = new SendMessage();
@@ -175,7 +175,6 @@ public class SendBotMessageService {
                 String buttonName = j + ":" + i;
                 if (j.equals(predictHomeScore) && i.equals(predictAwayScore)) {
                     buttonName = String.join("̲", buttonName.split("", -1));
-                    ;
                 }
                 InlineKeyboardButton button = new InlineKeyboardButton(buttonName);
                 button.setCallbackData("/pred " + homeTeam + " " + j + " " + awayTeam + " " + i);

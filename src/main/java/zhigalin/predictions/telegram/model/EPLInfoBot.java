@@ -75,6 +75,9 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
+        if (update == null) {
+            return;
+        }
         Long chatId;
         Integer messageId;
         String message;

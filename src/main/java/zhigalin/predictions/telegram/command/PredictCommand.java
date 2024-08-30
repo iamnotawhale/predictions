@@ -38,55 +38,49 @@ public class PredictCommand implements Command {
     private String getMessage(String text, String chatId) {
         try {
             String[] matchToUpdate = text.split(REGEX);
-
+            int homeIndex;
+            int awayIndex;
             if (matchToUpdate[1].equals("delete")) {
-                String homeTeam = EnumSet.allOf(TeamName.class).stream()
-                        .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[2].toLowerCase()))
-                        .map(Enum::name).findFirst().orElse(null);
-                if (homeTeam == null) {
-                    return "Неизвестная домашняя команда";
-                }
-                String awayTeam = EnumSet.allOf(TeamName.class).stream()
-                        .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[3].toLowerCase()))
-                        .map(Enum::name).findFirst().orElse(null);
-                if (awayTeam == null) {
-                    return "Неизвестная гостевая команда";
-                }
-
-                predictionService.deleteByUserTelegramIdAndTeams(chatId, homeTeam.toUpperCase(), awayTeam.toUpperCase());
-                return "Прогноз " + homeTeam + "-" + awayTeam + " удален";
+                homeIndex = 2;
+                awayIndex = 3;
+            } else {
+                homeIndex = 2;
+                awayIndex = 4;
             }
 
             String homeTeam = EnumSet.allOf(TeamName.class).stream()
-                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[2].toLowerCase()))
+                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[homeIndex].toLowerCase()))
                     .map(Enum::name).findFirst().orElse(null);
             if (homeTeam == null) {
                 return "Неизвестная домашняя команда";
             }
             String awayTeam = EnumSet.allOf(TeamName.class).stream()
-                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[4].toLowerCase()))
+                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[awayIndex].toLowerCase()))
                     .map(Enum::name).findFirst().orElse(null);
             if (awayTeam == null) {
                 return "Неизвестная гостевая команда";
             }
 
-            int homePredict = Integer.parseInt(matchToUpdate[3]);
-            int awayPredict = Integer.parseInt(matchToUpdate[5]);
-
             Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
             if (LocalDateTime.now().isAfter(match.getLocalDateTime().plusMinutes(5))) {
                 return "Время для прогноза истекло. Матч уже начался";
             } else {
-
-                String action;
-                if (predictionService.isExist(chatId, match.getPublicId())) {
-                    action = "обновлен";
+                if (matchToUpdate[1].equals("delete")) {
+                    predictionService.deleteByUserTelegramIdAndTeams(chatId, homeTeam.toUpperCase(), awayTeam.toUpperCase());
+                    return "Прогноз " + homeTeam + "-" + awayTeam + " удален";
                 } else {
-                    action = "сохранен";
-                }
-                predictionService.save(chatId, homeTeam, awayTeam, homePredict, awayPredict);
+                    int homePredict = Integer.parseInt(matchToUpdate[3]);
+                    int awayPredict = Integer.parseInt(matchToUpdate[5]);
 
-                return String.format("Прогноз %s %d %s %d %s", homeTeam, homePredict, awayTeam, awayPredict, action);
+                    String action;
+                    if (predictionService.isExist(chatId, match.getPublicId())) {
+                        action = "обновлен";
+                    } else {
+                        action = "сохранен";
+                    }
+                    predictionService.save(chatId, homeTeam, awayTeam, homePredict, awayPredict);
+                    return String.format("Прогноз %s %d %s %d %s", homeTeam, homePredict, awayTeam, awayPredict, action);
+                }
             }
         } catch (Exception e) {
             String message = "Ошибка в обработке прогноза: ";

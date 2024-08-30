@@ -417,7 +417,7 @@ public class PredictionDao {
             params.addValue("telegramId", telegramId);
             params.addValue("homeTeam", homeTeam);
             params.addValue("awayTeam", awayTeam);
-            return namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper()));
         } catch (SQLException e) {
             panicSender.sendPanic("Error prediction is exist", e);
             serverLogger.error(e.getMessage());
