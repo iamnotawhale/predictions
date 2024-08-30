@@ -49,7 +49,7 @@ public class TodayMatchesCommand implements Command {
                 }
                 builder.append("`").append("\n");
             }
-            sendBotMessageService.sendMessageWithTodayMatchesKeyboard(matches, predictableMatches, chatId, builder.toString());
+            sendBotMessageService.sendMessageWithMatchesKeyboard(matches, predictableMatches, chatId, builder.toString());
         } else {
             sendBotMessageService.sendMessage(chatId, "Сегодня матчей нет");
         }
