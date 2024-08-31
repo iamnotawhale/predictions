@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
@@ -15,8 +16,8 @@ import zhigalin.predictions.util.DaoUtil;
 public class TodayMatchesCommand implements Command {
 
     private final SendBotMessageService sendBotMessageService;
-
     private final MatchService matchService;
+    private final String botChatId;
 
     @Override
     public void execute(Update update) {
@@ -49,7 +50,11 @@ public class TodayMatchesCommand implements Command {
                 }
                 builder.append("`").append("\n");
             }
-            sendBotMessageService.sendMessageWithMatchesKeyboard(matches, predictableMatches, chatId, builder.toString());
+            if (botChatId.equals(chatId)) {
+                sendBotMessageService.sendMessage(chatId, builder.toString());
+            } else {
+                sendBotMessageService.sendMessageWithMatchesKeyboard(matches, predictableMatches, chatId, builder.toString());
+            }
         } else {
             sendBotMessageService.sendMessage(chatId, "Сегодня матчей нет");
         }

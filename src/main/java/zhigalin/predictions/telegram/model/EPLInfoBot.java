@@ -24,6 +24,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
+import zhigalin.predictions.service.NotificationService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
@@ -47,16 +48,18 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private static final String COMMAND_PREFIX = "/";
     private static final String REGEX = "[^A-Za-z]";
     private static final Pattern PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3})$");
+    private static final Pattern PREDICT_PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3}).$");
     private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public EPLInfoBot(@Value("${bot.token}") String token, @Value("${bot.username}") String name,
-                      MatchService matchService, TeamService teamService, HeadToHeadService headToHeadService,
-                      DataInitService dataInitService, PredictionService predictionService, PanicSender panicSender
+                      @Value("${bot.chatId}") String botChatId, MatchService matchService, TeamService teamService,
+                      HeadToHeadService headToHeadService, DataInitService dataInitService,
+                      PredictionService predictionService, PanicSender panicSender, NotificationService notificationService
     ) {
         super(token);
         this.name = name;
-        this.commandContainer = new CommandContainer(new SendBotMessageService(this), matchService, teamService,
-                headToHeadService, dataInitService, predictionService, panicSender);
+        this.commandContainer = new CommandContainer(new SendBotMessageService(this, notificationService), matchService, teamService,
+                headToHeadService, dataInitService, predictionService, panicSender, botChatId);
 
         try {
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
@@ -120,6 +123,8 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         } else if (message.contains("tour")) {
             usersStates.put(chatId, update);
             commandContainer.retrieveTourNumCommand().execute(update);
+        } else if (message.contains("total")) {
+            commandContainer.retrieveTotalCommand().execute(update);
         } else if (message.startsWith(COMMAND_PREFIX)) {
             String[] array = message.split(REGEX);
             String commandIdentifier = array[1].toLowerCase();
@@ -152,6 +157,11 @@ public class EPLInfoBot extends TelegramLongPollingBot {
             commandContainer.retrieveMyPredictsCommand().executeCallback(update.getCallbackQuery());
         } else if (message.contains("predicts")) {
             commandContainer.retrieveMyPredictsCommand().executeCallback(update.getCallbackQuery());
+        } else if (message.contains("notpred")) {
+            String[] array = message.split("[^A-Za-z0-9]");
+            if (isValidTeamCommand(array)) {
+                commandContainer.retrieveNotificationPredictCommand().executeCallback(update.getCallbackQuery());
+            }
         } else if (message.contains("pred")) {
             String[] array = message.split("[^A-Za-z0-9]");
             if (isValidTeamCommand(array)) {
@@ -166,8 +176,12 @@ public class EPLInfoBot extends TelegramLongPollingBot {
             commandContainer.retrieveTourNumCommand().execute(update);
         } else if (message.startsWith(COMMAND_PREFIX)) {
             Matcher matcher = PATTERN.matcher(message);
+            Matcher matcher_predict = PREDICT_PATTERN.matcher(message);
             if (isValidTeamCommand(matcher)) {
                 commandContainer.retrievePredictKeyBoardCommand().executeCallback(update.getCallbackQuery());
+            } else if (isValidTeamCommand(matcher_predict)) {
+                usersStates.put(chatId, update);
+                commandContainer.retrieveNotificationPredictKeyBoardCommand().executeCallback(update.getCallbackQuery());
             } else if (isValidTeamName(matcher)) {
                 commandContainer.retrieveTeamCommand().execute(update);
             } else {

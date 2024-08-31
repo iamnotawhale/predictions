@@ -29,18 +29,21 @@ public class CommandContainer {
     private final Command headToHeadCommand;
     private final Command updateCommand;
     private final Command predictCommand;
+    private final Command notificationPredictCommand;
     private final Command predictKeyboardCommand;
+    private final Command notificationPredictKeyboardCommand;
     private final Command myPredictsCommand;
     private final Command toursCommand;
     private final Command tourNumCommand;
     private final Command cancelMessageCommand;
     private final Command menuCommand;
+    private final Command totalCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
-                            PredictionService predictionService, PanicSender panicSender) {
+                            PredictionService predictionService, PanicSender panicSender, String botChatId) {
         commandMap = new HashMap<>();
-        commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService));
+        commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService, botChatId));
         commandMap.put(START.getName(), new StartCommand(sendBotMessageService));
         commandMap.put(STOP.getName(), new StopCommand(sendBotMessageService));
         commandMap.put(HELP.getName(), new HelpCommand(sendBotMessageService));
@@ -49,18 +52,20 @@ public class CommandContainer {
         commandMap.put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService));
         commandMap.put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService));
         commandMap.put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, predictionService));
-        commandMap.put(TOTAL.getName(), new TotalCommand(sendBotMessageService, predictionService));
         unknownCommand = new UnknownCommand(sendBotMessageService);
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, headToHeadService);
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
         updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService);
         predictCommand = new PredictCommand(sendBotMessageService, predictionService, matchService, panicSender);
+        notificationPredictCommand = new NotificationPredictCommand(sendBotMessageService, predictionService, matchService, panicSender);
         predictKeyboardCommand = new PredictKeyboardCommand(sendBotMessageService, predictionService);
         myPredictsCommand = new MyPredictsCommand(sendBotMessageService, predictionService);
         toursCommand = new TourCommand(sendBotMessageService, predictionService);
         tourNumCommand = new TourNumCommand(sendBotMessageService, matchService);
         cancelMessageCommand = new CancelMessageCommand(sendBotMessageService);
         menuCommand = new MenuCommand(sendBotMessageService);
+        notificationPredictKeyboardCommand = new NotificationPredictKeyBoardCommand(sendBotMessageService);
+        totalCommand = new TotalCommand(sendBotMessageService, predictionService);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
@@ -83,8 +88,16 @@ public class CommandContainer {
         return predictCommand;
     }
 
+    public Command retrieveNotificationPredictCommand() {
+        return notificationPredictCommand;
+    }
+
     public Command retrievePredictKeyBoardCommand() {
         return predictKeyboardCommand;
+    }
+
+    public Command retrieveNotificationPredictKeyBoardCommand() {
+        return notificationPredictKeyboardCommand;
     }
 
     public Command retrieveMyPredictsCommand() {
@@ -105,5 +118,9 @@ public class CommandContainer {
 
     public Command retrieveMenuCommand() {
         return menuCommand;
+    }
+
+    public Command retrieveTotalCommand() {
+        return totalCommand;
     }
 }
