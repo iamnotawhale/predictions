@@ -38,7 +38,7 @@ public class OddsService {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
-    public static final Map<Match, Odd> ODDS = new HashMap<>();
+    public static final Map<Integer, Odd> ODDS = new HashMap<>();
 
     public OddsService(PanicSender panicSender) {
         this.panicSender = panicSender;
@@ -117,7 +117,7 @@ public class OddsService {
                 }
 
                 ODDS.put(
-                        match,
+                        match.getPublicId(),
                         new Odd(
                                 round(teamOdds.get(oddsMatch.getHomeTeam())),
                                 round(teamOdds.get("Draw")),
