@@ -110,11 +110,13 @@ public class NotificationService {
 
         InlineKeyboardButton button = InlineKeyboardButton.builder()
                 .text("Сделать прогноз")
-                .callbackData("/" + homeTeam + ":" + awayTeam)
+                .callbackData("/" + homeTeam + ":" + awayTeam + "_")
                 .build();
         InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
                 .keyboard(Collections.singleton(List.of(button)))
                 .build();
+
+        String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
 
         MultipartBody body = Unirest.post(urlPhoto)
                 .headers(Map.of("accept", "application/json",
@@ -130,7 +132,15 @@ public class NotificationService {
                         )
                 )
                 .queryString("reply_markup", objectMapper.writeValueAsString(markup))
-                .field("photo", new File(Objects.requireNonNull(createImage(match))));
+                .field("photo", new File(Objects.requireNonNull(
+                        createImage(
+                                match.getPublicId(),
+                                match.getHomeTeamId(),
+                                match.getAwayTeamId(),
+                                matchTime,
+                                false
+                                )
+                )));
 
         HttpResponse<String> response = body.asString();
         if (response.getStatus() == 200) {
@@ -144,72 +154,80 @@ public class NotificationService {
         }
     }
 
-    private String createImage(Match match) {
+    public String createImage(int matchPublicId, int homeTeamId, int awayTeamId, String centerInfo, boolean needPredict) {
         try {
             int scale = WIDTH / 512;
-            BufferedImage image = generateWithGradient(match.getHomeTeamId(), match.getAwayTeamId());
+            BufferedImage image = generateWithGradient(homeTeamId, awayTeamId);
             Graphics2D g2d = image.createGraphics();
 
-            BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getHomeTeamId() + ".webp").getInputStream());
-            BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + match.getAwayTeamId() + ".webp").getInputStream());
+            BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + homeTeamId + ".webp").getInputStream());
+            BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + awayTeamId + ".webp").getInputStream());
 
             int middleY = (image.getHeight() - scale * 100) / 2;
             g2d.drawImage(homeTeamPic, WIDTH / 4 - scale * 50, middleY, scale * 100, scale * 100, null);
             g2d.drawImage(awayTeamPic, WIDTH * 3 / 4 - scale * 50, middleY, scale * 100, scale * 100, null);
 
-            String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
             g2d.setColor(Color.WHITE);
             Font font = loadFontFromFile(scale).deriveFont(scale * 30f);
             g2d.setFont(font);
-            int textWidth = g2d.getFontMetrics().stringWidth(matchTime);
+            int textWidth = g2d.getFontMetrics().stringWidth(centerInfo);
             int textX = (WIDTH / 2) - (textWidth / 2);
-            g2d.drawString(matchTime, textX, middleY + scale * 50);
+            g2d.drawString(centerInfo, textX, middleY + scale * 50);
 
-            String homeTeamCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
+            String homeTeamCode = DaoUtil.TEAMS.get(homeTeamId).getCode();
             int text1Width = g2d.getFontMetrics().stringWidth(homeTeamCode);
             int text1X = WIDTH / 4 - (text1Width / 2);
             int text1Y = middleY + scale * -10;
             g2d.drawString(homeTeamCode, text1X, text1Y);
 
-            String awayTeamCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+            String awayTeamCode = DaoUtil.TEAMS.get(awayTeamId).getCode();
             int text2Width = g2d.getFontMetrics().stringWidth(awayTeamCode);
             int text2X = WIDTH * 3 / 4 - (text2Width / 2);
             int text2Y = middleY + scale * -10;
             g2d.drawString(awayTeamCode, text2X, text2Y);
 
-            font = loadFontFromFile(scale).deriveFont(scale * 20f);
-            g2d.setFont(font);
+            if (!needPredict) {
+                font = loadFontFromFile(scale).deriveFont(scale * 20f);
+                g2d.setFont(font);
+                Odd odd = ODDS.getOrDefault(matchPublicId, null);
+                if (odd != null) {
+                    Double homeTeamOdd = odd.home();
+                    int text3Width = g2d.getFontMetrics().stringWidth(String.valueOf(homeTeamOdd));
+                    int text3X = WIDTH / 4 - (text3Width / 2);
+                    int text3Y = middleY + scale * 140;
+                    g2d.drawString(String.valueOf(homeTeamOdd), text3X, text3Y);
 
-            Odd odd = ODDS.getOrDefault(match, null);
-            if (odd != null) {
-                Double homeTeamOdd = odd.home();
-                int text3Width = g2d.getFontMetrics().stringWidth(String.valueOf(homeTeamOdd));
-                int text3X = WIDTH / 4 - (text3Width / 2);
-                int text3Y = middleY + scale * 140;
-                g2d.drawString(String.valueOf(homeTeamOdd), text3X, text3Y);
+                    Double drawOdd = odd.draw();
+                    int text4Width = g2d.getFontMetrics().stringWidth(String.valueOf(drawOdd));
+                    int text4X = (WIDTH / 2) - (text4Width / 2);
+                    int text4Y = middleY + scale * 140;
+                    g2d.drawString(String.valueOf(drawOdd), text4X, text4Y);
 
-                Double drawOdd = odd.draw();
-                int text4Width = g2d.getFontMetrics().stringWidth(String.valueOf(drawOdd));
+                    Double awayTeamOdd = odd.away();
+                    int text5Width = g2d.getFontMetrics().stringWidth(String.valueOf(awayTeamOdd));
+                    int text5X = WIDTH * 3 / 4 - (text5Width / 2);
+                    int text5Y = middleY + scale * 140;
+                    g2d.drawString(String.valueOf(awayTeamOdd), text5X, text5Y);
+
+                    g2d.setColor(new Color(255, 255, 255, 50));
+                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                    int rectWidth = scale * 80;
+                    int rectHeight = scale * 40;
+                    int arcRadius = scale * 20;
+
+                    g2d.fillRoundRect(WIDTH / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                    g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                    g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                }
+            } else {
+                font = new Font("Arial", Font.BOLD, scale * 20);
+                g2d.setFont(font);
+                String message = "ТВОЙ ПРОГНОЗ";
+                int text4Width = g2d.getFontMetrics().stringWidth(message);
                 int text4X = (WIDTH / 2) - (text4Width / 2);
                 int text4Y = middleY + scale * 140;
-                g2d.drawString(String.valueOf(drawOdd), text4X, text4Y);
-
-                Double awayTeamOdd = odd.away();
-                int text5Width = g2d.getFontMetrics().stringWidth(String.valueOf(awayTeamOdd));
-                int text5X = WIDTH * 3 / 4 - (text5Width / 2);
-                int text5Y = middleY + scale * 140;
-                g2d.drawString(String.valueOf(awayTeamOdd), text5X, text5Y);
-
-                g2d.setColor(new Color(255, 255, 255, 50));
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                int rectWidth = scale * 80;
-                int rectHeight = scale * 40;
-                int arcRadius = scale * 20;
-
-                g2d.fillRoundRect(WIDTH / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
-                g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
-                g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                g2d.drawString(message, text4X, text4Y);
             }
 
             g2d.dispose();
