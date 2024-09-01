@@ -2,6 +2,7 @@ package zhigalin.predictions.telegram.service;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -176,6 +177,21 @@ public class SendBotMessageService {
         sendPhoto.setChatId(chatId);
         sendPhoto.setPhoto(inputFile);
 //        sendPhoto.setCaption(message);
+
+        String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
+        String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+        sendPhoto.setReplyMarkup(
+                InlineKeyboardMarkup.builder()
+                        .keyboard(
+                                Collections.singleton(List.of(
+                                        InlineKeyboardButton.builder()
+                                                .text("Изменить")
+                                                .callbackData("/" + homeTeam + ":" + awayTeam + "_")
+                                                .build()
+                                ))
+                        )
+                        .build()
+        );
 
         bot.execute(sendPhoto);
     }
