@@ -115,7 +115,7 @@ public class NotificationService {
                 String centerInfo;
                 Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
                 Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
-                predictionService.forceUpdatePoints(match);
+                predictionService.updateByMatch(match);
                 if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
                     centerInfo = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
                     List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());

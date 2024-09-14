@@ -105,12 +105,6 @@ public class PredictionService {
         return predictionDao.getAllByMatches(matches);
     }
 
-    public void forceUpdatePoints(Match match) {
-        for (User user : userService.findAll()) {
-            updatePoints(match.getPublicId(), user.getId());
-        }
-    }
-
     private void updatePredictions(Match match, List<User> users) {
         for (User user : users) {
             updatePoints(match.getPublicId(), user.getId());
