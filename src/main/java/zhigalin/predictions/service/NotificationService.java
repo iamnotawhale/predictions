@@ -302,6 +302,8 @@ public class NotificationService {
                 int text4Y = middleY + scale * 140;
                 g2d.drawString(message, text4X, text4Y);
             } else if (method.equals("result")) {
+                font = loadFontFromFile(scale).deriveFont(scale * 10f);
+                g2d.setFont(font);
                 int text4Width = g2d.getFontMetrics().stringWidth(additionals);
                 int text4X = (WIDTH / 2) - (text4Width / 2);
                 int text4Y = middleY + scale * 140;
