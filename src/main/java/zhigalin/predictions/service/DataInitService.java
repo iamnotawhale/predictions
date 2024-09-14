@@ -148,8 +148,8 @@ public class DataInitService {
         }
     }
 
-    @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
-//    @Scheduled(cron = "0 */6 * * * *")
+//    @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
+    @Scheduled(cron = "0 */6 * * * *")
     private void start() {
         try {
             matchUpdateFromApiFootball();

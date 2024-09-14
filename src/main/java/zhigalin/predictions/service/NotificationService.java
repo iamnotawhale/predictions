@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -118,7 +119,9 @@ public class NotificationService {
                 StringBuilder builder = new StringBuilder();
                 if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
                     centerInfo = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
-                    for (Prediction prediction : predictionService.getByMatchPublicId(match.getPublicId())) {
+                    List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
+                    predictions.sort(Comparator.comparingInt(Prediction::getPoints));
+                    for (Prediction prediction : predictions) {
                         User user = userService.findById(prediction.getUserId());
                         String predict = String.join("",
                                 prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : " ",
@@ -129,7 +132,9 @@ public class NotificationService {
                         builder.append(user.getLogin().substring(0, 3).toUpperCase())
                                 .append(" ")
                                 .append(predict)
+                                .append(" ")
                                 .append(prediction.getPoints())
+                                .append(" p.")
                                 .append("\t");
                     }
                     notificationBan.add(match.getPublicId());
