@@ -15,9 +15,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.imageio.ImageIO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,7 +37,9 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.notification.Notification;
+import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.MatchService;
@@ -55,6 +59,8 @@ public class NotificationService {
     private String urlMessage;
     @Value("${bot.urlPhoto}")
     private String urlPhoto;
+    @Value("${bot.chatId}")
+    private String chatId;
 
     private final UserService userService;
     private final MatchService matchService;
@@ -62,6 +68,7 @@ public class NotificationService {
     private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
     private final Map<String, TeamColor> teamColors = new HashMap<>();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+    private final Set<Integer> notificationBan = new HashSet<>();
 
     private static final int WIDTH = 1024;
     private static final int HEIGHT = 512;
@@ -96,6 +103,66 @@ public class NotificationService {
                 }
             } else {
                 notificationBLackList.get(minutes).clear();
+            }
+        }
+    }
+
+    public void fullTimeMatchNotification() {
+        List<Match> online = matchService.findOnlineMatches();
+        if (!online.isEmpty()) {
+            for (Match match : online) {
+                String centerInfo;
+                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
+                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
+                predictionService.forceUpdatePoints(match);
+                StringBuilder builder = new StringBuilder();
+                if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
+                    centerInfo = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
+                    for (Prediction prediction : predictionService.getByMatchPublicId(match.getPublicId())) {
+                        User user = userService.findById(prediction.getUserId());
+                        String predict = String.join("",
+                                prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : " ",
+                                ":",
+                                prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : " "
+                        );
+
+                        builder.append(user.getLogin().substring(0, 3).toUpperCase())
+                                .append(" ")
+                                .append(predict)
+                                .append(prediction.getPoints())
+                                .append("\t");
+                    }
+                    notificationBan.add(match.getPublicId());
+                    MultipartBody body = Unirest.post(urlPhoto)
+                            .headers(Map.of("accept", "application/json",
+                                            "content-type", "application/json"
+                                    )
+                            )
+                            .queryString("chat_id", chatId)
+                            .queryString("caption", "Матч окончен")
+                            .field("photo", new File(Objects.requireNonNull(
+                                    createImage(
+                                            match.getPublicId(),
+                                            match.getHomeTeamId(),
+                                            match.getAwayTeamId(),
+                                            centerInfo,
+                                            "result",
+                                            builder.toString()
+
+                                    )
+                            )));
+                    HttpResponse<String> response = body.asString();
+                    if (response.getStatus() == 200) {
+                        serverLogger.info("Send results for match {}", homeTeam.getCode() + " " + awayTeam.getCode());
+                    } else {
+                        serverLogger.warn("Don't send results for match {}", homeTeam.getCode() + " " + awayTeam.getCode());
+                    }
+
+                }
+            }
+        } else {
+            if (!notificationBan.isEmpty()) {
+                notificationBan.clear();
             }
         }
     }
@@ -138,8 +205,9 @@ public class NotificationService {
                                 match.getHomeTeamId(),
                                 match.getAwayTeamId(),
                                 matchTime,
-                                false
-                                )
+                                "notification",
+                                null
+                        )
                 )));
 
         HttpResponse<String> response = body.asString();
@@ -154,7 +222,7 @@ public class NotificationService {
         }
     }
 
-    public String createImage(int matchPublicId, int homeTeamId, int awayTeamId, String centerInfo, boolean needPredict) {
+    public String createImage(int matchPublicId, int homeTeamId, int awayTeamId, String centerInfo, String method, String additionals) {
         try {
             int scale = WIDTH / 512;
             BufferedImage image = generateWithGradient(homeTeamId, awayTeamId);
@@ -186,7 +254,7 @@ public class NotificationService {
             int text2Y = middleY + scale * -10;
             g2d.drawString(awayTeamCode, text2X, text2Y);
 
-            if (!needPredict) {
+            if (method.equals("notification")) {
                 font = loadFontFromFile(scale).deriveFont(scale * 20f);
                 g2d.setFont(font);
                 Odd odd = ODDS.getOrDefault(matchPublicId, null);
@@ -220,7 +288,7 @@ public class NotificationService {
                     g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
                     g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
                 }
-            } else {
+            } else if (method.equals("yourPredict")) {
                 font = new Font("Arial", Font.BOLD, scale * 20);
                 g2d.setFont(font);
                 String message = "ТВОЙ ПРОГНОЗ";
@@ -228,6 +296,11 @@ public class NotificationService {
                 int text4X = (WIDTH / 2) - (text4Width / 2);
                 int text4Y = middleY + scale * 140;
                 g2d.drawString(message, text4X, text4Y);
+            } else if (method.equals("result")) {
+                int text4Width = g2d.getFontMetrics().stringWidth(additionals);
+                int text4X = (WIDTH / 2) - (text4Width / 2);
+                int text4Y = middleY + scale * 140;
+                g2d.drawString(additionals, text4X, text4Y);
             }
 
             g2d.dispose();

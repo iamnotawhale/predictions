@@ -76,7 +76,6 @@ public class DataInitService {
     private final NotificationService notificationService;
     private final PredictionService predictionService;
     private final PanicSender panicSender;
-    private final Set<Integer> notificationBan = new HashSet<>();
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
@@ -149,11 +148,12 @@ public class DataInitService {
         }
     }
 
-    @Scheduled(cron = "0 */6 * * * *")
+    @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
+//    @Scheduled(cron = "0 */6 * * * *")
     private void start() {
         try {
             matchUpdateFromApiFootball();
-            fullTimeMatchNotification();
+            notificationService.fullTimeMatchNotification();
             notificationService.check();
         } catch (Exception e) {
             panicSender.sendPanic("Main method", e);
@@ -361,56 +361,6 @@ public class DataInitService {
                 default -> status = null;
             }
             matchService.updateStatusAndLocalDateTime(publicId, status, matchDateTime);
-        }
-    }
-
-    private void fullTimeMatchNotification() {
-        List<Match> online = matchService.findOnlineMatches();
-        if (!online.isEmpty()) {
-            for (Match match : online) {
-                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
-                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
-                predictionService.forceUpdatePoints(match);
-                StringBuilder builder = new StringBuilder();
-                if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
-                    builder.append("`").append(homeTeam.getCode()).append(" ")
-                            .append(match.getHomeTeamScore()).append(" ")
-                            .append(match.getStatus()).append(" ")
-                            .append(match.getAwayTeamScore()).append(" ")
-                            .append(awayTeam.getCode()).append("`").append("\n\n");
-                    for (Prediction prediction : predictionService.getByMatchPublicId(match.getPublicId())) {
-                        User user = userService.findById(prediction.getUserId());
-                        builder.append("`").append(user.getLogin().substring(0, 3).toUpperCase()).append(" ")
-                                .append(prediction.getHomeTeamScore() != null ? prediction.getHomeTeamScore() : " ").append(":")
-                                .append(prediction.getAwayTeamScore() != null ? prediction.getAwayTeamScore() : " ")
-                                .append(" ");
-                        if (prediction.getPoints() != -1) {
-                            builder.append(" ");
-                        }
-                        builder.append(prediction.getPoints()).append(" PTS").append("`").append("\n");
-                    }
-                    notificationBan.add(match.getPublicId());
-                    try {
-                        HttpResponse<String> response = Unirest.get(url)
-                                .queryString("chat_id", chatId)
-                                .queryString("text", builder.toString())
-                                .queryString("parse_mode", "Markdown")
-                                .asString();
-                        if (response.getStatus() == 200) {
-                            serverLogger.info(response.getBody());
-                            serverLogger.info("Message has been send");
-                        } else {
-                            serverLogger.warn("Don't send full-time notification{}", response.getBody());
-                        }
-                    } catch (UnirestException e) {
-                        serverLogger.error("Sending message error: {}", e.getMessage());
-                    }
-                }
-            }
-        } else {
-            if (!notificationBan.isEmpty()) {
-                notificationBan.clear();
-            }
         }
     }
 
