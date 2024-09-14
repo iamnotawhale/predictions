@@ -465,8 +465,8 @@ public class PredictionDao {
 
             Prediction prediction = Prediction.builder()
                     .userId(rs.getInt("user_id"))
-                    .homeTeamScore(rs.getInt("predict_hts"))
-                    .awayTeamScore(rs.getInt("predict_ats"))
+                    .homeTeamScore(rs.getObject("predict_hts", Integer.class))
+                    .awayTeamScore(rs.getObject("predict_ats", Integer.class))
                     .points(rs.getInt("points"))
                     .build();
             return new MatchPrediction(match, prediction);
@@ -479,8 +479,8 @@ public class PredictionDao {
             return Prediction.builder()
                     .userId(rs.getInt("user_id"))
                     .matchPublicId(rs.getInt("match_id"))
-                    .homeTeamScore(rs.getInt("home_team_score"))
-                    .awayTeamScore(rs.getInt("away_team_score"))
+                    .homeTeamScore(rs.getObject("home_team_score", Integer.class))
+                    .awayTeamScore(rs.getObject("away_team_score", Integer.class))
                     .points(rs.getInt("points"))
                     .build();
         }

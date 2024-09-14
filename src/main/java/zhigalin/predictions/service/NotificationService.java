@@ -121,16 +121,19 @@ public class NotificationService {
                     List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
                     predictions.sort(Comparator.comparingInt(Prediction::getPoints).reversed());
 
-                    List<String> results = predictions.stream().map(prediction -> {
-                        int userId = prediction.getUserId();
-                        User user = DaoUtil.USERS.get(userId);
-                        String predict = String.join("",
-                                prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : " ",
-                                ":",
-                                prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : " "
-                        );
-                        return String.join(" ", user.getLogin().substring(0, 3).toUpperCase(), predict, prediction.getPoints() + " pts");
-                    }).toList();
+                    List<Result> results = predictions.stream()
+                            .map(prediction -> {
+                                int userId = prediction.getUserId();
+                                User user = DaoUtil.USERS.get(userId);
+                                String predict = String.join("",
+                                        prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : " ",
+                                        ":",
+                                        prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : " "
+                                );
+                                return new Result(user.getLogin().substring(0, 3), predict, prediction.getPoints());
+                            })
+                            .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
+                            .toList();
 
                     notificationBan.add(match.getPublicId());
                     MultipartBody body = Unirest.post(urlPhoto)
@@ -147,7 +150,7 @@ public class NotificationService {
                                             match.getAwayTeamId(),
                                             centerInfo,
                                             "result",
-                                            String.join(" | ", results)
+                                            results
                                     )
                             )));
                     HttpResponse<String> response = body.asString();
@@ -221,7 +224,7 @@ public class NotificationService {
         }
     }
 
-    public String createImage(int matchPublicId, int homeTeamId, int awayTeamId, String centerInfo, String method, String additionals) {
+    public String createImage(int matchPublicId, int homeTeamId, int awayTeamId, String centerInfo, String method, List<Result> results) throws UnirestException {
         try {
             int scale = WIDTH / 512;
             BufferedImage image = generateWithGradient(homeTeamId, awayTeamId);
@@ -253,55 +256,81 @@ public class NotificationService {
             int text2Y = middleY + scale * -10;
             g2d.drawString(awayTeamCode, text2X, text2Y);
 
-            if (method.equals("notification")) {
-                font = loadFontFromFile(scale).deriveFont(scale * 20f);
-                g2d.setFont(font);
-                Odd odd = ODDS.getOrDefault(matchPublicId, null);
-                if (odd != null) {
-                    Double homeTeamOdd = odd.home();
-                    int text3Width = g2d.getFontMetrics().stringWidth(String.valueOf(homeTeamOdd));
-                    int text3X = WIDTH / 4 - (text3Width / 2);
-                    int text3Y = middleY + scale * 140;
-                    g2d.drawString(String.valueOf(homeTeamOdd), text3X, text3Y);
+            switch (method) {
+                case "notification" -> {
+                    font = loadFontFromFile(scale).deriveFont(scale * 20f);
+                    g2d.setFont(font);
+                    Odd odd = ODDS.getOrDefault(matchPublicId, null);
+                    if (odd != null) {
+                        Double homeTeamOdd = odd.home();
+                        int text3Width = g2d.getFontMetrics().stringWidth(String.valueOf(homeTeamOdd));
+                        int text3X = WIDTH / 4 - (text3Width / 2);
+                        int text3Y = middleY + scale * 140;
+                        g2d.drawString(String.valueOf(homeTeamOdd), text3X, text3Y);
 
-                    Double drawOdd = odd.draw();
-                    int text4Width = g2d.getFontMetrics().stringWidth(String.valueOf(drawOdd));
+                        Double drawOdd = odd.draw();
+                        int text4Width = g2d.getFontMetrics().stringWidth(String.valueOf(drawOdd));
+                        int text4X = (WIDTH / 2) - (text4Width / 2);
+                        int text4Y = middleY + scale * 140;
+                        g2d.drawString(String.valueOf(drawOdd), text4X, text4Y);
+
+                        Double awayTeamOdd = odd.away();
+                        int text5Width = g2d.getFontMetrics().stringWidth(String.valueOf(awayTeamOdd));
+                        int text5X = WIDTH * 3 / 4 - (text5Width / 2);
+                        int text5Y = middleY + scale * 140;
+                        g2d.drawString(String.valueOf(awayTeamOdd), text5X, text5Y);
+
+                        g2d.setColor(new Color(255, 255, 255, 50));
+                        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                        int rectWidth = scale * 80;
+                        int rectHeight = scale * 40;
+                        int arcRadius = scale * 20;
+
+                        g2d.fillRoundRect(WIDTH / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                        g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                        g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                    }
+                }
+                case "yourPredict" -> {
+                    font = new Font("Arial", Font.BOLD, scale * 20);
+                    g2d.setFont(font);
+                    String message = "ТВОЙ ПРОГНОЗ";
+                    int text4Width = g2d.getFontMetrics().stringWidth(message);
                     int text4X = (WIDTH / 2) - (text4Width / 2);
                     int text4Y = middleY + scale * 140;
-                    g2d.drawString(String.valueOf(drawOdd), text4X, text4Y);
-
-                    Double awayTeamOdd = odd.away();
-                    int text5Width = g2d.getFontMetrics().stringWidth(String.valueOf(awayTeamOdd));
-                    int text5X = WIDTH * 3 / 4 - (text5Width / 2);
-                    int text5Y = middleY + scale * 140;
-                    g2d.drawString(String.valueOf(awayTeamOdd), text5X, text5Y);
-
-                    g2d.setColor(new Color(255, 255, 255, 50));
-                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                    int rectWidth = scale * 80;
-                    int rectHeight = scale * 40;
-                    int arcRadius = scale * 20;
-
-                    g2d.fillRoundRect(WIDTH / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
-                    g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
-                    g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                    g2d.drawString(message, text4X, text4Y);
                 }
-            } else if (method.equals("yourPredict")) {
-                font = new Font("Arial", Font.BOLD, scale * 20);
-                g2d.setFont(font);
-                String message = "ТВОЙ ПРОГНОЗ";
-                int text4Width = g2d.getFontMetrics().stringWidth(message);
-                int text4X = (WIDTH / 2) - (text4Width / 2);
-                int text4Y = middleY + scale * 140;
-                g2d.drawString(message, text4X, text4Y);
-            } else if (method.equals("result")) {
-                font = loadFontFromFile(scale).deriveFont(scale * 20f);
-                g2d.setFont(font);
-                int text4Width = g2d.getFontMetrics().stringWidth(additionals);
-                int text4X = (WIDTH / 2) - (text4Width / 2);
-                int text4Y = middleY + scale * 140;
-                g2d.drawString(additionals, text4X, text4Y);
+                case "result" -> {
+                    font = loadFontFromFile(scale).deriveFont(scale * 16f);
+                    g2d.setFont(font);
+
+                    int textY = middleY + scale * 140;
+                    int offsetX = (WIDTH / 2) - (scale * 112);
+                    int offsetY = scale * 22;
+                    int spacing = scale * 8;
+
+                    for (int i = 0; i < results.size(); i++) {
+                        String result = results.get(i).login + " " + results.get(i).predict + " [" + results.get(i).point + "]";
+                        String[] parts = result.split(" ");
+
+                        int x = offsetX + (i % 2) * (WIDTH / 4);
+                        for (String part : parts) {
+                            g2d.drawString(part, x, textY + (i / 2) * offsetY);
+                            x += g2d.getFontMetrics().stringWidth(part) + spacing;
+                        }
+                    }
+
+                    int backgroundWidth = WIDTH / 2;
+                    int backgroundHeight = (image.getHeight() / 4) + (scale * 10);
+                    int backgroundX = (WIDTH / 2) - backgroundWidth / 2;
+                    int backgroundY = image.getHeight() - backgroundHeight + scale * 10;
+
+                    g2d.setColor(new Color(255, 255, 255, 30));
+                    int arcWidth = scale * 10;
+                    int arcHeight = scale * 10;
+                    g2d.fillRoundRect(backgroundX, backgroundY, backgroundWidth, backgroundHeight, arcWidth, arcHeight);
+                }
             }
 
             g2d.dispose();
@@ -367,6 +396,10 @@ public class NotificationService {
     }
 
     private record TeamColor(Color home, Color away, Color third) {
+    }
+
+    private record Result(String login, String predict, int point) {
+
     }
 
     private Font loadFontFromFile(int scale) {
