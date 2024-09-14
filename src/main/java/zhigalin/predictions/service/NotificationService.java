@@ -116,27 +116,22 @@ public class NotificationService {
                 Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
                 Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
                 predictionService.forceUpdatePoints(match);
-                StringBuilder builder = new StringBuilder();
                 if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
                     centerInfo = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
                     List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
-                    predictions.sort(Comparator.comparingInt(Prediction::getPoints));
-                    for (Prediction prediction : predictions) {
-                        User user = userService.findById(prediction.getUserId());
+                    predictions.sort(Comparator.comparingInt(Prediction::getPoints).reversed());
+
+                    List<String> results = predictions.stream().map(prediction -> {
+                        int userId = prediction.getUserId();
+                        User user = DaoUtil.USERS.get(userId);
                         String predict = String.join("",
                                 prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : " ",
                                 ":",
                                 prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : " "
                         );
+                        return String.join(" ", user.getLogin().substring(0, 3).toUpperCase(), predict, prediction.getPoints() + " pts");
+                    }).toList();
 
-                        builder.append(user.getLogin().substring(0, 3).toUpperCase())
-                                .append(" ")
-                                .append(predict)
-                                .append(" ")
-                                .append(prediction.getPoints())
-                                .append(" p.")
-                                .append("\t");
-                    }
                     notificationBan.add(match.getPublicId());
                     MultipartBody body = Unirest.post(urlPhoto)
                             .headers(Map.of("accept", "application/json",
@@ -144,7 +139,7 @@ public class NotificationService {
                                     )
                             )
                             .queryString("chat_id", chatId)
-                            .queryString("caption", "Матч окончен")
+                            .queryString("caption", "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен")
                             .field("photo", new File(Objects.requireNonNull(
                                     createImage(
                                             match.getPublicId(),
@@ -152,8 +147,7 @@ public class NotificationService {
                                             match.getAwayTeamId(),
                                             centerInfo,
                                             "result",
-                                            builder.toString()
-
+                                            String.join(" | ", results)
                                     )
                             )));
                     HttpResponse<String> response = body.asString();
@@ -302,7 +296,7 @@ public class NotificationService {
                 int text4Y = middleY + scale * 140;
                 g2d.drawString(message, text4X, text4Y);
             } else if (method.equals("result")) {
-                font = loadFontFromFile(scale).deriveFont(scale * 10f);
+                font = loadFontFromFile(scale).deriveFont(scale * 20f);
                 g2d.setFont(font);
                 int text4Width = g2d.getFontMetrics().stringWidth(additionals);
                 int text4X = (WIDTH / 2) - (text4Width / 2);
