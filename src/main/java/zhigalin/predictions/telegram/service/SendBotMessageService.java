@@ -169,7 +169,8 @@ public class SendBotMessageService {
                         match.getHomeTeamId(),
                         match.getAwayTeamId(),
                         homePredict + ":" + awayPredict,
-                        true
+                        "yourPredict",
+                        null
                 )
         )));
 
