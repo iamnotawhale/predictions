@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -44,6 +46,7 @@ import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
@@ -54,8 +57,6 @@ import static zhigalin.predictions.util.ColorComparator.similarTo;
 
 @Service
 public class NotificationService {
-    private final PredictionService predictionService;
-    private final PanicSender panicSender;
     @Value("${bot.urlMessage}")
     private String urlMessage;
     @Value("${bot.urlPhoto}")
@@ -63,18 +64,27 @@ public class NotificationService {
     @Value("${bot.chatId}")
     private String chatId;
 
+    private final PredictionService predictionService;
+    private final PanicSender panicSender;
+    private final OddsService oddsService;
     private final UserService userService;
     private final MatchService matchService;
     private final ObjectMapper objectMapper;
-    private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
     private final Map<String, TeamColor> teamColors = new HashMap<>();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+
+    private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
     private final Set<Integer> notificationBan = new HashSet<>();
+
+    private static final Map<Integer, Map<Integer, Map<String, Double>>> CORDS = new LinkedHashMap<>();
 
     private static final int WIDTH = 1024;
     private static final int HEIGHT = 512;
 
-    public NotificationService(UserService userService, MatchService matchService, PredictionService predictionService, ObjectMapper objectMapper, PanicSender panicSender) {
+    public NotificationService(
+            UserService userService, MatchService matchService, PredictionService predictionService,
+            ObjectMapper objectMapper, PanicSender panicSender, OddsService oddsService
+    ) {
         this.userService = userService;
         this.matchService = matchService;
         this.objectMapper = objectMapper;
@@ -82,6 +92,122 @@ public class NotificationService {
         notificationBLackList.put(90, new ArrayList<>());
         this.predictionService = predictionService;
         this.panicSender = panicSender;
+        this.oddsService = oddsService;
+    }
+
+//    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
+    @Scheduled(cron = "0 0 9 * * *")
+    private void sendTodayMatchNotification() {
+        List<Match> todayMatches = matchService.findAllByTodayDate();
+        if (!todayMatches.isEmpty()) {
+            oddsService.oddsInit(todayMatches);
+
+            List<MatchRecord> list = todayMatches.stream()
+                    .map(match -> new MatchRecord(
+                                    match.getHomeTeamId(),
+                                    match.getAwayTeamId(),
+                                    match.getWeekId(),
+                                    match.getLocalDateTime()
+                            )
+                    )
+                    .sorted(Comparator.comparingInt(MatchRecord::weekId).thenComparing(MatchRecord::localDateTime))
+                    .toList();
+
+            MultipartBody body = Unirest.post(urlPhoto)
+                    .headers(Map.of("accept", "application/json",
+                                    "content-type", "application/json"
+                            )
+                    )
+                    .queryString("chat_id", chatId)
+                    .queryString("caption", "Сегодняшние матчи")
+                    .field("photo", new File(Objects.requireNonNull(
+                            createTodayMatchesImage(list)
+                    )));
+            HttpResponse<String> response = body.asString();
+            if (response.getStatus() == 200) {
+                serverLogger.info("Message today's match notification has been send");
+            } else {
+                serverLogger.warn("Don't send today's match notification");
+            }
+        }
+    }
+
+    private String createTodayMatchesImage(List<MatchRecord> list) {
+        try {
+            BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = image.createGraphics();
+
+            Map<Integer, Map<String, Double>> map = CORDS.get(list.size());
+            for (Map.Entry<Integer, Map<String, Double>> entry : map.entrySet()) {
+                Integer matchNum = entry.getKey();
+                Map<String, Double> cordInfo = entry.getValue();
+
+                MatchRecord matchRecord = list.get(matchNum - 1);
+
+                double width = (double) cordInfo.get("width");
+                double height = (double) cordInfo.get("height");
+
+                BufferedImage block = generateWithGradient(
+                        (int) (WIDTH * width),
+                        (int) (HEIGHT * height),
+                        matchRecord.homeTeamId,
+                        matchRecord.awayTeamId
+                );
+
+                int blockHeight = block.getHeight();
+                int blockWidth = block.getWidth();
+
+                int scale = (int) ((1 / width) * (1 / height));
+
+                int blockScale = switch (scale) {
+                    case 16 -> 1;
+                    case 9, 8, 6, 5 -> 2;
+                    case 4, 3 -> 3;
+                    case 2 -> 4;
+                    case 1 -> 5;
+                    default -> throw new IllegalStateException("Unexpected value: " + scale);
+                };
+
+                BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + matchRecord.homeTeamId + ".webp").getInputStream());
+                BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + matchRecord.awayTeamId + ".webp").getInputStream());
+
+                Graphics2D blockG2d = block.createGraphics();
+
+                int blockMiddleY = (blockHeight - blockScale * 34) / 2;
+                blockG2d.drawImage(homeTeamPic, blockWidth / 4 - blockScale * 20, blockMiddleY, blockScale * 40, blockScale * 40, null);
+                blockG2d.drawImage(awayTeamPic, blockWidth * 3 / 4 - blockScale * 20, blockMiddleY, blockScale * 40, blockScale * 40, null);
+
+                blockG2d.setColor(Color.WHITE);
+                Font font = loadFontFromFile(blockScale / 2).deriveFont(blockScale * 8f);
+                blockG2d.setFont(font);
+
+                int textWidth = blockG2d.getFontMetrics().stringWidth("TOUR " + matchRecord.weekId);
+                int textX = (blockWidth / 2) - (textWidth / 2);
+                blockG2d.drawString("TOUR " + matchRecord.weekId, textX, blockMiddleY + blockScale * 12);
+
+                font = loadFontFromFile(blockScale / 2).deriveFont(blockScale * 15f);
+                blockG2d.setFont(font);
+
+                String time = DateTimeFormatter.ofPattern("HH:mm").format(matchRecord.localDateTime);
+                textWidth = blockG2d.getFontMetrics().stringWidth(time);
+                textX = (blockWidth / 2) - (textWidth / 2);
+                blockG2d.drawString(time, textX, blockMiddleY + blockScale * 25);
+                blockG2d.dispose();
+
+                g2d.drawImage(block, null, (int) (WIDTH * (double) cordInfo.get("x")), (int) (HEIGHT * (double) cordInfo.get("y")));
+            }
+            g2d.dispose();
+
+            File tempFile = File.createTempFile("combined", ".png");
+            ImageIO.write(image, "png", tempFile);
+
+            return tempFile.getAbsolutePath();
+        } catch (Exception e) {
+            String message = "Error creating image";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
+            return null;
+        }
     }
 
     public void check() throws UnirestException, IOException {
@@ -169,6 +295,33 @@ public class NotificationService {
         }
     }
 
+    public void weeklyResultNotification() {
+        int id = DaoUtil.currentWeekId;
+        Map<String, Integer> currentWeekUsersPoints = predictionService.getWeeklyUsersPoints(id);
+        StringBuilder builder = new StringBuilder();
+        builder.append("Очки за тур: ").append("\n");
+        for (Map.Entry<String, Integer> entry : currentWeekUsersPoints.entrySet()) {
+            builder.append(entry.getKey().toUpperCase(), 0, 3).append(" ")
+                    .append(entry.getValue()).append(" pts").append("\n");
+        }
+        try {
+            HttpResponse<String> response = Unirest.get(urlMessage)
+                    .queryString("chat_id", chatId)
+                    .queryString("text", builder.toString())
+                    .queryString("parse_mode", "Markdown")
+                    .asString();
+            if (response.getStatus() == 200) {
+                serverLogger.info("Message weekly results notification has been send");
+            } else {
+                serverLogger.warn("Don't send weekly results notification");
+            }
+        } catch (UnirestException e) {
+            String message = "Sending weekly result notification message error";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
+        }
+    }
+
     private void sendNotification(Notification notification) throws UnirestException, IOException {
         Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
         long minutesBeforeMatch = Duration.between(LocalDateTime.now(), match.getLocalDateTime()).toMinutes();
@@ -224,10 +377,10 @@ public class NotificationService {
         }
     }
 
-    public String createImage(int matchPublicId, int homeTeamId, int awayTeamId, String centerInfo, String method, List<Result> results) throws UnirestException {
+    public String createImage(Integer matchPublicId, Integer homeTeamId, Integer awayTeamId, String centerInfo, String method, List<Result> results) throws UnirestException {
         try {
             int scale = WIDTH / 512;
-            BufferedImage image = generateWithGradient(homeTeamId, awayTeamId);
+            BufferedImage image = generateWithGradient(WIDTH, HEIGHT, homeTeamId, awayTeamId);
             Graphics2D g2d = image.createGraphics();
 
             BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + homeTeamId + ".webp").getInputStream());
@@ -347,8 +500,8 @@ public class NotificationService {
         }
     }
 
-    private BufferedImage generateWithGradient(int homeTeamId, int awayTeamId) {
-        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+    private BufferedImage generateWithGradient(int width, int height, int homeTeamId, int awayTeamId) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
         Color homeColors = teamColors.get(String.valueOf(homeTeamId)).home();
         Color awayColors = teamColors.get(String.valueOf(awayTeamId)).away();
@@ -369,9 +522,11 @@ public class NotificationService {
 
     @PostConstruct
     public void initTeamColors() {
-        try (InputStream input = getClass().getClassLoader().getResourceAsStream("team_colors.json")) {
-            if (input != null) {
-                JsonNode jsonNode = new ObjectMapper().readTree(input);
+        try (InputStream teamColorsInput = getClass().getClassLoader().getResourceAsStream("team_colors.json");
+             InputStream matchesLocationInput = getClass().getClassLoader().getResourceAsStream("matches_location.json")) {
+            ObjectMapper objectMapper = new ObjectMapper();
+            if (teamColorsInput != null) {
+                JsonNode jsonNode = objectMapper.readTree(teamColorsInput);
                 jsonNode.fields().forEachRemaining(teamNode -> {
                     String teamId = teamNode.getKey();
                     JsonNode teamColorNode = teamNode.getValue();
@@ -388,6 +543,31 @@ public class NotificationService {
                     );
                 });
             }
+            if (matchesLocationInput != null) {
+                JsonNode jsonNode = objectMapper.readTree(matchesLocationInput);
+                jsonNode.fields().forEachRemaining(numberNode -> {
+                    int numberOfMatches = Integer.parseInt(numberNode.getKey());
+                    Map<Integer, Map<String, Double>> matches = new HashMap<>();
+                    JsonNode matchesNode = numberNode.getValue();
+                    matchesNode.fields().forEachRemaining(match -> {
+
+                        int matchNum = Integer.parseInt(match.getKey());
+                        JsonNode cordsInfo = match.getValue();
+                        double x = cordsInfo.get("x").asDouble();
+                        double y = cordsInfo.get("y").asDouble();
+                        double height = cordsInfo.get("height").asDouble();
+                        double width = cordsInfo.get("width").asDouble();
+
+                        Map<String, Double> cords = new HashMap<>();
+                        cords.put("x", x);
+                        cords.put("y", y);
+                        cords.put("height", height);
+                        cords.put("width", width);
+                        matches.put(matchNum, cords);
+                    });
+                    CORDS.put(numberOfMatches, matches);
+                });
+            }
         } catch (Exception e) {
             String message = "Error creating team colors";
             panicSender.sendPanic(message, e);
@@ -402,11 +582,14 @@ public class NotificationService {
 
     }
 
+    private record MatchRecord(int homeTeamId, int awayTeamId, int weekId, LocalDateTime localDateTime) {
+    }
+
     private Font loadFontFromFile(int scale) {
         try {
             return Font.createFont(Font.TRUETYPE_FONT, new ClassPathResource("static/pl-bold.ttf").getInputStream());
         } catch (Exception e) {
-            System.err.println("Error loading font: " + e.getMessage());
+            serverLogger.error("Error loading font: {}", e.getMessage());
             return new Font("Arial", Font.BOLD, scale * 30);
         }
     }

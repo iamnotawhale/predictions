@@ -9,13 +9,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -44,37 +41,25 @@ import zhigalin.predictions.model.input.Response;
 import zhigalin.predictions.model.input.ResponseTeam;
 import zhigalin.predictions.model.input.Root;
 import zhigalin.predictions.model.news.News;
-import zhigalin.predictions.model.predict.Prediction;
-import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
-import zhigalin.predictions.service.odds.OddsService;
-import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
 
 @Service
 public class DataInitService {
     @Value("${api.football.token}")
     private String apiFootballToken;
-    @Value("${bot.chatId}")
-    private String chatId;
-    @Value("${bot.urlMessage}")
-    private String url;
     @Value("${season}")
     private int season;
 
-    private final UserService userService;
     private final TeamService teamService;
     private final WeekService weekService;
     private final MatchService matchService;
-    private final OddsService oddsService;
     private final HeadToHeadService headToHeadService;
     private final NotificationService notificationService;
-    private final PredictionService predictionService;
     private final PanicSender panicSender;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
@@ -83,72 +68,19 @@ public class DataInitService {
     private static final ObjectMapper mapper = new ObjectMapper();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
 
-    public DataInitService(TeamService teamService, WeekService weekService,
-                           MatchService matchService, HeadToHeadService headToHeadService,
-                           NotificationService notificationService, PanicSender panicSender,
-                           PredictionService predictionService, UserService userService, OddsService oddsService) {
+    public DataInitService(TeamService teamService, WeekService weekService, MatchService matchService,
+                           HeadToHeadService headToHeadService, NotificationService notificationService,
+                           PanicSender panicSender
+    ) {
         this.teamService = teamService;
         this.weekService = weekService;
         this.matchService = matchService;
         this.headToHeadService = headToHeadService;
         this.notificationService = notificationService;
         this.panicSender = panicSender;
-        this.predictionService = predictionService;
-        this.userService = userService;
-        this.oddsService = oddsService;
     }
 
-    @Scheduled(cron = "0 10 11 * * *")
-    private void sendTodayMatchNotification() {
-        int tour = 0;
-        List<Match> todayMatches = matchService.findAllByTodayDate();
-        StringBuilder builder = new StringBuilder();
-        if (!todayMatches.isEmpty()) {
-            oddsService.oddsInit(todayMatches);
-            builder.append("`").append("МАТЧИ СЕГОДНЯ").append("`").append("\n\n");
-            for (Match match : todayMatches) {
-                builder.append("`");
-                if (match.getWeekId() != tour) {
-                    builder.append(match.getWeekId()).append(" тур").append("\n");
-                    tour = match.getWeekId();
-                }
-                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
-                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
-                builder.append(homeTeam.getCode()).append(" ");
-                if (!Objects.equals(match.getStatus(), "ns") && !Objects.equals(match.getStatus(), "pst")) {
-                    builder.append(match.getHomeTeamScore()).append(" - ")
-                            .append(match.getAwayTeamScore()).append(" ")
-                            .append(awayTeam.getCode()).append(" ")
-                            .append(match.getStatus()).append(" ");
-                } else if (Objects.equals(match.getStatus(), "pst")) {
-                    builder.append("- ").append(awayTeam.getCode())
-                            .append(" ⏰ ").append(match.getStatus());
-                } else {
-                    builder.append("- ").append(awayTeam.getCode())
-                            .append(" ⏱ ").append(match.getLocalDateTime().toLocalTime());
-                }
-                builder.append("`").append("\n");
-            }
-            try {
-                HttpResponse<String> response = Unirest.get(url)
-                        .queryString("chat_id", chatId)
-                        .queryString("text", builder.toString())
-                        .queryString("parse_mode", "Markdown")
-                        .asString();
-                if (response.getStatus() == 200) {
-                    serverLogger.info("Message today's match notification has been send");
-                } else {
-                    serverLogger.warn("Don't send today's match notification");
-                }
-            } catch (UnirestException e) {
-                String message = "Sending today matches notification message error";
-                panicSender.sendPanic(message, e);
-                serverLogger.error("{}: {}", message, e.getMessage());
-            }
-        }
-    }
-
-//    @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
+    //        @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
     @Scheduled(cron = "0 */6 * * * *")
     private void start() {
         try {
@@ -165,7 +97,7 @@ public class DataInitService {
         if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
                                || Objects.equals(m.getStatus(), "pst"))) {
-            weeklyResultNotification();
+            notificationService.weeklyResultNotification();
             weekService.updateCurrent();
             matchDateTimeStatusUpdate();
         }
@@ -181,15 +113,14 @@ public class DataInitService {
             Root root = mapper.readValue(resp.getBody(), Root.class);
             for (Response response : root.getResponse()) {
                 Fixture fixture = response.getFixture();
-                String status = fixture.getStatus().getMyshort();
-                switch (status) {
-                    case "PST" -> status = "pst";
-                    case "NS" -> status = "ns";
-                    case "FT" -> status = "ft";
-                    case "HT" -> status = "ht";
-                    case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
-                    default -> status = null;
-                }
+                String status = switch (fixture.getStatus().getMyshort()) {
+                    case "PST" -> "pst";
+                    case "NS" -> "ns";
+                    case "FT" -> "ft";
+                    case "HT" -> "ht";
+                    case "1H", "2H" -> fixture.getStatus().getElapsed() + "'";
+                    default -> null;
+                };
                 if (response.getGoals().getHome() != null) {
                     Integer homeTeamScore = response.getGoals().getHome();
                     Integer awayTeamScore = response.getGoals().getAway();
@@ -208,33 +139,6 @@ public class DataInitService {
                             .build());
                 }
             }
-        }
-    }
-
-    private void weeklyResultNotification() {
-        int id = DaoUtil.currentWeekId;
-        Map<String, Integer> currentWeekUsersPoints = predictionService.getWeeklyUsersPoints(id);
-        StringBuilder builder = new StringBuilder();
-        builder.append("Очки за тур: ").append("\n");
-        for (Map.Entry<String, Integer> entry : currentWeekUsersPoints.entrySet()) {
-            builder.append(entry.getKey().toUpperCase(), 0, 3).append(" ")
-                    .append(entry.getValue()).append(" pts").append("\n");
-        }
-        try {
-            HttpResponse<String> response = Unirest.get(url)
-                    .queryString("chat_id", chatId)
-                    .queryString("text", builder.toString())
-                    .queryString("parse_mode", "Markdown")
-                    .asString();
-            if (response.getStatus() == 200) {
-                serverLogger.info("Message weekly results notification has been send");
-            } else {
-                serverLogger.warn("Don't send weekly results notification");
-            }
-        } catch (UnirestException e) {
-            String message = "Sending weekly result notification message error";
-            panicSender.sendPanic(message, e);
-            serverLogger.error("{}: {}", message, e.getMessage());
         }
     }
 
