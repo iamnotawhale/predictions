@@ -126,9 +126,9 @@ public class NotificationService {
                                 int userId = prediction.getUserId();
                                 User user = DaoUtil.USERS.get(userId);
                                 String predict = String.join("",
-                                        prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : " ",
+                                        prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : "",
                                         ":",
-                                        prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : " "
+                                        prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : ""
                                 );
                                 return new Result(user.getLogin().substring(0, 3), predict, prediction.getPoints());
                             })
