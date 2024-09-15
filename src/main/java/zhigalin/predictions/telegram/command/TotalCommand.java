@@ -19,7 +19,7 @@ public class TotalCommand implements Command {
         String[] totals = text.split(REGEX);
         StringBuilder builder = new StringBuilder();
         Map<String, Integer> usersPoints;
-        if (totals.length > 2) {
+        if (totals.length > 3) {
             String weekId = totals[2];
             usersPoints = predictionService.getWeeklyUsersPoints(Integer.parseInt(weekId));
             builder.append("`").append("Очки за ").append(weekId).append(" тур").append("\n");
