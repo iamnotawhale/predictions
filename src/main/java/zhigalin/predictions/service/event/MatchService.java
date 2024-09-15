@@ -168,5 +168,9 @@ public class MatchService {
     public List<Integer> predictableTodayMatchesByUserTelegramIdAndWeekId(String telegramId) {
         return matchDao.getPredictableTodayMatchIdsByUserTelegram(telegramId);
     }
+
+    public List<Match> findBetweenTwoDates(LocalDateTime from, LocalDateTime to) {
+        return matchDao.findAllBetweenToDates(from, to);
+    }
 }
 
