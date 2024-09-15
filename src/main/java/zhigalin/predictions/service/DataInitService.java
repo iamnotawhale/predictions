@@ -98,7 +98,7 @@ public class DataInitService {
         this.oddsService = oddsService;
     }
 
-    @Scheduled(cron = "0 15 10 * * *")
+    @Scheduled(cron = "0 30 10 * * *")
     private void sendTodayMatchNotification() {
         int tour = 0;
         List<Match> todayMatches = matchService.findAllByTodayDate();
