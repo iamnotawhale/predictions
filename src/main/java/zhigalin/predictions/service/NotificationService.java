@@ -1,10 +1,6 @@
 package zhigalin.predictions.service;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.GradientPaint;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -22,11 +18,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import javax.imageio.ImageIO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import javax.imageio.ImageIO;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.MultipartBody;
 import kong.unirest.core.Unirest;
@@ -79,7 +76,7 @@ public class NotificationService {
     private static final Map<Integer, Map<Integer, Map<String, Double>>> CORDS = new LinkedHashMap<>();
 
     private static final int WIDTH = 1024;
-    private static final int HEIGHT = 512;
+    private static final int HEIGHT = 1024;
 
     public NotificationService(
             UserService userService, MatchService matchService, PredictionService predictionService,
@@ -95,13 +92,13 @@ public class NotificationService {
         this.oddsService = oddsService;
     }
 
-//    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
-    @Scheduled(cron = "0 0 9 * * *")
+    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
+//    @Scheduled(cron = "0 0 9 * * *")
     private void sendTodayMatchNotification() {
         List<Match> todayMatches = matchService.findAllByTodayDate();
         if (!todayMatches.isEmpty()) {
-            oddsService.oddsInit(todayMatches);
-
+//            oddsService.oddsInit(todayMatches);
+//
             List<MatchRecord> list = todayMatches.stream()
                     .map(match -> new MatchRecord(
                                     match.getHomeTeamId(),
@@ -121,15 +118,112 @@ public class NotificationService {
                     .queryString("chat_id", chatId)
                     .queryString("caption", "Сегодняшние матчи")
                     .field("photo", new File(Objects.requireNonNull(
-                            createTodayMatchesImage(list)
+                            createTodayMatchesImageNew(list)
                     )));
             HttpResponse<String> response = body.asString();
             if (response.getStatus() == 200) {
                 serverLogger.info("Message today's match notification has been send");
             } else {
-                serverLogger.warn("Don't send today's match notification");
+                serverLogger.warn("Don't send today's match notification. Reason: {}", response.getBody());
             }
         }
+    }
+
+    private String createTodayMatchesImageNew(List<MatchRecord> list) {
+        Map<Integer, List<MatchRecord>> weeksMatchRecords = list.stream()
+                .collect(Collectors.groupingBy(MatchRecord::weekId));
+        try {
+            BufferedImage image = generateWithBackground(WIDTH, HEIGHT, new Color(44, 0, 48));
+            Graphics2D g2d = image.createGraphics();
+
+            int middleX = WIDTH / 2;
+            int weekBlockY = 20;
+            for (Map.Entry<Integer, List<MatchRecord>> entry : weeksMatchRecords.entrySet()) {
+                int weekId = entry.getKey();
+                List<MatchRecord> matchRecords = entry.getValue();
+                int matchCount = matchRecords.size();
+                int elementsCount = matchCount + 1;
+
+                BufferedImage weekBlock = new BufferedImage(WIDTH, elementsCount * 90, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D wBGraphics = weekBlock.createGraphics();
+
+                wBGraphics.setColor(Color.WHITE);
+                Font font = loadFontFromFile(1).deriveFont(40f);
+                wBGraphics.setFont(font);
+
+                String message = "WEEK " + weekId;
+                int weekTextWidth = wBGraphics.getFontMetrics().stringWidth(message);
+                int weekTextX = middleX - weekTextWidth / 2;
+                int weekTextY = font.getSize();
+                wBGraphics.drawString(message, weekTextX, weekTextY);
+
+                for (int matchNum = 1; matchNum < elementsCount; matchNum++) {
+                    MatchRecord matchRecord = matchRecords.get(matchNum - 1);
+
+                    BufferedImage matchBlock = new BufferedImage((int) (WIDTH * 0.8), 80, BufferedImage.TYPE_INT_ARGB);
+                    int matchBlockHeight = matchBlock.getHeight();
+                    int matchBlockWidth = matchBlock.getWidth();
+
+                    BufferedImage homeTeamPic = scaleImage(ImageIO.read(new ClassPathResource("static/img/teams/" + matchRecord.homeTeamId + ".webp").getInputStream()), matchBlockHeight);
+                    BufferedImage awayTeamPic = scaleImage(ImageIO.read(new ClassPathResource("static/img/teams/" + matchRecord.awayTeamId + ".webp").getInputStream()), matchBlockHeight);
+
+                    Graphics2D blockG2d = matchBlock.createGraphics();
+//                    this
+                    BufferedImage fill = generateWithGradient(matchBlockWidth - matchBlockHeight, matchBlockHeight - 20, matchRecord.homeTeamId, matchRecord.awayTeamId);
+                    blockG2d.drawImage(fill, matchBlockHeight / 2, 10, null);
+//                    or this
+//                    blockG2d.setPaint(new Color(255, 255, 255, 30));
+//                    blockG2d.fillRect(matchBlockHeight / 2, 10, matchBlockWidth - matchBlockHeight, matchBlockHeight - 20);
+
+                    blockG2d.setPaint(new Color(255, 255, 255, 100));
+                    blockG2d.fillRect(matchBlockWidth / 2 - 80, 10, 160, matchBlockHeight - 20);
+
+                    blockG2d.setColor(Color.WHITE);
+                    font = loadFontFromFile(2).deriveFont(80f);
+                    blockG2d.setFont(font);
+
+                    String homeTeamCode = DaoUtil.TEAMS.get(matchRecord.homeTeamId).getCode();
+                    FontMetrics fontMetrics = blockG2d.getFontMetrics();
+                    int text1Width = fontMetrics.stringWidth(homeTeamCode);
+                    int text1X = matchBlockWidth / 2 - 100 - text1Width;
+                    blockG2d.drawString(homeTeamCode, text1X, matchBlockHeight - fontMetrics.getMaxDescent());
+
+                    String awayTeamCode = DaoUtil.TEAMS.get(matchRecord.awayTeamId).getCode();
+                    int text2X = matchBlockWidth / 2 + 100;
+                    blockG2d.drawString(awayTeamCode, text2X, matchBlockHeight - fontMetrics.getMaxDescent());
+
+                    blockG2d.drawImage(homeTeamPic, null, 0, 0);
+                    blockG2d.drawImage(awayTeamPic, null, matchBlockWidth - matchBlockHeight, 0);
+                    blockG2d.dispose();
+
+                    wBGraphics.drawImage(matchBlock, null, middleX - matchBlockWidth / 2, matchNum * 90);
+                }
+                wBGraphics.dispose();
+                g2d.drawImage(weekBlock, null, 0, weekBlockY);
+                weekBlockY += elementsCount * 90;
+            }
+
+            g2d.dispose();
+
+            File tempFile = File.createTempFile("combined", ".png");
+            ImageIO.write(image, "png", tempFile);
+
+            return tempFile.getAbsolutePath();
+        } catch (Exception e) {
+            String message = "Error creating image";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
+            return null;
+        }
+    }
+
+    public static BufferedImage scaleImage(BufferedImage image, int height) {
+        BufferedImage scaledImage = new BufferedImage(height, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = scaledImage.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g2d.drawImage(image, 0, 0, height, height, null);
+        g2d.dispose();
+        return scaledImage;
     }
 
     private String createTodayMatchesImage(List<MatchRecord> list) {
@@ -512,9 +606,22 @@ public class NotificationService {
 
         Graphics2D g2d = image.createGraphics();
 
-        GradientPaint gradient = new GradientPaint(0, 0, homeColors, WIDTH, 0, awayColors);
+        GradientPaint gradient = new GradientPaint(0, 0, homeColors, width, 0, awayColors);
         g2d.setPaint(gradient);
-        g2d.fillRect(0, 0, WIDTH, HEIGHT);
+        g2d.fillRect(0, 0, width, height);
+
+        g2d.dispose();
+        return image;
+    }
+
+    private BufferedImage generateWithBackground(int width, int height, Color color) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+        Graphics2D g2d = image.createGraphics();
+
+        GradientPaint gradient = new GradientPaint(0, 0, color, WIDTH, 0, color);
+        g2d.setPaint(gradient);
+        g2d.fillRect(0, 0, width, width);
 
         g2d.dispose();
         return image;
