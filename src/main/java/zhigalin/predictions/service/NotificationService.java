@@ -11,6 +11,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -132,12 +133,14 @@ public class NotificationService {
     private String createTodayMatchesImageNew(List<MatchRecord> list) {
         Map<Integer, List<MatchRecord>> weeksMatchRecords = list.stream()
                 .collect(Collectors.groupingBy(MatchRecord::weekId));
+        int allRows = list.size() + weeksMatchRecords.size();
+        int fullSize = allRows * 90;
         try {
             BufferedImage image = generateWithBackground(WIDTH, HEIGHT, new Color(44, 0, 48));
             Graphics2D g2d = image.createGraphics();
 
             int middleX = WIDTH / 2;
-            int weekBlockY = 20;
+            int weekBlockY = (HEIGHT - fullSize) / 2;
             for (Map.Entry<Integer, List<MatchRecord>> entry : weeksMatchRecords.entrySet()) {
                 int weekId = entry.getKey();
                 List<MatchRecord> matchRecords = entry.getValue();
@@ -148,13 +151,13 @@ public class NotificationService {
                 Graphics2D wBGraphics = weekBlock.createGraphics();
 
                 wBGraphics.setColor(Color.WHITE);
-                Font font = loadFontFromFile(1).deriveFont(40f);
+                Font font = loadFontFromFile(1).deriveFont(50f);
                 wBGraphics.setFont(font);
 
                 String message = "WEEK " + weekId;
                 int weekTextWidth = wBGraphics.getFontMetrics().stringWidth(message);
                 int weekTextX = middleX - weekTextWidth / 2;
-                int weekTextY = font.getSize();
+                int weekTextY = wBGraphics.getFontMetrics().getHeight();
                 wBGraphics.drawString(message, weekTextX, weekTextY);
 
                 for (int matchNum = 1; matchNum < elementsCount; matchNum++) {
@@ -178,12 +181,21 @@ public class NotificationService {
                     blockG2d.setPaint(new Color(255, 255, 255, 100));
                     blockG2d.fillRect(matchBlockWidth / 2 - 80, 10, 160, matchBlockHeight - 20);
 
+                    font = loadFontFromFile(1).deriveFont(50f);
                     blockG2d.setColor(Color.WHITE);
+                    blockG2d.setFont(font);
+
+                    String time = DateTimeFormatter.ofPattern("HH:mm").format(matchRecord.localDateTime);
+                    FontMetrics fontMetrics = blockG2d.getFontMetrics();
+                    int timeWidth = blockG2d.getFontMetrics().stringWidth(time);
+                    int timeX = (matchBlockWidth - timeWidth) / 2;
+                    blockG2d.drawString(time, timeX, matchBlockHeight - fontMetrics.getDescent() - 10);
+
                     font = loadFontFromFile(2).deriveFont(80f);
                     blockG2d.setFont(font);
 
                     String homeTeamCode = DaoUtil.TEAMS.get(matchRecord.homeTeamId).getCode();
-                    FontMetrics fontMetrics = blockG2d.getFontMetrics();
+                    fontMetrics = blockG2d.getFontMetrics();
                     int text1Width = fontMetrics.stringWidth(homeTeamCode);
                     int text1X = matchBlockWidth / 2 - 100 - text1Width;
                     blockG2d.drawString(homeTeamCode, text1X, matchBlockHeight - fontMetrics.getMaxDescent());
