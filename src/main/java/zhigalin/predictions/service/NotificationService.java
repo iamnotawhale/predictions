@@ -1,6 +1,7 @@
 package zhigalin.predictions.service;
 
 import java.awt.*;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +14,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -75,6 +75,7 @@ public class NotificationService {
 
     private static final int WIDTH = 1024;
     private static final int HEIGHT = 1024;
+    private static final Color BACKGROUND_COLOR = new Color(44, 0, 48);
 
     public NotificationService(
             UserService userService, MatchService matchService, PredictionService predictionService,
@@ -90,7 +91,7 @@ public class NotificationService {
         this.oddsService = oddsService;
     }
 
-//    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
+    //            @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
     @Scheduled(cron = "0 0 9 * * *")
     private void sendTodayMatchNotification() {
         List<Match> todayMatches = matchService.findAllByTodayDate();
@@ -133,7 +134,7 @@ public class NotificationService {
         int allRows = list.size() + weeksMatchRecords.size();
         int fullSize = allRows * 90;
         try {
-            BufferedImage image = generateWithBackground(WIDTH, HEIGHT, new Color(44, 0, 48));
+            BufferedImage image = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
             Graphics2D g2d = image.createGraphics();
 
             int middleX = WIDTH / 2;
@@ -148,7 +149,7 @@ public class NotificationService {
                 Graphics2D wBGraphics = weekBlock.createGraphics();
 
                 wBGraphics.setColor(Color.WHITE);
-                Font font = loadFontFromFile(1, false).deriveFont(50f);
+                Font font = loadFontFromFile(false).deriveFont(50f);
                 wBGraphics.setFont(font);
 
                 String message = "WEEK " + weekId;
@@ -176,30 +177,36 @@ public class NotificationService {
 //                    blockG2d.fillRect(matchBlockHeight / 2, 10, matchBlockWidth - matchBlockHeight, matchBlockHeight - 20);
 
                     blockG2d.setPaint(new Color(255, 255, 255, 100));
-                    blockG2d.fillRect(matchBlockWidth / 2 - 80, 10, 160, matchBlockHeight - 20);
+                    blockG2d.fillRect(matchBlockWidth / 2 - 80, 10, 160, fill.getHeight());
 
-                    font = loadFontFromFile(1, false).deriveFont(50f);
+                    font = loadFontFromFile(false).deriveFont(50f);
                     blockG2d.setColor(Color.WHITE);
                     blockG2d.setFont(font);
+                    FontMetrics fontMetrics = blockG2d.getFontMetrics();
 
                     String time = DateTimeFormatter.ofPattern("HH:mm").format(matchRecord.localDateTime);
-                    FontMetrics fontMetrics = blockG2d.getFontMetrics();
-                    int timeWidth = blockG2d.getFontMetrics().stringWidth(time);
+                    Rectangle2D timeBounds = fontMetrics.getStringBounds(time, blockG2d);
+                    int timeWidth = fontMetrics.stringWidth(time);
                     int timeX = (matchBlockWidth - timeWidth) / 2;
-                    blockG2d.drawString(time, timeX, matchBlockHeight - fontMetrics.getDescent() - 10);
+                    int timeY = (int) ((double) matchBlockHeight / 2 - timeBounds.getHeight() / 2 - timeBounds.getY());
+                    blockG2d.drawString(time, timeX, timeY);
 
-                    font = loadFontFromFile(2, true).deriveFont(80f);
+                    font = loadFontFromFile(true).deriveFont(80f);
                     blockG2d.setFont(font);
+                    fontMetrics = blockG2d.getFontMetrics();
 
                     String homeTeamCode = DaoUtil.TEAMS.get(matchRecord.homeTeamId).getCode();
-                    fontMetrics = blockG2d.getFontMetrics();
+                    Rectangle2D homeBounds = fontMetrics.getStringBounds(homeTeamCode, blockG2d);
                     int text1Width = fontMetrics.stringWidth(homeTeamCode);
-                    int text1X = matchBlockWidth / 2 - 100 - text1Width;
-                    blockG2d.drawString(homeTeamCode, text1X, matchBlockHeight - 12);
+                    int homeX = matchBlockWidth / 2 - 100 - text1Width;
+                    int homeY = (int) ((double) matchBlockHeight / 2 - homeBounds.getHeight() / 2 - homeBounds.getY());
+                    blockG2d.drawString(homeTeamCode, homeX, homeY);
 
                     String awayTeamCode = DaoUtil.TEAMS.get(matchRecord.awayTeamId).getCode();
-                    int text2X = matchBlockWidth / 2 + 100;
-                    blockG2d.drawString(awayTeamCode, text2X, matchBlockHeight - 12);
+                    Rectangle2D awayBounds = fontMetrics.getStringBounds(awayTeamCode, blockG2d);
+                    int awayX = matchBlockWidth / 2 + 100;
+                    int awayY = (int) ((double) matchBlockHeight / 2 - awayBounds.getHeight() / 2 - awayBounds.getY());
+                    blockG2d.drawString(awayTeamCode, awayX, awayY);
 
                     blockG2d.drawImage(homeTeamPic, null, 0, 0);
                     blockG2d.drawImage(awayTeamPic, null, matchBlockWidth - matchBlockHeight, 0);
@@ -404,110 +411,171 @@ public class NotificationService {
 
     public String createImage(Integer matchPublicId, Integer homeTeamId, Integer awayTeamId, String centerInfo, String method, List<Result> results) throws UnirestException {
         try {
-            int scale = WIDTH / 512;
-            BufferedImage image = generateWithGradient(WIDTH, HEIGHT, homeTeamId, awayTeamId);
+            BufferedImage image = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
             Graphics2D g2d = image.createGraphics();
 
-            BufferedImage homeTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + homeTeamId + ".webp").getInputStream());
-            BufferedImage awayTeamPic = ImageIO.read(new ClassPathResource("static/img/teams/" + awayTeamId + ".webp").getInputStream());
+            BufferedImage matchBlock = new BufferedImage((int) (WIDTH * 0.90), 200, BufferedImage.TYPE_INT_ARGB);
+            int matchBlockHeight = matchBlock.getHeight();
+            int matchBlockWidth = matchBlock.getWidth();
 
-            int middleY = (image.getHeight() - scale * 100) / 2;
-            g2d.drawImage(homeTeamPic, WIDTH / 4 - scale * 50, middleY, scale * 100, scale * 100, null);
-            g2d.drawImage(awayTeamPic, WIDTH * 3 / 4 - scale * 50, middleY, scale * 100, scale * 100, null);
+            BufferedImage homeTeamPic = scaleImage(ImageIO.read(new ClassPathResource("static/img/teams/" + homeTeamId + ".webp").getInputStream()), matchBlockHeight);
+            BufferedImage awayTeamPic = scaleImage(ImageIO.read(new ClassPathResource("static/img/teams/" + awayTeamId + ".webp").getInputStream()), matchBlockHeight);
 
-            g2d.setColor(Color.WHITE);
-            Font font = loadFontFromFile(scale, false).deriveFont(scale * 30f);
-            g2d.setFont(font);
-            int textWidth = g2d.getFontMetrics().stringWidth(centerInfo);
-            int textX = (WIDTH / 2) - (textWidth / 2);
-            g2d.drawString(centerInfo, textX, middleY + scale * 50);
+            Graphics2D blockG2d = matchBlock.createGraphics();
+            BufferedImage fill = generateWithGradient(matchBlockWidth - matchBlockHeight, (int) (matchBlockHeight * 0.6), homeTeamId, awayTeamId);
+            blockG2d.drawImage(fill, (matchBlockWidth - fill.getWidth()) / 2, (matchBlockHeight - fill.getHeight()) / 2, null);
+
+            blockG2d.setPaint(new Color(255, 255, 255, 50));
+            blockG2d.fillRect(matchBlockWidth / 2 - 100, (matchBlockHeight - fill.getHeight()) / 2, 200, fill.getHeight());
+
+            blockG2d.drawImage(homeTeamPic, null, 0, 0);
+            blockG2d.drawImage(awayTeamPic, null, matchBlockWidth - matchBlockHeight, 0);
+
+            blockG2d.setColor(Color.WHITE);
+            Font font = loadFontFromFile(false).deriveFont(60f);
+            blockG2d.setFont(font);
+
+            FontMetrics fontMetrics = blockG2d.getFontMetrics();
+            Rectangle2D centerBounds = fontMetrics.getStringBounds(centerInfo, blockG2d);
+            int infoWidth = blockG2d.getFontMetrics().stringWidth(centerInfo);
+            int infoX = (matchBlockWidth - infoWidth) / 2;
+            int infoY = (int) ((double) matchBlockHeight / 2 - centerBounds.getHeight() / 2 - centerBounds.getY());
+            blockG2d.drawString(centerInfo, infoX, infoY);
+
+            font = loadFontFromFile(true).deriveFont(80f);
+            blockG2d.setFont(font);
 
             String homeTeamCode = DaoUtil.TEAMS.get(homeTeamId).getCode();
-            int text1Width = g2d.getFontMetrics().stringWidth(homeTeamCode);
-            int text1X = WIDTH / 4 - (text1Width / 2);
-            int text1Y = middleY + scale * -10;
-            g2d.drawString(homeTeamCode, text1X, text1Y);
+            fontMetrics = blockG2d.getFontMetrics();
+            Rectangle2D homeBounds = fontMetrics.getStringBounds(homeTeamCode, blockG2d);
+            int text1Width = fontMetrics.stringWidth(homeTeamCode);
+            int homeX = matchBlockWidth / 2 - 120 - text1Width;
+            int homeY = (int) ((double) matchBlockHeight / 2 - homeBounds.getHeight() / 2 - homeBounds.getY());
+            blockG2d.drawString(homeTeamCode, homeX, homeY);
 
             String awayTeamCode = DaoUtil.TEAMS.get(awayTeamId).getCode();
-            int text2Width = g2d.getFontMetrics().stringWidth(awayTeamCode);
-            int text2X = WIDTH * 3 / 4 - (text2Width / 2);
-            int text2Y = middleY + scale * -10;
-            g2d.drawString(awayTeamCode, text2X, text2Y);
+            Rectangle2D awayBounds = fontMetrics.getStringBounds(awayTeamCode, blockG2d);
+            int awayX = matchBlockWidth / 2 + 120;
+            int awayY = (int) ((double) matchBlockHeight / 2 - awayBounds.getHeight() / 2 - awayBounds.getY());
+            blockG2d.drawString(awayTeamCode, awayX, awayY);
+
+            blockG2d.dispose();
+
+            g2d.drawImage(matchBlock, (WIDTH - matchBlockWidth) / 2, (HEIGHT - matchBlockHeight) / 2, null);
+
+            int middleY = image.getHeight() / 2;
+
 
             switch (method) {
                 case "notification" -> {
-                    font = loadFontFromFile(scale, false).deriveFont(scale * 20f);
+                    font = loadFontFromFile(false).deriveFont(40f);
                     g2d.setFont(font);
                     Odd odd = ODDS.getOrDefault(matchPublicId, null);
                     if (odd != null) {
                         Double homeTeamOdd = odd.home();
                         int text3Width = g2d.getFontMetrics().stringWidth(String.valueOf(homeTeamOdd));
                         int text3X = WIDTH / 4 - (text3Width / 2);
-                        int text3Y = middleY + scale * 140;
+                        int text3Y = middleY + 280;
                         g2d.drawString(String.valueOf(homeTeamOdd), text3X, text3Y);
 
                         Double drawOdd = odd.draw();
                         int text4Width = g2d.getFontMetrics().stringWidth(String.valueOf(drawOdd));
                         int text4X = (WIDTH / 2) - (text4Width / 2);
-                        int text4Y = middleY + scale * 140;
+                        int text4Y = middleY + 280;
                         g2d.drawString(String.valueOf(drawOdd), text4X, text4Y);
 
                         Double awayTeamOdd = odd.away();
                         int text5Width = g2d.getFontMetrics().stringWidth(String.valueOf(awayTeamOdd));
                         int text5X = WIDTH * 3 / 4 - (text5Width / 2);
-                        int text5Y = middleY + scale * 140;
+                        int text5Y = middleY + 280;
                         g2d.drawString(String.valueOf(awayTeamOdd), text5X, text5Y);
 
                         g2d.setColor(new Color(255, 255, 255, 50));
                         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                        int rectWidth = scale * 80;
-                        int rectHeight = scale * 40;
-                        int arcRadius = scale * 20;
+                        int rectWidth = 160;
+                        int rectHeight = 80;
+                        int arcRadius = 40;
 
-                        g2d.fillRoundRect(WIDTH / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
-                        g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
-                        g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + scale * 114, rectWidth, rectHeight, arcRadius, arcRadius);
+                        String win1 = "1";
+                        int win1Width = g2d.getFontMetrics().stringWidth(win1);
+                        int win1X = WIDTH / 4 - (win1Width / 2);
+                        int win1Y = middleY + 200;
+                        g2d.drawString(win1, win1X, win1Y);
+                        String win2 = "2";
+                        int win2Width = g2d.getFontMetrics().stringWidth(win2);
+                        int win2X = WIDTH * 3 / 4 - (win2Width / 2);
+                        int win2Y = middleY + 200;
+                        g2d.drawString(win2, win2X, win2Y);
+                        String draw = "X";
+                        int drawWidth = g2d.getFontMetrics().stringWidth(draw);
+                        int drawX = (WIDTH / 2) - (drawWidth / 2);
+                        int drawY = middleY + 200;
+                        g2d.drawString(draw, drawX, drawY);
+
+                        g2d.fillRoundRect(WIDTH / 4 - rectWidth / 2, middleY + 228, rectWidth, rectHeight, arcRadius, arcRadius);
+                        g2d.fillRoundRect(WIDTH / 2 - rectWidth / 2, middleY + 228, rectWidth, rectHeight, arcRadius, arcRadius);
+                        g2d.fillRoundRect(WIDTH * 3 / 4 - rectWidth / 2, middleY + 228, rectWidth, rectHeight, arcRadius, arcRadius);
                     }
                 }
                 case "yourPredict" -> {
-                    font = new Font("Arial", Font.BOLD, scale * 20);
+                    font = new Font("Arial", Font.BOLD, 40);
                     g2d.setFont(font);
                     String message = "ТВОЙ ПРОГНОЗ";
                     int text4Width = g2d.getFontMetrics().stringWidth(message);
                     int text4X = (WIDTH / 2) - (text4Width / 2);
-                    int text4Y = middleY + scale * 140;
+                    int text4Y = middleY + 280;
                     g2d.drawString(message, text4X, text4Y);
                 }
                 case "result" -> {
-                    font = loadFontFromFile(scale, false).deriveFont(scale * 16f);
-                    g2d.setFont(font);
+                    BufferedImage resultImage = new BufferedImage(WIDTH / 2, HEIGHT / 6, BufferedImage.TYPE_INT_ARGB);
+                    Graphics2D resG2d = resultImage.createGraphics();
 
-                    int textY = middleY + scale * 140;
-                    int offsetX = (WIDTH / 2) - (scale * 112);
-                    int offsetY = scale * 22;
-                    int spacing = scale * 8;
+                    int backgroundWidth = resultImage.getWidth();
+                    int backgroundHeight = resultImage.getHeight();
+
+                    int midY = backgroundHeight / 2;
+                    int midX = backgroundWidth / 2;
+
+                    int offsetY = (int) (backgroundHeight * 0.1);
+                    int offsetX = (int) (backgroundWidth * 0.05);
+
+                    int backgroundX = 0;
+                    int backgroundY = 0;
+
+                    resG2d.setColor(new Color(255, 255, 255, 30));
+                    int arcWidth = 20;
+                    int arcHeight = 20;
+                    resG2d.fillRoundRect(backgroundX, backgroundY, backgroundWidth, backgroundHeight, arcWidth, arcHeight);
+
+                    resG2d.setColor(Color.WHITE);
+                    font = loadFontFromFile(false).deriveFont(32f);
+                    resG2d.setFont(font);
 
                     for (int i = 0; i < results.size(); i++) {
                         String result = results.get(i).login + " " + results.get(i).predict + " [" + results.get(i).point + "]";
-                        String[] parts = result.split(" ");
+                        int resultWidth = resG2d.getFontMetrics().stringWidth(result);
 
-                        int x = offsetX + (i % 2) * (WIDTH / 4);
-                        for (String part : parts) {
-                            g2d.drawString(part, x, textY + (i / 2) * offsetY);
-                            x += g2d.getFontMetrics().stringWidth(part) + spacing;
+                        if (i == 0) {
+                            int resultX = midX - resultWidth - offsetX;
+                            int resultY = midY - offsetY * 2;
+                            resG2d.drawString(result, resultX, resultY);
+                        } else if (i == 1) {
+                            int resultX = midX + offsetX;
+                            int resultY = midY - offsetY * 2;
+                            resG2d.drawString(result, resultX, resultY);
+                        } else if (i == 2) {
+                            int resultX = midX - resultWidth - offsetX;
+                            int resultY = midY + offsetY * 3;
+                            resG2d.drawString(result, resultX, resultY);
+                        } else if (i == 3) {
+                            int resultX = midX + offsetX;
+                            int resultY = midY + offsetY * 3;
+                            resG2d.drawString(result, resultX, resultY);
                         }
                     }
-
-                    int backgroundWidth = WIDTH / 2;
-                    int backgroundHeight = (image.getHeight() / 4) + (scale * 10);
-                    int backgroundX = (WIDTH / 2) - backgroundWidth / 2;
-                    int backgroundY = image.getHeight() - backgroundHeight + scale * 10;
-
-                    g2d.setColor(new Color(255, 255, 255, 30));
-                    int arcWidth = scale * 10;
-                    int arcHeight = scale * 10;
-                    g2d.fillRoundRect(backgroundX, backgroundY, backgroundWidth, backgroundHeight, arcWidth, arcHeight);
+                    resG2d.dispose();
+                    g2d.drawImage(resultImage, (WIDTH - resultImage.getWidth()) / 2, middleY + 150, null);
                 }
             }
 
@@ -526,7 +594,7 @@ public class NotificationService {
     }
 
     private BufferedImage generateWithGradient(int width, int height, int homeTeamId, int awayTeamId) {
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
         Color homeColors = teamColors.get(String.valueOf(homeTeamId)).home();
         Color awayColors = teamColors.get(String.valueOf(awayTeamId)).away();
@@ -539,6 +607,7 @@ public class NotificationService {
 
         GradientPaint gradient = new GradientPaint(0, 0, homeColors, width, 0, awayColors);
         g2d.setPaint(gradient);
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
         g2d.fillRect(0, 0, width, height);
 
         g2d.dispose();
@@ -555,15 +624,24 @@ public class NotificationService {
         g2d.setPaint(gradient);
         g2d.fillRect(0, 0, width, width);
 
-        g2d.setColor(new Color(255, 255, 255, 30));
+        BufferedImage stripe = new BufferedImage(width, width, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D stripeG2d = stripe.createGraphics();
 
-        for (int i = 0; i < width; i += stripeWidth) {
-            g2d.drawLine(i, 0, i + height, height);
+        int sWidth = stripe.getWidth();
+        int sHeight = stripe.getHeight();
+
+        stripeG2d.setColor(new Color(255, 255, 255, 30));
+
+        for (int i = 0; i < sWidth; i += stripeWidth) {
+            stripeG2d.drawLine(i, 0, i + sHeight, sHeight);
         }
 
-        for (int i = stripeWidth; i < height; i += stripeWidth) {
-            g2d.drawLine(0, i, width - i, height);
+        for (int i = stripeWidth; i < sHeight; i += stripeWidth) {
+            stripeG2d.drawLine(0, i, sWidth - i, sHeight);
         }
+        stripeG2d.dispose();
+
+        g2d.drawImage(stripe, (image.getWidth() - sWidth) / 2, (image.getHeight() - sHeight) / 2, null);
 
         BufferedImage logo = scaleImage(ImageIO.read(new ClassPathResource("static/img/pl_logo.webp").getInputStream()), 1600);
 
@@ -612,13 +690,13 @@ public class NotificationService {
     private record MatchRecord(int homeTeamId, int awayTeamId, int weekId, LocalDateTime localDateTime) {
     }
 
-    private Font loadFontFromFile(int scale, boolean condensed) {
+    private Font loadFontFromFile(boolean condensed) {
         try {
             String fontName = "pl-" + (condensed ? "cond" : "") + "bold.ttf";
             return Font.createFont(Font.TRUETYPE_FONT, new ClassPathResource("static/" + fontName).getInputStream());
         } catch (Exception e) {
             serverLogger.error("Error loading font: {}", e.getMessage());
-            return new Font("Arial", Font.BOLD, scale * 30);
+            return new Font("Arial", Font.BOLD, 30);
         }
     }
 }
