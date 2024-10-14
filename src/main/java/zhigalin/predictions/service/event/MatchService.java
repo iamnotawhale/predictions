@@ -101,7 +101,7 @@ public class MatchService {
         return matchDao.findAllByTeamPublicId(teamPublicId).stream()
                 .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
                 .filter(m -> m.getResult() != null)
-                .limit(5)
+                .limit(6)
                 .toList();
     }
 
