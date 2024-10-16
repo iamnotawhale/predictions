@@ -95,8 +95,8 @@ public class NotificationService {
         notificationBLackList.put(90, new ArrayList<>());
     }
 
-    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
-//    @Scheduled(cron = "0 0 9 * * *")
+//    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
+    @Scheduled(cron = "0 0 9 * * *")
     private void sendTodayMatchNotification() {
         List<Match> todayMatches = matchService.findAllByTodayDate();
         if (!todayMatches.isEmpty()) {
