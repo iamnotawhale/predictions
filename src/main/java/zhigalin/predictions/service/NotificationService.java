@@ -95,8 +95,8 @@ public class NotificationService {
         notificationBLackList.put(90, new ArrayList<>());
     }
 
-    //            @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
-    @Scheduled(cron = "0 0 9 * * *")
+    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
+//    @Scheduled(cron = "0 0 9 * * *")
     private void sendTodayMatchNotification() {
         List<Match> todayMatches = matchService.findAllByTodayDate();
         if (!todayMatches.isEmpty()) {
@@ -472,19 +472,32 @@ public class NotificationService {
 
             switch (method) {
                 case "notification" -> {
-                    font = loadFontFromFile(false).deriveFont(40f);
-                    g2d.setFont(font);
                     Odd odd = ODDS.getOrDefault(matchPublicId, null);
                     List<Match> homeTeamLast = matchService.findLast5MatchesByTeamId(homeTeamId);
                     List<Match> awayTeamLast = matchService.findLast5MatchesByTeamId(awayTeamId);
-
-                    drawLastMatchesInfo(g2d, homeTeamLast, homeTeamId, WIDTH / 2 - 360, HEIGHT / 2 + 130);
-                    drawLastMatchesInfo(g2d, awayTeamLast, awayTeamId, WIDTH / 2 + 60, HEIGHT / 2 + 130);
-
                     List<HeadToHead> h2h = headToHeadService.findAllByTwoTeamsCode(
                             DaoUtil.TEAMS.get(homeTeamId).getCode(),
                             DaoUtil.TEAMS.get(awayTeamId).getCode()
                     );
+
+                    int picSize = 40;
+                    drawHeadToHead(g2d, h2h, homeTeamId, awayTeamId, picSize);
+                    drawLastMatchesInfo(g2d, homeTeamLast, homeTeamId, picSize, true);
+                    drawLastMatchesInfo(g2d, awayTeamLast, awayTeamId, picSize, false);
+
+                    font = loadFontFromFile(false).deriveFont(30f * ((float) picSize / 40));
+                    g2d.setFont(font);
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+
+                    String info = "last 6";
+                    fontMetrics = g2d.getFontMetrics();
+                    centerBounds = fontMetrics.getStringBounds(info, g2d);
+                    infoY = (int) ((double) HEIGHT / 2 + 130 - centerBounds.getHeight() / 2 - centerBounds.getY()) + (picSize * 2 + 10) / 2;
+                    g2d.drawString(info, (WIDTH - fontMetrics.stringWidth(info)) / 2, infoY);
+
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1f));
+                    font = loadFontFromFile(false).deriveFont(40f);
+                    g2d.setFont(font);
 
                     if (odd != null) {
                         Double homeTeamOdd = odd.home();
@@ -608,43 +621,119 @@ public class NotificationService {
         }
     }
 
-    private void drawLastMatchesInfo(Graphics2D g2d, List<Match> matches, int teamId, int x, int y) throws IOException {
-        int resetX = x;
+    private void drawHeadToHead(Graphics2D g2d, List<HeadToHead> h2h, Integer homeTeamId, Integer awayTeamId, int picSize) throws IOException {
+        Map<Integer, BufferedImage> pics = Map.of(
+                homeTeamId, grayScaling(
+                        scaleImage(
+                                ImageIO.read(new ClassPathResource("static/img/teams/" + homeTeamId + ".webp").getInputStream()), picSize
+                        )
+                ),
+                awayTeamId, grayScaling(
+                        scaleImage(
+                                ImageIO.read(new ClassPathResource("static/img/teams/" + awayTeamId + ".webp").getInputStream()), picSize
+                        )
+                )
+        );
+
+        int h2hNum = h2h.size();
+        BufferedImage h2hBlock = new BufferedImage((picSize * 3 + 10) * 4, (picSize + 10) * 3, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D h2hBlockGraphics = h2hBlock.createGraphics();
+        int x = 0;
+        if (h2hNum <= 6) {
+            x = picSize * 3 / 2 + 10;
+        }
+        int y = picSize + 10;
+        int h2hCount = 1;
+        for (HeadToHead headToHead : h2h) {
+            BufferedImage matchBlock = new BufferedImage(picSize * 3, picSize, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D matchG2d = matchBlock.createGraphics();
+            Font font = loadFontFromFile(false).deriveFont(28f * ((float) picSize / 40));
+            matchG2d.setFont(font);
+            matchG2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+
+            matchG2d.drawImage(pics.get(headToHead.getHomeTeamId()), 0, 0, null);
+            matchG2d.drawImage(pics.get(headToHead.getAwayTeamId()),
+                    matchBlock.getWidth() - pics.get(headToHead.getAwayTeamId()).getWidth(), 0, null);
+
+            String result = headToHead.getHomeTeamScore() + ":" + headToHead.getAwayTeamScore();
+
+            FontMetrics fontMetrics = matchG2d.getFontMetrics();
+            Rectangle2D centerBounds = fontMetrics.getStringBounds(result, matchG2d);
+            int resultWidth = fontMetrics.stringWidth(result);
+            int resultX = (matchBlock.getWidth() - resultWidth) / 2;
+            int resultY = (int) ((double) matchBlock.getHeight() / 2 - centerBounds.getHeight() / 2 - centerBounds.getY());
+            matchG2d.drawString(result, resultX, resultY);
+            matchG2d.dispose();
+
+            h2hBlockGraphics.drawImage(matchBlock, x, y, null);
+            if (h2hNum <= 6 && h2hCount == 3 || h2hNum > 6 && h2hCount == 4) {
+                x = (h2hBlock.getWidth() - (picSize * 3 + 10) * (h2hNum - h2hCount) + 10) / 2;
+                y += picSize + 10;
+            } else {
+                x += matchBlock.getWidth() + 10;
+            }
+
+            h2hCount++;
+        }
+        String type = "head to head";
+        Font font = loadFontFromFile(false).deriveFont(30f * ((float) picSize / 40));
+        h2hBlockGraphics.setFont(font);
+        h2hBlockGraphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+        FontMetrics fontMetrics = h2hBlockGraphics.getFontMetrics();
+        int typeWidth = fontMetrics.stringWidth(type);
+        int typeX = (h2hBlock.getWidth() - typeWidth) / 2;
+        h2hBlockGraphics.drawString(type, typeX, picSize - 10);
+
+        h2hBlockGraphics.dispose();
+
+        g2d.drawImage(h2hBlock, (WIDTH - h2hBlock.getWidth()) / 2, HEIGHT / 2 - 280 - (picSize - 40) * 3, null);
+    }
+
+    private void drawLastMatchesInfo(Graphics2D g2d, List<Match> matches, int teamId, int picSize, boolean isHome) throws IOException {
+        int x = 0;
+        int y = 0;
         int matchNum = 1;
+        BufferedImage matchesBlock = new BufferedImage((picSize * 2 + 10) * 3, picSize * 2 + 10, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D mBg2d = matchesBlock.createGraphics();
         for (Match match : matches) {
             int againstTeamCode = match.getHomeTeamId() == teamId ? match.getAwayTeamId() : match.getHomeTeamId();
 
             BufferedImage againstTeamPic = grayScaling(
                     scaleImage(
-                            ImageIO.read(new ClassPathResource("static/img/teams/" + againstTeamCode + ".webp").getInputStream()), 40
+                            ImageIO.read(new ClassPathResource("static/img/teams/" + againstTeamCode + ".webp").getInputStream()), picSize
                     )
             );
-            BufferedImage matchBlock = new BufferedImage(90, againstTeamPic.getHeight(), BufferedImage.TYPE_INT_ARGB);
-            Graphics2D matchG2d = matchBlock.createGraphics();
-            Font font = loadFontFromFile(false).deriveFont(28f);
-            matchG2d.setFont(font);
-            matchG2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
+            BufferedImage matchBlock = new BufferedImage(picSize * 2, picSize, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D mG2d = matchBlock.createGraphics();
+            Font font = loadFontFromFile(false).deriveFont(28f * ((float) picSize / 40));
+            mG2d.setFont(font);
+            mG2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
 
             String result = match.getHomeTeamId() == teamId ?
                     match.getHomeTeamScore() + ":" + match.getAwayTeamScore() :
                     match.getAwayTeamScore() + ":" + match.getHomeTeamScore();
 
-            FontMetrics fontMetrics = matchG2d.getFontMetrics();
-            Rectangle2D centerBounds = fontMetrics.getStringBounds(result, matchG2d);
-            int infoX = againstTeamPic.getWidth() + 10;
+            FontMetrics fontMetrics = mG2d.getFontMetrics();
+            Rectangle2D centerBounds = fontMetrics.getStringBounds(result, mG2d);
             int infoY = (int) ((double) matchBlock.getHeight() / 2 - centerBounds.getHeight() / 2 - centerBounds.getY());
-            matchG2d.drawString(result, infoX, infoY);
-            matchG2d.drawImage(againstTeamPic, 0, 0, null);
-            matchG2d.dispose();
+            mG2d.drawString(result, picSize, infoY);
+            mG2d.drawImage(againstTeamPic, 0, 0, null);
+            mG2d.dispose();
 
-            g2d.drawImage(matchBlock, x, y, null);
+            mBg2d.drawImage(matchBlock, x, y, null);
             if (matchNum == 3) {
-                x = resetX;
+                x = 0;
                 y += matchBlock.getHeight() + 10;
             } else {
                 x += matchBlock.getWidth() + 10;
             }
             matchNum++;
+        }
+        mBg2d.dispose();
+        if (isHome) {
+            g2d.drawImage(matchesBlock, WIDTH / 2 - 60 - matchesBlock.getWidth(), HEIGHT / 2 + 130, null);
+        } else {
+            g2d.drawImage(matchesBlock, WIDTH / 2 + 60, HEIGHT / 2 + 130, null);
         }
     }
 
@@ -757,15 +846,6 @@ public class NotificationService {
         }
     }
 
-    private record TeamColor(Color home, Color away, Color third) {
-    }
-
-    private record Result(String login, String predict, int point) {
-    }
-
-    private record MatchRecord(int homeTeamId, int awayTeamId, int weekId, LocalDateTime localDateTime) {
-    }
-
     private Font loadFontFromFile(boolean condensed) {
         try {
             String fontName = "pl-" + (condensed ? "cond" : "") + "bold.ttf";
@@ -774,5 +854,14 @@ public class NotificationService {
             serverLogger.error("Error loading font: {}", e.getMessage());
             return new Font("Arial", Font.BOLD, 30);
         }
+    }
+
+    private record TeamColor(Color home, Color away, Color third) {
+    }
+
+    private record Result(String login, String predict, int point) {
+    }
+
+    private record MatchRecord(int homeTeamId, int awayTeamId, int weekId, LocalDateTime localDateTime) {
     }
 }
