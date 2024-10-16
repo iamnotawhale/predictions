@@ -42,7 +42,7 @@ public class HeadToHeadDao {
         try (Connection ignored = dataSource.getConnection()) {
             String sql = """
                     INSERT INTO h2h (home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time)
-                    VALUES (:homeTeamId, :awayTeamId, :homeTeamScore, :awayTeamScore, :leagueName, :local_date_time)
+                    VALUES (:homeTeamId, :awayTeamId, :homeTeamScore, :awayTeamScore, :leagueName, :localDateTime)
                     ON CONFLICT ON CONSTRAINT unique_h2h DO NOTHING
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
