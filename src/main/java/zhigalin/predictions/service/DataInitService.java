@@ -107,7 +107,7 @@ public class DataInitService {
                     .header(HOST_NAME, HOST)
                     .queryString("league", 39)
                     .queryString("season", 2024)
-                    .queryString("from", LocalDate.now().toString())
+                    .queryString("from", LocalDate.now().minusDays(1L).toString())
                     .queryString("to", LocalDate.now().toString())
                     .asString();
             Root root = mapper.readValue(resp.getBody(), Root.class);
@@ -157,6 +157,9 @@ public class DataInitService {
             int publicId = fixture.getPublicId();
             LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
                     TimeZone.getDefault().toZoneId());
+            if(matchDateTime.isBefore(LocalDateTime.now().minusDays(1))) {
+                continue;
+            }
             String status = fixture.getStatus().getMyshort();
             switch (status) {
                 case "PST" -> status = "pst";
@@ -165,6 +168,10 @@ public class DataInitService {
                 case "HT" -> status = "ht";
                 case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
                 default -> status = null;
+            }
+
+            if (status.equals("ft")) {
+                continue;
             }
 
             int weekId = Integer.parseInt(response.getLeague().getRound().replaceAll("\\D+", ""));
@@ -237,7 +244,7 @@ public class DataInitService {
                         .result(result)
                         .build();
             }
-            matchService.save(match);
+            matchService.update(match);
             serverLogger.info("Match {} saved", match);
         }
     }
