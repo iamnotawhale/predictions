@@ -420,7 +420,7 @@ public class MatchDao {
                     }
                     break;
                 }
-
+                serverLogger.info("Listen notifications");
                 Thread.sleep(1000);
             }
 

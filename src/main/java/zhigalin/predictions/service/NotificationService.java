@@ -143,6 +143,7 @@ public class NotificationService {
             List<User> users = DaoUtil.USERS.values().stream().toList();
             List<Match> nearest = matchService.findAllNearest(minutes);
             if (!nearest.isEmpty()) {
+                serverLogger.info("Nearest matches found");
                 for (User user : users) {
                     for (Match match : nearest) {
                         boolean hasPredict = predictionService.getByMatchPublicId(match.getPublicId()).stream()
