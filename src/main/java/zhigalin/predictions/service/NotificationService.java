@@ -138,10 +138,9 @@ public class NotificationService {
         }
     }
 
-    @Scheduled(cron = "0 */6 * * * *")
     public void check() throws UnirestException, IOException {
         for (Integer minutes : List.of(90, 30)) {
-            List<User> users = userService.findAll().stream().filter(user -> !user.getTelegramId().isEmpty()).toList();
+            List<User> users = DaoUtil.USERS.values().stream().toList();
             List<Match> nearest = matchService.findAllNearest(minutes);
             if (!nearest.isEmpty()) {
                 for (User user : users) {
