@@ -84,6 +84,7 @@ public class DataInitService {
     @Scheduled(cron = "0 */6 * * * *")
     private void start() {
         try {
+            serverLogger.info("Data init start");
             matchUpdateFromApiFootball();
             notificationService.check();
         } catch (Exception e) {
@@ -101,6 +102,7 @@ public class DataInitService {
             matchDateTimeStatusUpdate();
         }
         if (!matchService.findOnlineMatches().isEmpty()) {
+            serverLogger.info("Matches to update found");
             HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                     .header(X_RAPIDAPI_KEY, apiFootballToken)
                     .header(HOST_NAME, HOST)
@@ -136,6 +138,7 @@ public class DataInitService {
                             .homeTeamScore(homeTeamScore)
                             .awayTeamScore(awayTeamScore)
                             .build());
+                    serverLogger.info("Match {} updated", fixture.getPublicId());
                 }
             }
         }
