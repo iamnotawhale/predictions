@@ -85,8 +85,6 @@ public class DataInitService {
     private void start() {
         try {
             matchUpdateFromApiFootball();
-            notificationService.fullTimeMatchNotification();
-            notificationService.check();
         } catch (Exception e) {
             panicSender.sendPanic("Main method", e);
         }
