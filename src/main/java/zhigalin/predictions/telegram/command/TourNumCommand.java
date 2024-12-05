@@ -53,11 +53,19 @@ public class TourNumCommand implements Command {
                             .append(match.getAwayTeamScore())
                             .append(" ")
                             .append(awayTeam.getCode());
-                } else {
+                } else if (Objects.equals(match.getStatus(), "ns") || Objects.equals(match.getStatus(), "pst")) {
                     builder.append("- ")
                             .append(awayTeam.getCode()).append(" ")
                             .append("\uD83D\uDDD3 ")
                             .append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
+                } else {
+                    builder.append(match.getHomeTeamScore())
+                            .append(" - ")
+                            .append(match.getAwayTeamScore())
+                            .append(" ")
+                            .append(awayTeam.getCode())
+                            .append(" ")
+                            .append(match.getStatus());
                 }
                 builder.append("`").append("\n");
             }
