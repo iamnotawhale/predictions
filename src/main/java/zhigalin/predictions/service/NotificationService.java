@@ -1,6 +1,12 @@
 package zhigalin.predictions.service;
 
-import java.awt.*;
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.GradientPaint;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -20,10 +26,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import javax.imageio.ImageIO;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.MultipartBody;
 import kong.unirest.core.Unirest;
@@ -95,7 +101,7 @@ public class NotificationService {
         notificationBLackList.put(90, new ArrayList<>());
     }
 
-//    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
+    //    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
     @Scheduled(cron = "0 0 9 * * *")
     private void sendTodayMatchNotification() {
         List<Match> todayMatches = matchService.findAllByTodayDate();
@@ -128,6 +134,49 @@ public class NotificationService {
                 serverLogger.info("Message today's match notification has been send");
             } else {
                 serverLogger.warn("Don't send today's match notification. Reason: {}", response.getBody());
+            }
+        }
+    }
+
+    @Scheduled(cron = "0 */6 * * * *")
+    public void check() throws UnirestException, IOException {
+        for (Integer minutes : List.of(90, 30)) {
+            List<User> users = userService.findAll().stream().filter(user -> !user.getTelegramId().isEmpty()).toList();
+            List<Match> nearest = matchService.findAllNearest(minutes);
+            if (!nearest.isEmpty()) {
+                for (User user : users) {
+                    for (Match match : nearest) {
+                        boolean hasPredict = predictionService.getByMatchPublicId(match.getPublicId()).stream()
+                                .anyMatch(prediction -> prediction.getUserId() == user.getId());
+                        if (!hasPredict) {
+                            Notification notification = Notification.builder().user(user).match(match).build();
+                            if (!notificationBLackList.get(minutes).contains(notification.toString())) {
+                                notificationBLackList.get(minutes).add(notification.toString());
+                                sendNotification(notification);
+                            }
+                        }
+                    }
+                }
+            } else {
+                notificationBLackList.get(minutes).clear();
+            }
+        }
+    }
+
+    @Scheduled(initialDelay = 1000)
+    public void fullTimeMatchNotification() {
+        while (true) {
+            matchService.listenForMatchUpdates();
+            List<Match> matches = matchService.processBatch();
+            if (!matches.isEmpty()) {
+                for (Match match : matches) {
+                    fullTimeMatchNotification(match);
+                }
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }
@@ -245,90 +294,56 @@ public class NotificationService {
         g2d.dispose();
         return scaledImage;
     }
+    //        @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
 
-    public void check() throws UnirestException, IOException {
-        for (Integer minutes : List.of(90, 30)) {
-            List<User> users = userService.findAll().stream().filter(user -> !user.getTelegramId().isEmpty()).toList();
-            List<Match> nearest = matchService.findAllNearest(minutes);
-            if (!nearest.isEmpty()) {
-                for (User user : users) {
-                    for (Match match : nearest) {
-                        boolean hasPredict = predictionService.getByMatchPublicId(match.getPublicId()).stream()
-                                .anyMatch(prediction -> prediction.getUserId() == user.getId());
-                        if (!hasPredict) {
-                            Notification notification = Notification.builder().user(user).match(match).build();
-                            if (!notificationBLackList.get(minutes).contains(notification.toString())) {
-                                notificationBLackList.get(minutes).add(notification.toString());
-                                sendNotification(notification);
-                            }
-                        }
-                    }
-                }
-            } else {
-                notificationBLackList.get(minutes).clear();
-            }
-        }
-    }
+    public void fullTimeMatchNotification(Match match) {
+        String centerInfo;
+        Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
+        Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
+        predictionService.updateByMatch(match);
 
-    public void fullTimeMatchNotification() {
-        List<Match> online = matchService.findOnlineMatches();
-        if (!online.isEmpty()) {
-            for (Match match : online) {
-                String centerInfo;
-                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
-                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
-                predictionService.updateByMatch(match);
-                if (match.getStatus().equals("ft") && !notificationBan.contains(match.getPublicId())) {
-                    centerInfo = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
-                    List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
-                    predictions.sort(Comparator.comparingInt(Prediction::getPoints).reversed());
+        centerInfo = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
+        List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
+        predictions.sort(Comparator.comparingInt(Prediction::getPoints).reversed());
 
-                    List<Result> results = predictions.stream()
-                            .map(prediction -> {
-                                int userId = prediction.getUserId();
-                                User user = DaoUtil.USERS.get(userId);
-                                String predict = String.join("",
-                                        prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : "",
-                                        ":",
-                                        prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : ""
-                                );
-                                return new Result(user.getLogin().substring(0, 3), predict, prediction.getPoints());
-                            })
-                            .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
-                            .toList();
+        List<Result> results = predictions.stream()
+                .map(prediction -> {
+                    int userId = prediction.getUserId();
+                    User user = DaoUtil.USERS.get(userId);
+                    String predict = String.join("",
+                            prediction.getHomeTeamScore() != null ? String.valueOf(prediction.getHomeTeamScore()) : "",
+                            ":",
+                            prediction.getAwayTeamScore() != null ? String.valueOf(prediction.getAwayTeamScore()) : ""
+                    );
+                    return new Result(user.getLogin().substring(0, 3), predict, prediction.getPoints());
+                })
+                .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
+                .toList();
 
-                    notificationBan.add(match.getPublicId());
-                    MultipartBody body = Unirest.post(urlPhoto)
-                            .headers(Map.of("accept", "application/json",
-                                            "content-type", "application/json"
-                                    )
-                            )
-                            .queryString("chat_id", chatId)
-                            .queryString("caption", "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен")
-                            .field("photo", new File(Objects.requireNonNull(
-                                    createImage(
-                                            match.getPublicId(),
-                                            match.getHomeTeamId(),
-                                            match.getAwayTeamId(),
-                                            centerInfo,
-                                            "result",
-                                            results
-                                    )
-                            )));
-                    HttpResponse<String> response = body.asString();
-                    if (response.getStatus() == 200) {
-                        serverLogger.info("Send results for match {}", homeTeam.getCode() + " " + awayTeam.getCode());
-                    } else {
-                        serverLogger.warn("Don't send results for match {}", homeTeam.getCode() + " " + awayTeam.getCode());
-                    }
-
-                }
-            }
+        MultipartBody body = Unirest.post(urlPhoto)
+                .headers(Map.of("accept", "application/json",
+                                "content-type", "application/json"
+                        )
+                )
+                .queryString("chat_id", chatId)
+                .queryString("caption", "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен")
+                .field("photo", new File(Objects.requireNonNull(
+                        createImage(
+                                match.getPublicId(),
+                                match.getHomeTeamId(),
+                                match.getAwayTeamId(),
+                                centerInfo,
+                                "result",
+                                results
+                        )
+                )));
+        HttpResponse<String> response = body.asString();
+        if (response.getStatus() == 200) {
+            serverLogger.info("Send results for match {}", homeTeam.getCode() + " " + awayTeam.getCode());
         } else {
-            if (!notificationBan.isEmpty()) {
-                notificationBan.clear();
-            }
+            serverLogger.warn("Don't send results for match {}", homeTeam.getCode() + " " + awayTeam.getCode());
         }
+
     }
 
     public void weeklyResultNotification() {
