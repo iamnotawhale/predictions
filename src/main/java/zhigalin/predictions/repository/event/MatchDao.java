@@ -3,10 +3,19 @@ package zhigalin.predictions.repository.event;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.sql.DataSource;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.postgresql.PGConnection;
+import org.postgresql.PGNotification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,12 +36,16 @@ public class MatchDao {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
     private final PanicSender panicSender;
+    private final Set<String> processedMatches = new HashSet<>();
+    private final ConcurrentLinkedQueue<String> notificationQueue = new ConcurrentLinkedQueue<>();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public MatchDao(DataSource dataSource, PanicSender panicSender) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.panicSender = panicSender;
+        this.mapper.registerModule(new JavaTimeModule());
     }
 
     public void save(Match match) {
@@ -389,6 +402,91 @@ public class MatchDao {
             return null;
         }
     }
+
+    public void listenForMatchUpdates() {
+        try (Connection connection = dataSource.getConnection();
+             Statement stmt = connection.createStatement()) {
+            PGConnection pgConnection = connection.unwrap(PGConnection.class);
+
+            stmt.execute("LISTEN match_status_update");
+
+            while (true) {
+                PGNotification[] notifications = pgConnection.getNotifications();
+
+                if (notifications != null && notifications.length > 0) {
+                    serverLogger.info("PGNotifications found: {}", notifications.length);
+                    for (PGNotification notification : notifications) {
+                        notificationQueue.add(notification.getParameter());
+                    }
+                    break;
+                }
+
+                Thread.sleep(1000);
+            }
+
+        } catch (Exception e) {
+            panicSender.sendPanic("Error getting match end trigger", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
+    public List<Match> processBatch() {
+        List<Match> matches = new ArrayList<>();
+
+        while (!notificationQueue.isEmpty()) {
+            serverLogger.info("Notification que not empty");
+            String payload = notificationQueue.poll();
+            if (!processedMatches.contains(payload)) {
+                processedMatches.add(payload);
+
+                try {
+                    Match match = mapper.readValue(payload, Match.class);
+
+                    if (!isAlreadyProcessed(match.getPublicId())) {
+                        updateLastProcessedAt(match.getPublicId());
+                        matches.add(match);
+                    }
+
+                } catch (Exception e) {
+                    panicSender.sendPanic("Error processBatch", e);
+                    serverLogger.error(e.getMessage());
+                }
+            }
+        }
+
+        return matches;
+    }
+
+    private boolean isAlreadyProcessed(int publicId) {
+        try (Connection ignored5 = dataSource.getConnection()) {
+            String sql = """
+                    SELECT last_processed_at FROM match WHERE public_id = :publicId
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("publicId", publicId);
+            LocalDateTime lastProcessed = namedParameterJdbcTemplate.queryForObject(sql, params, LocalDateTime.class);
+            return lastProcessed != null;
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error isAlreadyProcessed", e);
+            serverLogger.error(e.getMessage());
+            return false;
+        }
+    }
+
+    private void updateLastProcessedAt(int publicId) {
+        try (Connection ignored = dataSource.getConnection()) {
+            String sql = """
+                    UPDATE match SET last_processed_at = NOW() WHERE public_id = :publicId
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("publicId", publicId);
+            namedParameterJdbcTemplate.update(sql, params);
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error isAlreadyProcessed", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
 
     private static final class MatchMapper implements RowMapper<Match> {
         @Override

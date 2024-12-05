@@ -172,5 +172,13 @@ public class MatchService {
     public List<Match> findBetweenTwoDates(LocalDateTime from, LocalDateTime to) {
         return matchDao.findAllBetweenToDates(from, to);
     }
+
+    public void listenForMatchUpdates() {
+        matchDao.listenForMatchUpdates();
+    }
+
+    public List<Match> processBatch() {
+        return matchDao.processBatch();
+    }
 }
 
