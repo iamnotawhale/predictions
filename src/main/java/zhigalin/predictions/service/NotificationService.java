@@ -139,7 +139,9 @@ public class NotificationService {
     public void check() throws UnirestException, IOException {
         for (Integer minutes : List.of(90, 30)) {
             List<User> users = DaoUtil.USERS.values().stream().toList();
-            List<Match> nearest = matchService.findAllNearest(minutes);
+            List<Match> nearest = matchService.findAllNearest(minutes).stream()
+                    .filter(match -> !match.getStatus().equals("pst"))
+                    .toList();
             if (!nearest.isEmpty()) {
                 serverLogger.info("Nearest matches found");
                 for (User user : users) {
