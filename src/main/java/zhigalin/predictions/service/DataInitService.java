@@ -139,6 +139,14 @@ public class DataInitService {
                             .awayTeamScore(awayTeamScore)
                             .build());
                     serverLogger.info("Match {} updated", fixture.getPublicId());
+                } else if (status != null && status.equals("pst")) {
+                    matchService.update(Match.builder()
+                            .publicId(fixture.getPublicId())
+                            .status(status)
+                            .result(null)
+                            .homeTeamScore(null)
+                            .awayTeamScore(null)
+                            .build());
                 }
             }
         }

@@ -72,7 +72,6 @@ public class NotificationService {
     private final PredictionService predictionService;
     private final PanicSender panicSender;
     private final OddsService oddsService;
-    private final UserService userService;
     private final MatchService matchService;
     private final HeadToHeadService headToHeadService;
     private final ObjectMapper objectMapper;
@@ -87,10 +86,9 @@ public class NotificationService {
     private static final Color BACKGROUND_COLOR = new Color(44, 0, 48);
 
     public NotificationService(
-            UserService userService, MatchService matchService, PredictionService predictionService,
+            MatchService matchService, PredictionService predictionService,
             ObjectMapper objectMapper, PanicSender panicSender, OddsService oddsService, HeadToHeadService headToHeadService
     ) {
-        this.userService = userService;
         this.matchService = matchService;
         this.objectMapper = objectMapper;
         this.headToHeadService = headToHeadService;
