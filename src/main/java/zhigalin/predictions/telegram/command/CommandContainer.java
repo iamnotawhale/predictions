@@ -67,7 +67,7 @@ public class CommandContainer {
         menuCommand = new MenuCommand(sendBotMessageService);
         notificationPredictKeyboardCommand = new NotificationPredictKeyBoardCommand(sendBotMessageService);
         totalCommand = new TotalCommand(sendBotMessageService, predictionService);
-        this.generateCommand = new GenerateCommand(sendBotMessageService, matchService, notificationService, panicSender);
+        this.generateCommand = new GenerateCommand(matchService, notificationService, panicSender);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
