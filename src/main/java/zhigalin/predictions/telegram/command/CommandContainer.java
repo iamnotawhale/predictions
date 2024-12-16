@@ -5,6 +5,7 @@ import java.util.Map;
 
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
+import zhigalin.predictions.service.NotificationService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
@@ -19,7 +20,6 @@ import static zhigalin.predictions.telegram.command.CommandName.START;
 import static zhigalin.predictions.telegram.command.CommandName.STOP;
 import static zhigalin.predictions.telegram.command.CommandName.TABLE;
 import static zhigalin.predictions.telegram.command.CommandName.TODAY;
-import static zhigalin.predictions.telegram.command.CommandName.TOTAL;
 import static zhigalin.predictions.telegram.command.CommandName.UPCOMING;
 
 public class CommandContainer {
@@ -38,10 +38,11 @@ public class CommandContainer {
     private final Command cancelMessageCommand;
     private final Command menuCommand;
     private final Command totalCommand;
+    private final Command generateCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
-                            PredictionService predictionService, PanicSender panicSender, String botChatId) {
+                            PredictionService predictionService, PanicSender panicSender, String botChatId, NotificationService notificationService) {
         commandMap = new HashMap<>();
         commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService, botChatId));
         commandMap.put(START.getName(), new StartCommand(sendBotMessageService));
@@ -66,6 +67,7 @@ public class CommandContainer {
         menuCommand = new MenuCommand(sendBotMessageService);
         notificationPredictKeyboardCommand = new NotificationPredictKeyBoardCommand(sendBotMessageService);
         totalCommand = new TotalCommand(sendBotMessageService, predictionService);
+        this.generateCommand = new GenerateCommand(sendBotMessageService, matchService, notificationService, panicSender);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
@@ -122,5 +124,9 @@ public class CommandContainer {
 
     public Command retrieveTotalCommand() {
         return totalCommand;
+    }
+
+    public Command retrieveGenerateCommand() {
+        return generateCommand;
     }
 }
