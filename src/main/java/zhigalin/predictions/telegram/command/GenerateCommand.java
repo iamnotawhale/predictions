@@ -10,19 +10,16 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.NotificationService;
 import zhigalin.predictions.service.event.MatchService;
-import zhigalin.predictions.telegram.service.SendBotMessageService;
 
 public class GenerateCommand implements Command {
 
-    private final SendBotMessageService sendBotMessageService;
     private final MatchService matchService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
 
     private static final String REGEX = "[^A-Za-z]";
 
-    public GenerateCommand(SendBotMessageService sendBotMessageService, MatchService matchService, NotificationService notificationService, PanicSender panicSender) {
-        this.sendBotMessageService = sendBotMessageService;
+    public GenerateCommand(MatchService matchService, NotificationService notificationService, PanicSender panicSender) {
         this.matchService = matchService;
         this.notificationService = notificationService;
         this.panicSender = panicSender;
@@ -40,16 +37,17 @@ public class GenerateCommand implements Command {
     }
 
     private Match getGenerateResult(Update update) {
+        String[] message = update.getMessage().getText().split(REGEX);
         String firstTeamCode = EnumSet.allOf(TeamName.class).stream()
                 .filter(t -> t.getName().toLowerCase()
-                        .contains(update.getMessage().getText().split(REGEX)[1].toLowerCase()))
+                        .contains(message[2].toLowerCase()))
                 .map(Enum::name).findFirst().orElse(null);
         if (firstTeamCode == null) {
             return null;
         }
         String secondTeamCode = EnumSet.allOf(TeamName.class).stream()
                 .filter(t -> t.getName().toLowerCase()
-                        .contains(update.getMessage().getText().split(REGEX)[2].toLowerCase()))
+                        .contains(message[3].toLowerCase()))
                 .map(Enum::name).findFirst().orElse(null);
         if (secondTeamCode == null) {
             return null;
