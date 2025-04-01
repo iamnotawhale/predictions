@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import lombok.Getter;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
@@ -31,22 +30,16 @@ public class MatchService {
         this.teamService = teamService;
     }
 
-    public void save(Match match) {
-        matchDao.save(match);
+    public void save(List<Match> matches) {
+        matchDao.save(matches);
+    }
+
+    public void updateAll(List<Match> matches) {
+        matchDao.updateMatches(matches);
     }
 
     public void update(Match matchToUpdate) {
-        matchDao.updateMatch(matchToUpdate);
-    }
-
-
-    public void updateStatusAndLocalDateTime(int matchPublicId, String status, LocalDateTime matchDateTime) {
-        Match match = matchDao.findByPublicId(matchPublicId);
-        if (match != null) {
-            match.setStatus(match.getStatus());
-            match.setLocalDateTime(match.getLocalDateTime());
-            matchDao.save(match);
-        }
+        matchDao.updateMatches(List.of(matchToUpdate));
     }
 
     public Match findByPublicId(int publicId) {

@@ -1,14 +1,15 @@
 package zhigalin.predictions.repository.predict;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -444,6 +445,40 @@ public class PredictionDao {
             panicSender.sendPanic("Error on find predictable weeks by user telegram id", e);
             serverLogger.error(e.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    public Map<String, Map<Integer, Integer>> getAllUsersCumulativePoints() {
+        Map<String, Map<Integer, Integer>> allUsersPoints = new LinkedHashMap<>();
+        String sql = """
+                    SELECT login, week_id, SUM(total_points) OVER (PARTITION BY user_id ORDER BY week_id) AS cumulative_points
+                    FROM (
+                        SELECT p.user_id, m.week_id, SUM(p.points) AS total_points
+                        FROM match m
+                        JOIN predict p ON m.public_id = p.match_id
+                        WHERE status = 'ft'
+                        GROUP BY p.user_id, m.week_id
+                    ) subquery
+                    JOIN users u ON u.id = user_id
+                    ORDER BY login, week_id;
+                """;
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                String login = rs.getString("login");
+                int weekId = rs.getInt("week_id");
+                int cumulativePoints = rs.getInt("cumulative_points");
+
+                allUsersPoints.putIfAbsent(login, new LinkedHashMap<>());
+                allUsersPoints.get(login).put(weekId, cumulativePoints);
+            }
+            return allUsersPoints;
+        } catch (SQLException e) {
+            panicSender.sendPanic("Error on getAllUsersCumulativePoints", e);
+            serverLogger.error(e.getMessage());
+            return Collections.emptyMap();
         }
     }
 

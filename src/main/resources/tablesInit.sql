@@ -20,7 +20,8 @@ create table if not exists match
     status          varchar(255),
     week_id         integer,
     local_date_time timestamp,
-    CONSTRAINT unique_match UNIQUE (home_team_id, away_team_id, local_date_time)
+    last_processed_at timestamp,
+    CONSTRAINT unique_match UNIQUE (home_team_id, away_team_id)
 );
 
 create table if not exists weeks
