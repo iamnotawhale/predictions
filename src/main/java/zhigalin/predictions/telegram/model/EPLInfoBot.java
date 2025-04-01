@@ -59,7 +59,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         super(token);
         this.name = name;
         this.commandContainer = new CommandContainer(new SendBotMessageService(this, notificationService), matchService, teamService,
-                headToHeadService, dataInitService, predictionService, panicSender, botChatId);
+                headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService);
 
         try {
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
@@ -125,6 +125,8 @@ public class EPLInfoBot extends TelegramLongPollingBot {
             commandContainer.retrieveTourNumCommand().execute(update);
         } else if (message.contains("total")) {
             commandContainer.retrieveTotalCommand().execute(update);
+        } else if (message.contains("gen")) {
+            commandContainer.retrieveGenerateCommand().execute(update);
         } else if (message.startsWith(COMMAND_PREFIX)) {
             String[] array = message.split(REGEX);
             String commandIdentifier = array[1].toLowerCase();
