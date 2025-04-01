@@ -1,5 +1,8 @@
 package zhigalin.predictions.repository.event;
 
+import javax.sql.DataSource;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -10,10 +13,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import javax.sql.DataSource;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
 import org.slf4j.Logger;
@@ -48,14 +47,16 @@ public class MatchDao {
         this.mapper.registerModule(new JavaTimeModule());
     }
 
-    public void save(Match match) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    INSERT INTO match (public_id, week_id, home_team_id, away_team_id, home_team_score, away_team_score, status, result, local_date_time)
-                    VALUES (:publicId, :weekId, :homeId, :awayId, :homeScore, :awayScore, :status, :result, :date)
-                    ON CONFLICT ON CONSTRAINT unique_match DO NOTHING
-                    """;
+    public void save(List<Match> matches) {
+        String sql = """
+                INSERT INTO match (public_id, week_id, home_team_id, away_team_id, home_team_score, away_team_score, status, result, local_date_time)
+                VALUES (:publicId, :weekId, :homeId, :awayId, :homeScore, :awayScore, :status, :result, :date)
+                ON CONFLICT ON CONSTRAINT unique_match DO NOTHING
+                """;
 
+        List<MapSqlParameterSource> batchParameters = new ArrayList<>();
+
+        for (Match match : matches) {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("publicId", match.getPublicId());
             parameters.addValue("weekId", match.getWeekId());
@@ -66,30 +67,46 @@ public class MatchDao {
             parameters.addValue("status", match.getStatus());
             parameters.addValue("result", match.getResult());
             parameters.addValue("date", match.getLocalDateTime());
-            namedParameterJdbcTemplate.update(sql, parameters);
-        } catch (SQLException e) {
-            panicSender.sendPanic("Error saving match", e);
-            serverLogger.error(e.getMessage());
+            batchParameters.add(parameters);
+        }
+
+        try {
+            namedParameterJdbcTemplate.batchUpdate(sql, batchParameters.toArray(new MapSqlParameterSource[0]));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error saving matches batch", e);
+            serverLogger.error("Batch save failed: {}", e.getMessage());
         }
     }
 
-    public void updateMatch(Match match) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    UPDATE match
-                    SET home_team_score = :homeScore, away_team_score = :awayScore, result = :result, status = :status
-                    WHERE public_id = :publicId
-                    """;
+    public void updateMatches(List<Match> matches) {
+        String sql = """
+                UPDATE match
+                SET home_team_score = :homeScore,
+                    away_team_score = :awayScore,
+                    result = :result,
+                    local_date_time = :date,
+                    status = :status
+                WHERE public_id = :publicId
+                """;
+
+        List<MapSqlParameterSource> batchParameters = new ArrayList<>();
+
+        for (Match match : matches) {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homeScore", match.getHomeTeamScore());
             parameters.addValue("awayScore", match.getAwayTeamScore());
             parameters.addValue("result", match.getResult());
             parameters.addValue("status", match.getStatus());
             parameters.addValue("publicId", match.getPublicId());
-            namedParameterJdbcTemplate.update(sql, parameters);
-        } catch (SQLException e) {
-            panicSender.sendPanic("Error updating match", e);
-            serverLogger.error(e.getMessage());
+            parameters.addValue("date", match.getLocalDateTime());
+            batchParameters.add(parameters);
+        }
+
+        try {
+            namedParameterJdbcTemplate.batchUpdate(sql, batchParameters.toArray(new MapSqlParameterSource[0]));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error updating matches batch", e);
+            serverLogger.error("Batch update failed: {}", e.getMessage());
         }
     }
 

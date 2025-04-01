@@ -1,5 +1,12 @@
 package zhigalin.predictions.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rometools.rome.feed.synd.SyndEntry;
+import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.io.FeedException;
+import com.rometools.rome.io.SyndFeedInput;
+import com.rometools.rome.io.XmlReader;
 import java.io.IOException;
 import java.net.URL;
 import java.text.DateFormat;
@@ -16,14 +23,6 @@ import java.util.Objects;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rometools.rome.feed.synd.SyndEntry;
-import com.rometools.rome.feed.synd.SyndFeed;
-import com.rometools.rome.io.FeedException;
-import com.rometools.rome.io.SyndFeedInput;
-import com.rometools.rome.io.XmlReader;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.Unirest;
 import kong.unirest.core.UnirestException;
@@ -34,7 +33,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.event.Week;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.input.Fixture;
 import zhigalin.predictions.model.input.Response;
@@ -52,8 +50,6 @@ import zhigalin.predictions.util.DaoUtil;
 public class DataInitService {
     @Value("${api.football.token}")
     private String apiFootballToken;
-    @Value("${season}")
-    private int season;
 
     private final TeamService teamService;
     private final WeekService weekService;
@@ -92,14 +88,17 @@ public class DataInitService {
         }
     }
 
-    private void matchUpdateFromApiFootball() throws UnirestException, JsonProcessingException {
-        String result;
+    @Scheduled(cron = "0 50 8 * * *")
+    private void matchUpdate() throws JsonProcessingException {
+        matchDateTimeStatusUpdate();
+    }
+
+    private void matchUpdateFromApiFootball() throws JsonProcessingException {
         if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
                                || Objects.equals(m.getStatus(), "pst"))) {
             notificationService.weeklyResultNotification();
             weekService.updateCurrent();
-            matchDateTimeStatusUpdate();
         }
         if (!matchService.findOnlineMatches().isEmpty()) {
             serverLogger.info("Matches to update found");
@@ -112,177 +111,103 @@ public class DataInitService {
                     .queryString("to", LocalDate.now().toString())
                     .asString();
             Root root = mapper.readValue(resp.getBody(), Root.class);
-            for (Response response : root.getResponse()) {
-                Fixture fixture = response.getFixture();
-                String status = switch (fixture.getStatus().getMyshort()) {
-                    case "PST" -> "pst";
-                    case "NS" -> "ns";
-                    case "FT" -> "ft";
-                    case "HT" -> "ht";
-                    case "1H", "2H" -> fixture.getStatus().getElapsed() + "'";
-                    default -> null;
-                };
-                if (response.getGoals().getHome() != null) {
-                    Integer homeTeamScore = response.getGoals().getHome();
-                    Integer awayTeamScore = response.getGoals().getAway();
-
-                    if (homeTeamScore.equals(awayTeamScore)) {
-                        result = "D";
-                    } else {
-                        result = homeTeamScore > awayTeamScore ? "H" : "A";
-                    }
-                    matchService.update(Match.builder()
-                            .publicId(fixture.getPublicId())
-                            .status(status)
-                            .result(result)
-                            .homeTeamScore(homeTeamScore)
-                            .awayTeamScore(awayTeamScore)
-                            .build());
-                    serverLogger.info("Match {} updated", fixture.getPublicId());
-                } else if (status != null && status.equals("pst")) {
-                    matchService.update(Match.builder()
-                            .publicId(fixture.getPublicId())
-                            .status(status)
-                            .result(null)
-                            .homeTeamScore(null)
-                            .awayTeamScore(null)
-                            .build());
-                }
-            }
+            List<Match> matches = root.getResponse().stream().map(this::getMatch)
+                    .toList();
+            matchService.updateAll(matches);
         }
     }
 
-    private void matchInitFromApiFootball() throws UnirestException, JsonProcessingException {
+    private void matchInitFromApiFootball() throws JsonProcessingException {
+        HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
+                .header(X_RAPIDAPI_KEY, apiFootballToken)
+                .header(HOST_NAME, HOST)
+                .queryString("league", 39)
+                .queryString("season", 2024)
+                .asString();
+        Root root = mapper.readValue(resp.getBody(), Root.class);
+        List<Match> matches = root.getResponse().stream()
+                .map(this::getMatch)
+                .toList();
+        matchService.save(matches);
+    }
+
+    private void matchDateTimeStatusUpdate() throws JsonProcessingException {
+        HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
+                .header(X_RAPIDAPI_KEY, apiFootballToken)
+                .header(HOST_NAME, HOST)
+                .queryString("league", 39)
+                .queryString("season", 2024)
+                .asString();
+        Root root = mapper.readValue(resp.getBody(), Root.class);
+        int currentWeekId = weekService.findCurrentWeek().getId();
+        List<Match> matches = root.getResponse().stream()
+                .filter(r -> isFutureMatch(currentWeekId, r))
+                .map(this::getMatch)
+                .toList();
+        matchService.updateAll(matches);
+    }
+
+    private boolean isFutureMatch(int currentWeekId, Response response) {
+        int weekId = Integer.parseInt(response.getLeague().getRound().replaceAll("\\D+", ""));
+        return weekId >= currentWeekId;
+    }
+
+    private Match getMatch(Response response) {
         Match match;
-        String result;
-        HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                .header(X_RAPIDAPI_KEY, apiFootballToken)
-                .header(HOST_NAME, HOST)
-                .queryString("league", 39)
-                .queryString("season", 2024)
-                .asString();
-        Root root = mapper.readValue(resp.getBody(), Root.class);
-        for (Response response : root.getResponse()) {
-            Fixture fixture = response.getFixture();
-            int publicId = fixture.getPublicId();
-            LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
-                    TimeZone.getDefault().toZoneId());
-            if(matchDateTime.isBefore(LocalDateTime.now().minusDays(1))) {
-                continue;
-            }
-            String status = fixture.getStatus().getMyshort();
-            switch (status) {
-                case "PST" -> status = "pst";
-                case "NS" -> status = "ns";
-                case "FT" -> status = "ft";
-                case "HT" -> status = "ht";
-                case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
-                default -> status = null;
-            }
 
-            if (status.equals("ft")) {
-                continue;
-            }
+        int weekId = Integer.parseInt(response.getLeague().getRound().replaceAll("\\D+", ""));
 
-            int weekId = Integer.parseInt(response.getLeague().getRound().replaceAll("\\D+", ""));
-            Week week = weekService.findById(weekId);
-            if (week == null) {
-                String weekName = "week " + weekId;
-                week = weekService.save(
-                        Week.builder()
-                                .name(weekName)
-                                .isCurrent(weekName.equals("week 1"))
-                                .seasonId(season)
-                                .build()
-                );
-                serverLogger.info("Week {} saved", week);
-            }
+        Fixture fixture = response.getFixture();
+        int publicId = fixture.getPublicId();
+        LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
+                TimeZone.getDefault().toZoneId());
+        String status = fixture.getStatus().getMyshort();
+        switch (status) {
+            case "PST" -> status = "pst";
+            case "NS" -> status = "ns";
+            case "FT" -> status = "ft";
+            case "HT" -> status = "ht";
+            case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
+            default -> status = null;
+        }
 
-            ResponseTeam home = response.getTeams().getHome();
-            ResponseTeam away = response.getTeams().getAway();
+        ResponseTeam home = response.getTeams().getHome();
+        ResponseTeam away = response.getTeams().getAway();
 
-            int htpid = home.getId();
-            int atpid = away.getId();
+        int htPublicId = home.getId();
+        int atPublicId = away.getId();
 
-            Team homeTeam = teamService.findByPublicId(htpid);
-            if (homeTeam == null) {
-                homeTeam = Team.builder()
-                        .publicId(home.getId())
-                        .logo(home.getLogo())
-                        .name(home.getName())
-                        .code(home.getCode())
-                        .build();
-                teamService.save(homeTeam);
-            }
-            Team awayTeam = teamService.findByPublicId(atpid);
-            if (awayTeam == null) {
-                awayTeam = Team.builder()
-                        .publicId(away.getId())
-                        .logo(away.getLogo())
-                        .name(away.getName())
-                        .code(away.getCode())
-                        .build();
-                teamService.save(awayTeam);
-            }
-
-            if (response.getGoals().getHome() == null) {
-                match = Match.builder()
-                        .publicId(publicId)
-                        .status(status)
-                        .localDateTime(matchDateTime)
-                        .weekId(week.getId())
-                        .homeTeamId(homeTeam.getPublicId())
-                        .awayTeamId(awayTeam.getPublicId())
-                        .build();
+        if (response.getGoals().getHome() == null) {
+            match = Match.builder()
+                    .publicId(publicId)
+                    .status(status)
+                    .localDateTime(matchDateTime)
+                    .weekId(weekId)
+                    .homeTeamId(htPublicId)
+                    .awayTeamId(atPublicId)
+                    .build();
+        } else {
+            String result;
+            Integer homeTeamScore = response.getGoals().getHome();
+            Integer awayTeamScore = response.getGoals().getAway();
+            if (homeTeamScore.equals(awayTeamScore)) {
+                result = "D";
             } else {
-                Integer homeTeamScore = response.getGoals().getHome();
-                Integer awayTeamScore = response.getGoals().getAway();
-                if (homeTeamScore.equals(awayTeamScore)) {
-                    result = "D";
-                } else {
-                    result = homeTeamScore > awayTeamScore ? "H" : "A";
-                }
-                match = Match.builder()
-                        .publicId(publicId)
-                        .status(status)
-                        .localDateTime(matchDateTime)
-                        .weekId(week.getId())
-                        .homeTeamId(homeTeam.getPublicId())
-                        .awayTeamId(awayTeam.getPublicId())
-                        .homeTeamScore(homeTeamScore)
-                        .awayTeamScore(awayTeamScore)
-                        .result(result)
-                        .build();
+                result = homeTeamScore > awayTeamScore ? "H" : "A";
             }
-            matchService.update(match);
-            serverLogger.info("Match {} saved", match);
+            match = Match.builder()
+                    .publicId(publicId)
+                    .status(status)
+                    .localDateTime(matchDateTime)
+                    .weekId(weekId)
+                    .homeTeamId(htPublicId)
+                    .awayTeamId(atPublicId)
+                    .homeTeamScore(homeTeamScore)
+                    .awayTeamScore(awayTeamScore)
+                    .result(result)
+                    .build();
         }
-    }
-
-    private void matchDateTimeStatusUpdate() throws UnirestException, JsonProcessingException {
-        HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                .header(X_RAPIDAPI_KEY, apiFootballToken)
-                .header(HOST_NAME, HOST)
-                .queryString("league", 39)
-                .queryString("season", 2024)
-                .asString();
-        Root root = mapper.readValue(resp.getBody(), Root.class);
-        for (Response response : root.getResponse()) {
-            Fixture fixture = response.getFixture();
-            int publicId = fixture.getPublicId();
-            LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
-                    TimeZone.getDefault().toZoneId());
-            String status = fixture.getStatus().getMyshort();
-            switch (status) {
-                case "PST" -> status = "pst";
-                case "NS" -> status = "ns";
-                case "FT" -> status = "ft";
-                case "HT" -> status = "ht";
-                case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
-                default -> status = null;
-            }
-            matchService.updateStatusAndLocalDateTime(publicId, status, matchDateTime);
-        }
+        return match;
     }
 
     private void postponedMatches() throws UnirestException, JsonProcessingException {
@@ -294,11 +219,11 @@ public class DataInitService {
                 .queryString("status", "pst")
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
-        for (Response response : root.getResponse()) {
-            Match match = matchService.findByPublicId(response.getFixture().getPublicId());
-            match.setStatus("pst");
-            matchService.update(match);
-        }
+        List<Match> matches = root.getResponse().stream()
+                .map(this::getMatch)
+                .toList();
+
+        matchService.updateAll(matches);
     }
 
     public List<News> newsInit() throws IOException, ParseException, FeedException {

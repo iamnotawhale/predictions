@@ -1,6 +1,11 @@
 package zhigalin.predictions.service;
 
+import javax.imageio.ImageIO;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -19,21 +24,22 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.MultipartBody;
 import kong.unirest.core.Unirest;
 import kong.unirest.core.UnirestException;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.CategoryPlot;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.renderer.category.LineAndShapeRenderer;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,7 +59,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
-import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
 
 import static zhigalin.predictions.service.odds.OddsService.ODDS;
@@ -79,7 +84,6 @@ public class NotificationService {
     private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
-    private final Set<Integer> notificationBan = new HashSet<>();
 
     private static final int WIDTH = 1024;
     private static final int HEIGHT = 1024;
@@ -294,7 +298,6 @@ public class NotificationService {
         g2d.dispose();
         return scaledImage;
     }
-    //        @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
 
     public void fullTimeMatchNotification(Match match) {
         String centerInfo;
@@ -346,21 +349,136 @@ public class NotificationService {
 
     }
 
-    public void weeklyResultNotification() {
-        int id = DaoUtil.currentWeekId;
-        Map<String, Integer> currentWeekUsersPoints = predictionService.getWeeklyUsersPoints(id);
-        StringBuilder builder = new StringBuilder();
-        builder.append("Очки за тур: ").append("\n");
-        for (Map.Entry<String, Integer> entry : currentWeekUsersPoints.entrySet()) {
-            builder.append(entry.getKey().toUpperCase(), 0, 3).append(" ")
-                    .append(entry.getValue()).append(" pts").append("\n");
-        }
+    private void totalPointsChart() {
         try {
-            HttpResponse<String> response = Unirest.get(urlMessage)
+            MultipartBody body = Unirest.post(urlPhoto)
+                    .headers(Map.of("accept", "application/json",
+                                    "content-type", "application/json"
+                            )
+                    )
                     .queryString("chat_id", chatId)
-                    .queryString("text", builder.toString())
-                    .queryString("parse_mode", "Markdown")
-                    .asString();
+                    .field("photo", new File(Objects.requireNonNull(createChartImage())));
+            HttpResponse<String> response = body.asString();
+            if (response.getStatus() == 200) {
+                serverLogger.info("Message weekly results notification has been send");
+            } else {
+                serverLogger.warn("Don't send weekly results notification");
+            }
+        } catch (UnirestException e) {
+            String message = "Sending chart notification message error";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
+        }
+    }
+
+    private String createChartImage() {
+        try {
+            Map<String, Map<Integer, Integer>> allUsersData = predictionService.getAllUsersCumulativePoints().entrySet().stream()
+                    .sorted((entry1, entry2) -> {
+                        int maxValue1 = Collections.max(entry1.getValue().values());
+                        int maxValue2 = Collections.max(entry2.getValue().values());
+                        return Integer.compare(maxValue2, maxValue1);
+                    })
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            Map.Entry::getValue,
+                            (e1, e2) -> e1,
+                            LinkedHashMap::new
+                    ));
+            DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+            for (Map.Entry<String, Map<Integer, Integer>> userEntry : allUsersData.entrySet()) {
+                String login = userEntry.getKey();
+                for (Map.Entry<Integer, Integer> weekEntry : userEntry.getValue().entrySet()) {
+                    dataset.addValue(weekEntry.getValue(), login.toUpperCase().substring(0, 3), weekEntry.getKey());
+                }
+            }
+
+            JFreeChart chart = ChartFactory.createLineChart(
+                    "ГРАФИК НАБОРА ОЧКОВ ПО ТУРАМ", "Week", "PTS",
+                    dataset, PlotOrientation.VERTICAL, true, true, false);
+
+            chart.setBackgroundPaint(new Color(0, 0, 0, 0));
+            chart.setBackgroundImageAlpha(0f);
+
+            CategoryPlot plot = chart.getCategoryPlot();
+
+            plot.setBackgroundPaint(new Color(255, 255, 255, 160));
+            plot.setOutlineVisible(false);
+            plot.setDomainGridlinePaint(Color.WHITE);
+            plot.setRangeGridlinePaint(Color.WHITE);
+
+            plot.getDomainAxis().setLabelPaint(Color.WHITE);
+            plot.getDomainAxis().setTickLabelPaint(Color.WHITE);
+            plot.getRangeAxis().setLabelPaint(Color.WHITE);
+            plot.getRangeAxis().setTickLabelPaint(Color.WHITE);
+
+            plot.setDomainGridlinesVisible(true);
+            plot.setRangeGridlinesVisible(true);
+
+            LineAndShapeRenderer renderer = new LineAndShapeRenderer();
+            for (int i = 0; i < dataset.getRowCount(); i++) {
+                renderer.setSeriesPaint(i, getRandomColor(i));
+                renderer.setSeriesStroke(i, new BasicStroke(2.5f));
+                renderer.setSeriesShapesVisible(i, true);
+                renderer.setSeriesShape(i, new java.awt.geom.Ellipse2D.Double(-3, -3, 6, 6));
+            }
+            plot.setRenderer(renderer);
+
+            chart.getTitle().setFont(new Font("Arial", Font.BOLD, 40));
+            chart.getTitle().setPaint(Color.WHITE);
+            plot.getDomainAxis().setLabelFont(loadFontFromFile(true).deriveFont(14f));
+            plot.getRangeAxis().setLabelFont(loadFontFromFile(true).deriveFont(14f));
+
+            BufferedImage background = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
+            BufferedImage chartImage = chart.createBufferedImage(
+                    (int) (background.getWidth() * 0.8),
+                    (int) (background.getHeight() * 0.8));
+
+
+            Graphics2D g = background.createGraphics();
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f)); // Ensures proper blending
+            g.drawImage(chartImage, (int) (background.getWidth() * 0.1), (int) (background.getHeight() * 0.1), null);
+            g.dispose();
+
+
+            File chartFile = File.createTempFile("charts", ".png");
+            ImageIO.write(background, "png", chartFile);
+            return chartFile.getAbsolutePath();
+        } catch (Exception e) {
+            String message = "Error creating image";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
+            return null;
+        }
+    }
+
+    private static Color getRandomColor(int index) {
+//        Color[] colors = {
+//                new Color(134, 0, 125),
+//                new Color(134, 0, 125, 160),
+//                new Color(134, 0, 125, 90),
+//                new Color(134, 0, 125, 40)
+//        };
+
+        Color[] colors = {
+                Color.blue, Color.green, Color.red, Color.yellow
+        };
+        return colors[index % colors.length];
+    }
+
+    public void weeklyResultNotification() {
+        try {
+            MultipartBody body = Unirest.post(urlPhoto)
+                    .headers(Map.of("accept", "application/json",
+                                    "content-type", "application/json"
+                            )
+                    )
+                    .queryString("chat_id", chatId)
+                    .field("photo", new File(Objects.requireNonNull(
+                            createWeeklyImage()
+                    )));
+            HttpResponse<String> response = body.asString();
             if (response.getStatus() == 200) {
                 serverLogger.info("Message weekly results notification has been send");
             } else {
@@ -483,7 +601,6 @@ public class NotificationService {
             g2d.drawImage(matchBlock, (WIDTH - matchBlockWidth) / 2, (HEIGHT - matchBlockHeight) / 2, null);
 
             int middleY = image.getHeight() / 2;
-
 
             switch (method) {
                 case "notification" -> {
@@ -625,6 +742,95 @@ public class NotificationService {
             g2d.dispose();
 
             File tempFile = File.createTempFile("combined", ".png");
+            ImageIO.write(image, "png", tempFile);
+
+            return tempFile.getAbsolutePath();
+        } catch (IOException e) {
+            String message = "Error creating image";
+            panicSender.sendPanic(message, e);
+            serverLogger.error("{}: {}", message, e.getMessage());
+            return null;
+        }
+    }
+
+    private String createWeeklyImage() {
+        int id = DaoUtil.currentWeekId;
+        Map<String, Integer> usersPoints = predictionService.getWeeklyUsersPoints(id);
+        int y = (HEIGHT - usersPoints.size() * 60) / 2;
+        AtomicInteger stBlockY = new AtomicInteger(y);
+        try {
+            BufferedImage image = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
+            Graphics2D g2d = image.createGraphics();
+
+            int midX = WIDTH / 2;
+
+            AtomicInteger place = new AtomicInteger(1);
+
+            usersPoints.forEach((login, pts) -> {
+                BufferedImage stBlock = new BufferedImage((int) (WIDTH * 0.7), 90, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D stGraphics = stBlock.createGraphics();
+
+                Color color = new Color(255, 255, 255, 80);
+                Color placeColor;
+                switch (place.get()) {
+                    case 1 -> placeColor = new Color(134, 0, 125, 240);
+                    case 2 -> placeColor = new Color(134, 0, 125, 160);
+                    case 3 -> placeColor = new Color(134, 0, 125, 80);
+                    default -> placeColor = new Color(255, 255, 255, 0);
+                }
+
+                stGraphics.setPaint(placeColor);
+                stGraphics.fillRect(0, 0, (int) (stBlock.getWidth() * 0.15), 90);
+                stGraphics.setPaint(color);
+                stGraphics.fillRect((int) (stBlock.getWidth() * 0.15), 0, stBlock.getWidth() - (int) (stBlock.getWidth() * 0.15), 90);
+                stGraphics.setPaint(Color.WHITE);
+
+                Font font = loadFontFromFile(true).deriveFont(70f);
+                stGraphics.setFont(font);
+
+                FontMetrics fontMetrics = stGraphics.getFontMetrics();
+
+                String plc = String.valueOf(place.getAndIncrement());
+                Rectangle2D plcBounds = fontMetrics.getStringBounds(plc, stGraphics);
+                int plcWidth = fontMetrics.stringWidth(plc);
+                int plcX = ((int) (stBlock.getWidth() * 0.15) - plcWidth) / 2;
+                int plcY = (int) ((double) stBlock.getHeight() / 2 - plcBounds.getHeight() / 2 - plcBounds.getY());
+
+                stGraphics.drawString(plc, plcX, plcY);
+
+                String lgn = login.toUpperCase().substring(0, 3);
+                Rectangle2D loginBounds = fontMetrics.getStringBounds(lgn, stGraphics);
+                int lgnX = (int) (stBlock.getWidth() * 0.25);
+                int lgnY = (int) ((double) stBlock.getHeight() / 2 - loginBounds.getHeight() / 2 - loginBounds.getY());
+
+                stGraphics.drawString(lgn, lgnX, lgnY);
+
+                Rectangle2D ptsBounds = fontMetrics.getStringBounds(String.valueOf(pts), stGraphics);
+                int ptsX = (int) (stBlock.getWidth() * 0.95) - fontMetrics.stringWidth(String.valueOf(pts));
+                int ptsY = (int) ((double) stBlock.getHeight() / 2 - ptsBounds.getHeight() / 2 - ptsBounds.getY());
+
+                stGraphics.drawString(String.valueOf(pts), ptsX, ptsY);
+
+                stGraphics.dispose();
+                g2d.drawImage(stBlock, midX - stBlock.getWidth() / 2, stBlockY.getAndAdd(110), null);
+            });
+
+            g2d.setPaint(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 60));
+
+            FontMetrics fontMetrics = g2d.getFontMetrics();
+
+            String title = "РЕЗУЛЬТАТЫ " + id + " ТУРА";
+            Rectangle2D ttlBounds = fontMetrics.getStringBounds(title, g2d);
+            int ttlWidth = fontMetrics.stringWidth(title);
+            int ttlX = (WIDTH - ttlWidth) / 2;
+            int ttlY = (int) (y - 40 - ttlBounds.getHeight());
+
+            g2d.drawString(title, ttlX, ttlY);
+
+            g2d.dispose();
+
+            File tempFile = File.createTempFile("weekly", ".png");
             ImageIO.write(image, "png", tempFile);
 
             return tempFile.getAbsolutePath();

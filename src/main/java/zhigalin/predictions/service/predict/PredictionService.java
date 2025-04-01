@@ -6,7 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Points;
@@ -190,5 +189,9 @@ public class PredictionService {
 
     public List<Integer> getPredictableWeeksByUserTelegramId(String telegramId) {
         return predictionDao.findPredictableWeeksByUserTelegramId(telegramId);
+    }
+
+    public Map<String, Map<Integer, Integer>> getAllUsersCumulativePoints() {
+        return predictionDao.getAllUsersCumulativePoints();
     }
 }
