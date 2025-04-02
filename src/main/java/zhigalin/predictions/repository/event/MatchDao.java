@@ -12,7 +12,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
 import org.slf4j.Logger;
@@ -38,6 +42,8 @@ public class MatchDao {
     private final Set<String> processedMatches = new HashSet<>();
     private final ConcurrentLinkedQueue<String> notificationQueue = new ConcurrentLinkedQueue<>();
     private final ObjectMapper mapper = new ObjectMapper();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
     public MatchDao(DataSource dataSource, PanicSender panicSender) {
         this.dataSource = dataSource;
@@ -72,6 +78,7 @@ public class MatchDao {
 
         try {
             namedParameterJdbcTemplate.batchUpdate(sql, batchParameters.toArray(new MapSqlParameterSource[0]));
+            serverLogger.info("All matches saved to database");
         } catch (Exception e) {
             panicSender.sendPanic("Error saving matches batch", e);
             serverLogger.error("Batch save failed: {}", e.getMessage());
@@ -420,30 +427,40 @@ public class MatchDao {
         }
     }
 
-    public void listenForMatchUpdates() {
-        try (Connection connection = dataSource.getConnection();
-             Statement stmt = connection.createStatement()) {
-            PGConnection pgConnection = connection.unwrap(PGConnection.class);
+    public CompletableFuture<Void> listenForMatchUpdates() {
+        if (isProcessing.compareAndSet(false, true)) {  // Prevent multiple listeners
+            return CompletableFuture.runAsync(() -> {
+                try (Connection connection = dataSource.getConnection();
+                     Statement stmt = connection.createStatement()) {
 
-            stmt.execute("LISTEN match_status_update");
+                    PGConnection pgConnection = connection.unwrap(PGConnection.class);
+                    stmt.execute("LISTEN match_status_update");
 
-            while (true) {
-                PGNotification[] notifications = pgConnection.getNotifications();
-
-                if (notifications != null && notifications.length > 0) {
-                    serverLogger.info("PGNotifications found: {}", notifications.length);
-                    for (PGNotification notification : notifications) {
-                        notificationQueue.add(notification.getParameter());
+                    while (!Thread.currentThread().isInterrupted()) {
+                        try {
+                            PGNotification[] notifications = pgConnection.getNotifications();
+                            if (notifications != null && notifications.length > 0) {
+                                serverLogger.info("Received {} notifications", notifications.length);
+                                for (PGNotification notification : notifications) {
+                                    notificationQueue.add(notification.getParameter());
+                                }
+                                return;
+                            }
+                            Thread.sleep(1000);
+                        } catch (Exception e) {
+                            serverLogger.error("Error during notification listening: {}", e.getMessage());
+                            Thread.currentThread().interrupt();
+                        }
                     }
-                    break;
-                }
-//                serverLogger.info("Listen notifications");
-                Thread.sleep(1000);
-            }
 
-        } catch (Exception e) {
-            panicSender.sendPanic("Error getting match end trigger", e);
-            serverLogger.error(e.getMessage());
+                } catch (Exception e) {
+                    panicSender.sendPanic("Error listening for match updates", e);
+                } finally {
+                    isProcessing.set(false);
+                }
+            }, executorService);
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 
