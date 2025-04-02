@@ -28,6 +28,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import kong.unirest.core.HttpResponse;
@@ -84,6 +87,8 @@ public class NotificationService {
     private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     private final Map<Integer, List<String>> notificationBLackList = new HashMap<>();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
     private static final int WIDTH = 1024;
     private static final int HEIGHT = 1024;
@@ -167,21 +172,22 @@ public class NotificationService {
         }
     }
 
-    @Scheduled(initialDelay = 1000)
+    @Scheduled(initialDelay = 1000, fixedDelay = 5000)
     public void fullTimeMatchNotification() {
-        while (true) {
-            matchService.listenForMatchUpdates();
-            List<Match> matches = matchService.processBatch();
-            if (!matches.isEmpty()) {
-                for (Match match : matches) {
-                    fullTimeMatchNotification(match);
-                }
+        if (isProcessing.compareAndSet(false, true)) {
+            executorService.submit(() -> {
                 try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    matchService.listenForMatchUpdates();
+                    List<Match> matches = matchService.processBatch();
+                    if (!matches.isEmpty()) {
+                        matches.forEach(this::fullTimeMatchNotification);
+                    }
+                } finally {
+                    isProcessing.set(false);
                 }
-            }
+            });
+        } else {
+            serverLogger.warn("Skipping execution: previous task still running");
         }
     }
 
