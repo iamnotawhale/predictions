@@ -92,7 +92,7 @@ public class NotificationService {
 
     private static final int WIDTH = 1024;
     private static final int HEIGHT = 1024;
-    private static final Color BACKGROUND_COLOR = new Color(44, 0, 48);
+    private static final Color BACKGROUND_COLOR = new Color(55, 0, 60);
 
     public NotificationService(
             MatchService matchService, PredictionService predictionService,

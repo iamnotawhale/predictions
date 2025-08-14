@@ -27,7 +27,8 @@ public enum TeamName {
     WES("/westhamwhu"),
     WOL("/wolverhampton"),
     FUL("/fulham"),
-    IPS("/ipswich");
+    IPS("/ipswich"),
+    SUN("/sunderlend");
 
     private final String name;
 

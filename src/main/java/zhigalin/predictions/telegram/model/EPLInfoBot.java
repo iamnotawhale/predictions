@@ -47,6 +47,8 @@ public class EPLInfoBot extends TelegramLongPollingBot {
 
     private static final String COMMAND_PREFIX = "/";
     private static final String REGEX = "[^A-Za-z]";
+    private static final Pattern TEAM_PATTERN = Pattern.compile("^.([a-zA-Z]{3})$");
+    private static final Pattern H2H_PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3})$");
     private static final Pattern PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3})$");
     private static final Pattern PREDICT_PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3}).$");
     private final Logger serverLogger = LoggerFactory.getLogger("server");
@@ -128,13 +130,15 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         } else if (message.contains("gen")) {
             commandContainer.retrieveGenerateCommand().execute(update);
         } else if (message.startsWith(COMMAND_PREFIX)) {
-            String[] array = message.split(REGEX);
-            String commandIdentifier = array[1].toLowerCase();
-            if (isValidTeamCommand(array)) {
-                commandContainer.retrieveHeadToHeadCommand().execute(update);
-            } else if (isTeamName(commandIdentifier)) {
+            Matcher teamMatcher = TEAM_PATTERN.matcher(message);
+            Matcher h2hMatcher = H2H_PATTERN.matcher(message);
+            if (isValidTeamName(teamMatcher)) {
                 commandContainer.retrieveTeamCommand().execute(update);
+            } else if (isValidTeamCommand(h2hMatcher)) {
+                commandContainer.retrieveHeadToHeadCommand().execute(update);
             } else {
+                String[] array = message.split(REGEX);
+                String commandIdentifier = array[1].toLowerCase();
                 commandContainer.retrieveCommand(commandIdentifier).execute(update);
             }
         } else {
