@@ -57,6 +57,7 @@ public class DataInitService {
     private final HeadToHeadService headToHeadService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
+    public static final int SEASON = 2025;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
@@ -106,7 +107,7 @@ public class DataInitService {
                     .header(X_RAPIDAPI_KEY, apiFootballToken)
                     .header(HOST_NAME, HOST)
                     .queryString("league", 39)
-                    .queryString("season", 2024)
+                    .queryString("season", SEASON)
                     .queryString("from", LocalDate.now().minusDays(1L).toString())
                     .queryString("to", LocalDate.now().toString())
                     .asString();
@@ -122,7 +123,7 @@ public class DataInitService {
                 .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2024)
+                .queryString("season", SEASON)
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         List<Match> matches = root.getResponse().stream()
@@ -136,7 +137,7 @@ public class DataInitService {
                 .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2024)
+                .queryString("season", SEASON)
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         int currentWeekId = weekService.findCurrentWeek().getId();
@@ -215,7 +216,7 @@ public class DataInitService {
                 .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2024)
+                .queryString("season", SEASON)
                 .queryString("status", "pst")
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
@@ -253,13 +254,12 @@ public class DataInitService {
 
     private void headToHeadInitFromApiFootball() throws UnirestException, JsonProcessingException {
         List<Integer> leagues = Stream.of(39, 45, 48, 2).toList();
-        List<Integer> seasons = Stream.of(2020, 2021, 2022, 2023).toList();
         for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
+            for (int j = 2020; j <= SEASON; j++) {
                 HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                         .header(X_RAPIDAPI_KEY, apiFootballToken)
                         .queryString("league", leagues.get(i))
-                        .queryString("season", seasons.get(j))
+                        .queryString("season", j)
                         .asString();
                 Root root = mapper.readValue(resp.getBody(), Root.class);
                 for (Response response : root.getResponse()) {
@@ -292,7 +292,6 @@ public class DataInitService {
                             .localDateTime(matchDateTime)
                             .build();
                     headToHeadService.save(headToHead);
-                    serverLogger.info("Saved head to head: {}", headToHead);
                 }
             }
         }
@@ -303,7 +302,7 @@ public class DataInitService {
                 .header(X_RAPIDAPI_KEY, apiFootballToken)
                 .header(HOST_NAME, HOST)
                 .queryString("league", 39)
-                .queryString("season", 2024)
+                .queryString("season", SEASON)
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
