@@ -1,9 +1,5 @@
 package zhigalin.predictions.service;
 
-import javax.imageio.ImageIO;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -33,6 +29,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import javax.imageio.ImageIO;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.MultipartBody;
 import kong.unirest.core.Unirest;
@@ -109,7 +110,7 @@ public class NotificationService {
     }
 
     //    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
-    @Scheduled(cron = "0 40 9 * * *")
+    @Scheduled(cron = "0 0 9 * * *")
     private void sendTodayMatchNotification() {
         List<Match> todayMatches = matchService.findAllByTodayDate();
         if (!todayMatches.isEmpty()) {
@@ -685,13 +686,31 @@ public class NotificationService {
                     }
                 }
                 case "yourPredict" -> {
-                    font = new Font("Arial", Font.BOLD, 40);
+                    font = loadFontFromFile(false).deriveFont(50f);
                     g2d.setFont(font);
+
+                    Match match = matchService.findByPublicId(matchPublicId);
+                    String time = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
+
+                    String week = "WEEK " + match.getWeekId();
+                    int textWidth = g2d.getFontMetrics().stringWidth(week);
+                    int textX = WIDTH / 2 - (textWidth / 2);
+                    int textY = middleY - 240;
+                    g2d.drawString(week, textX, textY);
+
+                    int text2Width = g2d.getFontMetrics().stringWidth(time);
+                    int text2X = WIDTH / 2 - (text2Width / 2);
+                    int text2Y = middleY - 180;
+                    g2d.drawString(time, text2X, text2Y);
+
+                    font = new Font("Arial", Font.BOLD, 50);
+                    g2d.setFont(font);
+
                     String message = "ТВОЙ ПРОГНОЗ";
-                    int text4Width = g2d.getFontMetrics().stringWidth(message);
-                    int text4X = (WIDTH / 2) - (text4Width / 2);
-                    int text4Y = middleY + 280;
-                    g2d.drawString(message, text4X, text4Y);
+                    int text3Width = g2d.getFontMetrics().stringWidth(message);
+                    int text3X = (WIDTH / 2) - (text3Width / 2);
+                    int text3Y = middleY + 240;
+                    g2d.drawString(message, text3X, text3Y);
                 }
                 case "result" -> {
                     BufferedImage resultImage = new BufferedImage(WIDTH / 2, HEIGHT / 6, BufferedImage.TYPE_INT_ARGB);
