@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import kong.unirest.core.HttpResponse;
 import kong.unirest.core.Unirest;
@@ -77,7 +78,7 @@ public class DataInitService {
         this.panicSender = panicSender;
     }
 
-    //        @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
+//            @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
     @Scheduled(cron = "0 */6 * * * *")
     private void start() {
         try {
@@ -253,13 +254,12 @@ public class DataInitService {
     }
 
     private void headToHeadInitFromApiFootball() throws UnirestException, JsonProcessingException {
-        List<Integer> leagues = Stream.of(39, 45, 48, 2).toList();
-        for (int i = 0; i < 4; i++) {
-            for (int j = 2020; j <= SEASON; j++) {
+        for (int league : List.of(39, 45, 48, 2, 40)) {
+            for (int season : IntStream.rangeClosed(2020, SEASON).toArray()) {
                 HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
                         .header(X_RAPIDAPI_KEY, apiFootballToken)
-                        .queryString("league", leagues.get(i))
-                        .queryString("season", j)
+                        .queryString("league", league)
+                        .queryString("season", season)
                         .asString();
                 Root root = mapper.readValue(resp.getBody(), Root.class);
                 for (Response response : root.getResponse()) {

@@ -52,7 +52,10 @@ public class HeadToHeadDao {
             parameters.addValue("awayTeamScore", headToHead.getAwayTeamScore());
             parameters.addValue("leagueName", headToHead.getLeagueName());
             parameters.addValue("localDateTime", headToHead.getLocalDateTime());
-            namedParameterJdbcTemplate.update(sql, parameters);
+            int update = namedParameterJdbcTemplate.update(sql, parameters);
+            if (update == 1) {
+                serverLogger.info("Saved head to head: {}", headToHead);
+            }
         } catch (SQLException e) {
             panicSender.sendPanic("Saving h2h DB error", e);
             serverLogger.error(e.getMessage());
