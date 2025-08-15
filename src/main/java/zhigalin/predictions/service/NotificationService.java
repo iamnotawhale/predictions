@@ -109,7 +109,7 @@ public class NotificationService {
     }
 
     //    @Scheduled(initialDelay = 1000, fixedDelay = 60000000)
-    @Scheduled(cron = "0 20 9 * * *")
+    @Scheduled(cron = "0 30 9 * * *")
     private void sendTodayMatchNotification() {
         List<Match> todayMatches = matchService.findAllByTodayDate();
         if (!todayMatches.isEmpty()) {
