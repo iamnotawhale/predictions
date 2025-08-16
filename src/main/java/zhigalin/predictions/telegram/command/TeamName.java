@@ -11,7 +11,9 @@ public enum TeamName {
     CHE("/chelseacfc"),
     CRY("/crystalpalace"),
     EVE("/everton"),
-    LEE("/leedsunited"),
+    FUL("/fulham"),
+    IPS("/ipswich"),
+    LEE("/leeds"),
     LEI("/leicester"),
     LIV("/liverpoollfc"),
     LUT("/luton"),
@@ -22,13 +24,11 @@ public enum TeamName {
     NOT("/nottingham"),
     SHE("/sheffield"),
     SOU("/southamptonsot"),
+    SUN("/sunderland"),
     TOT("/tottenham"),
     WAT("/watford"),
     WES("/westhamwhu"),
-    WOL("/wolverhampton"),
-    FUL("/fulham"),
-    IPS("/ipswich"),
-    SUN("/sunderlend");
+    WOL("/wolverhampton");
 
     private final String name;
 
