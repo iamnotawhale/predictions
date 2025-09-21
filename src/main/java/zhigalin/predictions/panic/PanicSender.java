@@ -1,8 +1,8 @@
 package zhigalin.predictions.panic;
 
-import kong.unirest.core.HttpResponse;
-import kong.unirest.core.Unirest;
-import kong.unirest.core.UnirestException;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

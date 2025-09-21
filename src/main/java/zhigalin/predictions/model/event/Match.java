@@ -34,4 +34,6 @@ public class Match {
     private LocalDateTime localDateTime;
     @JsonProperty("last_processed_at")
     private LocalDateTime lastProcessedAt;
+    @JsonProperty("espn_id")
+    private String espnId;
 }

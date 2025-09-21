@@ -20,9 +20,12 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
-import zhigalin.predictions.service.NotificationService;
+import zhigalin.predictions.service.notification.ImageRenderer;
+import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.telegram.model.EPLInfoBot;
 import zhigalin.predictions.util.DaoUtil;
+
+import static zhigalin.predictions.service.notification.NotificationImageMode.YOUR_PREDICT;
 
 @Service
 public class SendBotMessageService {
@@ -30,10 +33,12 @@ public class SendBotMessageService {
     private final EPLInfoBot bot;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
     private final NotificationService notificationService;
+    private final ImageRenderer imageRenderer;
 
-    public SendBotMessageService(EPLInfoBot bot, NotificationService notificationService) {
+    public SendBotMessageService(EPLInfoBot bot, NotificationService notificationService, ImageRenderer imageRenderer) {
         this.bot = bot;
         this.notificationService = notificationService;
+        this.imageRenderer = imageRenderer;
     }
 
     @SneakyThrows
@@ -164,12 +169,12 @@ public class SendBotMessageService {
 
         InputFile inputFile = new InputFile();
         inputFile.setMedia(new File(Objects.requireNonNull(
-                notificationService.createImage(
+                imageRenderer.createImage(
                         match.getPublicId(),
                         match.getHomeTeamId(),
                         match.getAwayTeamId(),
                         homePredict + ":" + awayPredict,
-                        "yourPredict",
+                        YOUR_PREDICT,
                         null
                 )
         )));

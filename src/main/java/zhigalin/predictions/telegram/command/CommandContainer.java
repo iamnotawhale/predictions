@@ -5,7 +5,7 @@ import java.util.Map;
 
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
-import zhigalin.predictions.service.NotificationService;
+import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.football.TeamService;
