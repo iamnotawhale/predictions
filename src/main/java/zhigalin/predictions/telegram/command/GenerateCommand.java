@@ -8,8 +8,8 @@ import com.rometools.rome.io.FeedException;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.panic.PanicSender;
-import zhigalin.predictions.service.NotificationService;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.notification.NotificationService;
 
 public class GenerateCommand implements Command {
 
@@ -30,7 +30,7 @@ public class GenerateCommand implements Command {
         Match match = getGenerateResult(update);
 
         if (match != null) {
-            notificationService.fullTimeMatchNotification(match);
+            notificationService.sendFullTime(match);
         } else {
             panicSender.sendPanic("Can't generate match result notification", null);
         }

@@ -92,7 +92,8 @@ public class MatchDao {
                     away_team_score = :awayScore,
                     result = :result,
                     local_date_time = :date,
-                    status = :status
+                    status = :status,
+                    espn_id = :espnId
                 WHERE public_id = :publicId
                 """;
 
@@ -106,6 +107,7 @@ public class MatchDao {
             parameters.addValue("status", match.getStatus());
             parameters.addValue("publicId", match.getPublicId());
             parameters.addValue("date", match.getLocalDateTime());
+            parameters.addValue("espnId", match.getEspnId());
             batchParameters.add(parameters);
         }
 
@@ -207,7 +209,6 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE home_team_id = :homePublicId AND away_team_id = :awayPublicId
-                    ORDER BY local_date_time
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homePublicId", homePublicId);
@@ -534,6 +535,7 @@ public class MatchDao {
                     .awayTeamScore(rs.getInt("away_team_score"))
                     .status(rs.getString("status"))
                     .result(rs.getString("result"))
+                    .espnId(rs.getString("espn_id"))
                     .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
                     .build();
         }

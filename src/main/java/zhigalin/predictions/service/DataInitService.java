@@ -1,12 +1,5 @@
 package zhigalin.predictions.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rometools.rome.feed.synd.SyndEntry;
-import com.rometools.rome.feed.synd.SyndFeed;
-import com.rometools.rome.io.FeedException;
-import com.rometools.rome.io.SyndFeedInput;
-import com.rometools.rome.io.XmlReader;
 import java.io.IOException;
 import java.net.URL;
 import java.text.DateFormat;
@@ -23,10 +16,17 @@ import java.util.Objects;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
-import kong.unirest.core.HttpResponse;
-import kong.unirest.core.Unirest;
-import kong.unirest.core.UnirestException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rometools.rome.feed.synd.SyndEntry;
+import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.io.FeedException;
+import com.rometools.rome.io.SyndFeedInput;
+import com.rometools.rome.io.XmlReader;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,11 +40,15 @@ import zhigalin.predictions.model.input.Response;
 import zhigalin.predictions.model.input.ResponseTeam;
 import zhigalin.predictions.model.input.Root;
 import zhigalin.predictions.model.news.News;
+import zhigalin.predictions.model.v2.Competitor;
+import zhigalin.predictions.model.v2.Event;
+import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
+import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.util.DaoUtil;
 
 @Service
@@ -78,13 +82,13 @@ public class DataInitService {
         this.panicSender = panicSender;
     }
 
-//            @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
-    @Scheduled(cron = "0 */6 * * * *")
+    //    @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
+    @Scheduled(cron = "*/30 * * * * *")
     private void start() {
         try {
             serverLogger.info("Data init start");
-            matchUpdateFromApiFootball();
-            notificationService.check();
+            matchUpdateFromESPN();
+            notificationService.checkReminders();
         } catch (Exception e) {
             panicSender.sendPanic("Main method", e);
         }
@@ -95,11 +99,104 @@ public class DataInitService {
         matchDateTimeStatusUpdate();
     }
 
+    private void matchUpdateFromESPN() throws JsonProcessingException {
+        if (matchService.findAllByCurrentWeek().stream()
+                .allMatch(m -> Objects.equals(m.getStatus(), "ft")
+                               || Objects.equals(m.getStatus(), "pst"))) {
+            notificationService.sendWeeklyResults();
+            weekService.updateCurrent();
+        }
+
+        if (!matchService.findOnlineMatches().isEmpty()) {
+            HttpResponse<String> response = Unirest.get("https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard")
+                    .asString();
+
+            Scoreboard scoreboard = mapper.readValue(response.getBody(), Scoreboard.class);
+
+            List<Event> events = scoreboard.getEvents();
+
+            for (Event event : events) {
+                String state = event.getStatus().getType().getState();
+                if (state.equals("in")) {
+                    String status = event.getStatus().getDisplayClock();
+
+                    String[] teams = event.getShortName().split(" @ ");
+                    String homeTeam = realTeamCode(teams[1]);
+                    String awayTeam = realTeamCode(teams[0]);
+
+                    Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+
+                    Integer homeScore = findScore(event, "home");
+                    Integer awayScore = findScore(event, "away");
+
+                    match.setHomeTeamScore(homeScore);
+                    match.setAwayTeamScore(awayScore);
+                    match.setStatus(status);
+                    match.setEspnId(event.getId());
+                    match.setResult(findResult(homeScore, awayScore));
+
+                    matchService.update(match);
+                } else if (state.equals("post")) {
+                    String status = "ft";
+                    String[] teams = event.getShortName().split(" @ ");
+                    String homeTeam = realTeamCode(teams[1]);
+                    String awayTeam = realTeamCode(teams[0]);
+
+                    Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+
+                    if (!match.getStatus().equals(status)) {
+                        Integer homeScore = findScore(event, "home");
+                        Integer awayScore = findScore(event, "away");
+
+                        match.setHomeTeamScore(homeScore);
+                        match.setAwayTeamScore(awayScore);
+                        match.setStatus(status);
+                        match.setResult(findResult(homeScore, awayScore));
+
+                        matchService.update(match);
+                    }
+                }
+            }
+        }
+    }
+
+    private String realTeamCode(String teamCode) {
+        return switch (teamCode) {
+            case "AVL" -> "AST";
+            case "BHA" -> "BRI";
+            case "WHU" -> "WES";
+            case "MNC" -> "MAC";
+            case "NFO" -> "NOT";
+            case "MAN" -> "MUN";
+            default -> teamCode;
+        };
+    }
+
+    private Integer findScore(Event event, String awayHome) {
+        List<Competitor> competitors = event.getCompetitions().getFirst().getCompetitors();
+        Competitor competitor = competitors.stream()
+                .filter(c -> c.getHomeAway().equals(awayHome))
+                .findFirst()
+                .orElseThrow();
+
+        return Integer.parseInt(competitor.getScore());
+    }
+
+    private String findResult(Integer homeScore, Integer awayScore) {
+        String result;
+        if (homeScore.equals(awayScore)) {
+            result = "D";
+        } else {
+            result = homeScore > awayScore ? "H" : "A";
+        }
+        return result;
+    }
+
     private void matchUpdateFromApiFootball() throws JsonProcessingException {
         if (matchService.findAllByCurrentWeek().stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
                                || Objects.equals(m.getStatus(), "pst"))) {
-            notificationService.weeklyResultNotification();
+            notificationService.sendWeeklyResults();
             weekService.updateCurrent();
         }
         if (!matchService.findOnlineMatches().isEmpty()) {

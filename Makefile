@@ -1,9 +1,16 @@
+.PHONY: all push docker dockerPush
+
+IMAGE := imnotawhale/predicts
+TAG   := latest
+
 all: docker
 
 push: dockerPush
 
 docker:
-        docker build -t imnotawhale/predicts:latest .
+	# TAB at the start of this line
+	docker build -t $(IMAGE):$(TAG) .
 
 dockerPush:
-        docker push imnotawhale/predicts:latest
+	# TAB at the start of this line
+	docker push $(IMAGE):$(TAG)

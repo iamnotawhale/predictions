@@ -2,6 +2,7 @@ package zhigalin.predictions.service.event;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -70,24 +71,23 @@ public class MatchService {
         return matchDao.findAll();
     }
 
-    public Match findByTeamNames(String homeTeamName, String awayTeamName) {
-        Team homeTeam = teamService.findByName(homeTeamName);
-        Team awayTeam = teamService.findByName(awayTeamName);
-        return matchDao.findMatchByTeamsPublicId(homeTeam.getPublicId(), awayTeam.getPublicId());
-    }
-
     public Match findByTeamCodes(String homeTeamCode, String awayTeamCode) {
-        Team homeTeam = teamService.findByCode(homeTeamCode);
-        Team awayTeam = teamService.findByCode(awayTeamCode);
-        return matchDao.findMatchByTeamsPublicId(homeTeam.getPublicId(), awayTeam.getPublicId());
+        Collection<Team> teams = DaoUtil.TEAMS.values();
+        Integer homeId = teams.stream()
+                .filter(t -> t.getCode().equals(homeTeamCode))
+                .map(Team::getPublicId)
+                .findFirst()
+                .orElseThrow();
+        Integer awayId = teams.stream()
+                .filter(t -> t.getCode().equals(awayTeamCode))
+                .map(Team::getPublicId)
+                .findFirst()
+                .orElseThrow();
+        return matchDao.findMatchByTeamsPublicId(homeId, awayId);
     }
 
-    public List<Integer> getResultByTeamNames(String homeTeamName, String awayTeamName) {
-        List<Integer> result = new ArrayList<>();
-        Match match = findByTeamNames(homeTeamName, awayTeamName);
-        result.add(match.getHomeTeamScore());
-        result.add(match.getAwayTeamScore());
-        return result;
+    public Match findByTeamIds(Integer home, Integer away) {
+        return matchDao.findMatchByTeamsPublicId(home, away);
     }
 
     public List<Match> findLast5MatchesByTeamId(int teamPublicId) {

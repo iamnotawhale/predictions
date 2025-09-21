@@ -12,14 +12,18 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import kong.unirest.core.HttpResponse;
-import kong.unirest.core.Unirest;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.model.v2.Competition;
+import zhigalin.predictions.model.v2.Event;
+import zhigalin.predictions.model.v2.OddV2;
+import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.odds.entity.Bookmaker;
 import zhigalin.predictions.service.odds.entity.Market;
@@ -42,6 +46,67 @@ public class OddsService {
 
     public OddsService(PanicSender panicSender) {
         this.panicSender = panicSender;
+    }
+
+    public void oddsInit2(List<Match> matches) {
+        try {
+            HttpResponse<String> response = Unirest.get("https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard")
+                    .asString();
+
+            Scoreboard scoreboard = mapper.readValue(response.getBody(), Scoreboard.class);
+            List<Event> events = scoreboard.getEvents();
+
+            for (Event event : events) {
+                String state = event.getStatus().getType().getState();
+                if (state.equals("pre")) {
+                    String[] teams = event.getShortName().split(" @ ");
+
+                    String home = realTeamCode(teams[1]);
+                    String away = realTeamCode(teams[0]);
+
+                    Match match = matches.stream()
+                            .filter(m -> {
+                                Team homeTeam = DaoUtil.TEAMS.get(m.getHomeTeamId());
+                                Team awayTeam = DaoUtil.TEAMS.get(m.getAwayTeamId());
+                                return homeTeam.getCode().equalsIgnoreCase(home) &&
+                                       awayTeam.getCode().equalsIgnoreCase(away);
+                            })
+                            .findFirst()
+                            .orElse(null);
+
+                    if (match != null) {
+                        Competition competition = event.getCompetitions().getFirst();
+                        competition.getOdds().stream()
+                                .filter(o -> o.getProvider().getId().equals("2000"))
+                                .findFirst().ifPresent(odd -> ODDS.put(
+                                        match.getPublicId(),
+                                        new Odd(
+                                                round(odd.getHomeTeamOdds().getValue()),
+                                                round(odd.getDrawOdds().getValue()),
+                                                round(odd.getAwayTeamOdds().getValue())
+                                        )
+                                ));
+                    }
+                }
+            }
+
+
+        } catch (Exception e) {
+            String message = "Failed to retrieve odds";
+            panicSender.sendPanic(message, e);
+        }
+    }
+
+    private String realTeamCode(String teamCode) {
+        return switch (teamCode) {
+            case "AVL" -> "AST";
+            case "BHA" -> "BRI";
+            case "WHU" -> "WES";
+            case "MNC" -> "MAC";
+            case "NFO" -> "NOT";
+            case "MAN" -> "MUN";
+            default -> teamCode;
+        };
     }
 
     public void oddsInit(List<Match> matches) {
