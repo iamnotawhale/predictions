@@ -176,7 +176,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by match ids", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -197,7 +197,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by user id", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -230,7 +230,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by matches", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -251,7 +251,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding all by week id", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -274,7 +274,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding all by week id", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -292,7 +292,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error get all points by users", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -313,7 +313,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error get all points by week id", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -336,7 +336,7 @@ public class PredictionDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error get predictions by user id and week id", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 

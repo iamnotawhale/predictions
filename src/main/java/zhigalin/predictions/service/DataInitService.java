@@ -85,13 +85,18 @@ public class DataInitService {
     //    @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
     @Scheduled(cron = "*/30 * * * * *")
     private void start() {
+        serverLogger.info("Data init start");
         try {
-            serverLogger.info("Data init start");
             matchUpdateFromESPN();
+        } catch (Exception e) {
+            serverLogger.error("matchUpdateFromESPN error: {}", e.getMessage(), e);
+            panicSender.sendPanic("matchUpdateFromESPN", e);
+        }
+        try {
             notificationService.checkReminders();
         } catch (Exception e) {
-            serverLogger.error("Main method error: {}", e.getMessage(), e);
-            panicSender.sendPanic("Main method", e);
+            serverLogger.error("checkReminders error: {}", e.getMessage(), e);
+            panicSender.sendPanic("checkReminders", e);
         }
     }
 
@@ -101,7 +106,8 @@ public class DataInitService {
     }
 
     private void matchUpdateFromESPN() throws JsonProcessingException {
-        if (matchService.findAllByCurrentWeek().stream()
+        List<Match> currentWeekMatches = matchService.findAllByCurrentWeek();
+        if (!currentWeekMatches.isEmpty() && currentWeekMatches.stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
                                || Objects.equals(m.getStatus(), "pst"))) {
             notificationService.sendWeeklyResults();
@@ -204,7 +210,8 @@ public class DataInitService {
     }
 
     private void matchUpdateFromApiFootball() throws JsonProcessingException {
-        if (matchService.findAllByCurrentWeek().stream()
+        List<Match> currentWeekMatches = matchService.findAllByCurrentWeek();
+        if (!currentWeekMatches.isEmpty() && currentWeekMatches.stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
                                || Objects.equals(m.getStatus(), "pst"))) {
             notificationService.sendWeeklyResults();

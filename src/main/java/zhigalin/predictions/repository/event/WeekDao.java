@@ -131,7 +131,7 @@ public class WeekDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error while finding all weeks", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 

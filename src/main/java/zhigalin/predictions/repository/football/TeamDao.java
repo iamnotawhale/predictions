@@ -70,7 +70,7 @@ public class TeamDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error while finding teams", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 

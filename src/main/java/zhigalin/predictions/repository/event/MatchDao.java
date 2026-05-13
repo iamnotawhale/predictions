@@ -3,6 +3,7 @@ package zhigalin.predictions.repository.event;
 import javax.sql.DataSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -20,6 +22,7 @@ import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -32,6 +35,15 @@ import zhigalin.predictions.util.DaoUtil;
 
 @Repository
 public class MatchDao {
+
+    @Value("${spring.datasource.url}")
+    private String dbUrl;
+
+    @Value("${spring.datasource.username}")
+    private String dbUsername;
+
+    @Value("${spring.datasource.password}")
+    private String dbPassword;
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
@@ -50,6 +62,16 @@ public class MatchDao {
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.panicSender = panicSender;
         this.mapper = objectMapper;
+    }
+
+    private Connection createListenConnection() throws SQLException {
+        String listenUrl = dbUrl.contains("?") ? dbUrl.substring(0, dbUrl.indexOf('?')) : dbUrl;
+        Properties props = new Properties();
+        props.setProperty("user", dbUsername);
+        props.setProperty("password", dbPassword);
+        props.setProperty("socketTimeout", "0");
+        props.setProperty("connectTimeout", "10");
+        return DriverManager.getConnection(listenUrl, props);
     }
 
     public void save(List<Match> matches) {
@@ -146,7 +168,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches today", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -166,7 +188,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches in the next minutes", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -184,7 +206,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches by week id", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -198,7 +220,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -234,7 +256,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding match by team public id", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -253,7 +275,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding matches between dates", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -290,7 +312,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches by current week", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -338,7 +360,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error get standings", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -359,7 +381,7 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error get predictable match public ids", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -379,22 +401,27 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error get predictable today match public ids", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
     public CompletableFuture<Void> listenForMatchUpdates() {
-        if (isProcessing.compareAndSet(false, true)) {  // Prevent multiple listeners
+        if (isProcessing.compareAndSet(false, true)) {
             return CompletableFuture.runAsync(() -> {
-                try (Connection connection = dataSource.getConnection();
-                     Statement stmt = connection.createStatement()) {
+                int retries = 0;
+                int maxRetries = 5;
 
-                    PGConnection pgConnection = connection.unwrap(PGConnection.class);
-                    stmt.execute("LISTEN match_status_update");
+                while (!Thread.currentThread().isInterrupted() && retries < maxRetries) {
+                    try (Connection connection = createListenConnection();
+                         Statement stmt = connection.createStatement()) {
 
-                    while (!Thread.currentThread().isInterrupted()) {
-                        try {
-                            PGNotification[] notifications = pgConnection.getNotifications();
+                        retries = 0;
+                        PGConnection pgConnection = connection.unwrap(PGConnection.class);
+                        stmt.execute("LISTEN match_status_update");
+                        serverLogger.info("LISTEN connection established");
+
+                        while (!Thread.currentThread().isInterrupted()) {
+                            PGNotification[] notifications = pgConnection.getNotifications(1000);
                             if (notifications != null && notifications.length > 0) {
                                 serverLogger.info("Received {} notifications", notifications.length);
                                 for (PGNotification notification : notifications) {
@@ -402,19 +429,24 @@ public class MatchDao {
                                 }
                                 return;
                             }
-                            Thread.sleep(1000);
-                        } catch (Exception e) {
-                            serverLogger.error("Error during notification listening: {}", e.getMessage());
+                        }
+
+                    } catch (Exception e) {
+                        retries++;
+                        serverLogger.error("LISTEN connection lost (attempt {}/{}): {}", retries, maxRetries, e.getMessage());
+                        if (retries >= maxRetries) {
+                            panicSender.sendPanic("Error listening for match updates after " + maxRetries + " retries", e);
+                            break;
+                        }
+                        try {
+                            long backoff = Math.min(retries * 5000L, 30000L);
+                            Thread.sleep(backoff);
+                        } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                         }
                     }
-
-                } catch (Exception e) {
-                    panicSender.sendPanic("Error listening for match updates", e);
-                } finally {
-                    isProcessing.set(false);
                 }
-            }, executorService);
+            }, executorService).whenComplete((v, ex) -> isProcessing.set(false));
         } else {
             return CompletableFuture.completedFuture(null);
         }

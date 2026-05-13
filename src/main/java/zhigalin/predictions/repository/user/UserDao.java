@@ -31,7 +31,7 @@ public class UserDao {
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new UserMapper()));
         } catch (Exception e) {
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 

@@ -77,7 +77,7 @@ public class HeadToHeadDao {
         } catch (Exception e) {
             panicSender.sendPanic("Getting h2h by team codes error", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
@@ -98,7 +98,7 @@ public class HeadToHeadDao {
         } catch (Exception e) {
             panicSender.sendPanic("Getting all h2h by teams ids error", e);
             serverLogger.error(e.getMessage());
-            return null;
+            return List.of();
         }
     }
 
