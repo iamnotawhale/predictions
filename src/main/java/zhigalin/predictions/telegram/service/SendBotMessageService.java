@@ -3,8 +3,10 @@ package zhigalin.predictions.telegram.service;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
@@ -21,7 +23,6 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.notification.ImageRenderer;
-import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.telegram.model.EPLInfoBot;
 import zhigalin.predictions.util.DaoUtil;
 
@@ -32,37 +33,22 @@ public class SendBotMessageService {
 
     private final EPLInfoBot bot;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
-    private final NotificationService notificationService;
     private final ImageRenderer imageRenderer;
 
-    public SendBotMessageService(EPLInfoBot bot, NotificationService notificationService, ImageRenderer imageRenderer) {
+    public SendBotMessageService(EPLInfoBot bot, ImageRenderer imageRenderer) {
         this.bot = bot;
-        this.notificationService = notificationService;
         this.imageRenderer = imageRenderer;
     }
 
     @SneakyThrows
     public void sendMessage(String chatId, String message) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, null));
     }
 
     @SneakyThrows
     public void sendMessageDeletingKeyboard(String chatId, String message) {
         deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, null));
     }
 
     @SneakyThrows
@@ -81,108 +67,64 @@ public class SendBotMessageService {
     @SneakyThrows
     public void sendPredictKeyBoard(String chatId, String message, String homeTeam, String awayTeam, Prediction prediction) {
         deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createPredictKeyBoard(homeTeam, awayTeam, prediction));
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, createPredictKeyBoard(homeTeam, awayTeam, prediction)));
     }
 
     @SneakyThrows
     public void sendNotificationPredictKeyBoard(String chatId, String message, String homeTeam, String awayTeam) {
         deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createNotificationPredictKeyBoard(homeTeam, awayTeam));
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, createNotificationPredictKeyBoard(homeTeam, awayTeam)));
     }
 
     @SneakyThrows
     public void sendTourKeyBoard(String chatId, List<Integer> weeksIds, String message, String prefix) {
         deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createTourKeyBoard(weeksIds, prefix));
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, createTourKeyBoard(weeksIds, prefix)));
     }
 
     @SneakyThrows
     public void sendWeeklyPredictsByUserKeyBoard(String chatId, String message, List<MatchPrediction> matchPredictions) {
         deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createPredictTourUsersKeyBoard(matchPredictions));
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, createPredictTourUsersKeyBoard(matchPredictions)));
     }
 
 
     @SneakyThrows
     public void sendMessageWithMatchesKeyboard(List<Match> matches, List<Integer> predictableMatches, String chatId, String message) {
         deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createMatchesKeyBoard(matches, predictableMatches));
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, createMatchesKeyBoard(matches, predictableMatches)));
     }
 
     @SneakyThrows
     public void sendMainMenuMessage(String chatId, String message) {
         deletePreviousMessage(chatId);
-
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.enableHtml(true);
-        sendMessage.enableMarkdown(true);
-        sendMessage.setText(message);
-        sendMessage.setReplyMarkup(createMenuKeyBoard());
-
-        bot.execute(sendMessage);
+        bot.execute(createMessage(chatId, message, createMenuKeyBoard()));
     }
 
     @SneakyThrows
     public void sendMessageNotificationPicture(String chatId, String message, Match match, int homePredict, int awayPredict) {
         deletePreviousMessage(chatId);
 
+        String imagePath = imageRenderer.createImage(
+            match.getPublicId(),
+            match.getHomeTeamId(),
+            match.getAwayTeamId(),
+            homePredict + ":" + awayPredict,
+            YOUR_PREDICT,
+            null
+        );
+        if (imagePath == null) {
+            sendMessage(chatId, message);
+            return;
+        }
+
         InputFile inputFile = new InputFile();
-        inputFile.setMedia(new File(Objects.requireNonNull(
-                imageRenderer.createImage(
-                        match.getPublicId(),
-                        match.getHomeTeamId(),
-                        match.getAwayTeamId(),
-                        homePredict + ":" + awayPredict,
-                        YOUR_PREDICT,
-                        null
-                )
-        )));
+        inputFile.setMedia(new File(imagePath));
 
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setChatId(chatId);
         sendPhoto.setPhoto(inputFile);
-//        sendPhoto.setCaption(message);
+        sendPhoto.setCaption(message);
 
         String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
         String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
@@ -200,6 +142,17 @@ public class SendBotMessageService {
         );
 
         bot.execute(sendPhoto);
+    }
+
+    private static SendMessage createMessage(String chatId, String message, InlineKeyboardMarkup keyboard) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.enableMarkdown(true);
+        sendMessage.setText(message);
+        if (keyboard != null) {
+            sendMessage.setReplyMarkup(keyboard);
+        }
+        return sendMessage;
     }
 
     private static InlineKeyboardMarkup createMenuKeyBoard() {
@@ -234,20 +187,7 @@ public class SendBotMessageService {
         }
 
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> listOfKeyboard = new ArrayList<>();
-        for (Integer awayScore = 0; awayScore < 6; awayScore++) {
-            List<InlineKeyboardButton> innerList = new ArrayList<>();
-            for (Integer homeScore = 0; homeScore < 6; homeScore++) {
-                String buttonName = homeScore + ":" + awayScore;
-                if (homeScore.equals(predictHomeScore) && awayScore.equals(predictAwayScore)) {
-                    buttonName = String.join("̲", buttonName.split("", -1));
-                }
-                InlineKeyboardButton button = new InlineKeyboardButton(buttonName);
-                button.setCallbackData("/pred " + homeTeam + " " + homeScore + " " + awayTeam + " " + awayScore);
-                innerList.add(button);
-            }
-            listOfKeyboard.add(innerList);
-        }
+        List<List<InlineKeyboardButton>> listOfKeyboard = createScoreGrid(homeTeam, awayTeam, "/pred ", true, predictHomeScore, predictAwayScore);
         if (prediction != null) {
             InlineKeyboardButton deletePredictButton = new InlineKeyboardButton("Удалить");
             deletePredictButton.setCallbackData("/delete " + homeTeam + " " + awayTeam);
@@ -262,16 +202,7 @@ public class SendBotMessageService {
 
     private static InlineKeyboardMarkup createNotificationPredictKeyBoard(String homeTeam, String awayTeam) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> listOfKeyboard = new ArrayList<>();
-        for (int awayScore = 0; awayScore < 6; awayScore++) {
-            List<InlineKeyboardButton> innerList = new ArrayList<>();
-            for (int homeScore = 0; homeScore < 6; homeScore++) {
-                InlineKeyboardButton button = new InlineKeyboardButton(homeScore + ":" + awayScore);
-                button.setCallbackData("/notpred " + homeTeam + " " + homeScore + " " + awayTeam + " " + awayScore);
-                innerList.add(button);
-            }
-            listOfKeyboard.add(innerList);
-        }
+        List<List<InlineKeyboardButton>> listOfKeyboard = createScoreGrid(homeTeam, awayTeam, "/notpred ", false, null, null);
 
         InlineKeyboardButton backButton = new InlineKeyboardButton("Отмена");
         backButton.setCallbackData("/cancel");
@@ -280,9 +211,35 @@ public class SendBotMessageService {
         return keyBoard;
     }
 
+    private static List<List<InlineKeyboardButton>> createScoreGrid(String homeTeam,
+                                                                    String awayTeam,
+                                                                    String callbackPrefix,
+                                                                    boolean highlightSelected,
+                                                                    Integer selectedHomeScore,
+                                                                    Integer selectedAwayScore) {
+        List<List<InlineKeyboardButton>> listOfKeyboard = new ArrayList<>();
+        for (int awayScore = 0; awayScore < 6; awayScore++) {
+            List<InlineKeyboardButton> innerList = new ArrayList<>();
+            for (int homeScore = 0; homeScore < 6; homeScore++) {
+                String buttonName = homeScore + ":" + awayScore;
+                if (highlightSelected
+                    && Integer.valueOf(homeScore).equals(selectedHomeScore)
+                    && Integer.valueOf(awayScore).equals(selectedAwayScore)) {
+                    buttonName = String.join("̲", buttonName.split("", -1));
+                }
+                InlineKeyboardButton button = new InlineKeyboardButton(buttonName);
+                button.setCallbackData(callbackPrefix + homeTeam + " " + homeScore + " " + awayTeam + " " + awayScore);
+                innerList.add(button);
+            }
+            listOfKeyboard.add(innerList);
+        }
+        return listOfKeyboard;
+    }
+
     private static InlineKeyboardMarkup createTourKeyBoard(List<Integer> weeksIds, String prefix) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
+        Set<Integer> markedWeeks = new HashSet<>(weeksIds);
         int rows = 5;
         int columns = 8;
         for (int i = 0; i < rows; i++) {
@@ -293,7 +250,7 @@ public class SendBotMessageService {
                     continue;
                 }
                 String buttonName = String.valueOf(tour);
-                if (weeksIds.contains(tour)) {
+                if (markedWeeks.contains(tour)) {
                     buttonName += " *";
                 }
                 InlineKeyboardButton button = new InlineKeyboardButton(buttonName);
@@ -312,6 +269,7 @@ public class SendBotMessageService {
     private static InlineKeyboardMarkup createMatchesKeyBoard(List<Match> matches, List<Integer> predictableMatches) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
+        Set<Integer> predictableMatchIds = new HashSet<>(predictableMatches);
         int matchNum = 1;
         List<InlineKeyboardButton> innerList = new ArrayList<>();
         for (Match match : matches) {
@@ -323,7 +281,7 @@ public class SendBotMessageService {
             String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
 
             String buttonName = String.join("-", homeTeam, awayTeam);
-            if (predictableMatches.contains(match.getPublicId())) {
+            if (predictableMatchIds.contains(match.getPublicId())) {
                 buttonName += " *";
             }
 
@@ -341,40 +299,6 @@ public class SendBotMessageService {
         keyBoard.setKeyboard(listOfKeyboardRows);
         return keyBoard;
     }
-
-    private static InlineKeyboardMarkup createTodayMatchesKeyBoard(List<Match> matches, List<Integer> predictableMatches) {
-        InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
-        int matchNum = 1;
-        List<InlineKeyboardButton> innerList = new ArrayList<>();
-        for (Match match : matches) {
-            if (matchNum > 1 && matchNum % 2 == 1) {
-                listOfKeyboardRows.add(innerList);
-                innerList = new ArrayList<>();
-            }
-            String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
-            String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-
-            String buttonName = String.join("-", homeTeam, awayTeam);
-            if (predictableMatches.contains(match.getPublicId())) {
-                buttonName += " *";
-            }
-
-            InlineKeyboardButton button = new InlineKeyboardButton(buttonName);
-            button.setCallbackData("/" + homeTeam + ":" + awayTeam);
-            innerList.add(button);
-            if (matchNum == matches.size()) {
-                listOfKeyboardRows.add(innerList);
-            }
-            matchNum++;
-        }
-        InlineKeyboardButton backButton = new InlineKeyboardButton("« Назад");
-        backButton.setCallbackData("/today");
-        listOfKeyboardRows.add(List.of(backButton));
-        keyBoard.setKeyboard(listOfKeyboardRows);
-        return keyBoard;
-    }
-
 
     private static InlineKeyboardMarkup createPredictTourUsersKeyBoard(List<MatchPrediction> matchPredictions) {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
@@ -416,7 +340,7 @@ public class SendBotMessageService {
 
     public void deletePreviousMessage(String chatId) {
         try {
-            Integer messageId = bot.getMessageToDelete().getOrDefault(Long.parseLong(chatId), null);
+            Integer messageId = bot.getMessageToDelete().get(Long.parseLong(chatId));
             if (messageId == null) {
                 return;
             }

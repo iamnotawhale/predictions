@@ -57,7 +57,7 @@ public class LogbackConfig {
         encoder.setPattern("%d [%c{0}] %-5level: %m%n");
         encoder.start();
 
-        CustomTimeBasedRollingPolicy rollingPolicy = new CustomTimeBasedRollingPolicy();
+        CustomTimeBasedRollingPolicy<ILoggingEvent> rollingPolicy = new CustomTimeBasedRollingPolicy<>();
         rollingPolicy.setContext(context);
         rollingPolicy.setFileNamePattern("./logs/" + "server-%d{yyyy-MM-dd}.log.gz");
         rollingPolicy.setMaxHistory(14);

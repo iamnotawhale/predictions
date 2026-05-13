@@ -1,10 +1,10 @@
-package zhigalin.predictions.model.v2;
+package zhigalin.predictions.model.event;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class TeamV2 {
-    private String abbreviation;
+public class Lineup {
+    private Player player;
 }

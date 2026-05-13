@@ -15,23 +15,7 @@ public class UserService {
         this.userDao = userDao;
     }
 
-    public void save(User user) {
-        userDao.save(user);
-    }
-
     public List<User> findAll() {
         return userDao.findAll();
-    }
-
-    public User findById(int id) {
-        return userDao.findById(id);
-    }
-
-    public User findByLogin(String login) {
-        return userDao.findByLogin(login);
-    }
-
-    public User findByTelegramId(String telegramId) {
-        return userDao.findByTelegramId(telegramId);
     }
 }

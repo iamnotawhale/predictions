@@ -90,6 +90,7 @@ public class DataInitService {
             matchUpdateFromESPN();
             notificationService.checkReminders();
         } catch (Exception e) {
+            serverLogger.error("Main method error: {}", e.getMessage(), e);
             panicSender.sendPanic("Main method", e);
         }
     }
@@ -107,54 +108,64 @@ public class DataInitService {
             weekService.updateCurrent();
         }
 
-        if (!matchService.findOnlineMatches().isEmpty()) {
-            HttpResponse<String> response = Unirest.get("https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard")
-                    .asString();
+        boolean hasOnlineMatches = !matchService.findOnlineMatches().isEmpty();
+        boolean hasPostponedMatches = matchService.findAll().stream()
+                .anyMatch(m -> "pst".equals(m.getStatus()));
 
-            Scoreboard scoreboard = mapper.readValue(response.getBody(), Scoreboard.class);
+        if (!hasOnlineMatches && !hasPostponedMatches) return;
 
-            List<Event> events = scoreboard.getEvents();
+        HttpResponse<String> response = Unirest.get("https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard")
+                .asString();
 
-            for (Event event : events) {
-                String state = event.getStatus().getType().getState();
-                if (state.equals("in")) {
-                    String status = event.getStatus().getDisplayClock();
+        Scoreboard scoreboard = mapper.readValue(response.getBody(), Scoreboard.class);
+        List<Event> events = scoreboard.getEvents();
 
-                    String[] teams = event.getShortName().split(" @ ");
-                    String homeTeam = realTeamCode(teams[1]);
-                    String awayTeam = realTeamCode(teams[0]);
+        for (Event event : events) {
+            String state = event.getStatus().getType().getState();
+            String[] teams = event.getShortName().split(" @ ");
+            String homeTeam = realTeamCode(teams[1]);
+            String awayTeam = realTeamCode(teams[0]);
 
-                    Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+            if (state.equals("pre")) {
+                Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+                if (match != null && "pst".equals(match.getStatus())) {
+                    String dateStr = event.getDate().replaceAll("(T\\d{2}:\\d{2})Z", "$1:00Z");
+                    LocalDateTime espnDate = Instant.parse(dateStr)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDateTime();
+                    match.setStatus("ns");
+                    match.setLocalDateTime(espnDate);
+                    matchService.update(match);
+                    serverLogger.info("Match {}-{} rescheduled: pst -> ns, date={}", homeTeam, awayTeam, espnDate);
+                }
+            } else if (state.equals("in")) {
+                String status = event.getStatus().getDisplayClock();
+                Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
 
+                Integer homeScore = findScore(event, "home");
+                Integer awayScore = findScore(event, "away");
+
+                match.setHomeTeamScore(homeScore);
+                match.setAwayTeamScore(awayScore);
+                match.setStatus(status);
+                match.setEspnId(event.getId());
+                match.setResult(findResult(homeScore, awayScore));
+
+                matchService.update(match);
+            } else if (state.equals("post")) {
+                String status = "ft";
+                Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+
+                if (!match.getStatus().equals(status)) {
                     Integer homeScore = findScore(event, "home");
                     Integer awayScore = findScore(event, "away");
 
                     match.setHomeTeamScore(homeScore);
                     match.setAwayTeamScore(awayScore);
                     match.setStatus(status);
-                    match.setEspnId(event.getId());
                     match.setResult(findResult(homeScore, awayScore));
 
                     matchService.update(match);
-                } else if (state.equals("post")) {
-                    String status = "ft";
-                    String[] teams = event.getShortName().split(" @ ");
-                    String homeTeam = realTeamCode(teams[1]);
-                    String awayTeam = realTeamCode(teams[0]);
-
-                    Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
-
-                    if (!match.getStatus().equals(status)) {
-                        Integer homeScore = findScore(event, "home");
-                        Integer awayScore = findScore(event, "away");
-
-                        match.setHomeTeamScore(homeScore);
-                        match.setAwayTeamScore(awayScore);
-                        match.setStatus(status);
-                        match.setResult(findResult(homeScore, awayScore));
-
-                        matchService.update(match);
-                    }
                 }
             }
         }

@@ -12,8 +12,6 @@ import java.util.stream.Stream;
 import com.rometools.rome.io.FeedException;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -52,7 +50,6 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private static final Pattern H2H_PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3})$");
     private static final Pattern PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3})$");
     private static final Pattern PREDICT_PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3}).$");
-    private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public EPLInfoBot(@Value("${bot.token}") String token, @Value("${bot.username}") String name,
                       @Value("${bot.chatId}") String botChatId, MatchService matchService, TeamService teamService,
@@ -61,7 +58,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                       ImageRenderer imageRenderer) {
         super(token);
         this.name = name;
-        this.commandContainer = new CommandContainer(new SendBotMessageService(this, notificationService, imageRenderer), matchService, teamService,
+        this.commandContainer = new CommandContainer(new SendBotMessageService(this, imageRenderer), matchService, teamService,
                 headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService);
 
         try {
@@ -217,11 +214,6 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                matcher.groupCount() == 1 &&
                EnumSet.allOf(TeamName.class).stream()
                        .anyMatch(t -> t.getName().toLowerCase().contains(matcher.group(1).toLowerCase()));
-    }
-
-    private boolean isTeamName(String commandIdentifier) {
-        return EnumSet.allOf(TeamName.class).stream()
-                .anyMatch(n -> n.getName().toLowerCase().contains(commandIdentifier));
     }
 
     private void putMessageToDelete(Long chatId, Integer messageId) {

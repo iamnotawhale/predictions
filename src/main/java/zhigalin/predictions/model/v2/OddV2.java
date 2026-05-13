@@ -10,4 +10,26 @@ public class OddV2 {
     private OddStatV2 homeTeamOdds;
     private OddStatV2 awayTeamOdds;
     private OddStatV2 drawOdds;
+    private Moneyline moneyline;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Moneyline {
+        private MoneylineEntry home;
+        private MoneylineEntry away;
+        private MoneylineEntry draw;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class MoneylineEntry {
+        private MoneylineOdds open;
+        private MoneylineOdds close;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class MoneylineOdds {
+        private String odds;
+    }
 }

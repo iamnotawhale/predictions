@@ -1,6 +1,5 @@
 package zhigalin.predictions.repository.event;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -20,21 +19,19 @@ import zhigalin.predictions.util.DaoUtil;
 @Repository
 public class WeekDao {
 
-    private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
     private final PanicSender panicSender;
 
     public WeekDao(DataSource dataSource, PanicSender panicSender) {
-        this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.panicSender = panicSender;
     }
 
     public Week save(Week week) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     INSERT into weeks (is_current, name, season_id)
                     VALUES (:isCurrent, :name, :seasonId)
@@ -46,7 +43,7 @@ public class WeekDao {
             parameters.addValue("name", week.getName());
             parameters.addValue("seasonId", week.getSeasonId());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error while saving week", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -54,7 +51,7 @@ public class WeekDao {
     }
 
     public Week findByNameAndSeasonId(String name, int seasonId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM weeks
                     WHERE name = :name AND season_id = :seasonId;
@@ -63,7 +60,7 @@ public class WeekDao {
             parameters.addValue("name", name);
             parameters.addValue("seasonId", seasonId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error while finding week by name and season id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -71,13 +68,13 @@ public class WeekDao {
     }
 
     public Week findByIsCurrentTrue() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM weeks
                     WHERE is_current = TRUE;
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.queryForObject(sql, new WeekMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error while finding current week", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -85,7 +82,7 @@ public class WeekDao {
     }
 
     public void updateCurrentWeek() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     UPDATE weeks
                     SET is_current = false
@@ -103,14 +100,14 @@ public class WeekDao {
                     WHERE id = :id
                     """;
             namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource().addValue("id", id + 1));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error while updating current week", e);
             serverLogger.error(e.getMessage());
         }
     }
 
     public Week findById(int id) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM weeks
                     WHERE id = :id
@@ -118,7 +115,7 @@ public class WeekDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("id", id);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error while finding week by id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -126,12 +123,12 @@ public class WeekDao {
     }
 
     public List<Week> findAll() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM weeks
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new WeekMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error while finding all weeks", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -139,7 +136,7 @@ public class WeekDao {
     }
 
     public Week findByMatchId(int matchId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT weeks.* FROM weeks
                     JOIN match m ON weeks.id = m.week_id
@@ -148,7 +145,7 @@ public class WeekDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("matchId", matchId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new WeekMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error while finding week by match id", e);
             serverLogger.error(e.getMessage());
             return null;

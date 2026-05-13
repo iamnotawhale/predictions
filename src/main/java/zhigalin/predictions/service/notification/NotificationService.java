@@ -18,12 +18,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.event.Player;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
+import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
@@ -42,21 +45,18 @@ public class NotificationService {
     private final OddsService oddsService;
     private final ImageRenderer images;
     private final ChartRenderer charts;
-    private final TelegramClient telegram;
+    private final ApiClient api;
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
 
-    private final Map<Integer, Set<String>> notificationBlackList = Map.of(
-            20, ConcurrentHashMap.newKeySet(),
-            60, ConcurrentHashMap.newKeySet()
-    );
+    private final Set<String> notificationBlackList = ConcurrentHashMap.newKeySet();
 
     public NotificationService(MatchService matchService,
                                PredictionService predictionService,
                                OddsService oddsService,
                                ImageRenderer images,
                                ChartRenderer charts,
-                               TelegramClient telegram,
+                               ApiClient api,
                                PanicSender panicSender,
                                ObjectMapper objectMapper) {
         this.matchService = matchService;
@@ -64,7 +64,7 @@ public class NotificationService {
         this.oddsService = oddsService;
         this.images = images;
         this.charts = charts;
-        this.telegram = telegram;
+        this.api = api;
         this.panicSender = panicSender;
         this.objectMapper = objectMapper;
     }
@@ -83,7 +83,7 @@ public class NotificationService {
 
         String path = images.createTodayMatchesImage(list);
         if (path != null) {
-            telegram.sendPhoto(defaultChatId, "Сегодняшние матчи", path, null);
+            api.sendPhoto(defaultChatId, "Сегодняшние матчи", path, null);
         }
     }
 
@@ -117,7 +117,7 @@ public class NotificationService {
         );
 
         if (path != null) {
-            telegram.sendPhoto(defaultChatId, "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен", path, null);
+            api.sendPhoto(defaultChatId, "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен", path, null);
         }
     }
 
@@ -127,49 +127,46 @@ public class NotificationService {
         Map<String, Integer> usersPoints = predictionService.getWeeklyUsersPoints(weekId);
         String path = images.createWeeklyImage(weekId, usersPoints);
         if (path != null) {
-            telegram.sendPhoto(defaultChatId, "Результаты недели", path, null);
+            api.sendPhoto(defaultChatId, "Результаты недели", path, null);
         }
     }
 
     public void sendTotalPointsChart() {
         String path = charts.createTotalPointsChartImage();
         if (path != null) {
-            telegram.sendPhoto(defaultChatId, "График набора очков", path, null);
+            api.sendPhoto(defaultChatId, "График набора очков", path, null);
         }
     }
 
     public void checkReminders() {
-        List<Match> ns = matchService.findAllByTodayDate().stream()
-                .filter(m -> m.getStatus().equals("ns"))
+        List<Match> nearest = matchService.findAllNearest(30).stream()
+                .filter(m -> !Objects.equals(m.getStatus(), "pst") && Objects.equals(m.getStatus(), "ns"))
                 .toList();
 
-        if (!ns.isEmpty()) {
-            for (Integer minutes : List.of(60, 20)) {
-                List<User> users = DaoUtil.USERS.values().stream().toList();
-                List<Match> nearest = matchService.findAllNearest(minutes).stream()
-                        .filter(m -> !Objects.equals(m.getStatus(), "pst"))
-                        .toList();
+        if (!nearest.isEmpty()) {
+            log.info("Nearest matches notification start");
+            for (Match match : nearest) {
+                Map<Integer, List<Lineup>> lineups = api.getLineups(match.getPublicId());
 
-                if (!nearest.isEmpty()) {
-                    log.info("Nearest matches notification start");
-                    for (User user : users) {
-                        for (Match match : nearest) {
-                            boolean hasPredict = predictionService.getByMatchPublicId(match.getPublicId()).stream()
-                                    .anyMatch(p -> p.getUserId() == user.getId());
-                            if (!hasPredict) {
-                                Notification notification = Notification.builder().user(user).match(match).build();
-                                String key = user.getId() + ":" + match.getPublicId() + ":" + minutes;
-                                if (!notificationBlackList.get(minutes).contains(key)) {
-                                    notificationBlackList.get(minutes).add(key);
-                                    sendNotification(notification);
-                                }
-                            }
+                List<Prediction> matchPredicts = predictionService.getByMatchPublicId(match.getPublicId());
+                for (User user : DaoUtil.USERS.values()) {
+                    boolean hasPredict = matchPredicts.stream()
+                            .anyMatch(p -> p.getUserId() == user.getId());
+                    if (!hasPredict) {
+                        Notification notification = Notification.builder()
+                                .user(user)
+                                .match(match)
+                                .lineups(lineups)
+                                .build();
+                        String key = user.getId() + ":" + match.getPublicId();
+                        if (notificationBlackList.add(key)) {
+                            sendNotification(notification);
                         }
                     }
-                } else {
-                    notificationBlackList.get(minutes).clear();
                 }
             }
+        } else {
+            notificationBlackList.clear();
         }
     }
 
@@ -185,6 +182,9 @@ public class NotificationService {
                 String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
                 String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
 
+                Map<String, Integer> sorting = Map.of("G", 1, "D", 2, "M", 3, "F", 4);
+                Comparator<Lineup> lineupComparator = Comparator.comparingInt(l -> sorting.get(l.getPlayer().getPos()));
+
                 InlineKeyboardButton button = InlineKeyboardButton.builder()
                         .text("Сделать прогноз")
                         .callbackData("/" + homeTeam + ":" + awayTeam + "_")
@@ -194,9 +194,41 @@ public class NotificationService {
                         .build();
 
                 String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
-                String caption = "Не проставлен прогноз на матч\nОсталось " + minutesLeft +
-                                 (minutesLeft % 10 == 1 ? " минута" :
-                                         minutesLeft > 20 && List.of(2L, 3L, 4L).contains(minutesLeft % 10) ? " минуты" : " минут");
+                StringBuilder caption = new StringBuilder()
+                        .append("Не проставлен прогноз на матч").append("\n")
+                        .append("Осталось ").append(minutesLeft)
+                        .append(minutesLeft % 10 == 1 ? " минута" : minutesLeft > 20 && List.of(2L, 3L, 4L).contains(minutesLeft % 10) ? " минуты" : " минут");
+
+                Map<Integer, List<Lineup>> lineups = notification.getLineups();
+                if (lineups != null) {
+                    List<String> homeLineups = lineups.get(match.getHomeTeamId()).stream()
+                            .sorted(lineupComparator)
+                            .map(this::getFormattedName)
+                            .toList();
+
+                    List<String> awayLineups = lineups.get(match.getAwayTeamId()).stream()
+                            .sorted(lineupComparator)
+                            .map(this::getFormattedName)
+                            .toList();
+
+                    int maxLength = 0;
+                    for (String player : homeLineups) {
+                        if (player.length() > maxLength) {
+                            maxLength = player.length();
+                        }
+                    }
+
+                    caption.append("\n\n")
+                            .append("`")
+                            .append(padRight(homeTeam, maxLength)).append("  ")
+                            .append(awayTeam)
+                            .append("`").append("\n");
+                    for (int i = 0; i < homeLineups.size(); i++) {
+                        String left = homeLineups.get(i);
+                        String right = i < awayLineups.size() ? awayLineups.get(i) : "";
+                        caption.append("`").append(padRight(left, maxLength)).append("  ").append(right).append("`").append("\n");
+                    }
+                }
 
                 String path = images.createImage(
                         match.getPublicId(),
@@ -209,12 +241,27 @@ public class NotificationService {
 
                 String replyMarkupJson = objectMapper.writeValueAsString(markup);
                 if (path != null) {
-                    telegram.sendPhoto(chatId, caption, path, replyMarkupJson);
+                    api.sendPhoto(chatId, caption.toString(), path, replyMarkupJson);
                 }
             }
         } catch (Exception e) {
             panicSender.sendPanic("Sending reminder error", e);
             log.error("Sending reminder error: {}", e.getMessage());
         }
+    }
+
+    private String getFormattedName(Lineup l) {
+        Player player = l.getPlayer();
+        String number = String.valueOf(player.getNumber());
+        if (player.getName().contains(" ")) {
+            String[] name = player.getName().split(" ");
+            return padRight(number + ". ", 4)  + name[name.length - 1];
+        } else {
+            return padRight(number + ". ", 4) + player.getName();
+        }
+    }
+
+    private static String padRight(String text, int length) {
+        return String.format("%-" + length + "s", text);
     }
 }

@@ -28,7 +28,6 @@ public class PanicSender {
             HttpResponse<String> response = Unirest.get(url)
                     .queryString("chat_id", chatId)
                     .queryString("text", builder.toString())
-                    .queryString("parse_mode", "Markdown")
                     .asString();
             if (response.getStatus() == 200) {
                 serverLogger.info("Message has been send");

@@ -2,11 +2,6 @@ package zhigalin.predictions.service.odds;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +11,6 @@ import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
@@ -25,27 +19,22 @@ import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.OddV2;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
-import zhigalin.predictions.service.odds.entity.Bookmaker;
-import zhigalin.predictions.service.odds.entity.Market;
-import zhigalin.predictions.service.odds.entity.OddsMatch;
-import zhigalin.predictions.service.odds.entity.Outcome;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
 public class OddsService {
 
-    private final PanicSender panicSender;
-    @Value("${api.odds.url}")
-    private String url;
-    @Value("${api.odds.key}")
-    private String key;
+    private static final Logger log = LoggerFactory.getLogger("server");
 
-    private final ObjectMapper mapper = new ObjectMapper();
-    private final Logger serverLogger = LoggerFactory.getLogger("server");
+    private final PanicSender panicSender;
+    private final ObjectMapper mapper;
+
     public static final Map<Integer, Odd> ODDS = new HashMap<>();
 
-    public OddsService(PanicSender panicSender) {
+    public OddsService(PanicSender panicSender, ObjectMapper objectMapper) {
         this.panicSender = panicSender;
+        this.mapper = objectMapper;
     }
 
     public void oddsInit2(List<Match> matches) {
@@ -61,8 +50,8 @@ public class OddsService {
                 if (state.equals("pre")) {
                     String[] teams = event.getShortName().split(" @ ");
 
-                    String home = realTeamCode(teams[1]);
-                    String away = realTeamCode(teams[0]);
+                    String home = TeamCodeMapper.toInternalCode(teams[1]);
+                    String away = TeamCodeMapper.toInternalCode(teams[0]);
 
                     Match match = matches.stream()
                             .filter(m -> {
@@ -76,121 +65,64 @@ public class OddsService {
 
                     if (match != null) {
                         Competition competition = event.getCompetitions().getFirst();
-                        competition.getOdds().stream()
-                                .filter(o -> o.getProvider().getId().equals("2000"))
-                                .findFirst().ifPresent(odd -> ODDS.put(
-                                        match.getPublicId(),
-                                        new Odd(
-                                                round(odd.getHomeTeamOdds().getValue()),
-                                                round(odd.getDrawOdds().getValue()),
-                                                round(odd.getAwayTeamOdds().getValue())
-                                        )
-                                ));
-                    }
-                }
-            }
-
-
-        } catch (Exception e) {
-            String message = "Failed to retrieve odds";
-            panicSender.sendPanic(message, e);
-        }
-    }
-
-    private String realTeamCode(String teamCode) {
-        return switch (teamCode) {
-            case "AVL" -> "AST";
-            case "BHA" -> "BRI";
-            case "WHU" -> "WES";
-            case "MNC" -> "MAC";
-            case "NFO" -> "NOT";
-            case "MAN" -> "MUN";
-            default -> teamCode;
-        };
-    }
-
-    public void oddsInit(List<Match> matches) {
-        try {
-            HttpResponse<String> response = Unirest.get(url)
-                    .queryString("apiKey", key)
-                    .queryString("regions", "eu")
-                    .queryString("markets", "h2h")
-                    .queryString("dateFormat", "iso")
-                    .queryString("oddsFormat", "decimal")
-                    .queryString("commenceTimeFrom", date(0))
-                    .queryString("commenceTimeTo", date(1))
-                    .header("Accept", "application/json")
-                    .asString();
-            if (response.getStatus() == 200) {
-                serverLogger.info("Successfully retrieved odds");
-            } else {
-                serverLogger.warn("Failed to retrieve odds");
-            }
-            List<OddsMatch> oddsMatches = mapper.readValue(
-                    response.getBody(),
-                    mapper.getTypeFactory().constructCollectionType(List.class, OddsMatch.class)
-            );
-            calculateMatchOdds(matches, oddsMatches);
-        } catch (Exception e) {
-            String message = "Failed to retrieve odds";
-            panicSender.sendPanic(message, e);
-        }
-    }
-
-    public record Odd(double home, double draw, double away) {
-    }
-
-    private String date(int plusDays) {
-        LocalDate day = LocalDate.now().plusDays(plusDays);
-        LocalDateTime commenceTimeFrom = LocalDateTime.of(day, LocalTime.MIDNIGHT)
-                .atZone(ZoneId.of("UTC"))
-                .toLocalDateTime();
-        return commenceTimeFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
-    }
-
-    private void calculateMatchOdds(List<Match> matches, List<OddsMatch> oddsMatches) {
-        for (OddsMatch oddsMatch : oddsMatches) {
-            Match match = matches.stream().filter(m -> {
-                        Team homeTeam = DaoUtil.TEAMS.get(m.getHomeTeamId());
-                        Team awayTeam = DaoUtil.TEAMS.get(m.getAwayTeamId());
-                        return oddsMatch.getHomeTeam().toLowerCase().contains(homeTeam.getName().toLowerCase()) &&
-                               oddsMatch.getAwayTeam().toLowerCase().contains(awayTeam.getName().toLowerCase());
-                    })
-                    .findFirst()
-                    .orElse(null);
-
-            if (match != null) {
-                Map<String, Double> teamOdds = new HashMap<>();
-                teamOdds.put(oddsMatch.getHomeTeam(), 0.0);
-                teamOdds.put(oddsMatch.getAwayTeam(), 0.0);
-                teamOdds.put("Draw", 0.0);
-
-                for (Bookmaker bookmaker : oddsMatch.getBookmakers()) {
-                    for (Market market : bookmaker.getMarkets()) {
-                        if (market.getKey().equals("h2h")) {
-                            for (Outcome outcome : market.getOutcomes()) {
-                                String outcomeName = outcome.getName();
-                                teamOdds.put(outcomeName, teamOdds.get(outcomeName) + outcome.getPrice());
+                        if (competition.getOdds() != null && !competition.getOdds().isEmpty()) {
+                            OddV2 oddV2 = competition.getOdds().getFirst();
+                            Odd odd = extractOdd(oddV2);
+                            if (odd != null) {
+                                ODDS.put(match.getPublicId(), odd);
+                                log.info("Odds loaded for {}-{}: {} / {} / {}", home, away, odd.home, odd.draw, odd.away);
                             }
                         }
                     }
                 }
+            }
+        } catch (Exception e) {
+            String message = "Failed to retrieve odds";
+            panicSender.sendPanic(message, e);
+        }
+    }
 
-                for (Map.Entry<String, Double> entry : teamOdds.entrySet()) {
-                    double averageOdd = entry.getValue() / oddsMatch.getBookmakers().size();
-                    teamOdds.put(entry.getKey(), averageOdd);
-                }
-
-                ODDS.put(
-                        match.getPublicId(),
-                        new Odd(
-                                round(teamOdds.get(oddsMatch.getHomeTeam())),
-                                round(teamOdds.get("Draw")),
-                                round(teamOdds.get(oddsMatch.getAwayTeam()))
-                        )
-                );
+    private Odd extractOdd(OddV2 oddV2) {
+        OddV2.Moneyline ml = oddV2.getMoneyline();
+        if (ml != null
+            && ml.getHome() != null && ml.getHome().getClose() != null
+            && ml.getDraw() != null && ml.getDraw().getClose() != null
+            && ml.getAway() != null && ml.getAway().getClose() != null) {
+            Double homeDecimal = americanToDecimal(ml.getHome().getClose().getOdds());
+            Double drawDecimal = americanToDecimal(ml.getDraw().getClose().getOdds());
+            Double awayDecimal = americanToDecimal(ml.getAway().getClose().getOdds());
+            if (homeDecimal != null && drawDecimal != null && awayDecimal != null) {
+                return new Odd(round(homeDecimal), round(drawDecimal), round(awayDecimal));
             }
         }
+
+        if (oddV2.getHomeTeamOdds() != null && oddV2.getDrawOdds() != null && oddV2.getAwayTeamOdds() != null
+            && oddV2.getHomeTeamOdds().getValue() != null && oddV2.getDrawOdds().getValue() != null && oddV2.getAwayTeamOdds().getValue() != null) {
+            return new Odd(
+                    round(oddV2.getHomeTeamOdds().getValue()),
+                    round(oddV2.getDrawOdds().getValue()),
+                    round(oddV2.getAwayTeamOdds().getValue())
+            );
+        }
+
+        return null;
+    }
+
+    static Double americanToDecimal(String americanOdds) {
+        if (americanOdds == null || americanOdds.isBlank()) return null;
+        try {
+            int odds = Integer.parseInt(americanOdds.replace("+", ""));
+            if (odds >= 0) {
+                return 1.0 + (double) odds / 100.0;
+            } else {
+                return 1.0 + 100.0 / Math.abs(odds);
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public record Odd(double home, double draw, double away) {
     }
 
     public static double round(double value) {

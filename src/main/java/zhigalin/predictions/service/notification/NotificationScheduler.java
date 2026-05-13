@@ -28,7 +28,6 @@ public class NotificationScheduler {
         this.matchService = matchService;
     }
 
-    //    @Scheduled(initialDelay = 5000)
     @Scheduled(cron = "0 0 9 * * *")
     public void morningMatches() {
         log.info("Morning matches run");
