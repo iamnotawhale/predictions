@@ -1,12 +1,12 @@
-package zhigalin.predictions.model.v2;
+package zhigalin.predictions.model.event;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Statistic {
+public class Player {
     private String name;
-    private String abbreviation;
-    private String displayValue;
+    private int number;
+    private String pos;
 }

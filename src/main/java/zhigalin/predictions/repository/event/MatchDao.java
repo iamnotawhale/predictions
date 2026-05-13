@@ -2,7 +2,6 @@ package zhigalin.predictions.repository.event;
 
 import javax.sql.DataSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -41,16 +40,16 @@ public class MatchDao {
     private final PanicSender panicSender;
     private final Set<String> processedMatches = new HashSet<>();
     private final ConcurrentLinkedQueue<String> notificationQueue = new ConcurrentLinkedQueue<>();
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
-    public MatchDao(DataSource dataSource, PanicSender panicSender) {
+    public MatchDao(DataSource dataSource, PanicSender panicSender, ObjectMapper objectMapper) {
         this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.panicSender = panicSender;
-        this.mapper.registerModule(new JavaTimeModule());
+        this.mapper = objectMapper;
     }
 
     public void save(List<Match> matches) {
@@ -120,7 +119,7 @@ public class MatchDao {
     }
 
     public Match findByPublicId(int publicId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM match WHERE public_id = :publicId
                     ORDER BY local_date_time DESC
@@ -128,7 +127,7 @@ public class MatchDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("publicId", publicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding match by public id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -136,7 +135,7 @@ public class MatchDao {
     }
 
     public List<Match> findAllTodayMatches() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
@@ -144,7 +143,7 @@ public class MatchDao {
                     ORDER BY local_date_time
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches today", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -152,7 +151,7 @@ public class MatchDao {
     }
 
     public List<Match> findAllMatchesInTheNextMinutes(int minutes) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
@@ -164,7 +163,7 @@ public class MatchDao {
             parameters.addValue("from", now);
             parameters.addValue("to", now.plusMinutes(minutes));
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches in the next minutes", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -172,7 +171,7 @@ public class MatchDao {
     }
 
     public List<Match> findAllByWeekIdOrderByLocalDateTime(int weekId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
@@ -182,7 +181,7 @@ public class MatchDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches by week id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -190,13 +189,13 @@ public class MatchDao {
     }
 
     public List<Match> findAll() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -204,7 +203,7 @@ public class MatchDao {
     }
 
     public Match findMatchByTeamsPublicId(int homePublicId, int awayPublicId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
@@ -214,7 +213,7 @@ public class MatchDao {
             parameters.addValue("homePublicId", homePublicId);
             parameters.addValue("awayPublicId", awayPublicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding match by teams public id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -222,7 +221,7 @@ public class MatchDao {
     }
 
     public List<Match> findAllByTeamPublicId(int teamPublicId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
@@ -232,7 +231,7 @@ public class MatchDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("teamPublicId", teamPublicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding match by team public id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -240,7 +239,7 @@ public class MatchDao {
     }
 
     public List<Match> findAllBetweenToDates(LocalDateTime from, LocalDateTime to) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
@@ -251,7 +250,7 @@ public class MatchDao {
             parameters.addValue("from", from);
             parameters.addValue("to", to);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding matches between dates", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -260,7 +259,7 @@ public class MatchDao {
 
     public Match findOnlineMatchByTeamId(int teamId) {
         LocalDateTime now = LocalDateTime.now();
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match
@@ -272,59 +271,15 @@ public class MatchDao {
             parameters.addValue("from", now.minusMinutes(140));
             parameters.addValue("to", now.plusMinutes(20));
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding online match by team id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
     }
 
-    public List<Integer> findOnlineTeamIds() {
-        LocalDateTime now = LocalDateTime.now();
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    SELECT DISTINCT team_id
-                    FROM (
-                             SELECT home_team_id AS team_id
-                             FROM match
-                             WHERE local_date_time BETWEEN :from AND :to
-                             UNION ALL
-                             SELECT away_team_id AS team_id
-                             FROM match
-                             WHERE local_date_time BETWEEN :from AND :to
-                         ) AS team_ids
-                    """;
-            MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue("from", now.minusHours(2));
-            parameters.addValue("to", now);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForList(sql, parameters, Integer.class));
-        } catch (SQLException e) {
-            panicSender.sendPanic("Error finding online team ids", e);
-            serverLogger.error(e.getMessage());
-            return null;
-        }
-    }
-
-    public List<Match> findAllByStatus(String status) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    SELECT *
-                    FROM match
-                    WHERE status = :status
-                    ORDER BY local_date_time
-                    """;
-            MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue("status", status);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
-        } catch (SQLException e) {
-            panicSender.sendPanic("Error finding all matches by status", e);
-            serverLogger.error(e.getMessage());
-            return null;
-        }
-    }
-
     public List<Match> findAllByCurrentWeek() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM match JOIN weeks w ON week_id = w.id
@@ -332,7 +287,7 @@ public class MatchDao {
                     ORDER BY local_date_time
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding all matches by current week", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -340,7 +295,7 @@ public class MatchDao {
     }
 
     public List<Standing> getStandings() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     WITH MatchResults AS (
                         SELECT
@@ -380,7 +335,7 @@ public class MatchDao {
                     ORDER BY points DESC, gd DESC, gf DESC, team_id
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new StandingMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error get standings", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -388,7 +343,7 @@ public class MatchDao {
     }
 
     public List<Integer> getPredictableMatchIdsByUserTelegramAndWeek(String telegramId, int weekId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                         SELECT m.public_id
                         FROM match m
@@ -401,7 +356,7 @@ public class MatchDao {
             params.addValue("telegramId", telegramId);
             params.addValue("weekId", weekId);
             return namedParameterJdbcTemplate.queryForList(sql, params, Integer.class);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error get predictable match public ids", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -409,7 +364,7 @@ public class MatchDao {
     }
 
     public List<Integer> getPredictableTodayMatchIdsByUserTelegram(String telegramId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                         SELECT m.public_id
                         FROM match m
@@ -421,7 +376,7 @@ public class MatchDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("telegramId", telegramId);
             return namedParameterJdbcTemplate.queryForList(sql, params, Integer.class);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error get predictable today match public ids", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -493,7 +448,7 @@ public class MatchDao {
     }
 
     private boolean isAlreadyProcessed(int publicId) {
-        try (Connection ignored5 = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT last_processed_at FROM match WHERE public_id = :publicId
                     """;
@@ -501,7 +456,7 @@ public class MatchDao {
             params.addValue("publicId", publicId);
             LocalDateTime lastProcessed = namedParameterJdbcTemplate.queryForObject(sql, params, LocalDateTime.class);
             return lastProcessed != null;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error isAlreadyProcessed", e);
             serverLogger.error(e.getMessage());
             return false;
@@ -509,14 +464,14 @@ public class MatchDao {
     }
 
     private void updateLastProcessedAt(int publicId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     UPDATE match SET last_processed_at = NOW() WHERE public_id = :publicId
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("publicId", publicId);
             namedParameterJdbcTemplate.update(sql, params);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error isAlreadyProcessed", e);
             serverLogger.error(e.getMessage());
         }

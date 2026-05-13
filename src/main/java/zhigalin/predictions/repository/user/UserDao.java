@@ -1,6 +1,5 @@
 package zhigalin.predictions.repository.user;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -10,8 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.util.DaoUtil;
@@ -19,83 +16,20 @@ import zhigalin.predictions.util.DaoUtil;
 @Repository
 public class UserDao {
 
-    private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     public UserDao(DataSource dataSource) {
-        this.dataSource = dataSource;
-        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
     }
 
-    public User findByLogin(String login) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    SELECT * FROM users WHERE login = :login
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("login", login);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new UserMapper()));
-        } catch (SQLException e) {
-            serverLogger.error(e.getMessage());
-            return null;
-        }
-    }
-
-    public User findByTelegramId(String telegramId) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    SELECT * FROM users WHERE telegram_id = :telegramId
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("telegramId", telegramId);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new UserMapper()));
-        } catch (SQLException e) {
-            serverLogger.error(e.getMessage());
-            return null;
-        }
-    }
-
-    public void save(User user) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    INSERT INTO users (login, password, role, telegram_id)
-                    VALUES (:login, :password, :role, :telegramId)
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("login", user.getLogin());
-            params.addValue("password", user.getPassword());
-            params.addValue("role", user.getRole());
-            params.addValue("telegramId", user.getTelegramId());
-            namedParameterJdbcTemplate.update(sql, params);
-        } catch (SQLException e) {
-            serverLogger.error(e.getMessage());
-        }
-    }
-
     public List<User> findAll() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM users
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new UserMapper()));
-        } catch (SQLException e) {
-            serverLogger.error(e.getMessage());
-            return null;
-        }
-    }
-
-    public User findById(int id) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    SELECT * FROM users WHERE id = :id
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("id", id);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new UserMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             serverLogger.error(e.getMessage());
             return null;
         }

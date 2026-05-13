@@ -24,15 +24,7 @@ public class TeamService {
         return teamDao.findAll();
     }
 
-    public Team findByName(String name) {
-        return teamDao.findByName(name);
-    }
-
     public Team findByCode(String code) {
         return teamDao.findByCode(code);
-    }
-
-    public Team findByPublicId(int publicId) {
-        return teamDao.findByPublicId(publicId);
     }
 }

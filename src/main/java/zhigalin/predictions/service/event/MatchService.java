@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import org.springframework.stereotype.Service;
@@ -15,20 +14,17 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.repository.event.MatchDao;
-import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.util.DaoUtil;
 
 @Service
 public class MatchService {
     private final MatchDao matchDao;
-    private final TeamService teamService;
 
     @Getter
     private final Map<Integer, Integer> places = new HashMap<>();
 
-    public MatchService(MatchDao matchDao, TeamService teamService) {
+    public MatchService(MatchDao matchDao) {
         this.matchDao = matchDao;
-        this.teamService = teamService;
     }
 
     public void save(List<Match> matches) {
@@ -131,39 +127,12 @@ public class MatchService {
                 .toList();
     }
 
-    public Match getOnlineResult(int teamId) {
-        Team team = DaoUtil.TEAMS.get(teamId);
-        Match match = matchDao.findOnlineMatchByTeamId(teamId);
-        if (match != null && match.getResult() != null) {
-            if (match.getHomeTeamId() == team.getPublicId()) {
-                return Match.builder()
-                        .homeTeamScore(match.getHomeTeamScore())
-                        .awayTeamScore(match.getAwayTeamScore())
-                        .result(Objects.equals(match.getResult(), "H") ? "H" :
-                                Objects.equals(match.getResult(), "A") ? "A" : "D")
-                        .build();
-            } else {
-                return Match.builder()
-                        .homeTeamScore(match.getAwayTeamScore())
-                        .awayTeamScore(match.getHomeTeamScore())
-                        .result(Objects.equals(match.getResult(), "A") ? "H" :
-                                Objects.equals(match.getResult(), "H") ? "A" : "D")
-                        .build();
-            }
-        }
-        return null;
-    }
-
     public List<Integer> predictableMatchesByUserTelegramIdAndWeekId(String telegramId, int weekId) {
         return matchDao.getPredictableMatchIdsByUserTelegramAndWeek(telegramId, weekId);
     }
 
     public List<Integer> predictableTodayMatchesByUserTelegramIdAndWeekId(String telegramId) {
         return matchDao.getPredictableTodayMatchIdsByUserTelegram(telegramId);
-    }
-
-    public List<Match> findBetweenTwoDates(LocalDateTime from, LocalDateTime to) {
-        return matchDao.findAllBetweenToDates(from, to);
     }
 
     public void listenForMatchUpdates() {

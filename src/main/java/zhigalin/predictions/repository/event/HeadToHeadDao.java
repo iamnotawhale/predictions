@@ -1,6 +1,5 @@
 package zhigalin.predictions.repository.event;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -25,21 +24,19 @@ import zhigalin.predictions.util.DaoUtil;
 @Repository
 public class HeadToHeadDao {
 
-    private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
     private final PanicSender panicSender;
 
     public HeadToHeadDao(DataSource dataSource, PanicSender panicSender) {
-        this.dataSource = dataSource;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
-        jdbcTemplate = new JdbcTemplate(dataSource);
+        this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.panicSender = panicSender;
     }
 
     public void save(HeadToHead headToHead) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     INSERT INTO h2h (home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time)
                     VALUES (:homeTeamId, :awayTeamId, :homeTeamScore, :awayTeamScore, :leagueName, :localDateTime)
@@ -56,7 +53,7 @@ public class HeadToHeadDao {
             if (update == 1) {
                 serverLogger.info("Saved head to head: {}", headToHead);
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Saving h2h DB error", e);
             serverLogger.error(e.getMessage());
         }
@@ -64,7 +61,7 @@ public class HeadToHeadDao {
 
 
     public List<HeadToHead> getH2hByTeamsCode(String homeTeamCode, String awayTeamCode) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                         SELECT home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time
                         FROM h2h
@@ -85,7 +82,7 @@ public class HeadToHeadDao {
     }
 
     public List<HeadToHead> getAllByTeamsIds(int homeTeamId, int awayTeamId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                         SELECT home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time
                         FROM h2h
@@ -106,7 +103,7 @@ public class HeadToHeadDao {
     }
 
     public Map<Integer, List<HeadToHead>> findAllByCurrentWeek() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                         SELECT
                             m.public_id,
@@ -148,7 +145,7 @@ public class HeadToHeadDao {
                 return result;
             }
             return Collections.emptyMap();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Getting all h2h by current week error", e);
             serverLogger.error(e.getMessage());
             return Collections.emptyMap();

@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +39,7 @@ public class PredictionDao {
     }
 
     public void save(Prediction prediction) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     INSERT INTO predict (user_id, match_id, home_team_score, away_team_score, points)
                     VALUES (:userId, :matchId, :homeTeamScore, :awayTeamScore, :points)
@@ -55,14 +54,14 @@ public class PredictionDao {
             params.addValue("awayTeamScore", prediction.getAwayTeamScore());
             params.addValue("points", prediction.getPoints());
             namedParameterJdbcTemplate.update(sql, params);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error saving prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
 
     public void save(String telegramId, String homeTeam, String awayTeam, int homeTeamScore, int awayTeamScore) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     WITH user_id AS (
                         SELECT id FROM users WHERE telegram_id = :telegramId
@@ -91,14 +90,14 @@ public class PredictionDao {
             params.addValue("awayTeamScore", awayTeamScore);
             params.addValue("points", null);
             namedParameterJdbcTemplate.update(sql, params);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error saving prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
 
     public void delete(int userId, int matchPublicId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     DELETE FROM predict WHERE user_id = :userId AND match_id = :matchPublicId
                     """;
@@ -106,14 +105,14 @@ public class PredictionDao {
             params.addValue("userId", userId);
             params.addValue("matchPublicId", matchPublicId);
             namedParameterJdbcTemplate.update(sql, params);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error deleting prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
 
     public void deleteByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     DELETE FROM predict
                     WHERE user_id IN (
@@ -141,14 +140,14 @@ public class PredictionDao {
             params.addValue("homeTeam", homeTeam);
             params.addValue("awayTeam", awayTeam);
             namedParameterJdbcTemplate.update(sql, params);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error deleting prediction by user telegram id and teams", e);
             serverLogger.error(e.getMessage());
         }
     }
 
     public Prediction findByMatchIdAndUserId(int matchId, int userId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM predict WHERE user_id = :userId AND match_id = :matchId
                     """;
@@ -156,7 +155,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
             params.addValue("matchId", matchId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by match id and user id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -164,7 +163,7 @@ public class PredictionDao {
     }
 
     public List<Prediction> findAllByMatchIds(List<Integer> matchIds) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM predict
                     JOIN match m ON match_id = m.public_id
@@ -174,7 +173,7 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("matchIds", matchIds);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by match ids", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -182,7 +181,7 @@ public class PredictionDao {
     }
 
     public List<MatchPrediction> findAllByUserId(int userId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
                        m.status, m.week_id, m.local_date_time,
@@ -195,7 +194,7 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", userId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by user id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -203,7 +202,7 @@ public class PredictionDao {
     }
 
     public void updatePoints(int matchId, int userId, int points) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     UPDATE predict SET
                     points = :points WHERE match_id = :matchId AND user_id = :userId
@@ -213,14 +212,14 @@ public class PredictionDao {
             params.addValue("matchId", matchId);
             params.addValue("userId", userId);
             namedParameterJdbcTemplate.update(sql, params);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error updating prediction points", e);
             serverLogger.error(e.getMessage());
         }
     }
 
     public List<Prediction> getAllByMatches(List<Match> matches) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT * FROM predict
                     WHERE match_id IN (:matchIds)
@@ -228,7 +227,7 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("matchIds", matches.stream().map(Match::getPublicId).toList());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by matches", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -236,7 +235,7 @@ public class PredictionDao {
     }
 
     public List<MatchPrediction> findAllByWeekId(int weekId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
                        m.status, m.week_id, m.local_date_time,
@@ -249,7 +248,7 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding all by week id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -257,7 +256,7 @@ public class PredictionDao {
     }
 
     public List<MatchPrediction> findAllByWeekIdAndUserTelegramId(int weekId, String telegramId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
                        m.status, m.week_id, m.local_date_time,
@@ -272,34 +271,15 @@ public class PredictionDao {
             params.addValue("weekId", weekId);
             params.addValue("telegramId", telegramId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error finding all by week id", e);
             serverLogger.error(e.getMessage());
             return null;
         }
     }
 
-    public Points getPointsByUserId(int userId) {
-        try (Connection ignored = dataSource.getConnection()) {
-            String sql = """
-                    SELECT u.login as login, sum(points) as value
-                    FROM predict
-                    JOIN users u ON user_id = u.id
-                    WHERE u.id = :userId
-                    GROUP BY login
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("userId", userId);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PointsMapper()));
-        } catch (SQLException e) {
-            panicSender.sendPanic("Error finding get points by user id", e);
-            serverLogger.error(e.getMessage());
-            return null;
-        }
-    }
-
     public List<Points> getAllPointsByUsers() {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT u.login as login, sum(points) as value
                     FROM predict
@@ -309,7 +289,7 @@ public class PredictionDao {
                     """;
 
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new PointsMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error get all points by users", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -317,7 +297,7 @@ public class PredictionDao {
     }
 
     public List<Points> getAllPointsByWeekId(int weekId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT u.login as login, sum(points) as value
                     FROM predict
@@ -330,7 +310,7 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("weekId", weekId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PointsMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error get all points by week id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -338,8 +318,7 @@ public class PredictionDao {
     }
 
     public List<MatchPrediction> getPredictionsByUserAndWeek(int userId, int weekId) {
-        Map<Match, Prediction> result = new HashMap<>();
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
                            m.status, m.week_id, m.local_date_time,
@@ -354,7 +333,7 @@ public class PredictionDao {
             params.addValue("userId", userId);
 
             return namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper());
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error get predictions by user id and week id", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -362,7 +341,7 @@ public class PredictionDao {
     }
 
     public boolean isExist(int userId, int matchId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT EXISTS(SELECT 1 FROM predict WHERE match_id = :matchId AND user_id = :userId)
                     """;
@@ -370,7 +349,7 @@ public class PredictionDao {
             params.addValue("matchId", matchId);
             params.addValue("userId", userId);
             return Boolean.TRUE.equals(namedParameterJdbcTemplate.queryForObject(sql, params, Boolean.class));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error prediction is exist", e);
             serverLogger.error(e.getMessage());
             return false;
@@ -378,7 +357,7 @@ public class PredictionDao {
     }
 
     public boolean isExist(String userTelegramId, int matchId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT EXISTS(
                         SELECT 1 FROM predict
@@ -390,7 +369,7 @@ public class PredictionDao {
             params.addValue("matchId", matchId);
             params.addValue("userTelegramId", userTelegramId);
             return Boolean.TRUE.equals(namedParameterJdbcTemplate.queryForObject(sql, params, Boolean.class));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error prediction is exist", e);
             serverLogger.error(e.getMessage());
             return false;
@@ -398,7 +377,7 @@ public class PredictionDao {
     }
 
     public Prediction getByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT *
                     FROM predict
@@ -419,7 +398,7 @@ public class PredictionDao {
             params.addValue("homeTeam", homeTeam);
             params.addValue("awayTeam", awayTeam);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new PredictionMapper()));
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error prediction is exist", e);
             serverLogger.error(e.getMessage());
             return null;
@@ -427,7 +406,7 @@ public class PredictionDao {
     }
 
     public List<Integer> findPredictableWeeksByUserTelegramId(String telegramId) {
-        try (Connection ignored = dataSource.getConnection()) {
+        try {
             String sql = """
                     SELECT DISTINCT w.id
                     FROM weeks w
@@ -441,7 +420,7 @@ public class PredictionDao {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("telegramId", telegramId);
             return namedParameterJdbcTemplate.queryForList(sql, params, Integer.class);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             panicSender.sendPanic("Error on find predictable weeks by user telegram id", e);
             serverLogger.error(e.getMessage());
             return Collections.emptyList();
@@ -534,4 +513,3 @@ public class PredictionDao {
     public record MatchPrediction(Match match, Prediction prediction) {
     }
 }
-
