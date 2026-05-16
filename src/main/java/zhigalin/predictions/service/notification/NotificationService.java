@@ -69,10 +69,12 @@ public class NotificationService {
         this.objectMapper = objectMapper;
     }
 
-    public void sendTodayMatchNotification() {
+    public boolean sendTodayMatchNotification() {
         log.info("Send today match notification");
         List<Match> today = matchService.findAllByTodayDate();
-        if (today.isEmpty()) return;
+        if (today.isEmpty()) {
+            return false;
+        }
 
         oddsService.oddsInit2(today);
 
@@ -84,7 +86,9 @@ public class NotificationService {
         String path = images.createTodayMatchesImage(list);
         if (path != null) {
             api.sendPhoto(defaultChatId, "Сегодняшние матчи", path, null);
+            return true;
         }
+        return false;
     }
 
     public void sendFullTime(Match match) {
