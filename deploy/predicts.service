@@ -7,8 +7,9 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/home/predictions
-ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -Xms128m -Xmx384m -jar /home/predictions/target/predictions-1.0.0.jar
+ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -Xms128m -Xmx384m -jar /home/predictions/target/predictions-1.0.0.jar --spring.profiles.active=prod
 EnvironmentFile=-/home/predictions/deploy/predicts.env
+WorkingDirectory=/home/predictions
 Restart=always
 RestartSec=10
 StandardOutput=journal

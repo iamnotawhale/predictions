@@ -11,7 +11,8 @@ import java.util.stream.Stream;
 
 import com.rometools.rome.io.FeedException;
 import lombok.Getter;
-import lombok.SneakyThrows;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -36,6 +37,9 @@ import static zhigalin.predictions.telegram.command.CommandName.NO;
 
 @Component
 public class EPLInfoBot extends TelegramLongPollingBot {
+
+    private static final Logger log = LoggerFactory.getLogger("server");
+
     @Getter
     private final Map<Long, Update> usersStates = new HashMap<>();
     @Getter
@@ -43,6 +47,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
 
     private final String name;
     private final CommandContainer commandContainer;
+    private final SendBotMessageService sendBotMessageService;
 
     private static final String COMMAND_PREFIX = "/";
     private static final String REGEX = "[^A-Za-z]";
@@ -60,7 +65,8 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                       ImageRenderer imageRenderer) {
         super(token);
         this.name = name;
-        this.commandContainer = new CommandContainer(new SendBotMessageService(this, imageRenderer, webAppUrl), matchService, teamService,
+        this.sendBotMessageService = new SendBotMessageService(this, imageRenderer, webAppUrl);
+        this.commandContainer = new CommandContainer(sendBotMessageService, matchService, teamService,
                 headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService);
 
         try {
@@ -77,30 +83,31 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         return name;
     }
 
-    @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
         if (update == null) {
             return;
         }
-        Long chatId;
-        Integer messageId;
-        String message;
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            chatId = update.getMessage().getFrom().getId();
-            messageId = update.getMessage().getMessageId();
-            message = update.getMessage().getText().trim();
-
-            handleTextMessage(update, chatId, messageId, message);
-        } else if (update.hasCallbackQuery()) {
-            CallbackQuery callbackQuery = update.getCallbackQuery();
-            messageId = callbackQuery.getMessage().getMessageId();
-            chatId = callbackQuery.getFrom().getId();
-            message = callbackQuery.getData();
-
-            handleCallbackQuery(update, chatId, messageId, message);
-        } else {
-            commandContainer.retrieveCommand(NO.getName()).execute(update);
+        try {
+            if (update.hasCallbackQuery()) {
+                CallbackQuery callbackQuery = update.getCallbackQuery();
+                Long chatId = callbackQuery.getMessage().getChatId();
+                Integer messageId = callbackQuery.getMessage().getMessageId();
+                String message = callbackQuery.getData();
+                handleCallbackQuery(update, chatId, messageId, message);
+            } else if (update.hasMessage() && update.getMessage().hasText()) {
+                Long chatId = update.getMessage().getChatId();
+                Integer messageId = update.getMessage().getMessageId();
+                String message = update.getMessage().getText().trim();
+                handleTextMessage(update, chatId, messageId, message);
+            } else if (update.hasMessage()) {
+                sendBotMessageService.sendMessage(
+                        update.getMessage().getChatId().toString(),
+                        "Я понимаю только текстовые сообщения. Используйте /help"
+                );
+            }
+        } catch (Exception e) {
+            log.error("Error handling Telegram update", e);
         }
     }
 
