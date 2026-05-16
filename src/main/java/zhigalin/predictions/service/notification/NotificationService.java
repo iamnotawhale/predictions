@@ -1,6 +1,7 @@
 package zhigalin.predictions.service.notification;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -70,22 +71,29 @@ public class NotificationService {
     }
 
     public boolean sendTodayMatchNotification() {
-        log.info("Send today match notification");
-        List<Match> today = matchService.findAllByTodayDate();
-        if (today.isEmpty()) {
+        return sendTodayMatchNotification(LocalDate.now());
+    }
+
+    public boolean sendTodayMatchNotification(LocalDate date) {
+        log.info("Send today match notification for {}", date);
+        List<Match> matches = matchService.findAllByDate(date);
+        if (matches.isEmpty()) {
             return false;
         }
 
-        oddsService.oddsInit2(today);
+        oddsService.oddsInit2(matches);
 
-        List<MatchRecord> list = today.stream()
+        List<MatchRecord> list = matches.stream()
                 .map(m -> new MatchRecord(m.getHomeTeamId(), m.getAwayTeamId(), m.getWeekId(), m.getLocalDateTime()))
                 .sorted(Comparator.comparingInt(MatchRecord::weekId).thenComparing(MatchRecord::localDateTime))
                 .toList();
 
         String path = images.createTodayMatchesImage(list);
         if (path != null) {
-            api.sendPhoto(defaultChatId, "Сегодняшние матчи", path, null);
+            String caption = date.equals(LocalDate.now())
+                    ? "Сегодняшние матчи"
+                    : "Матчи на " + DateTimeFormatter.ofPattern("dd.MM.yyyy").format(date);
+            api.sendPhoto(defaultChatId, caption, path, null);
             return true;
         }
         return false;
