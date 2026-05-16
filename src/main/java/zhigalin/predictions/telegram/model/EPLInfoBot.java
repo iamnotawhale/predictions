@@ -52,13 +52,15 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private static final Pattern PREDICT_PATTERN = Pattern.compile("^.([a-zA-Z]{3}).([a-zA-Z]{3}).$");
 
     public EPLInfoBot(@Value("${bot.token}") String token, @Value("${bot.username}") String name,
-                      @Value("${bot.chatId}") String botChatId, MatchService matchService, TeamService teamService,
+                      @Value("${bot.chatId}") String botChatId,
+                      @Value("${bot.webAppUrl:}") String webAppUrl,
+                      MatchService matchService, TeamService teamService,
                       HeadToHeadService headToHeadService, DataInitService dataInitService,
                       PredictionService predictionService, PanicSender panicSender, NotificationService notificationService,
                       ImageRenderer imageRenderer) {
         super(token);
         this.name = name;
-        this.commandContainer = new CommandContainer(new SendBotMessageService(this, imageRenderer), matchService, teamService,
+        this.commandContainer = new CommandContainer(new SendBotMessageService(this, imageRenderer, webAppUrl), matchService, teamService,
                 headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService);
 
         try {

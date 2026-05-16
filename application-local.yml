@@ -1,0 +1,9 @@
+# Локальный профиль: spring.profiles.active=local
+# Тест Mini App в браузере на http://localhost:8080/miniapp/
+miniapp:
+  dev-mode: true
+  # telegram_id пользователя из таблицы users (для приватного чата = user id)
+  dev-telegram-id: "739299"
+
+# HTTPS для Telegram: ./scripts/dev-https.sh → deploy/local-https.env
+# bot.webAppUrl задаётся через BOT_WEBAPP_URL из local-https.env

@@ -34,5 +34,7 @@ build/
 
 ### Runtime artifacts ###
 logs/
+deploy/predicts.env
+deploy/local-https.env
 out/
 fixtures_resp.json

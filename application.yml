@@ -1,17 +1,35 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
 spring:
   datasource:
-    url:
-    username:
-    password:
+    url: jdbc:postgresql://146.255.188.80:5432/predicts?socketTimeout=30&connectTimeout=10
+    username: admin
+    password: postgres
     driverClassName: org.postgresql.Driver
+    hikari:
+      connection-timeout: 10000
+      validation-timeout: 5000
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 300000
+      max-lifetime: 600000
+      connection-test-query: SELECT 1
   main:
     banner-mode: off
+  task:
+    scheduling:
+      pool:
+        size: 5
 
 
 bot:
-  username:
-  token:
-  chatId:
+  username: eplinfobotdev
+  token: 6610261457:AAHofB9PStvQBH9NTKzddjy7abxMQOtOo40
+  chatId: -4551040804
+  # Mini App HTTPS URL (задаётся BOT_WEBAPP_URL — см. deploy/predicts.env или scripts/dev-https.sh)
+  webAppUrl: ${BOT_WEBAPP_URL:}
   urlMessage: https://api.telegram.org/bot${bot.token}/sendMessage
   urlPhoto: https://api.telegram.org/bot${bot.token}/sendPhoto
 
@@ -19,9 +37,9 @@ chatId: 739299
 
 api:
   football:
-    token:
+    token: 8b72220a5a43c9b249b85d81652f7aef
 
-season: 2024
+season: 2025
 
 logging:
   level:
