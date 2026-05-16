@@ -39,6 +39,7 @@ public class CommandContainer {
     private final Command menuCommand;
     private final Command totalCommand;
     private final Command generateCommand;
+    private final Command todayNotifyCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
@@ -68,6 +69,7 @@ public class CommandContainer {
         notificationPredictKeyboardCommand = new NotificationPredictKeyBoardCommand(sendBotMessageService);
         totalCommand = new TotalCommand(sendBotMessageService, predictionService);
         this.generateCommand = new GenerateCommand(matchService, notificationService, panicSender);
+        this.todayNotifyCommand = new TodayNotifyCommand(sendBotMessageService, notificationService, panicSender);
     }
 
     public Command retrieveCommand(String commandIdentifier) {
@@ -128,5 +130,9 @@ public class CommandContainer {
 
     public Command retrieveGenerateCommand() {
         return generateCommand;
+    }
+
+    public Command retrieveTodayNotifyCommand() {
+        return todayNotifyCommand;
     }
 }

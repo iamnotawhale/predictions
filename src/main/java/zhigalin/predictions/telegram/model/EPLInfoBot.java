@@ -127,6 +127,8 @@ public class EPLInfoBot extends TelegramLongPollingBot {
             commandContainer.retrieveTotalCommand().execute(update);
         } else if (message.contains("gen")) {
             commandContainer.retrieveGenerateCommand().execute(update);
+        } else if (message.contains("todaypub")) {
+            commandContainer.retrieveTodayNotifyCommand().execute(update);
         } else if (message.startsWith(COMMAND_PREFIX)) {
             Matcher teamMatcher = TEAM_PATTERN.matcher(message);
             Matcher h2hMatcher = H2H_PATTERN.matcher(message);
