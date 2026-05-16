@@ -4,9 +4,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://146.255.188.80:5432/predicts?socketTimeout=30&connectTimeout=10
-    username: admin
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/predicts}
+    username: ${SPRING_DATASOURCE_USERNAME:admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driverClassName: org.postgresql.Driver
     hikari:
       connection-timeout: 10000
@@ -23,26 +23,24 @@ spring:
       pool:
         size: 5
 
-
 bot:
-  username: eplinfobotdev
-  token: 6610261457:AAHofB9PStvQBH9NTKzddjy7abxMQOtOo40
-  chatId: -4551040804
-  # Mini App HTTPS URL (задаётся BOT_WEBAPP_URL — см. deploy/predicts.env или scripts/dev-https.sh)
+  username: ${BOT_USERNAME:}
+  token: ${BOT_TOKEN:}
+  chatId: ${BOT_CHAT_ID:}
   webAppUrl: ${BOT_WEBAPP_URL:}
   urlMessage: https://api.telegram.org/bot${bot.token}/sendMessage
   urlPhoto: https://api.telegram.org/bot${bot.token}/sendPhoto
 
-chatId: 739299
+chatId: ${ADMIN_CHAT_ID:739299}
 
 api:
   football:
-    token: 8b72220a5a43c9b249b85d81652f7aef
+    token: ${API_FOOTBALL_TOKEN:}
 
-season: 2025
+season: ${SEASON:2025}
 
 logging:
   level:
     org:
       springframework:
-        security: DEBUG
+        security: INFO

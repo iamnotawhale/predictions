@@ -10,9 +10,16 @@ if [[ ! -f target/predictions-1.0.0.jar ]]; then
     mvn -q package -DskipTests
 fi
 
+config_locations() {
+    local loc="file:./application.yml,file:./application-local.yml"
+    [[ -f deploy/local-https.env ]] && loc="$loc,file:./deploy/local-https.env"
+    [[ -f deploy/local.env ]] && loc="$loc,file:./deploy/local.env"
+    echo "$loc"
+}
+
 echo "1) Запуск приложения (профиль local)..."
 java -jar target/predictions-1.0.0.jar \
-    --spring.config.location=file:./application.yml,file:./application-local.yml \
+    --spring.config.location="$(config_locations)" \
     --spring.profiles.active=local &
 APP_PID=$!
 
@@ -47,5 +54,5 @@ echo "Telegram Mini App: ${BOT_WEBAPP_URL:-не задан}"
 echo "Браузер (dev): http://127.0.0.1:8080/miniapp/"
 echo ""
 exec java -jar target/predictions-1.0.0.jar \
-    --spring.config.location=file:./application.yml,file:./application-local.yml,file:./deploy/local-https.env \
+    --spring.config.location="$(config_locations)" \
     --spring.profiles.active=local

@@ -1,0 +1,14 @@
+# Профиль prod: spring.profiles.active=prod (см. deploy/predicts.env)
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/predicts_2
+    username: admin
+
+miniapp:
+  dev-mode: false
+
+logging:
+  level:
+    org:
+      springframework:
+        security: WARN
