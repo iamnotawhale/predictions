@@ -11,7 +11,6 @@ import java.util.Set;
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
@@ -19,6 +18,7 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
@@ -28,16 +28,17 @@ import zhigalin.predictions.util.DaoUtil;
 
 import static zhigalin.predictions.service.notification.NotificationImageMode.YOUR_PREDICT;
 
-@Service
 public class SendBotMessageService {
 
     private final EPLInfoBot bot;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
     private final ImageRenderer imageRenderer;
+    private final String webAppUrl;
 
-    public SendBotMessageService(EPLInfoBot bot, ImageRenderer imageRenderer) {
+    public SendBotMessageService(EPLInfoBot bot, ImageRenderer imageRenderer, String webAppUrl) {
         this.bot = bot;
         this.imageRenderer = imageRenderer;
+        this.webAppUrl = webAppUrl == null ? "" : webAppUrl;
     }
 
     @SneakyThrows
@@ -155,15 +156,22 @@ public class SendBotMessageService {
         return sendMessage;
     }
 
-    private static InlineKeyboardMarkup createMenuKeyBoard() {
+    private InlineKeyboardMarkup createMenuKeyBoard() {
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> listOfKeyboard = new ArrayList<>();
+
+        if (!webAppUrl.isBlank()) {
+            InlineKeyboardButton appButton = InlineKeyboardButton.builder()
+                    .text("📱 Открыть приложение")
+                    .webApp(WebAppInfo.builder().url(webAppUrl).build())
+                    .build();
+            listOfKeyboard.add(List.of(appButton));
+        }
 
         List<InlineKeyboardButton> row1 = new ArrayList<>();
         InlineKeyboardButton weeks = new InlineKeyboardButton("Сделать прогноз");
         weeks.setCallbackData("/tours");
         row1.add(weeks);
-
 
         List<InlineKeyboardButton> row2 = new ArrayList<>();
         InlineKeyboardButton predicts = new InlineKeyboardButton("Мои прогнозы");
@@ -175,7 +183,6 @@ public class SendBotMessageService {
 
         keyBoard.setKeyboard(listOfKeyboard);
         return keyBoard;
-
     }
 
     private static InlineKeyboardMarkup createPredictKeyBoard(String homeTeam, String awayTeam, Prediction prediction) {

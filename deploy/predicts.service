@@ -8,6 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/home/predictions
 ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -Xms128m -Xmx384m -jar /home/predictions/target/predictions-1.0.0.jar
+EnvironmentFile=-/home/predictions/deploy/predicts.env
 Restart=always
 RestartSec=10
 StandardOutput=journal

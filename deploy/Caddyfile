@@ -1,0 +1,6 @@
+# Прод: домен из PUBLIC_DOMAIN (см. deploy/predicts.env).
+# Caddy сам получает Let's Encrypt-сертификат.
+{$PUBLIC_DOMAIN} {
+	reverse_proxy 127.0.0.1:{$APP_PORT:8080}
+	encode gzip
+}

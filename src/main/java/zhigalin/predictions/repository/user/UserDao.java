@@ -35,6 +35,18 @@ public class UserDao {
         }
     }
 
+    public User findByTelegramId(String telegramId) {
+        try {
+            String sql = """
+                    SELECT * FROM users WHERE telegram_id = ?
+                    """;
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.queryForObject(sql, new UserMapper(), telegramId));
+        } catch (Exception e) {
+            serverLogger.error(e.getMessage());
+            return null;
+        }
+    }
+
     private static final class UserMapper implements RowMapper<User> {
         @Override
         public User mapRow(ResultSet rs, int rowNum) throws SQLException {

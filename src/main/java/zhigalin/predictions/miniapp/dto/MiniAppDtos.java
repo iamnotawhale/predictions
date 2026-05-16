@@ -1,0 +1,69 @@
+package zhigalin.predictions.miniapp.dto;
+
+import java.util.List;
+
+public final class MiniAppDtos {
+
+    private MiniAppDtos() {
+    }
+
+    public record ProfileResponse(String login, int currentWeekId) {
+    }
+
+    public record WeekItem(int id, boolean hasPredictions) {
+    }
+
+    public record MatchItem(
+            int publicId,
+            int weekId,
+            String homeCode,
+            String homeName,
+            String awayCode,
+            String awayName,
+            String status,
+            Integer homeScore,
+            Integer awayScore,
+            String kickoff,
+            boolean canPredict,
+            boolean hasPrediction,
+            Integer predictHome,
+            Integer predictAway,
+            Integer points
+    ) {
+    }
+
+    public record LeaderboardEntry(String login, int points) {
+    }
+
+    public record LeaderboardResponse(List<LeaderboardEntry> entries, Integer weekId, String title) {
+    }
+
+    public record StandingItem(
+            int place,
+            String code,
+            String name,
+            int played,
+            int won,
+            int drawn,
+            int lost,
+            int goalsFor,
+            int goalsAgainst,
+            int points
+    ) {
+    }
+
+    public record PredictRequest(String homeCode, String awayCode, int homeScore, int awayScore) {
+    }
+
+    public record ActionResponse(boolean ok, String message) {
+    }
+
+    public record TodayMatchesResponse(List<MatchItem> matches) {
+    }
+
+    public record ChartSeries(String login, String label, List<Integer> points) {
+    }
+
+    public record PointsChartResponse(List<Integer> weeks, List<ChartSeries> series) {
+    }
+}
