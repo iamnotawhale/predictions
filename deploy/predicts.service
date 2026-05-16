@@ -1,0 +1,17 @@
+[Unit]
+Description=Predictions Telegram bot
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/predictions
+ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -Xms128m -Xmx384m -jar /home/predictions/target/predictions-1.0.0.jar
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
