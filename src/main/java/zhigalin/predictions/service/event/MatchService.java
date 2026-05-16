@@ -1,5 +1,6 @@
 package zhigalin.predictions.service.event;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +46,10 @@ public class MatchService {
 
     public List<Match> findAllByTodayDate() {
         return matchDao.findAllTodayMatches();
+    }
+
+    public List<Match> findAllByDate(LocalDate date) {
+        return matchDao.findAllMatchesByDate(date);
     }
 
     public List<Match> findAllNearest(int minutes) {

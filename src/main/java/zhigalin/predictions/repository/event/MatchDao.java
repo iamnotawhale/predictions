@@ -157,16 +157,21 @@ public class MatchDao {
     }
 
     public List<Match> findAllTodayMatches() {
+        return findAllMatchesByDate(java.time.LocalDate.now());
+    }
+
+    public List<Match> findAllMatchesByDate(java.time.LocalDate date) {
         try {
             String sql = """
                     SELECT *
                     FROM match
-                    WHERE CAST(local_date_time AS DATE) = CURRENT_DATE
+                    WHERE CAST(local_date_time AS DATE) = :date
                     ORDER BY local_date_time
                     """;
-            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
+            MapSqlParameterSource parameters = new MapSqlParameterSource("date", date);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
         } catch (Exception e) {
-            panicSender.sendPanic("Error finding all matches today", e);
+            panicSender.sendPanic("Error finding matches by date", e);
             serverLogger.error(e.getMessage());
             return List.of();
         }
