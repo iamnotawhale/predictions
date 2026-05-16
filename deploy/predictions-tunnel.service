@@ -1,0 +1,16 @@
+[Unit]
+Description=Cloudflare quick tunnel for Predictions Mini App
+After=network-online.target predicts.service
+Wants=predicts.service
+
+[Service]
+Type=simple
+Environment=APP_DIR=/home/predictions
+ExecStart=/usr/local/bin/cloudflared tunnel --url http://127.0.0.1:8080
+ExecStartPost=/bin/sleep 4
+ExecStartPost=/home/predictions/deploy/sync-tunnel-env.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

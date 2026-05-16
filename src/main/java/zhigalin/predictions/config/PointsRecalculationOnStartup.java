@@ -1,5 +1,7 @@
 package zhigalin.predictions.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
@@ -10,6 +12,8 @@ import zhigalin.predictions.service.predict.PredictionService;
 @Order(100)
 public class PointsRecalculationOnStartup implements ApplicationRunner {
 
+    private static final Logger log = LoggerFactory.getLogger("server");
+
     private final PredictionService predictionService;
 
     public PointsRecalculationOnStartup(PredictionService predictionService) {
@@ -18,6 +22,10 @@ public class PointsRecalculationOnStartup implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        predictionService.recalculateFinishedMatchPoints();
+        try {
+            predictionService.recalculateFinishedMatchPoints();
+        } catch (Exception e) {
+            log.error("Startup points recalculation failed (bot keeps running)", e);
+        }
     }
 }
