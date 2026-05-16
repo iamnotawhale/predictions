@@ -19,6 +19,8 @@ git pull
 echo "Git HEAD: $(git log --oneline -1)"
 
 echo "[3/5] Maven build..."
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
 export MAVEN_OPTS="-Xmx384m"
 mvn -B -DskipTests package
 echo "Build finished at $(date)"
