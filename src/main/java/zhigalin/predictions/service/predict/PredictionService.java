@@ -5,7 +5,10 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Points;
@@ -18,6 +21,8 @@ import zhigalin.predictions.service.user.UserService;
 
 @Service
 public class PredictionService {
+
+    private static final Logger log = LoggerFactory.getLogger("server");
 
     private final PredictionDao predictionDao;
     private final MatchService matchService;
@@ -140,6 +145,16 @@ public class PredictionService {
                             }
                         }
                 );
+    }
+
+    public void recalculateFinishedMatchPoints() {
+        var finished = matchService.findAll().stream()
+                .filter(m -> Objects.equals(m.getStatus(), "ft"))
+                .toList();
+        for (Match match : finished) {
+            updateByMatch(match);
+        }
+        log.info("Recalculated points for {} finished matches", finished.size());
     }
 
     public void updateByMatch(Match match) {
