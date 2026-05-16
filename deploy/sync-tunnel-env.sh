@@ -78,8 +78,11 @@ fi
 WEBAPP_URL="$(https_derive_webapp_url "$URL")"
 
 if [[ "$CURRENT" == "$URL" ]]; then
-    log "URL unchanged: $URL"
-    exit 0
+    if curl -sf --max-time 8 "${URL}/miniapp/" -o /dev/null 2>/dev/null; then
+        log "URL unchanged and reachable: $URL"
+        exit 0
+    fi
+    log "WARN: URL in env matches journal but tunnel is down — updating menu anyway"
 fi
 
 log "New tunnel URL: $URL"
