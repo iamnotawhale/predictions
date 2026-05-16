@@ -1,14 +1,14 @@
 package zhigalin.predictions.config;
 
-import org.springframework.boot.context.event.ApplicationStartedEvent;
-import org.springframework.context.event.EventListener;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import zhigalin.predictions.service.predict.PredictionService;
 
 @Component
 @Order(100)
-public class PointsRecalculationOnStartup {
+public class PointsRecalculationOnStartup implements ApplicationRunner {
 
     private final PredictionService predictionService;
 
@@ -16,8 +16,8 @@ public class PointsRecalculationOnStartup {
         this.predictionService = predictionService;
     }
 
-    @EventListener(ApplicationStartedEvent.class)
-    public void onApplicationStarted() {
+    @Override
+    public void run(ApplicationArguments args) {
         predictionService.recalculateFinishedMatchPoints();
     }
 }
