@@ -14,6 +14,10 @@ miniapp:
   dev-mode: true
   dev-telegram-id: "739299"
 
+predictions:
+  startup:
+    recalculate: true
+
 api:
   football:
     token: 8b72220a5a43c9b249b85d81652f7aef

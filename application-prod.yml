@@ -7,6 +7,11 @@ spring:
 miniapp:
   dev-mode: false
 
+# На проде не пересчитывать 60+ матчей при каждом рестарте (~40 с CPU/RAM)
+predictions:
+  startup:
+    recalculate: false
+
 logging:
   level:
     org:
