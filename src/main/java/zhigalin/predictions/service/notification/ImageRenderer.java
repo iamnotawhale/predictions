@@ -650,15 +650,35 @@ public class ImageRenderer {
         });
     }
 
-    private BufferedImage loadPlLogo() throws Exception {
+    private BufferedImage loadPlLogo() {
         if (plLogo == null) {
             synchronized (this) {
                 if (plLogo == null) {
-                    plLogo = scaleImage(ImageIO.read(new ClassPathResource("static/img/pl_logo.webp").getInputStream()), 1600);
+                    try {
+                        var resource = new ClassPathResource("static/img/pl_logo.webp");
+                        if (resource.exists()) {
+                            plLogo = scaleImage(ImageIO.read(resource.getInputStream()), 1600);
+                        } else {
+                            log.warn("PL logo not found on classpath, using placeholder");
+                            plLogo = createLogoPlaceholder(1600);
+                        }
+                    } catch (Exception e) {
+                        log.error("Error loading PL logo: {}", e.getMessage());
+                        plLogo = createLogoPlaceholder(1600);
+                    }
                 }
             }
         }
         return plLogo;
+    }
+
+    private static BufferedImage createLogoPlaceholder(int size) {
+        BufferedImage stub = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = stub.createGraphics();
+        g.setPaint(new Color(255, 255, 255, 20));
+        g.fillOval(0, 0, size, size);
+        g.dispose();
+        return stub;
     }
 
     private record TeamColor(Color home, Color away, Color third) {

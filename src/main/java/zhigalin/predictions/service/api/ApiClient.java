@@ -118,7 +118,7 @@ public class ApiClient {
             return lineups;
         } catch (Exception e) {
             log.error("Lineups  error: {}", e.getMessage());
-            return null;
+            return Map.of();
         }
     }
 }

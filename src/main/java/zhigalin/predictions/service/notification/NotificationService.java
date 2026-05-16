@@ -183,7 +183,9 @@ public class NotificationService {
                 String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
 
                 Map<String, Integer> sorting = Map.of("G", 1, "D", 2, "M", 3, "F", 4);
-                Comparator<Lineup> lineupComparator = Comparator.comparingInt(l -> sorting.get(l.getPlayer().getPos()));
+                Comparator<Lineup> lineupComparator = Comparator.comparingInt(
+                        l -> sorting.getOrDefault(l.getPlayer().getPos(), 99)
+                );
 
                 InlineKeyboardButton button = InlineKeyboardButton.builder()
                         .text("Сделать прогноз")
@@ -200,13 +202,19 @@ public class NotificationService {
                         .append(minutesLeft % 10 == 1 ? " минута" : minutesLeft > 20 && List.of(2L, 3L, 4L).contains(minutesLeft % 10) ? " минуты" : " минут");
 
                 Map<Integer, List<Lineup>> lineups = notification.getLineups();
-                if (lineups != null) {
-                    List<String> homeLineups = lineups.get(match.getHomeTeamId()).stream()
+                List<Lineup> homeLineup = lineups != null
+                        ? lineups.getOrDefault(match.getHomeTeamId(), List.of())
+                        : List.of();
+                List<Lineup> awayLineup = lineups != null
+                        ? lineups.getOrDefault(match.getAwayTeamId(), List.of())
+                        : List.of();
+                if (!homeLineup.isEmpty() || !awayLineup.isEmpty()) {
+                    List<String> homeLineups = homeLineup.stream()
                             .sorted(lineupComparator)
                             .map(this::getFormattedName)
                             .toList();
 
-                    List<String> awayLineups = lineups.get(match.getAwayTeamId()).stream()
+                    List<String> awayLineups = awayLineup.stream()
                             .sorted(lineupComparator)
                             .map(this::getFormattedName)
                             .toList();
