@@ -55,7 +55,10 @@ public final class MiniAppDtos {
     public record PredictRequest(String homeCode, String awayCode, int homeScore, int awayScore) {
     }
 
-    public record ActionResponse(boolean ok, String message) {
+    public record ActionResponse(boolean ok, String message, Integer predictHome, Integer predictAway) {
+        public ActionResponse(boolean ok, String message) {
+            this(ok, message, null, null);
+        }
     }
 
     public record TodayMatchesResponse(List<MatchItem> matches) {
