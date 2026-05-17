@@ -1,12 +1,13 @@
 # Локальный профиль: --spring.profiles.active=local (scripts/run-local.sh)
+# Переопределения БД и секретов: deploy/local.env (см. deploy/local.env.example)
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/predicts_local
-    username: admin
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/predicts_local}
+    username: ${SPRING_DATASOURCE_USERNAME:admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
 
 bot:
-  username: eplinfobotdev
+  username: eplinfodevbot
   token: 6610261457:AAHofB9PStvQBH9NTKzddjy7abxMQOtOo40
   chatId: -4551040804
 
@@ -16,7 +17,8 @@ miniapp:
 
 predictions:
   startup:
-    recalculate: true
+    # false — не гонять пересчёт по продовой БД при каждом локальном старте
+    recalculate: false
 
 api:
   football:

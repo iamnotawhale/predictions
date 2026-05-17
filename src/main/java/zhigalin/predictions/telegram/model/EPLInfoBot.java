@@ -14,6 +14,8 @@ import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
@@ -46,8 +48,10 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private final Map<Long, Integer> messageToDelete = new HashMap<>();
 
     private final String name;
+    private final PanicSender panicSender;
     private final CommandContainer commandContainer;
     private final SendBotMessageService sendBotMessageService;
+    private volatile boolean registered;
 
     private static final String COMMAND_PREFIX = "/";
     private static final String REGEX = "[^A-Za-z]";
@@ -66,15 +70,24 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         super(token);
         this.name = name;
         this.sendBotMessageService = new SendBotMessageService(this, imageRenderer, webAppUrl);
+        this.panicSender = panicSender;
         this.commandContainer = new CommandContainer(sendBotMessageService, matchService, teamService,
                 headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService);
+    }
 
+    @EventListener(ApplicationReadyEvent.class)
+    public void registerWhenReady() {
+        if (registered) {
+            return;
+        }
         try {
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(this);
+            registered = true;
+            log.info("Telegram bot @{} polling started", name);
         } catch (TelegramApiException e) {
-            String message = "Telegram bots API init error";
-            panicSender.sendPanic(message, e);
+            panicSender.sendPanic("Telegram bots API init error", e);
+            log.error("Telegram bot registration failed", e);
         }
     }
 
@@ -88,6 +101,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         if (update == null) {
             return;
         }
+        logIncoming(update);
         try {
             if (update.hasCallbackQuery()) {
                 CallbackQuery callbackQuery = update.getCallbackQuery();
@@ -107,8 +121,27 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                 );
             }
         } catch (Exception e) {
-            log.error("Error handling Telegram update", e);
+            log.error("Error handling Telegram update: {}", updateSummary(update), e);
         }
+    }
+
+    private static void logIncoming(Update update) {
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            log.info("Telegram message: chatId={}, text={}", update.getMessage().getChatId(), update.getMessage().getText());
+        } else if (update.hasCallbackQuery()) {
+            log.info("Telegram callback: chatId={}, data={}",
+                    update.getCallbackQuery().getMessage().getChatId(), update.getCallbackQuery().getData());
+        }
+    }
+
+    private static String updateSummary(Update update) {
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            return "chatId=" + update.getMessage().getChatId() + ", text=" + update.getMessage().getText();
+        }
+        if (update.hasCallbackQuery()) {
+            return "callback=" + update.getCallbackQuery().getData();
+        }
+        return String.valueOf(update.getUpdateId());
     }
 
     private void handleTextMessage(Update update, Long chatId, Integer messageId, String message) throws FeedException, IOException, ParseException {

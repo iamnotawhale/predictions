@@ -46,6 +46,20 @@ public class TeamDao {
         }
     }
 
+    public Team findByPublicId(int publicId) {
+        try {
+            String sql = """
+                    SELECT * FROM teams WHERE public_id = :publicId
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource("publicId", publicId);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error while finding team by public id: " + publicId, e);
+            serverLogger.error(e.getMessage());
+            return null;
+        }
+    }
+
     public Team findByCode(String code) {
         try {
             String sql = """

@@ -8,12 +8,10 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -49,6 +47,7 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.notification.NotificationService;
+import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
 
 @Service
@@ -137,7 +136,7 @@ public class DataInitService {
                 if (match != null && "pst".equals(match.getStatus())) {
                     String dateStr = event.getDate().replaceAll("(T\\d{2}:\\d{2})Z", "$1:00Z");
                     LocalDateTime espnDate = Instant.parse(dateStr)
-                            .atZone(ZoneId.systemDefault())
+                            .atZone(AppTimeZones.DISPLAY)
                             .toLocalDateTime();
                     match.setStatus("ns");
                     match.setLocalDateTime(espnDate);
@@ -277,7 +276,7 @@ public class DataInitService {
         Fixture fixture = response.getFixture();
         int publicId = fixture.getPublicId();
         LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
-                TimeZone.getDefault().toZoneId());
+                AppTimeZones.DISPLAY);
         String status = fixture.getStatus().getMyshort();
         switch (status) {
             case "PST" -> status = "pst";
@@ -359,7 +358,7 @@ public class DataInitService {
                     .lines().filter(s -> !s.contains("?")).collect(Collectors.joining());
             dateTime = formatter.parse(re.getPublishedDate().toString())
                     .toInstant()
-                    .atZone(ZoneId.systemDefault())
+                    .atZone(AppTimeZones.DISPLAY)
                     .toLocalDateTime();
             if (!title.isEmpty()) {
                 news.add(News.builder().title(title).link(link).localDateTime(dateTime).build());
@@ -379,7 +378,7 @@ public class DataInitService {
                 Root root = mapper.readValue(resp.getBody(), Root.class);
                 for (Response response : root.getResponse()) {
                     LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(response.getFixture().getTimestamp()),
-                            TimeZone.getDefault().toZoneId());
+                            AppTimeZones.DISPLAY);
                     String leagueName = switch (response.getLeague().getName()) {
                         case "Premier League" -> "PL ";
                         case "League Cup" -> "LC ";

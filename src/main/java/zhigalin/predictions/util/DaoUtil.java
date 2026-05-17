@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -19,7 +21,11 @@ import zhigalin.predictions.service.user.UserService;
 @Service
 public class DaoUtil {
 
+    private static final Logger log = LoggerFactory.getLogger("server");
+
     public static int currentWeekId;
+
+    private static TeamService teamServiceRef;
 
     private final TeamService teamService;
     private final UserService userService;
@@ -36,17 +42,37 @@ public class DaoUtil {
 
     @EventListener(ApplicationStartedEvent.class)
     public void init() {
-        teamService.findAll().forEach(team -> {
-            TEAMS.put(team.getPublicId(), team);
-        });
-        userService.findAll().forEach(user -> {
-            USERS.put(user.getId(), user);
-        });
+        teamServiceRef = teamService;
+        reloadTeams();
+        userService.findAll().forEach(user -> USERS.put(user.getId(), user));
         Week currentWeek = weekService.findCurrentWeek();
         if (currentWeek != null) {
             currentWeekId = currentWeek.getId();
         } else {
             currentWeekId = 1;
+        }
+        log.info("DaoUtil cache ready: {} teams, {} users, week {}", TEAMS.size(), USERS.size(), currentWeekId);
+    }
+
+    public static Team team(int publicId) {
+        Team cached = TEAMS.get(publicId);
+        if (cached != null) {
+            return cached;
+        }
+        if (teamServiceRef == null) {
+            return null;
+        }
+        Team loaded = teamServiceRef.findByPublicId(publicId);
+        if (loaded != null) {
+            TEAMS.put(publicId, loaded);
+        }
+        return loaded;
+    }
+
+    public static void reloadTeams() {
+        TEAMS.clear();
+        if (teamServiceRef != null) {
+            teamServiceRef.findAll().forEach(team -> TEAMS.put(team.getPublicId(), team));
         }
     }
 

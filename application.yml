@@ -22,6 +22,7 @@ spring:
     scheduling:
       pool:
         size: 5
+      time-zone: Europe/Moscow
 
 bot:
   username: ${BOT_USERNAME:}

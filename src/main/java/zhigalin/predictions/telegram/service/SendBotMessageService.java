@@ -20,6 +20,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.notification.ImageRenderer;
@@ -127,8 +128,14 @@ public class SendBotMessageService {
         sendPhoto.setPhoto(inputFile);
         sendPhoto.setCaption(message);
 
-        String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
-        String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+        Team home = DaoUtil.team(match.getHomeTeamId());
+        Team away = DaoUtil.team(match.getAwayTeamId());
+        if (home == null || away == null) {
+            bot.execute(sendPhoto);
+            return;
+        }
+        String homeTeam = home.getCode();
+        String awayTeam = away.getCode();
         sendPhoto.setReplyMarkup(
                 InlineKeyboardMarkup.builder()
                         .keyboard(
@@ -284,8 +291,13 @@ public class SendBotMessageService {
                 listOfKeyboardRows.add(innerList);
                 innerList = new ArrayList<>();
             }
-            String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
-            String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+            Team home = DaoUtil.team(match.getHomeTeamId());
+            Team away = DaoUtil.team(match.getAwayTeamId());
+            if (home == null || away == null) {
+                continue;
+            }
+            String homeTeam = home.getCode();
+            String awayTeam = away.getCode();
 
             String buttonName = String.join("-", homeTeam, awayTeam);
             if (predictableMatchIds.contains(match.getPublicId())) {

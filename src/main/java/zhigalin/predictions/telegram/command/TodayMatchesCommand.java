@@ -32,8 +32,11 @@ public class TodayMatchesCommand implements Command {
                     builder.append(match.getWeekId()).append(" тур").append("\n");
                     tour = match.getWeekId();
                 }
-                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
-                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
+                Team homeTeam = DaoUtil.team(match.getHomeTeamId());
+                Team awayTeam = DaoUtil.team(match.getAwayTeamId());
+                if (homeTeam == null || awayTeam == null) {
+                    continue;
+                }
                 builder.append(homeTeam.getCode()).append(" ");
                 if (!Objects.equals(match.getStatus(), "ns") && !Objects.equals(match.getStatus(), "pst")) {
                     builder.append(match.getHomeTeamScore()).append(" - ")
@@ -48,6 +51,10 @@ public class TodayMatchesCommand implements Command {
                             .append(" ⏱ ").append(match.getLocalDateTime().toLocalTime());
                 }
                 builder.append("`").append("\n");
+            }
+            if (builder.length() == 0) {
+                sendBotMessageService.sendMessage(chatId, "Сегодня матчей нет");
+                return;
             }
             if (botChatId.equals(chatId)) {
                 sendBotMessageService.sendMessage(chatId, builder.toString());
