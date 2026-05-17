@@ -50,6 +50,8 @@ public class NotificationService {
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
 
+    private static final int[] REMINDER_MINUTES_BEFORE = {45, 30};
+
     private final Set<String> notificationBlackList = ConcurrentHashMap.newKeySet();
 
     public NotificationService(MatchService matchService,
@@ -151,35 +153,51 @@ public class NotificationService {
     }
 
     public void checkReminders() {
-        List<Match> nearest = matchService.findAllNearest(30).stream()
-                .filter(m -> !Objects.equals(m.getStatus(), "pst") && Objects.equals(m.getStatus(), "ns"))
+        LocalDateTime now = LocalDateTime.now();
+        int horizonMinutes = REMINDER_MINUTES_BEFORE[0] + 1;
+        List<Match> upcoming = matchService.findAllNearest(horizonMinutes).stream()
+                .filter(m -> Objects.equals(m.getStatus(), "ns") && !Objects.equals(m.getStatus(), "pst"))
                 .toList();
 
-        if (!nearest.isEmpty()) {
-            log.info("Nearest matches notification start");
-            for (Match match : nearest) {
-                Map<Integer, List<Lineup>> lineups = api.getLineups(match.getPublicId());
+        if (upcoming.isEmpty()) {
+            notificationBlackList.clear();
+            return;
+        }
 
+        for (Match match : upcoming) {
+            long minutesLeft = Duration.between(now, match.getLocalDateTime()).toMinutes();
+            for (int reminderMinutes : REMINDER_MINUTES_BEFORE) {
+                if (!isReminderWindow(minutesLeft, reminderMinutes)) {
+                    continue;
+                }
+                Map<Integer, List<Lineup>> lineups = api.getLineups(match.getPublicId());
                 List<Prediction> matchPredicts = predictionService.getByMatchPublicId(match.getPublicId());
                 for (User user : DaoUtil.USERS.values()) {
                     boolean hasPredict = matchPredicts.stream()
                             .anyMatch(p -> p.getUserId() == user.getId());
-                    if (!hasPredict) {
-                        Notification notification = Notification.builder()
-                                .user(user)
-                                .match(match)
-                                .lineups(lineups)
-                                .build();
-                        String key = user.getId() + ":" + match.getPublicId();
-                        if (notificationBlackList.add(key)) {
-                            sendNotification(notification);
-                        }
+                    if (hasPredict) {
+                        continue;
                     }
+                    String key = user.getId() + ":" + match.getPublicId() + ":" + reminderMinutes;
+                    if (!notificationBlackList.add(key)) {
+                        continue;
+                    }
+                    Notification notification = Notification.builder()
+                            .user(user)
+                            .match(match)
+                            .lineups(lineups)
+                            .build();
+                    log.info("Predict reminder: {} min before match, user={}, match={}",
+                            reminderMinutes, user.getId(), match.getPublicId());
+                    sendNotification(notification);
                 }
             }
-        } else {
-            notificationBlackList.clear();
         }
+    }
+
+    /** Окно для проверки раз в 30 с: напоминание «за N минут» срабатывает при N…N-1 мин до старта. */
+    private static boolean isReminderWindow(long minutesLeft, int reminderMinutes) {
+        return minutesLeft <= reminderMinutes && minutesLeft > reminderMinutes - 2;
     }
 
     private void sendNotification(Notification notification) {
@@ -191,8 +209,13 @@ public class NotificationService {
 
             if (chatId != null && !chatId.isEmpty()) {
 
-                String homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
-                String awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+                Team home = DaoUtil.team(match.getHomeTeamId());
+                Team away = DaoUtil.team(match.getAwayTeamId());
+                if (home == null || away == null) {
+                    return;
+                }
+                String homeTeam = home.getCode();
+                String awayTeam = away.getCode();
 
                 Map<String, Integer> sorting = Map.of("G", 1, "D", 2, "M", 3, "F", 4);
                 Comparator<Lineup> lineupComparator = Comparator.comparingInt(
