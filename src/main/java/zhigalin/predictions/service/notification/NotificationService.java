@@ -50,7 +50,7 @@ public class NotificationService {
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
 
-    private static final int[] REMINDER_MINUTES_BEFORE = {45, 30};
+    private static final int[] REMINDER_MINUTES_BEFORE = {40, 20};
 
     private final Set<String> notificationBlackList = ConcurrentHashMap.newKeySet();
 
