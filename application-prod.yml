@@ -11,6 +11,7 @@ miniapp:
 predictions:
   startup:
     recalculate: false
+    sync-match-times: true
 
 logging:
   level:
