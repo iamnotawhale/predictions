@@ -23,6 +23,7 @@ RUN mvn -B -DskipTests package
 
 FROM jre AS runner
 WORKDIR /app
+ENV TZ=Europe/Moscow
 RUN mkdir -p app/tmp app/logs app/config
 COPY --from=builder /build/target/predictions-1.0.0.jar /app/predictions-1.0.0.jar
-ENTRYPOINT ["java", "-jar", "predictions-1.0.0.jar"]
+ENTRYPOINT ["java", "-Duser.timezone=Europe/Moscow", "-jar", "predictions-1.0.0.jar"]

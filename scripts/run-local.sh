@@ -18,7 +18,7 @@ config_locations() {
 }
 
 echo "1) Запуск приложения (профиль local)..."
-java -jar target/predictions-1.0.0.jar \
+java -Duser.timezone=Europe/Moscow -jar target/predictions-1.0.0.jar \
     --spring.config.location="$(config_locations)" \
     --spring.profiles.active=local &
 APP_PID=$!
@@ -53,6 +53,6 @@ echo "Приложение: http://127.0.0.1:8080/miniapp/"
 echo "Telegram Mini App: ${BOT_WEBAPP_URL:-не задан}"
 echo "Браузер (dev): http://127.0.0.1:8080/miniapp/"
 echo ""
-exec java -jar target/predictions-1.0.0.jar \
+exec java -Duser.timezone=Europe/Moscow -jar target/predictions-1.0.0.jar \
     --spring.config.location="$(config_locations)" \
     --spring.profiles.active=local

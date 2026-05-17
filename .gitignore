@@ -37,5 +37,6 @@ logs/
 deploy/predicts.env
 deploy/local.env
 deploy/local-https.env
+deploy/deploy.env
 out/
 fixtures_resp.json

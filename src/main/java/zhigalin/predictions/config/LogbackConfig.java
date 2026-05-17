@@ -5,7 +5,6 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.ConsoleAppender;
 import ch.qos.logback.core.rolling.RollingFileAppender;
 import ch.qos.logback.core.status.NopStatusListener;
 import org.slf4j.LoggerFactory;
@@ -26,23 +25,6 @@ public class LogbackConfig {
     @Bean
     public RollingFileAppender<ILoggingEvent> serverAppender() {
         return createAppender();
-    }
-
-    @Bean
-    public ConsoleAppender<ILoggingEvent> consoleAppender() {
-        LoggerContext context = loggerContext();
-        ConsoleAppender<ILoggingEvent> appender = new ConsoleAppender<>();
-        appender.setContext(context);
-
-        PatternLayoutEncoder encoder = new PatternLayoutEncoder();
-        encoder.setContext(context);
-        encoder.setPattern("%d [%c{0}] %-5level: %m%n");
-        encoder.start();
-
-        appender.setEncoder(encoder);
-        appender.start();
-
-        return appender;
     }
 
     private RollingFileAppender<ILoggingEvent> createAppender() {
@@ -77,7 +59,6 @@ public class LogbackConfig {
         Logger logger = context.getLogger("server");
         logger.setLevel(Level.TRACE);
         logger.addAppender(serverAppender());
-        logger.addAppender(consoleAppender());
         logger.setAdditive(false);
         return logger;
     }

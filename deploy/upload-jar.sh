@@ -5,7 +5,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-SERVER="${DEPLOY_SERVER:-root@146.255.188.80}"
+if [[ -f deploy/deploy.env ]]; then
+    # shellcheck disable=SC1091
+    source deploy/deploy.env
+fi
+
+: "${DEPLOY_SERVER:?Задайте DEPLOY_SERVER (export или deploy/deploy.env)}"
+SERVER="$DEPLOY_SERVER"
 APP_DIR="${DEPLOY_APP_DIR:-/home/predictions}"
 JAR="target/predictions-1.0.0.jar"
 
