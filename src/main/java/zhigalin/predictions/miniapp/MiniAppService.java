@@ -196,7 +196,12 @@ public class MiniAppService {
         }
         boolean exists = predictionService.isExist(telegramId, match.getPublicId());
         predictionService.save(telegramId, home, away, request.homeScore(), request.awayScore());
-        return new ActionResponse(true, exists ? "Прогноз обновлён" : "Прогноз сохранён");
+        return new ActionResponse(
+                true,
+                exists ? "Прогноз обновлён" : "Прогноз сохранён",
+                request.homeScore(),
+                request.awayScore()
+        );
     }
 
     public ActionResponse deletePrediction(String telegramId, String homeCode, String awayCode) {

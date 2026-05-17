@@ -2,6 +2,7 @@ package zhigalin.predictions.miniapp;
 
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -109,7 +110,11 @@ public class MiniAppController {
         return miniAppService.pointsChart(requireTelegramId(initData));
     }
 
-    @PostMapping("/predictions")
+    @PostMapping(
+            value = "/predictions",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
     public ActionResponse savePrediction(
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
             @RequestBody PredictRequest request

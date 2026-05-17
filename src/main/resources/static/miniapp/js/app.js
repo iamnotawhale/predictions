@@ -20,11 +20,31 @@
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
 
+    const MUTATION_RETRY_DELAYS_MS = [0, 600, 1500];
+
     function headers() {
         return {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-Telegram-Init-Data': tg.initData || ''
         };
+    }
+
+    function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function isRetryableStatus(status) {
+        return status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+    }
+
+    class ApiError extends Error {
+        constructor(message, status, data) {
+            super(message);
+            this.name = 'ApiError';
+            this.status = status;
+            this.data = data;
+        }
     }
 
     async function api(path, options = {}) {
@@ -34,9 +54,83 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            throw new Error(data.message || 'Ошибка запроса');
+            throw new ApiError(data.message || 'Ошибка запроса', res.status, data);
         }
         return data;
+    }
+
+    async function apiWithRetry(path, options = {}, config = {}) {
+        const delays = config.delays || MUTATION_RETRY_DELAYS_MS;
+        const maxAttempts = config.retries ?? delays.length;
+        let lastError = null;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            if (attempt > 0) {
+                await sleep(delays[attempt] ?? delays[delays.length - 1]);
+            }
+            try {
+                const res = await fetch('/api/miniapp' + path, {
+                    ...options,
+                    headers: { ...headers(), ...(options.headers || {}) }
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    return data;
+                }
+                const err = new ApiError(data.message || 'Ошибка запроса', res.status, data);
+                if (!isRetryableStatus(res.status) || attempt === maxAttempts - 1) {
+                    throw err;
+                }
+                lastError = err;
+            } catch (e) {
+                if (e instanceof ApiError) {
+                    throw e;
+                }
+                lastError = e;
+                if (attempt === maxAttempts - 1) {
+                    throw new ApiError(
+                        'Нет связи с сервером. Проверьте интернет и попробуйте снова.',
+                        0,
+                        null
+                    );
+                }
+            }
+        }
+        throw lastError || new ApiError('Ошибка запроса', 0, null);
+    }
+
+    async function verifyPredictionSaved(match, homeScore, awayScore) {
+        try {
+            const item = await api('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode));
+            return item.hasPrediction
+                && item.predictHome === homeScore
+                && item.predictAway === awayScore;
+        } catch {
+            return false;
+        }
+    }
+
+    function setScoreButtonsDisabled(disabled) {
+        $$('#score-modal .score-btn').forEach((btn) => {
+            btn.disabled = disabled;
+        });
+    }
+
+    async function refreshAfterPredictionChange() {
+        state.todayLoaded = false;
+        const predictBlock = $('#predict-matches');
+        if (!predictBlock.classList.contains('hidden') && predictBlock.dataset.weekId) {
+            await loadPredictMatches(parseInt(predictBlock.dataset.weekId, 10));
+        }
+        const myBlock = $('#my-predictions');
+        if (!myBlock.classList.contains('hidden') && myBlock.dataset.weekId) {
+            await loadMyPredictions(parseInt(myBlock.dataset.weekId, 10));
+        }
+        if ($('#screen-today').classList.contains('active')) {
+            await loadTodayMatches();
+        }
+        await loadWeeksGrid('#predict-weeks', showPredictWeek);
+        await loadWeeksGrid('#my-weeks', showMyWeek);
     }
 
     function showToast(msg, type) {
@@ -327,8 +421,10 @@
     }
 
     async function savePrediction(match, homeScore, awayScore) {
+        setScoreButtonsDisabled(true);
+        showToast('Сохраняем прогноз…', '');
         try {
-            const res = await api('/predictions', {
+            const res = await apiWithRetry('/predictions', {
                 method: 'POST',
                 body: JSON.stringify({
                     homeCode: match.homeCode,
@@ -337,37 +433,43 @@
                     awayScore
                 })
             });
-            if (res.ok) {
-                showToast(res.message, 'success');
+            if (!res.ok) {
+                showToast(res.message || 'Не удалось сохранить прогноз', 'error');
+                return;
+            }
+            const scoresMatch = res.predictHome === homeScore && res.predictAway === awayScore;
+            if (!scoresMatch) {
+                const verified = await verifyPredictionSaved(match, homeScore, awayScore);
+                if (!verified) {
+                    showToast('Прогноз мог не сохраниться. Проверьте «Мои прогнозы» или попробуйте снова.', 'error');
+                    return;
+                }
+            }
+            showToast(res.message || 'Прогноз сохранён', 'success');
+            tg.HapticFeedback?.notificationOccurred('success');
+            closeScoreModal();
+            await refreshAfterPredictionChange();
+        } catch (e) {
+            const verified = await verifyPredictionSaved(match, homeScore, awayScore);
+            if (verified) {
+                showToast('Прогноз сохранён (подтверждено на сервере)', 'success');
                 tg.HapticFeedback?.notificationOccurred('success');
                 closeScoreModal();
-                state.todayLoaded = false;
-                const predictBlock = $('#predict-matches');
-                if (!predictBlock.classList.contains('hidden') && predictBlock.dataset.weekId) {
-                    await loadPredictMatches(parseInt(predictBlock.dataset.weekId, 10));
-                }
-                const myBlock = $('#my-predictions');
-                if (!myBlock.classList.contains('hidden') && myBlock.dataset.weekId) {
-                    await loadMyPredictions(parseInt(myBlock.dataset.weekId, 10));
-                }
-                if ($('#screen-today').classList.contains('active')) {
-                    await loadTodayMatches();
-                }
-                await loadWeeksGrid('#predict-weeks', showPredictWeek);
-                await loadWeeksGrid('#my-weeks', showMyWeek);
-            } else {
-                showToast(res.message, 'error');
+                await refreshAfterPredictionChange();
+                return;
             }
-        } catch (e) {
-            showToast(e.message, 'error');
+            showToast(e.message || 'Не удалось сохранить прогноз', 'error');
+        } finally {
+            setScoreButtonsDisabled(false);
         }
     }
 
     async function deletePrediction() {
         const m = state.selectedMatch;
         if (!m) return;
+        setScoreButtonsDisabled(true);
         try {
-            const res = await api(
+            const res = await apiWithRetry(
                 '/predictions?homeCode=' + encodeURIComponent(m.homeCode) + '&awayCode=' + encodeURIComponent(m.awayCode),
                 { method: 'DELETE' }
             );
@@ -388,7 +490,9 @@
                 }
             }
         } catch (e) {
-            showToast(e.message, 'error');
+            showToast(e.message || 'Не удалось удалить прогноз', 'error');
+        } finally {
+            setScoreButtonsDisabled(false);
         }
     }
 
