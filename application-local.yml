@@ -19,6 +19,7 @@ predictions:
   startup:
     # false — не гонять пересчёт по продовой БД при каждом локальном старте
     recalculate: false
+    sync-match-times: false
 
 api:
   football:

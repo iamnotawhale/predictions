@@ -61,6 +61,7 @@ public class DataInitService {
     private final HeadToHeadService headToHeadService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
+
     public static final int SEASON = 2025;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
@@ -101,6 +102,10 @@ public class DataInitService {
 
     @Scheduled(cron = "0 50 8 * * *")
     private void matchUpdate() throws JsonProcessingException {
+        matchDateTimeStatusUpdate();
+    }
+
+    public void syncMatchTimesFromApi() throws JsonProcessingException {
         matchDateTimeStatusUpdate();
     }
 
@@ -260,7 +265,12 @@ public class DataInitService {
                 .filter(r -> isFutureMatch(currentWeekId, r))
                 .map(this::getMatch)
                 .toList();
+        if (matches.isEmpty()) {
+            serverLogger.info("No future matches to sync from API");
+            return;
+        }
         matchService.updateAll(matches);
+        serverLogger.info("Synced {} match times from API (timezone={})", matches.size(), AppTimeZones.DISPLAY);
     }
 
     private boolean isFutureMatch(int currentWeekId, Response response) {
