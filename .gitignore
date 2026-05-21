@@ -33,6 +33,7 @@ build/
 .vscode/
 
 ### Runtime artifacts ###
+cloudflared
 logs/
 deploy/predicts.env
 deploy/local.env
