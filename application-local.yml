@@ -10,6 +10,7 @@ bot:
   username: eplinfodevbot
   token: 6610261457:AAHofB9PStvQBH9NTKzddjy7abxMQOtOo40
   chatId: -4551040804
+  webAppUrl: ${BOT_WEBAPP_URL:}
 
 miniapp:
   dev-mode: true

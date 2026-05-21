@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -37,6 +36,9 @@ import zhigalin.predictions.util.DaoUtil;
 public class MiniAppService {
 
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
+    private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
+            "ft", "aet", "pen", "canc", "abd", "awrd", "wo"
+    );
 
     private final UserService userService;
     private final MatchService matchService;
@@ -235,8 +237,10 @@ public class MiniAppService {
                 match.getWeekId(),
                 home.getCode(),
                 home.getName(),
+                teamLogoPath(match.getHomeTeamId()),
                 away.getCode(),
                 away.getName(),
+                teamLogoPath(match.getAwayTeamId()),
                 match.getStatus(),
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
@@ -253,11 +257,18 @@ public class MiniAppService {
         if (match == null || match.getLocalDateTime() == null) {
             return false;
         }
-        boolean notStarted = Objects.equals(match.getStatus(), "ns") || Objects.equals(match.getStatus(), "pst");
-        return notStarted && LocalDateTime.now().isBefore(match.getLocalDateTime().plusMinutes(5));
+        String status = match.getStatus();
+        if (status != null && CLOSED_MATCH_STATUSES.contains(status.toLowerCase())) {
+            return false;
+        }
+        return LocalDateTime.now().isBefore(match.getLocalDateTime().plusMinutes(5));
     }
 
     private static String teamCode(int teamId) {
         return DaoUtil.TEAMS.get(teamId).getCode();
+    }
+
+    private static String teamLogoPath(int teamId) {
+        return "/img/teams/" + teamId + ".webp";
     }
 }

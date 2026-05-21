@@ -7,6 +7,9 @@
     }
 
     const CHART_COLORS = ['#2ea6ff', '#5cd97a', '#e85c4a', '#f5c542', '#b07aff', '#ff8ec4'];
+    const TODAY_POLL_INTERVAL_MS = 15000;
+    const FINISHED_STATUSES = new Set(['ft', 'aet', 'pen', 'canc', 'abd', 'awrd', 'wo']);
+    const NOT_STARTED_STATUSES = new Set(['ns', 'pst', 'tbd']);
 
     const state = {
         profile: null,
@@ -14,7 +17,12 @@
         selectedMatch: null,
         leaderboardMode: '',
         chartLoaded: false,
-        todayLoaded: false
+        todayLoaded: false,
+        todaySnapshotInitialized: false,
+        todayScoresByMatchId: {},
+        scoreNotificationsQueue: [],
+        activeScoreNotificationId: null,
+        todayPollingTimerId: null
     };
 
     const $ = (sel) => document.querySelector(sel);
@@ -141,6 +149,18 @@
         setTimeout(() => el.classList.add('hidden'), 2800);
     }
 
+    function normalizeStatus(status) {
+        return (status || '').toLowerCase();
+    }
+
+    function isNotStartedStatus(status) {
+        return NOT_STARTED_STATUSES.has(normalizeStatus(status));
+    }
+
+    function isFinishedStatus(status) {
+        return FINISHED_STATUSES.has(normalizeStatus(status));
+    }
+
     function matchScoreLabel(m) {
         if (m.status === 'ft' && m.homeScore != null) {
             return m.homeScore + ' : ' + m.awayScore;
@@ -158,6 +178,24 @@
         return '<span class="badge live">' + (m.status || '') + '</span>';
     }
 
+    function todayScoreLabel(m) {
+        const hasLiveScore = m.homeScore != null && m.awayScore != null && !isNotStartedStatus(m.status);
+        if (hasLiveScore) {
+            return m.homeScore + ' : ' + m.awayScore;
+        }
+        return m.kickoff || '—';
+    }
+
+    function todayStatusBadge(m) {
+        if (isFinishedStatus(m.status)) return '<span class="badge">завершён</span>';
+        if (m.homeScore != null && m.awayScore != null && !isNotStartedStatus(m.status)) {
+            return '<span class="badge live">' + (m.status || 'live') + '</span>';
+        }
+        if (m.canPredict) return '<span class="badge">можно</span>';
+        if (m.hasPrediction) return '<span class="badge predicted">прогноз</span>';
+        return '<span class="badge">' + (m.status || 'ожидание') + '</span>';
+    }
+
     function renderMatchItem(m, onClick) {
         const li = document.createElement('li');
         li.className = 'list-item';
@@ -172,6 +210,164 @@
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
+    }
+
+    function renderTodayMatchItem(m, onClick) {
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.innerHTML =
+            '<div class="list-item-main">' +
+            '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
+            '<div class="list-item-sub">' + (m.homeName || '') + ' vs ' + (m.awayName || '') + '</div>' +
+            '</div>' +
+            '<div class="list-item-meta">' +
+            '<div class="score-pill">' + todayScoreLabel(m) + '</div>' +
+            todayStatusBadge(m) +
+            '</div>';
+        if (onClick) li.addEventListener('click', () => onClick(m));
+        return li;
+    }
+
+    function renderTodayMatchesList(matches) {
+        const list = $('#today-match-list');
+        list.innerHTML = '';
+        if (!matches.length) {
+            list.innerHTML = '<li class="empty-state">Сегодня матчей нет</li>';
+            return;
+        }
+        let lastWeek = null;
+        matches.forEach(m => {
+            if (m.weekId !== lastWeek) {
+                lastWeek = m.weekId;
+                const label = document.createElement('li');
+                label.className = 'week-label';
+                label.textContent = m.weekId + ' тур';
+                list.appendChild(label);
+            }
+            list.appendChild(renderTodayMatchItem(m, openScoreModal));
+        });
+    }
+
+    function enqueueScoreNotification(match, previousScore, highlightTeam) {
+        const previousParts = previousScore ? previousScore.split(':') : null;
+        state.scoreNotificationsQueue.push({
+            id: Date.now() + '-' + Math.random().toString(16).slice(2),
+            homeCode: match.homeCode,
+            awayCode: match.awayCode,
+            homeScore: match.homeScore,
+            awayScore: match.awayScore,
+            homeLogo: match.homeLogo,
+            awayLogo: match.awayLogo,
+            prevHomeScore: previousParts ? Number(previousParts[0]) : null,
+            prevAwayScore: previousParts ? Number(previousParts[1]) : null,
+            highlightTeam
+        });
+        showNextScoreNotification();
+    }
+
+    function showNextScoreNotification() {
+        if (state.activeScoreNotificationId || !state.scoreNotificationsQueue.length) {
+            return;
+        }
+        const item = state.scoreNotificationsQueue.shift();
+        state.activeScoreNotificationId = item.id;
+        const container = $('#score-notifications');
+        const alert = document.createElement('div');
+        alert.className = 'score-alert';
+        alert.dataset.notificationId = item.id;
+        const hasPrevScore = Number.isInteger(item.prevHomeScore) && Number.isInteger(item.prevAwayScore);
+        const initialHome = hasPrevScore ? item.prevHomeScore : item.homeScore;
+        const initialAway = hasPrevScore ? item.prevAwayScore : item.awayScore;
+        alert.innerHTML =
+            '<div class="score-alert-body">' +
+            '<img class="score-alert-logo" src="' + (item.homeLogo || '') + '" alt="' + item.homeCode + '" onerror="this.style.visibility=\'hidden\'">' +
+            '<div class="score-alert-center">' +
+            '<span class="score-alert-code score-alert-home-code">' + item.homeCode + '</span>' +
+            '<span class="score-alert-score">' + initialHome + '-' + initialAway + '</span>' +
+            '<span class="score-alert-code score-alert-away-code">' + item.awayCode + '</span>' +
+            '</div>' +
+            '<img class="score-alert-logo" src="' + (item.awayLogo || '') + '" alt="' + item.awayCode + '" onerror="this.style.visibility=\'hidden\'">' +
+            '</div>' +
+            '<button class="score-alert-close" aria-label="Закрыть">&#10005;</button>';
+
+        const close = () => {
+            if (alert.dataset.closing === '1') return;
+            alert.dataset.closing = '1';
+            alert.classList.add('closing');
+            setTimeout(() => {
+                alert.remove();
+                if (state.activeScoreNotificationId === item.id) {
+                    state.activeScoreNotificationId = null;
+                }
+                showNextScoreNotification();
+            }, 320);
+        };
+
+        alert.querySelector('.score-alert-close').addEventListener('click', close);
+        container.appendChild(alert);
+        tg.HapticFeedback?.impactOccurred('medium');
+
+        if (hasPrevScore) {
+            setTimeout(() => {
+                const scoreEl = alert.querySelector('.score-alert-score');
+                const homeCodeEl = alert.querySelector('.score-alert-home-code');
+                const awayCodeEl = alert.querySelector('.score-alert-away-code');
+                if (!scoreEl || !homeCodeEl || !awayCodeEl) return;
+                scoreEl.textContent = item.homeScore + '-' + item.awayScore;
+                if (item.highlightTeam === 'home' || item.highlightTeam === 'both') {
+                    homeCodeEl.classList.add('goal-flash');
+                }
+                if (item.highlightTeam === 'away' || item.highlightTeam === 'both') {
+                    awayCodeEl.classList.add('goal-flash');
+                }
+            }, 420);
+        }
+
+        setTimeout(close, 6000);
+    }
+
+    function detectGoalHighlightTeam(previousScore, nextScore) {
+        if (!previousScore || !nextScore) return null;
+        const [prevHome, prevAway] = previousScore.split(':').map(Number);
+        const [nextHome, nextAway] = nextScore.split(':').map(Number);
+        if (Number.isNaN(prevHome) || Number.isNaN(prevAway) || Number.isNaN(nextHome) || Number.isNaN(nextAway)) {
+            return null;
+        }
+        const homeScored = nextHome > prevHome;
+        const awayScored = nextAway > prevAway;
+        if (homeScored && awayScored) return 'both';
+        if (homeScored) return 'home';
+        if (awayScored) return 'away';
+        return null;
+    }
+
+    function processTodayScoreUpdates(matches, previousScoresByMatchId) {
+        const nextScores = {};
+        matches.forEach((m) => {
+            const hasScore = m.homeScore != null && m.awayScore != null && !isNotStartedStatus(m.status);
+            if (!hasScore) return;
+
+            const score = m.homeScore + ':' + m.awayScore;
+            const prev = previousScoresByMatchId[m.publicId];
+            nextScores[m.publicId] = score;
+
+            if (!state.todaySnapshotInitialized) {
+                return;
+            }
+
+            if (prev == null) {
+                if (score !== '0:0') {
+                    enqueueScoreNotification(m, '0:0', 'both');
+                }
+                return;
+            }
+
+            if (prev !== score) {
+                enqueueScoreNotification(m, prev, detectGoalHighlightTeam(prev, score) || 'both');
+            }
+        });
+        state.todayScoresByMatchId = nextScores;
+        state.todaySnapshotInitialized = true;
     }
 
     async function loadProfile() {
@@ -207,24 +403,30 @@
 
     async function loadTodayMatches() {
         const data = await api('/today');
-        const list = $('#today-match-list');
-        list.innerHTML = '';
-        if (!data.matches.length) {
-            list.innerHTML = '<li class="empty-state">Сегодня матчей нет</li>';
-            return;
-        }
-        let lastWeek = null;
-        data.matches.forEach(m => {
-            if (m.weekId !== lastWeek) {
-                lastWeek = m.weekId;
-                const label = document.createElement('li');
-                label.className = 'week-label';
-                label.textContent = m.weekId + ' тур';
-                list.appendChild(label);
-            }
-            list.appendChild(renderMatchItem(m, openScoreModal));
-        });
+        const previousScores = { ...state.todayScoresByMatchId };
+        processTodayScoreUpdates(data.matches, previousScores);
+        renderTodayMatchesList(data.matches);
         state.todayLoaded = true;
+    }
+
+    async function pollTodayMatchesForUpdates() {
+        const data = await api('/today');
+        const previousScores = { ...state.todayScoresByMatchId };
+        processTodayScoreUpdates(data.matches, previousScores);
+        if ($('#screen-today').classList.contains('active')) {
+            renderTodayMatchesList(data.matches);
+            state.todayLoaded = true;
+        }
+    }
+
+    function startTodayPolling() {
+        if (state.todayPollingTimerId) {
+            clearInterval(state.todayPollingTimerId);
+        }
+        pollTodayMatchesForUpdates().catch(() => {});
+        state.todayPollingTimerId = setInterval(() => {
+            pollTodayMatchesForUpdates().catch(() => {});
+        }, TODAY_POLL_INTERVAL_MS);
     }
 
     function drawPointsChart(data) {
@@ -602,6 +804,7 @@
                 loadWeeksGrid('#predict-weeks', showPredictWeek),
                 loadWeeksGrid('#my-weeks', showMyWeek)
             ]);
+            startTodayPolling();
             if (tg.themeParams) {
                 document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
             }
