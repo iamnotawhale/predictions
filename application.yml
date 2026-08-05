@@ -41,7 +41,7 @@ api:
   football:
     token: ${API_FOOTBALL_TOKEN:}
 
-season: ${SEASON:2025}
+season: ${SEASON:2026}
 
 logging:
   level:

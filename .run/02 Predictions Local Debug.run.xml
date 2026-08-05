@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="02 Predictions Local Debug" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ALTERNATIVE_JRE_PATH" value="21" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <envs>
+      <env name="SPRING_DATASOURCE_URL" value="jdbc:postgresql://146.255.188.80:5432/predicts" />
+      <env name="SPRING_DATASOURCE_USERNAME" value="admin" />
+      <env name="SPRING_DATASOURCE_PASSWORD" value="postgres" />
+    </envs>
+    <module name="predictions" />
+    <option name="PROGRAM_PARAMETERS" value="--spring.config.location=file:./application.yml,file:./application-local.yml,optional:file:./deploy/local-https.properties --spring.profiles.active=local" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="zhigalin.predictions.PredictionsApplication" />
+    <option name="VM_PARAMETERS" value="-Duser.timezone=Europe/Moscow" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -62,7 +62,7 @@ public class DataInitService {
     private final NotificationService notificationService;
     private final PanicSender panicSender;
 
-    public static final int SEASON = 2025;
+    public static final int SEASON = 2026;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
