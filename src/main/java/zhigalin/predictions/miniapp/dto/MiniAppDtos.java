@@ -30,7 +30,10 @@ public final class MiniAppDtos {
             boolean hasPrediction,
             Integer predictHome,
             Integer predictAway,
-            Integer points
+            Integer points,
+            Double oddHome,
+            Double oddDraw,
+            Double oddAway
     ) {
     }
 

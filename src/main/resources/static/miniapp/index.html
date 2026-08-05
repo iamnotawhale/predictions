@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css?v=20260805-1">
+    <link rel="stylesheet" href="css/app.css?v=20260805-2">
 </head>
 <body>
 <div id="app">
@@ -98,11 +98,32 @@
 
 <div id="score-modal" class="modal hidden">
     <div class="modal-sheet">
+        <div class="modal-match-header">
+            <div class="modal-team modal-team-home">
+                <img id="modal-home-logo" class="modal-team-logo" alt="home logo">
+                <div id="modal-home-code" class="modal-team-code">HOME</div>
+            </div>
+            <div class="modal-match-center">
+                <div class="modal-vs">VS</div>
+                <p id="modal-kickoff" class="modal-sub"></p>
+            </div>
+            <div class="modal-team modal-team-away">
+                <img id="modal-away-logo" class="modal-team-logo" alt="away logo">
+                <div id="modal-away-code" class="modal-team-code">AWAY</div>
+            </div>
+        </div>
         <div class="modal-header">
             <h3 id="modal-match-title">Матч</h3>
             <button id="modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
         </div>
-        <p id="modal-kickoff" class="modal-sub"></p>
+        <div id="modal-odds" class="modal-odds hidden">
+            <span class="odds-title">Коэффициенты</span>
+            <div class="odds-grid">
+                <span class="odds-chip"><b>1</b> <span id="odd-home">—</span></span>
+                <span class="odds-chip"><b>X</b> <span id="odd-draw">—</span></span>
+                <span class="odds-chip"><b>2</b> <span id="odd-away">—</span></span>
+            </div>
+        </div>
         <div id="score-grid" class="score-grid"></div>
         <section class="modal-h2h">
             <h4>История встреч</h4>
@@ -142,6 +163,6 @@
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/app.js?v=20260805-1"></script>
+<script src="js/app.js?v=20260805-2"></script>
 </body>
 </html>
