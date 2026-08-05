@@ -47,6 +47,7 @@ public final class MiniAppDtos {
             int place,
             String code,
             String name,
+            String logo,
             int played,
             int won,
             int drawn,

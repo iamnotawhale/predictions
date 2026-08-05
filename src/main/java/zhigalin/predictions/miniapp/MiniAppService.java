@@ -188,6 +188,7 @@ public class MiniAppService {
                     place++,
                     team.getCode(),
                     team.getName(),
+                    teamLogoPath(standing.getTeamId()),
                     standing.getGames(),
                     standing.getWon(),
                     standing.getDrawn(),

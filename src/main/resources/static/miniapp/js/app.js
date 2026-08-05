@@ -277,6 +277,7 @@
     }
 
     function renderTeamMatchItem(m, onClick) {
+        const formClass = teamFormDotClass(m);
         const li = document.createElement('li');
         li.className = 'list-item';
         li.innerHTML =
@@ -285,11 +286,23 @@
             '<div class="list-item-sub">' + (m.kickoff || '') + ' · ' + (m.weekId || '') + ' тур</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
+            '<span class="form-dot ' + formClass + '" aria-hidden="true"></span>' +
             '<div class="score-pill">' + (m.homeScore != null ? (m.homeScore + ' : ' + m.awayScore) : '—') + '</div>' +
             '<span class="badge">' + (m.status || '') + '</span>' +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
+    }
+
+    function teamFormDotClass(match) {
+        if (!state.selectedTeamCode) return 'form-dot-neutral';
+        if (match.homeScore == null || match.awayScore == null) return 'form-dot-neutral';
+        const teamIsHome = match.homeCode === state.selectedTeamCode;
+        const teamScore = teamIsHome ? match.homeScore : match.awayScore;
+        const oppScore = teamIsHome ? match.awayScore : match.homeScore;
+        if (teamScore > oppScore) return 'form-dot-win';
+        if (teamScore < oppScore) return 'form-dot-loss';
+        return 'form-dot-draw';
     }
 
     function renderTodayMatchItem(m, onClick) {
@@ -326,6 +339,28 @@
             }
             list.appendChild(renderTodayMatchItem(m, openScoreModal));
         });
+    }
+
+    function isLiveNowMatch(m) {
+        return !isFinishedStatus(m.status)
+            && !isNotStartedStatus(m.status)
+            && m.homeScore != null
+            && m.awayScore != null;
+    }
+
+    function renderHomeLiveModule(matches) {
+        const liveMatches = (matches || []).filter(isLiveNowMatch);
+        const card = $('#home-live-card');
+        const list = $('#home-live-list');
+        if (!liveMatches.length) {
+            card.classList.add('hidden');
+            list.innerHTML = '';
+            return;
+        }
+
+        card.classList.remove('hidden');
+        list.innerHTML = '';
+        liveMatches.forEach((m) => list.appendChild(renderTodayMatchItem(m, openScoreModal)));
     }
 
     function enqueueScoreNotification(match, previousScore, highlightTeam) {
@@ -485,6 +520,7 @@
         const data = await api('/today');
         const previousScores = { ...state.todayScoresByMatchId };
         processTodayScoreUpdates(data.matches, previousScores);
+        renderHomeLiveModule(data.matches);
         renderTodayMatchesList(data.matches);
         state.todayLoaded = true;
     }
@@ -493,10 +529,16 @@
         const data = await api('/today');
         const previousScores = { ...state.todayScoresByMatchId };
         processTodayScoreUpdates(data.matches, previousScores);
+        renderHomeLiveModule(data.matches);
         if ($('#screen-today').classList.contains('active')) {
             renderTodayMatchesList(data.matches);
             state.todayLoaded = true;
         }
+    }
+
+    async function loadHomeLiveModule() {
+        const data = await api('/today');
+        renderHomeLiveModule(data.matches);
     }
 
     function startTodayPolling() {
@@ -620,8 +662,15 @@
             tr.style.cursor = 'pointer';
             tr.innerHTML =
                 '<td>' + r.place + '</td>' +
-                '<td><strong>' + r.code + '</strong></td>' +
+                '<td class="club-cell">' +
+                '<img class="club-logo" src="' + (r.logo || '') + '" alt="' + (r.code || '') + '" onerror="this.style.visibility=\'hidden\'">' +
+                '<strong>' + r.code + '</strong>' +
+                '</td>' +
                 '<td>' + r.played + '</td>' +
+                '<td>' + r.won + '</td>' +
+                '<td>' + r.drawn + '</td>' +
+                '<td>' + r.goalsFor + '</td>' +
+                '<td>' + r.goalsAgainst + '</td>' +
                 '<td>' + r.points + '</td>';
             tr.addEventListener('click', () => openTeamModal(r.code));
             tbody.appendChild(tr);
@@ -1020,6 +1069,7 @@
             }
             await loadProfile();
             await Promise.all([
+                loadHomeLiveModule(),
                 loadLeaderboard(null),
                 loadStandings(),
                 loadPointsChart(),
