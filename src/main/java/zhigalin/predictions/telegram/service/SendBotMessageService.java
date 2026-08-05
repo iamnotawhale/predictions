@@ -40,6 +40,11 @@ public class SendBotMessageService {
         this.bot = bot;
         this.imageRenderer = imageRenderer;
         this.webAppUrl = webAppUrl == null ? "" : webAppUrl;
+        if (this.webAppUrl.isBlank()) {
+            serverLogger.warn("bot.webAppUrl is blank: main menu will be sent without Mini App button");
+        } else {
+            serverLogger.info("Main menu Mini App URL: {}", this.webAppUrl);
+        }
     }
 
     @SneakyThrows
@@ -100,6 +105,7 @@ public class SendBotMessageService {
     @SneakyThrows
     public void sendMainMenuMessage(String chatId, String message) {
         deletePreviousMessage(chatId);
+        serverLogger.info("Sending main menu to chatId={}, miniAppUrl={}", chatId, webAppUrl.isBlank() ? "<empty>" : webAppUrl);
         bot.execute(createMessage(chatId, message, createMenuKeyBoard()));
     }
 

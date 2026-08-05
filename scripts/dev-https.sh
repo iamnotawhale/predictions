@@ -40,11 +40,17 @@ fi
 
 echo "Запуск cloudflared → http://127.0.0.1:$PORT ..."
 : > "$LOG_FILE"
-cloudflared tunnel --url "http://127.0.0.1:$PORT" >>"$LOG_FILE" 2>&1 &
-echo $! >"$PID_FILE"
+nohup cloudflared tunnel --url "http://127.0.0.1:$PORT" >>"$LOG_FILE" 2>&1 < /dev/null &
+CLOUDFLARED_PID=$!
+disown "$CLOUDFLARED_PID" 2>/dev/null || true
+echo "$CLOUDFLARED_PID" >"$PID_FILE"
 
 PUBLIC_URL=""
 for _ in $(seq 1 30); do
+    if ! kill -0 "$CLOUDFLARED_PID" 2>/dev/null; then
+        echo "cloudflared завершился раньше времени. Лог: $LOG_FILE"
+        exit 1
+    fi
     PUBLIC_URL=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$LOG_FILE" | head -1 || true)
     if [[ -n "$PUBLIC_URL" ]]; then
         break
@@ -54,7 +60,23 @@ done
 
 if [[ -z "$PUBLIC_URL" ]]; then
     echo "Не удалось получить URL туннеля. Лог: $LOG_FILE"
-    kill "$(cat "$PID_FILE")" 2>/dev/null || true
+    kill "$CLOUDFLARED_PID" 2>/dev/null || true
+    exit 1
+fi
+
+HOST_READY=0
+for _ in $(seq 1 20); do
+    STATUS="$(curl -sS -o /dev/null -w '%{http_code}' "$PUBLIC_URL" || true)"
+    # 200/404/502 означают, что домен туннеля уже резолвится Cloudflare.
+    if [[ "$STATUS" == "200" || "$STATUS" == "404" || "$STATUS" == "502" ]]; then
+        HOST_READY=1
+        break
+    fi
+    sleep 1
+done
+
+if [[ "$HOST_READY" -ne 1 ]]; then
+    echo "Tunnel host не стал доступен вовремя (possible 1033). Лог: $LOG_FILE"
     exit 1
 fi
 

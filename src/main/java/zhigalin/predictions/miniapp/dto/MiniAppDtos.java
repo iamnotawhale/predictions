@@ -54,6 +54,49 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record TeamMatchItem(
+            int publicId,
+            int weekId,
+            String homeCode,
+            String homeName,
+            String homeLogo,
+            String awayCode,
+            String awayName,
+            String awayLogo,
+            String status,
+            Integer homeScore,
+            Integer awayScore,
+            String kickoff
+    ) {
+    }
+
+    public record TeamMatchesResponse(
+            String teamCode,
+            String teamName,
+            List<TeamMatchItem> lastMatches,
+            List<TeamMatchItem> upcomingMatches
+    ) {
+    }
+
+    public record H2hItem(
+            String leagueName,
+            String kickoff,
+            String homeCode,
+            String awayCode,
+            Integer homeScore,
+            Integer awayScore
+    ) {
+    }
+
+    public record ClientLogRequest(
+            String level,
+            String event,
+            String details,
+            String href,
+            String userAgent
+    ) {
+    }
+
     public record PredictRequest(String homeCode, String awayCode, int homeScore, int awayScore) {
     }
 

@@ -1,9 +1,29 @@
 (function () {
-    const tg = window.Telegram.WebApp;
+    const hasTelegramWebApp = !!(window.Telegram && window.Telegram.WebApp);
+    const tg = hasTelegramWebApp ? window.Telegram.WebApp : {
+        initData: '',
+        initDataUnsafe: {},
+        themeParams: {},
+        ready() {},
+        expand() {},
+        BackButton: {
+            show() {},
+            hide() {},
+            onClick() {}
+        },
+        HapticFeedback: {
+            impactOccurred() {},
+            notificationOccurred() {}
+        }
+    };
     const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     if (tg.initData) {
-        tg.ready();
-        tg.expand();
+        try {
+            tg.ready();
+            tg.expand();
+        } catch (_) {
+            // no-op
+        }
     }
 
     const CHART_COLORS = ['#2ea6ff', '#5cd97a', '#e85c4a', '#f5c542', '#b07aff', '#ff8ec4'];
@@ -15,6 +35,11 @@
         profile: null,
         currentWeekId: null,
         selectedMatch: null,
+        selectedTeamCode: null,
+        teamModalOpened: false,
+        h2hModalOpened: false,
+        predictWeekOpened: false,
+        myWeekOpened: false,
         leaderboardMode: '',
         chartLoaded: false,
         todayLoaded: false,
@@ -29,6 +54,42 @@
     const $$ = (sel) => document.querySelectorAll(sel);
 
     const MUTATION_RETRY_DELAYS_MS = [0, 600, 1500];
+
+    function reportClientLog(level, event, details) {
+        try {
+            const payload = JSON.stringify({
+                level: level || 'INFO',
+                event: event || 'event',
+                details: details || '-',
+                href: location.href,
+                userAgent: navigator.userAgent || '-'
+            });
+            if (navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('/api/miniapp/client-log', blob);
+                return;
+            }
+            fetch('/api/miniapp/client-log', {
+                method: 'POST',
+                keepalive: true,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Telegram-Init-Data': tg.initData || ''
+                },
+                body: payload
+            }).catch(() => {});
+        } catch (_) {
+            // no-op
+        }
+    }
+
+    window.addEventListener('error', (e) => {
+        reportClientLog('ERROR', 'window.error', (e && e.message) ? e.message : 'unknown');
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+        const reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'unknown';
+        reportClientLog('ERROR', 'window.unhandledrejection', reason);
+    });
 
     function headers() {
         return {
@@ -62,6 +123,7 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+            reportClientLog('ERROR', 'api.error', path + ' status=' + res.status + ' message=' + (data.message || 'n/a'));
             throw new ApiError(data.message || 'Ошибка запроса', res.status, data);
         }
         return data;
@@ -92,10 +154,12 @@
                 lastError = err;
             } catch (e) {
                 if (e instanceof ApiError) {
+                    reportClientLog('ERROR', 'apiWithRetry.apiError', path + ' status=' + e.status + ' message=' + (e.message || 'n/a'));
                     throw e;
                 }
                 lastError = e;
                 if (attempt === maxAttempts - 1) {
+                    reportClientLog('ERROR', 'apiWithRetry.network', path + ' message=' + (e && e.message ? e.message : 'network'));
                     throw new ApiError(
                         'Нет связи с сервером. Проверьте интернет и попробуйте снова.',
                         0,
@@ -207,6 +271,22 @@
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + matchScoreLabel(m) + '</div>' +
             matchStatusBadge(m) +
+            '</div>';
+        if (onClick) li.addEventListener('click', () => onClick(m));
+        return li;
+    }
+
+    function renderTeamMatchItem(m, onClick) {
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.innerHTML =
+            '<div class="list-item-main">' +
+            '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
+            '<div class="list-item-sub">' + (m.kickoff || '') + ' · ' + (m.weekId || '') + ' тур</div>' +
+            '</div>' +
+            '<div class="list-item-meta">' +
+            '<div class="score-pill">' + (m.homeScore != null ? (m.homeScore + ' : ' + m.awayScore) : '—') + '</div>' +
+            '<span class="badge">' + (m.status || '') + '</span>' +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
@@ -537,11 +617,13 @@
         tbody.innerHTML = '';
         rows.forEach(r => {
             const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer';
             tr.innerHTML =
                 '<td>' + r.place + '</td>' +
                 '<td><strong>' + r.code + '</strong></td>' +
                 '<td>' + r.played + '</td>' +
                 '<td>' + r.points + '</td>';
+            tr.addEventListener('click', () => openTeamModal(r.code));
             tbody.appendChild(tr);
         });
     }
@@ -585,6 +667,7 @@
 
     function openScoreModal(match) {
         state.selectedMatch = match;
+        renderH2hList('#modal-h2h-content', []);
         $('#modal-match-title').textContent = match.homeCode + ' — ' + match.awayCode;
         $('#modal-kickoff').textContent = match.kickoff || '';
         const grid = $('#score-grid');
@@ -595,6 +678,7 @@
             deleteBtn.classList.add('hidden');
             grid.innerHTML = '<p class="empty-state">Прогноз недоступен</p>';
             $('#score-modal').classList.remove('hidden');
+            loadScoreModalH2h(match).catch(() => {});
             return;
         }
 
@@ -614,12 +698,105 @@
         }
         $('#score-modal').classList.remove('hidden');
         tg.BackButton.show();
+        loadScoreModalH2h(match).catch(() => {});
     }
 
     function closeScoreModal() {
         $('#score-modal').classList.add('hidden');
         state.selectedMatch = null;
-        tg.BackButton.hide();
+        if (!state.teamModalOpened && !state.h2hModalOpened && !state.predictWeekOpened && !state.myWeekOpened) {
+            tg.BackButton.hide();
+        }
+    }
+
+    async function loadScoreModalH2h(match) {
+        try {
+            const items = await api('/h2h/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode));
+            renderH2hList('#modal-h2h-content', items);
+        } catch (e) {
+            renderH2hList('#modal-h2h-content', [], e.message || 'Не удалось загрузить историю');
+        }
+    }
+
+    function renderH2hList(containerSelector, items, errorMessage) {
+        const container = $(containerSelector);
+        if (!container) return;
+        if (errorMessage) {
+            container.innerHTML = '<p class="empty-state">' + errorMessage + '</p>';
+            return;
+        }
+        if (!items || !items.length) {
+            container.innerHTML = '<p class="empty-state">Нет данных по очным встречам</p>';
+            return;
+        }
+        container.innerHTML = '';
+        items.forEach((h) => {
+            const row = document.createElement('div');
+            row.className = 'h2h-item';
+            row.innerHTML =
+                '<div class="h2h-item-head">' +
+                '<span>' + (h.leagueName || 'Лига') + '</span>' +
+                '<span>' + (h.kickoff || '') + '</span>' +
+                '</div>' +
+                '<div class="h2h-item-score">' + h.homeCode + ' ' + (h.homeScore ?? '-') + ' : ' + (h.awayScore ?? '-') + ' ' + h.awayCode + '</div>';
+            container.appendChild(row);
+        });
+    }
+
+    async function openTeamModal(teamCode) {
+        state.selectedTeamCode = teamCode;
+        state.teamModalOpened = true;
+        $('#team-modal-title').textContent = teamCode;
+        $('#team-last-list').innerHTML = '<li class="empty-state">Загрузка…</li>';
+        $('#team-next-list').innerHTML = '<li class="empty-state">Загрузка…</li>';
+        $('#team-modal').classList.remove('hidden');
+        tg.BackButton.show();
+        try {
+            const data = await api('/team/' + encodeURIComponent(teamCode) + '/matches');
+            $('#team-modal-title').textContent = data.teamName + ' (' + data.teamCode + ')';
+            fillTeamMatchesList('#team-last-list', data.lastMatches || []);
+            fillTeamMatchesList('#team-next-list', data.upcomingMatches || []);
+        } catch (e) {
+            $('#team-last-list').innerHTML = '<li class="empty-state">' + (e.message || 'Ошибка') + '</li>';
+            $('#team-next-list').innerHTML = '<li class="empty-state">—</li>';
+        }
+    }
+
+    function fillTeamMatchesList(selector, matches) {
+        const list = $(selector);
+        list.innerHTML = '';
+        if (!matches.length) {
+            list.innerHTML = '<li class="empty-state">Нет матчей</li>';
+            return;
+        }
+        matches.forEach((m) => list.appendChild(renderTeamMatchItem(m, openH2hModalForMatch)));
+    }
+
+    function openH2hModalForMatch(match) {
+        state.h2hModalOpened = true;
+        $('#h2h-modal-title').textContent = 'История: ' + match.homeCode + ' — ' + match.awayCode;
+        $('#h2h-modal-content').innerHTML = '<p class="empty-state">Загрузка…</p>';
+        $('#h2h-modal').classList.remove('hidden');
+        tg.BackButton.show();
+        api('/h2h/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode))
+            .then((items) => renderH2hList('#h2h-modal-content', items))
+            .catch((e) => renderH2hList('#h2h-modal-content', [], e.message || 'Ошибка загрузки'));
+    }
+
+    function closeTeamModal() {
+        $('#team-modal').classList.add('hidden');
+        state.teamModalOpened = false;
+        if (!state.h2hModalOpened && $('#score-modal').classList.contains('hidden') && !state.predictWeekOpened && !state.myWeekOpened) {
+            tg.BackButton.hide();
+        }
+    }
+
+    function closeH2hModal() {
+        $('#h2h-modal').classList.add('hidden');
+        state.h2hModalOpened = false;
+        if (!state.teamModalOpened && $('#score-modal').classList.contains('hidden') && !state.predictWeekOpened && !state.myWeekOpened) {
+            tg.BackButton.hide();
+        }
     }
 
     async function savePrediction(match, homeScore, awayScore) {
@@ -719,28 +896,20 @@
         $('#predict-weeks').classList.add('hidden');
         const block = $('#predict-matches');
         block.classList.remove('hidden');
+        state.predictWeekOpened = true;
         block.dataset.weekId = weekId;
         loadPredictMatches(weekId);
         tg.BackButton.show();
-        tg.BackButton.onClick(() => {
-            $('#predict-matches').classList.add('hidden');
-            $('#predict-weeks').classList.remove('hidden');
-            tg.BackButton.hide();
-        });
     }
 
     function showMyWeek(weekId) {
         $('#my-weeks').classList.add('hidden');
         const block = $('#my-predictions');
         block.classList.remove('hidden');
+        state.myWeekOpened = true;
         block.dataset.weekId = weekId;
         loadMyPredictions(weekId);
         tg.BackButton.show();
-        tg.BackButton.onClick(() => {
-            $('#my-predictions').classList.add('hidden');
-            $('#my-weeks').classList.remove('hidden');
-            tg.BackButton.hide();
-        });
     }
 
     function bindEvents() {
@@ -768,25 +937,59 @@
         $('#predict-back-weeks').addEventListener('click', () => {
             $('#predict-matches').classList.add('hidden');
             $('#predict-weeks').classList.remove('hidden');
+            state.predictWeekOpened = false;
             tg.BackButton.hide();
         });
 
         $('#my-back-weeks').addEventListener('click', () => {
             $('#my-predictions').classList.add('hidden');
             $('#my-weeks').classList.remove('hidden');
+            state.myWeekOpened = false;
             tg.BackButton.hide();
         });
 
         $('#modal-close').addEventListener('click', closeScoreModal);
         $('#modal-delete').addEventListener('click', deletePrediction);
+        $('#team-modal-close').addEventListener('click', closeTeamModal);
+        $('#h2h-modal-close').addEventListener('click', closeH2hModal);
 
-        tg.BackButton.onClick(closeScoreModal);
+        tg.BackButton.onClick(() => {
+            if (state.h2hModalOpened) {
+                closeH2hModal();
+                return;
+            }
+            if (state.teamModalOpened) {
+                closeTeamModal();
+                return;
+            }
+            if (!$('#score-modal').classList.contains('hidden')) {
+                closeScoreModal();
+                return;
+            }
+            if (state.predictWeekOpened) {
+                $('#predict-matches').classList.add('hidden');
+                $('#predict-weeks').classList.remove('hidden');
+                state.predictWeekOpened = false;
+                tg.BackButton.hide();
+                return;
+            }
+            if (state.myWeekOpened) {
+                $('#my-predictions').classList.add('hidden');
+                $('#my-weeks').classList.remove('hidden');
+                state.myWeekOpened = false;
+                tg.BackButton.hide();
+                return;
+            }
+            tg.BackButton.hide();
+        });
     }
 
     async function init() {
+        reportClientLog('INFO', 'init.start', 'hasTelegramWebApp=' + hasTelegramWebApp + ', isLocalDev=' + isLocalDev);
         if (!tg.initData && !isLocalDev) {
             $('#user-greeting').textContent = 'Откройте через Telegram';
             showToast('Приложение работает только внутри Telegram', 'error');
+            reportClientLog('WARN', 'init.noTelegramContext', 'initData is empty outside local dev');
             return;
         }
 
@@ -808,9 +1011,11 @@
             if (tg.themeParams) {
                 document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
             }
+            reportClientLog('INFO', 'init.success', 'miniapp ready');
         } catch (e) {
             showToast(e.message, 'error');
             $('#user-greeting').textContent = e.message;
+            reportClientLog('ERROR', 'init.failed', e && e.message ? e.message : 'unknown');
         }
     }
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/app.css?v=20260805-1">
 </head>
 <body>
 <div id="app">
@@ -104,13 +104,44 @@
         </div>
         <p id="modal-kickoff" class="modal-sub"></p>
         <div id="score-grid" class="score-grid"></div>
+        <section class="modal-h2h">
+            <h4>История встреч</h4>
+            <div id="modal-h2h-content" class="h2h-list"></div>
+        </section>
         <button id="modal-delete" class="btn-danger hidden">Удалить прогноз</button>
+    </div>
+</div>
+
+<div id="team-modal" class="modal hidden">
+    <div class="modal-sheet">
+        <div class="modal-header">
+            <h3 id="team-modal-title">Команда</h3>
+            <button id="team-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
+        </div>
+        <section class="modal-h2h">
+            <h4>Последние 5 матчей</h4>
+            <ul id="team-last-list" class="list"></ul>
+        </section>
+        <section class="modal-h2h">
+            <h4>Будущие 5 матчей</h4>
+            <ul id="team-next-list" class="list"></ul>
+        </section>
+    </div>
+</div>
+
+<div id="h2h-modal" class="modal hidden">
+    <div class="modal-sheet">
+        <div class="modal-header">
+            <h3 id="h2h-modal-title">История встреч</h3>
+            <button id="h2h-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
+        </div>
+        <div id="h2h-modal-content" class="h2h-list"></div>
     </div>
 </div>
 
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/app.js"></script>
+<script src="js/app.js?v=20260805-1"></script>
 </body>
 </html>
