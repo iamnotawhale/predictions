@@ -5,12 +5,18 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${1:-8080}"
+SKIP_LOCAL_CHECK="${2:-}"
 ENV_OUT="$ROOT/deploy/local-https.env"
+PROPS_OUT="$ROOT/deploy/local-https.properties"
 LOG_FILE="${TMPDIR:-/tmp}/predictions-cloudflared.log"
 PID_FILE="${TMPDIR:-/tmp}/predictions-cloudflared.pid"
 
 # shellcheck source=scripts/https-env.sh
 source "$ROOT/scripts/https-env.sh"
+
+if ! command -v cloudflared >/dev/null 2>&1 && [[ -x "$HOME/.local/bin/cloudflared" ]]; then
+    export PATH="$HOME/.local/bin:$PATH"
+fi
 
 if ! command -v cloudflared >/dev/null 2>&1; then
     echo "cloudflared не установлен."
@@ -19,7 +25,7 @@ if ! command -v cloudflared >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! curl -sf "http://127.0.0.1:$PORT/miniapp/" -o /dev/null 2>/dev/null; then
+if [[ "$SKIP_LOCAL_CHECK" != "--no-local-check" ]] && ! curl -sf "http://127.0.0.1:$PORT/miniapp/" -o /dev/null 2>/dev/null; then
     echo "Приложение не отвечает на http://127.0.0.1:$PORT"
     echo "Сначала запустите бота, например:"
     echo "  java -jar target/predictions-1.0.0.jar --spring.config.location=file:./application.yml,file:./application-local.yml --spring.profiles.active=local"
@@ -55,11 +61,18 @@ fi
 echo ""
 echo "=== Локальный HTTPS ==="
 https_write_env_file "$ENV_OUT" "$PUBLIC_URL"
+WEBAPP_URL="$(https_derive_webapp_url "$PUBLIC_URL")"
+cat > "$PROPS_OUT" <<EOF
+bot.webAppUrl=$WEBAPP_URL
+public.https.url=$PUBLIC_URL
+EOF
+chmod 600 "$PROPS_OUT" 2>/dev/null || true
 echo ""
 echo "Перезапустите приложение с этим env-файлом:"
 echo "  export \$(grep -v '^#' $ENV_OUT | xargs)"
 echo "  java -jar target/predictions-1.0.0.jar --spring.config.location=file:./application.yml,file:./$ENV_OUT"
 echo ""
-echo "Mini App в Telegram: $(https_derive_webapp_url "$PUBLIC_URL")"
+echo "Mini App в Telegram: $WEBAPP_URL"
+echo "Spring properties: $PROPS_OUT"
 echo "Туннель pid: $(cat "$PID_FILE") (остановка: kill \$(cat $PID_FILE))"
 echo "Лог туннеля: $LOG_FILE"

@@ -70,6 +70,11 @@
 
 ## Запуск и деплой
 - Локально (бот + miniapp + dev HTTPS): `./scripts/run-local.sh`
+- `scripts/run-local.sh` подхватывает `deploy/local.env` и `deploy/local-https.env` как переменные окружения (через `source`), а не как Spring config-файлы.
+- `scripts/run-local.sh` автоматически использует `~/.local/bin/cloudflared`, если `cloudflared` не найден в системном `PATH`.
+- Для one-click Debug в IntelliJ IDEA добавлены shared run-конфиги в `.run/`:
+  - `01 Prepare Local HTTPS` → запускает `scripts/prepare-idea-debug.sh` (обновляет `deploy/local-https.env` и `deploy/local-https.properties` через cloudflared и принудительно обновляет Telegram menu button на актуальный `BOT_WEBAPP_URL`);
+  - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, подключением к `jdbc:postgresql://146.255.188.80:5432/predicts` и автоподхватом `optional:file:./deploy/local-https.properties`.
 - **Демо Telegram + TEST БД + авто-счет + откат БД:** `./scripts/run-telegram-test-demo.sh` (нужен `cloudflared`, остановка `Ctrl+C`)
 - Локально на TEST БД `predicts` (браузер, без cloudflared): `./scripts/run-local-test-db.sh`
 - Локально на TEST БД + Telegram HTTPS: `./scripts/run-local-test-db.sh --telegram` (нужен `cloudflared`)
@@ -95,6 +100,15 @@
   - в `src/main/java/zhigalin/predictions/miniapp/MiniAppService.java` обновлена логика `canPredict(...)`:
     - разрешено изменение/удаление прогноза до `kickoff + 5 минут` даже после старта матча;
     - для завершённых/отменённых статусов (`ft`, `aet`, `pen`, `canc`, `abd`, `awrd`, `wo`) прогноз недоступен.
+
+## Генерация изображений уведомлений
+- В `src/main/java/zhigalin/predictions/service/notification/ImageRenderer.java` добавлен fallback для цветов команд:
+  - если у команды нет записи в `team_colors.json` (например, новые команды сезона), цвета градиента генерируются автоматически по `teamId`;
+  - это предотвращает падение `sendTodayMatchNotification(...)` и других image-уведомлений на новых составах лиги.
+- Масштабирование логотипов в `ImageRenderer.scaleImage(...)` выполняется с сохранением исходных пропорций и прозрачными полями (padding), без принудительного растяжения в квадрат.
+- Добавлены недостающие логотипы команд для сезона 2026 в `src/main/resources/static/img/teams`:
+  - `64.webp` (HUL),
+  - `1346.webp` (COV).
 
 ## Обязательная актуализация файла
 - Любое изменение архитектуры, конфигов, env, запусков, деплоя, эндпоинтов, интеграций или новых файлов должно сопровождаться обновлением `PROJECT_CONTEXT.md`.

@@ -488,10 +488,12 @@ public class ImageRenderer {
 
     public BufferedImage generateWithGradient(int width, int height, int homeTeamId, int awayTeamId) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Color home = teamColors.get(String.valueOf(homeTeamId)).home();
-        Color away = teamColors.get(String.valueOf(awayTeamId)).away();
+        TeamColor homePalette = resolveTeamColor(homeTeamId);
+        TeamColor awayPalette = resolveTeamColor(awayTeamId);
+        Color home = homePalette.home();
+        Color away = awayPalette.away();
         if (similarTo(home, away)) {
-            away = teamColors.get(String.valueOf(awayTeamId)).third();
+            away = awayPalette.third();
         }
         Graphics2D g2d = image.createGraphics();
         GradientPaint gradient = new GradientPaint(0, 0, home, width, 0, away);
@@ -502,11 +504,38 @@ public class ImageRenderer {
         return image;
     }
 
+    private TeamColor resolveTeamColor(int teamId) {
+        TeamColor existing = teamColors.get(String.valueOf(teamId));
+        if (existing != null) {
+            return existing;
+        }
+
+        // Fallback for newly promoted/updated teams that are absent in team_colors.json.
+        int hueBase = Math.floorMod(teamId * 37, 360);
+        Color home = Color.getHSBColor(hueBase / 360f, 0.70f, 0.85f);
+        Color away = Color.getHSBColor(((hueBase + 140) % 360) / 360f, 0.60f, 0.80f);
+        Color third = Color.getHSBColor(((hueBase + 260) % 360) / 360f, 0.55f, 0.75f);
+        TeamColor generated = new TeamColor(home, away, third);
+        teamColors.put(String.valueOf(teamId), generated);
+        log.warn("Fallback team colors generated for team id={}", teamId);
+        return generated;
+    }
+
     public static BufferedImage scaleImage(BufferedImage image, int height) {
         BufferedImage scaled = new BufferedImage(height, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = scaled.createGraphics();
         g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        g2d.drawImage(image, 0, 0, height, height, null);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int srcW = image.getWidth();
+        int srcH = image.getHeight();
+        double ratio = Math.min((double) height / srcW, (double) height / srcH);
+        int drawW = (int) Math.round(srcW * ratio);
+        int drawH = (int) Math.round(srcH * ratio);
+        int x = (height - drawW) / 2;
+        int y = (height - drawH) / 2;
+
+        g2d.drawImage(image, x, y, drawW, drawH, null);
         g2d.dispose();
         return scaled;
     }
