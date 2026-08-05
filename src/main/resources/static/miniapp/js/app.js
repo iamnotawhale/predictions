@@ -670,6 +670,25 @@
         renderH2hList('#modal-h2h-content', []);
         $('#modal-match-title').textContent = match.homeCode + ' — ' + match.awayCode;
         $('#modal-kickoff').textContent = match.kickoff || '';
+        $('#modal-home-code').textContent = match.homeCode || 'HOME';
+        $('#modal-away-code').textContent = match.awayCode || 'AWAY';
+        const homeLogo = $('#modal-home-logo');
+        const awayLogo = $('#modal-away-logo');
+        homeLogo.src = match.homeLogo || '';
+        awayLogo.src = match.awayLogo || '';
+        homeLogo.onerror = () => { homeLogo.style.visibility = 'hidden'; };
+        awayLogo.onerror = () => { awayLogo.style.visibility = 'hidden'; };
+        homeLogo.style.visibility = 'visible';
+        awayLogo.style.visibility = 'visible';
+        const oddsBlock = $('#modal-odds');
+        if (match.oddHome != null && match.oddDraw != null && match.oddAway != null) {
+            $('#odd-home').textContent = Number(match.oddHome).toFixed(2);
+            $('#odd-draw').textContent = Number(match.oddDraw).toFixed(2);
+            $('#odd-away').textContent = Number(match.oddAway).toFixed(2);
+            oddsBlock.classList.remove('hidden');
+        } else {
+            oddsBlock.classList.add('hidden');
+        }
         const grid = $('#score-grid');
         grid.innerHTML = '';
         const deleteBtn = $('#modal-delete');

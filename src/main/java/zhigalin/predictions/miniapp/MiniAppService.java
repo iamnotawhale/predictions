@@ -34,9 +34,11 @@ import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.DaoUtil;
+import static zhigalin.predictions.service.odds.OddsService.ODDS;
 
 @Service
 public class MiniAppService {
@@ -293,6 +295,7 @@ public class MiniAppService {
     private MatchItem toMatchItem(Match match, String telegramId, boolean hasPrediction, Prediction prediction) {
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
+        OddsService.Odd odd = ODDS.get(match.getPublicId());
         return new MatchItem(
                 match.getPublicId(),
                 match.getWeekId(),
@@ -310,7 +313,10 @@ public class MiniAppService {
                 hasPrediction,
                 prediction != null ? prediction.getHomeTeamScore() : null,
                 prediction != null ? prediction.getAwayTeamScore() : null,
-                prediction != null ? prediction.getPoints() : null
+                prediction != null ? prediction.getPoints() : null,
+                odd != null ? odd.home() : null,
+                odd != null ? odd.draw() : null,
+                odd != null ? odd.away() : null
         );
     }
 
