@@ -3,6 +3,7 @@ package zhigalin.predictions.miniapp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ChartSeries;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardEntry;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
@@ -20,13 +22,17 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
+import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
@@ -43,11 +49,18 @@ public class MiniAppService {
     private final UserService userService;
     private final MatchService matchService;
     private final PredictionService predictionService;
+    private final HeadToHeadService headToHeadService;
 
-    public MiniAppService(UserService userService, MatchService matchService, PredictionService predictionService) {
+    public MiniAppService(
+            UserService userService,
+            MatchService matchService,
+            PredictionService predictionService,
+            HeadToHeadService headToHeadService
+    ) {
         this.userService = userService;
         this.matchService = matchService;
         this.predictionService = predictionService;
+        this.headToHeadService = headToHeadService;
     }
 
     public User requireUser(String telegramId) {
@@ -185,6 +198,54 @@ public class MiniAppService {
         return items;
     }
 
+    public TeamMatchesResponse teamMatches(String telegramId, String teamCode) {
+        requireUser(telegramId);
+        String normalizedCode = teamCode.toUpperCase();
+        Team team = DaoUtil.TEAMS.values().stream()
+                .filter(t -> normalizedCode.equals(t.getCode()))
+                .findFirst()
+                .orElseThrow(() -> new MiniAppException(404, "Команда не найдена"));
+
+        LocalDateTime now = LocalDateTime.now();
+        List<Match> allMatches = matchService.findAll().stream()
+                .filter(match -> match.getHomeTeamId() == team.getPublicId() || match.getAwayTeamId() == team.getPublicId())
+                .sorted(Comparator.comparing(Match::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+
+        List<TeamMatchItem> lastMatches = allMatches.stream()
+                .filter(match -> match.getLocalDateTime() != null)
+                .filter(match -> match.getLocalDateTime().isBefore(now) || match.getResult() != null)
+                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
+                .limit(5)
+                .map(this::toTeamMatchItem)
+                .toList();
+
+        List<TeamMatchItem> upcomingMatches = allMatches.stream()
+                .filter(match -> match.getLocalDateTime() != null && match.getLocalDateTime().isAfter(now))
+                .limit(5)
+                .map(this::toTeamMatchItem)
+                .toList();
+
+        return new TeamMatchesResponse(team.getCode(), team.getName(), lastMatches, upcomingMatches);
+    }
+
+    public List<H2hItem> h2h(String telegramId, String homeCode, String awayCode) {
+        requireUser(telegramId);
+        List<HeadToHead> items = headToHeadService.findAllByTwoTeamsCode(homeCode.toUpperCase(), awayCode.toUpperCase());
+        return items.stream()
+                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
+                .limit(10)
+                .map(h -> new H2hItem(
+                        h.getLeagueName(),
+                        h.getLocalDateTime() != null ? h.getLocalDateTime().format(KICKOFF) : "",
+                        teamCode(h.getHomeTeamId()),
+                        teamCode(h.getAwayTeamId()),
+                        h.getHomeTeamScore(),
+                        h.getAwayTeamScore()
+                ))
+                .toList();
+    }
+
     public ActionResponse savePrediction(String telegramId, PredictRequest request) {
         requireUser(telegramId);
         String home = request.homeCode().toUpperCase();
@@ -270,5 +331,24 @@ public class MiniAppService {
 
     private static String teamLogoPath(int teamId) {
         return "/img/teams/" + teamId + ".webp";
+    }
+
+    private TeamMatchItem toTeamMatchItem(Match match) {
+        Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
+        Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
+        return new TeamMatchItem(
+                match.getPublicId(),
+                match.getWeekId(),
+                home.getCode(),
+                home.getName(),
+                teamLogoPath(match.getHomeTeamId()),
+                away.getCode(),
+                away.getName(),
+                teamLogoPath(match.getAwayTeamId()),
+                match.getStatus(),
+                match.getHomeTeamScore(),
+                match.getAwayTeamScore(),
+                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : ""
+        );
     }
 }

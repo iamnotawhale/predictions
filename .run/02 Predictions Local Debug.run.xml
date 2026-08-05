@@ -13,6 +13,7 @@
     <option name="VM_PARAMETERS" value="-Duser.timezone=Europe/Moscow" />
     <method v="2">
       <option name="Make" enabled="true" />
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="01 Prepare Local HTTPS" run_configuration_type="ShConfigurationType" />
     </method>
   </configuration>
 </component>

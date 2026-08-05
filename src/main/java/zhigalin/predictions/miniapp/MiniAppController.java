@@ -1,6 +1,8 @@
 package zhigalin.predictions.miniapp;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,18 +17,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
 
 @RestController
 @RequestMapping("/api/miniapp")
 public class MiniAppController {
+
+    private static final Logger log = LoggerFactory.getLogger("server");
 
     private final TelegramWebAppAuthService authService;
     private final MiniAppService miniAppService;
@@ -96,6 +103,23 @@ public class MiniAppController {
         return miniAppService.standings(requireTelegramId(initData));
     }
 
+    @GetMapping("/team/{teamCode}/matches")
+    public TeamMatchesResponse teamMatches(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String teamCode
+    ) {
+        return miniAppService.teamMatches(requireTelegramId(initData), teamCode);
+    }
+
+    @GetMapping("/h2h/{homeCode}/{awayCode}")
+    public List<H2hItem> h2h(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String homeCode,
+            @PathVariable String awayCode
+    ) {
+        return miniAppService.h2h(requireTelegramId(initData), homeCode, awayCode);
+    }
+
     @GetMapping("/today")
     public TodayMatchesResponse today(
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
@@ -122,6 +146,33 @@ public class MiniAppController {
         return miniAppService.savePrediction(requireTelegramId(initData), request);
     }
 
+    @PostMapping(
+            value = "/client-log",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ActionResponse clientLog(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestBody ClientLogRequest request
+    ) {
+        String telegramId = resolveTelegramIdForLog(initData);
+        String level = safe(request.level(), 12).toUpperCase();
+        String event = safe(request.event(), 80);
+        String details = safe(request.details(), 400);
+        String href = safe(request.href(), 300);
+        String ua = safe(request.userAgent(), 200);
+        String message = "MiniApp client log: tgId={}, event={}, href={}, details={}, ua={}";
+
+        if ("ERROR".equals(level)) {
+            log.error(message, telegramId, event, href, details, ua);
+        } else if ("WARN".equals(level)) {
+            log.warn(message, telegramId, event, href, details, ua);
+        } else {
+            log.info(message, telegramId, event, href, details, ua);
+        }
+        return new ActionResponse(true, "ok");
+    }
+
     @DeleteMapping("/predictions")
     public ActionResponse deletePrediction(
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
@@ -137,18 +188,39 @@ public class MiniAppController {
     }
 
     private String requireTelegramId(String initData) {
-        if (initData != null && !initData.isBlank()) {
-            String telegramId = authService.parseUserId(initData);
-            if (telegramId != null) {
-                return telegramId;
-            }
-        }
         if (miniAppProperties.isDevMode()) {
             String devId = miniAppProperties.getDevTelegramId();
             if (devId != null && !devId.isBlank()) {
                 return devId;
             }
         }
+        if (initData != null && !initData.isBlank()) {
+            String telegramId = authService.parseUserId(initData);
+            if (telegramId != null) {
+                return telegramId;
+            }
+        }
         throw new MiniAppException(HttpStatus.UNAUTHORIZED.value(), "Недействительные данные Telegram.");
+    }
+
+    private String resolveTelegramIdForLog(String initData) {
+        if (miniAppProperties.isDevMode()) {
+            String devId = miniAppProperties.getDevTelegramId();
+            if (devId != null && !devId.isBlank()) {
+                return devId;
+            }
+        }
+        if (initData == null || initData.isBlank()) {
+            return "n/a";
+        }
+        String parsed = authService.parseUserId(initData);
+        return parsed == null || parsed.isBlank() ? "unknown" : parsed;
+    }
+
+    private static String safe(String value, int maxLen) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value.length() <= maxLen ? value : value.substring(0, maxLen);
     }
 }

@@ -341,6 +341,46 @@ html, body {
     margin-bottom: 14px;
 }
 
+.modal-h2h {
+    margin: 14px 0 12px;
+}
+
+.modal-h2h h4 {
+    font-size: 13px;
+    color: var(--hint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+}
+
+.h2h-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.h2h-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.h2h-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--hint);
+}
+
+.h2h-item-score {
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
 .icon-btn {
     width: 36px;
     height: 36px;

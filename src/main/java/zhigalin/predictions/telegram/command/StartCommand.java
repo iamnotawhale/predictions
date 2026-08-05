@@ -14,6 +14,6 @@ public class StartCommand implements Command {
 
     @Override
     public void execute(Update update) {
-        sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), START_MESSAGE);
+        sendBotMessageService.sendMainMenuMessage(update.getMessage().getChatId().toString(), START_MESSAGE);
     }
 }

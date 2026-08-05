@@ -37,7 +37,7 @@ public class MiniAppMenuConfigurer {
         try {
             WebAppInfo webAppInfo = WebAppInfo.builder().url(webAppUrl).build();
             MenuButtonWebApp menuButton = MenuButtonWebApp.builder()
-                    .text("Открыть")
+                    .text("Открыть приложение")
                     .webAppInfo(webAppInfo)
                     .build();
             bot.execute(SetChatMenuButton.builder().menuButton(menuButton).build());
