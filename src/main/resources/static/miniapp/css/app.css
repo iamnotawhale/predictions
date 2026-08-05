@@ -160,6 +160,31 @@ html, body {
     flex-shrink: 0;
 }
 
+.form-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-bottom: 6px;
+    opacity: 0.9;
+}
+
+.form-dot-win {
+    background: #5cd97a;
+}
+
+.form-dot-draw {
+    background: #9aa6b2;
+}
+
+.form-dot-loss {
+    background: #e85c4a;
+}
+
+.form-dot-neutral {
+    background: rgba(255, 255, 255, 0.24);
+}
+
 .badge {
     display: inline-block;
     font-size: 11px;
@@ -265,6 +290,26 @@ html, body {
 .standings-table td:last-child,
 .standings-table th:last-child {
     text-align: right;
+}
+
+.standings-table th:nth-child(n+3),
+.standings-table td:nth-child(n+3) {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.club-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.club-logo {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
 }
 
 .bottom-nav {
