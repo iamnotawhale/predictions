@@ -7,7 +7,12 @@ public final class MiniAppDtos {
     private MiniAppDtos() {
     }
 
-    public record ProfileResponse(String login, int currentWeekId) {
+    public record ProfileResponse(
+            String login,
+            int currentWeekId,
+            int season,
+            String weekLabel
+    ) {
     }
 
     public record WeekItem(int id, boolean hasPredictions) {
@@ -33,7 +38,9 @@ public final class MiniAppDtos {
             Integer points,
             Double oddHome,
             Double oddDraw,
-            Double oddAway
+            Double oddAway,
+            String predictUntil,
+            Long predictSecondsLeft
     ) {
     }
 
@@ -110,12 +117,56 @@ public final class MiniAppDtos {
         }
     }
 
-    public record TodayMatchesResponse(List<MatchItem> matches) {
+    public record TodayMatchesResponse(List<MatchItem> matches, boolean hasLive) {
     }
 
     public record ChartSeries(String login, String label, List<Integer> points) {
     }
 
     public record PointsChartResponse(List<Integer> weeks, List<ChartSeries> series) {
+    }
+
+    public record CrowdScoreBucket(String score, int count, int percent) {
+    }
+
+    public record CrowdMeterResponse(
+            int matchPublicId,
+            int totalPredictions,
+            int homeWinPct,
+            int drawPct,
+            int awayWinPct,
+            List<CrowdScoreBucket> topScores
+    ) {
+    }
+
+    public record LiveRaceEntry(String login, int points, int provisionalPoints) {
+    }
+
+    public record LiveRaceResponse(
+            int weekId,
+            boolean active,
+            List<LiveRaceEntry> entries
+    ) {
+    }
+
+    public record WeekReviewItem(
+            int publicId,
+            String homeCode,
+            String awayCode,
+            String status,
+            Integer homeScore,
+            Integer awayScore,
+            Integer predictHome,
+            Integer predictAway,
+            Integer points,
+            boolean hasPrediction
+    ) {
+    }
+
+    public record WeekReviewResponse(
+            int weekId,
+            int totalPoints,
+            List<WeekReviewItem> items
+    ) {
     }
 }

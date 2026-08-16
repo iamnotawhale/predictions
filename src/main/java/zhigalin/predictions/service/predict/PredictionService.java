@@ -72,21 +72,39 @@ public class PredictionService {
             return;
         }
         Match match = matchService.findByPublicId(prediction.getMatchPublicId());
-        int points;
-        Integer realHomeScore = match.getHomeTeamScore();
-        Integer realAwayScore = match.getAwayTeamScore();
-        Integer predictHomeScore = prediction.getHomeTeamScore();
-        Integer predictAwayScore = prediction.getAwayTeamScore();
-        if (predictHomeScore == null || predictAwayScore == null) {
-            points = -1;
-        } else {
-            points = realHomeScore == null || realAwayScore == null ? 0
-                    : realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore) ? 4
-                    : realHomeScore - realAwayScore == predictHomeScore - predictAwayScore ? 2
-                    : realHomeScore > realAwayScore && predictHomeScore > predictAwayScore ? 1
-                    : realHomeScore < realAwayScore && predictHomeScore < predictAwayScore ? 1 : -1;
-        }
+        int points = computePoints(
+                match.getHomeTeamScore(),
+                match.getAwayTeamScore(),
+                prediction.getHomeTeamScore(),
+                prediction.getAwayTeamScore()
+        );
         predictionDao.updatePoints(matchId, userId, points);
+    }
+
+    /**
+     * Same scoring rules as persisted points: exact=4, goal diff=2, outcome=1, else=-1, incomplete=0/-1.
+     */
+    public static int computePoints(Integer realHomeScore, Integer realAwayScore,
+                                    Integer predictHomeScore, Integer predictAwayScore) {
+        if (predictHomeScore == null || predictAwayScore == null) {
+            return -1;
+        }
+        if (realHomeScore == null || realAwayScore == null) {
+            return 0;
+        }
+        if (realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore)) {
+            return 4;
+        }
+        if (realHomeScore - realAwayScore == predictHomeScore - predictAwayScore) {
+            return 2;
+        }
+        if (realHomeScore > realAwayScore && predictHomeScore > predictAwayScore) {
+            return 1;
+        }
+        if (realHomeScore < realAwayScore && predictHomeScore < predictAwayScore) {
+            return 1;
+        }
+        return -1;
     }
 
     public boolean isExist(int userId, int matchId) {

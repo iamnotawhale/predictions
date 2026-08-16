@@ -14,11 +14,14 @@
 
 Подключения:
 - TEST/LOCAL DB: jdbc:postgresql://localhost:5432/predicts_local (application-local.yml, можно переопределять через deploy/local.env)
-- PROD DB: jdbc:postgresql://localhost:5432/predicts_2 (application-prod.yml, пароль через deploy/predicts.env -> SPRING_DATASOURCE_PASSWORD)
+- PROD DB: jdbc:postgresql://localhost:5432/predicts_prod (application-prod.yml, пароль через deploy/predicts.env -> SPRING_DATASOURCE_PASSWORD)
+- TEST DB на сервере: predicts_test
 
 Удаленный сервер:
-- SSH: root@146.255.188.80
+- SSH: root@81.31.209.186
 - APP_DIR: /home/predictions
+- Mini App: https://81-31-209-186.sslip.io:8443/miniapp/
+- DB tunnel for local debug: ./scripts/ssh-tunnel-prod-db.sh → localhost:15432
 
 Механизмы запуска:
 - локально bot+miniapp: ./scripts/run-local.sh
@@ -59,14 +62,18 @@
   - `SPRING_DATASOURCE_USERNAME=admin`
   - `SPRING_DATASOURCE_PASSWORD` через `deploy/local.env` (или дефолт локального профиля)
 - PROD:
-  - `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/predicts_2`
+  - `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/predicts_prod`
   - `SPRING_DATASOURCE_USERNAME=admin`
   - `SPRING_DATASOURCE_PASSWORD` задается в `deploy/predicts.env`
 
 ## Удаленный сервер
-- IP: `146.255.188.80`
-- SSH: `root@146.255.188.80`
+- IP: `81.31.209.186`
+- SSH: `root@81.31.209.186`
 - Каталог приложения: `/home/predictions`
+- Mini App HTTPS: `https://81-31-209-186.sslip.io:8443/miniapp/` (Caddy :8443 → Spring :8080)
+- Прод сервис: `systemctl status predicts`
+- Прод БД на сервере: `predicts_prod`; test БД: `predicts_test`
+- Postgres слушает только `localhost` (снаружи закрыт). Для IDEA Debug: `./scripts/ssh-tunnel-prod-db.sh` → JDBC `jdbc:postgresql://localhost:15432/predicts_test`
 
 ## Запуск и деплой
 - Локально (бот + miniapp + dev HTTPS): `./scripts/run-local.sh`
@@ -74,41 +81,43 @@
 - `scripts/run-local.sh` автоматически использует `~/.local/bin/cloudflared`, если `cloudflared` не найден в системном `PATH`.
 - Для one-click Debug в IntelliJ IDEA добавлены shared run-конфиги в `.run/`:
   - `01 Prepare Local HTTPS` → запускает `scripts/prepare-idea-debug.sh` (обновляет `deploy/local-https.env` и `deploy/local-https.properties` через cloudflared и принудительно обновляет Telegram menu button на актуальный `BOT_WEBAPP_URL`);
-  - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, подключением к `jdbc:postgresql://146.255.188.80:5432/predicts` и автоподхватом `optional:file:./deploy/local-https.properties`.
+  - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, JDBC через SSH-туннель `localhost:15432/predicts_test` (см. `scripts/ssh-tunnel-prod-db.sh`) и автоподхватом `optional:file:./deploy/local-https.properties`.
 - **Демо Telegram + TEST БД + авто-счет + откат БД:** `./scripts/run-telegram-test-demo.sh` (нужен `cloudflared`, остановка `Ctrl+C`)
-- Локально на TEST БД `predicts` (браузер, без cloudflared): `./scripts/run-local-test-db.sh`
+- Локально на TEST БД `predicts_test` (браузер, без cloudflared): `./scripts/run-local-test-db.sh`
 - Локально на TEST БД + Telegram HTTPS: `./scripts/run-local-test-db.sh --telegram` (нужен `cloudflared`)
 - Симуляция матчей «Сегодня» в TEST БД: `./scripts/simulate-today-matches-test-db.sh`
 - Откат симуляции: `./scripts/restore-today-matches-test-db.sh`
 - Тест live-уведомлений (смена счета): `./scripts/bump-today-live-scores-test-db.sh`
 - Локально только бот: `./scripts/run-bot-only.sh`
 - Ручная сборка: `mvn package -DskipTests`
-- Деплой с локальной сборкой jar: `./deploy/upload-jar.sh` (использует `deploy/deploy.env`)
+- Деплой с локальной сборкой jar: `./deploy/upload-jar.sh` (использует `deploy/deploy.env`, сервер `root@81.31.209.186`)
 - Деплой на сервере: `./deploy/deploy_predicts.sh`
 - Прод процесс: `systemctl status predicts`
 
-## Mini App: экран "Сегодня" и live-уведомления
-- Файл `src/main/resources/static/miniapp/js/app.js`:
-  - в списке "Сегодня" (`/api/miniapp/today`) отображается **текущий счёт** для матчей с начавшейся игрой и **время начала** для не начавшихся матчей;
-  - прогноз на экране "Сегодня" открывается по нажатию на матч (через существующую модалку выбора счёта);
-  - добавлен фоновый polling `/today` (интервал 15 сек) для отслеживания изменений счёта независимо от активной вкладки.
-- Файлы `src/main/resources/static/miniapp/index.html` и `src/main/resources/static/miniapp/css/app.css`:
-  - добавлен глобальный overlay-контейнер уведомлений о голах;
-  - при изменении счёта показывается анимированное уведомление вида `MUN 3-1 MAC` поверх любых экранов mini app;
-  - уведомление можно закрыть вручную, также есть авто-скрытие.
-- Backend правило изменения прогноза:
-  - в `src/main/java/zhigalin/predictions/miniapp/MiniAppService.java` обновлена логика `canPredict(...)`:
-    - разрешено изменение/удаление прогноза до `kickoff + 5 минут` даже после старта матча;
-    - для завершённых/отменённых статусов (`ft`, `aet`, `pen`, `canc`, `abd`, `awrd`, `wo`) прогноз недоступен.
+## Надёжность и бот
+- `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
+- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч).
+- Напоминания без прогноза: за 60/40/20 минут до kickoff.
+- `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM).
+- Сводка тура: картинка + текстовый зачёт + график; защита от повторной отправки на тот же `weekId`.
+- `/start` и меню: кнопка «Открыть Mini App» первой.
+
+## Mini App: экран "Сегодня", live и новые фичи
+- Файлы `static/miniapp/js/app.js`, `index.html`, `css/app.css`:
+  - «Сегодня»: текущий счёт / время старта, таймер до `kickoff+5м`, приоритет матчей без прогноза, polling 15с (live) / 60с (idle);
+  - overlay-уведомления о голах;
+  - offline-баннер при ошибках сети/API;
+  - кэш leaderboard/chart/standings ~45с;
+  - header показывает сезон/тур (`profile.weekLabel`);
+  - **Crowd Meter** в модалке матча (`GET /api/miniapp/match/{id}/crowd`);
+  - **Live Points Race** на главной (`GET /api/miniapp/live-race`);
+  - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`).
+- Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
 
 ## Генерация изображений уведомлений
-- В `src/main/java/zhigalin/predictions/service/notification/ImageRenderer.java` добавлен fallback для цветов команд:
-  - если у команды нет записи в `team_colors.json` (например, новые команды сезона), цвета градиента генерируются автоматически по `teamId`;
-  - это предотвращает падение `sendTodayMatchNotification(...)` и других image-уведомлений на новых составах лиги.
-- Масштабирование логотипов в `ImageRenderer.scaleImage(...)` выполняется с сохранением исходных пропорций и прозрачными полями (padding), без принудительного растяжения в квадрат.
-- Добавлены недостающие логотипы команд для сезона 2026 в `src/main/resources/static/img/teams`:
-  - `64.webp` (HUL),
-  - `1346.webp` (COV).
+- В `ImageRenderer` fallback цветов команд по `teamId`, если нет записи в `team_colors.json`.
+- Масштабирование логотипов с сохранением пропорций (padding).
+- Логотипы сезона 2026: `64.webp` (HUL), `1346.webp` (COV).
 
 ## Обязательная актуализация файла
 - Любое изменение архитектуры, конфигов, env, запусков, деплоя, эндпоинтов, интеграций или новых файлов должно сопровождаться обновлением `PROJECT_CONTEXT.md`.

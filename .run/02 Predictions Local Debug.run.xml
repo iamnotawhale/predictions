@@ -3,7 +3,7 @@
     <option name="ALTERNATIVE_JRE_PATH" value="21" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <envs>
-      <env name="SPRING_DATASOURCE_URL" value="jdbc:postgresql://146.255.188.80:5432/predicts" />
+      <env name="SPRING_DATASOURCE_URL" value="jdbc:postgresql://localhost:15432/predicts_test" />
       <env name="SPRING_DATASOURCE_USERNAME" value="admin" />
       <env name="SPRING_DATASOURCE_PASSWORD" value="postgres" />
     </envs>

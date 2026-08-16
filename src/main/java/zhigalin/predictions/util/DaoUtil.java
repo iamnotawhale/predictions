@@ -78,7 +78,12 @@ public class DaoUtil {
 
     @Scheduled(cron = "0 */30 * * * *")
     private void currentWeekUpdate() {
-        currentWeekId = weekService.findCurrentWeek().getId();
+        Week currentWeek = weekService.findCurrentWeek();
+        if (currentWeek == null) {
+            log.warn("currentWeekUpdate: no current week in DB, keeping weekId={}", currentWeekId);
+            return;
+        }
+        currentWeekId = currentWeek.getId();
     }
 
     public static <T> T getNullableResult(Supplier<T> supplier) {

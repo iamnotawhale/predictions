@@ -50,9 +50,12 @@ public class NotificationService {
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
 
-    private static final int[] REMINDER_MINUTES_BEFORE = {40, 20};
+    private static final int[] REMINDER_MINUTES_BEFORE = {60, 40, 20};
 
     private final Set<String> notificationBlackList = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<String, Long> liveScoreNotifyAt = new ConcurrentHashMap<>();
+    private final Set<Integer> weeklyResultsSent = ConcurrentHashMap.newKeySet();
+    private static final long LIVE_SCORE_DEDUP_MS = 60_000L;
 
     public NotificationService(MatchService matchService,
                                PredictionService predictionService,
@@ -138,11 +141,42 @@ public class NotificationService {
     public void sendWeeklyResults() {
         log.info("Send weekly results");
         int weekId = DaoUtil.currentWeekId;
+        if (!weeklyResultsSent.add(weekId)) {
+            return;
+        }
         Map<String, Integer> usersPoints = predictionService.getWeeklyUsersPoints(weekId);
         String path = images.createWeeklyImage(weekId, usersPoints);
         if (path != null) {
-            api.sendPhoto(defaultChatId, "Результаты недели", path, null);
+            api.sendPhoto(defaultChatId, "Результаты " + weekId + " тура", path, null);
         }
+        if (!usersPoints.isEmpty()) {
+            StringBuilder text = new StringBuilder("*Зачёт ").append(weekId).append(" тура*\n");
+            usersPoints.entrySet().stream()
+                    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                    .forEach(e -> text.append(e.getKey()).append(": ").append(e.getValue()).append("\n"));
+            api.sendMessage(defaultChatId, text.toString(), null);
+        }
+        sendTotalPointsChart();
+    }
+
+    public void sendLiveScoreUpdate(Match match, Integer prevHome, Integer prevAway) {
+        Team home = DaoUtil.team(match.getHomeTeamId());
+        Team away = DaoUtil.team(match.getAwayTeamId());
+        if (home == null || away == null) {
+            return;
+        }
+        String key = String.valueOf(match.getPublicId());
+        long now = System.currentTimeMillis();
+        Long last = liveScoreNotifyAt.get(key);
+        if (last != null && now - last < LIVE_SCORE_DEDUP_MS) {
+            return;
+        }
+        liveScoreNotifyAt.put(key, now);
+        String prev = (prevHome == null ? "-" : prevHome) + ":" + (prevAway == null ? "-" : prevAway);
+        String next = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
+        String text = "⚽ *" + home.getCode() + " " + next + " " + away.getCode() + "*\n"
+                      + prev + " → " + next;
+        api.sendMessage(defaultChatId, text, null);
     }
 
     public void sendTotalPointsChart() {
