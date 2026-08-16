@@ -18,8 +18,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveRaceResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
@@ -28,6 +30,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewResponse;
 
 @RestController
 @RequestMapping("/api/miniapp")
@@ -125,6 +128,29 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
     ) {
         return miniAppService.todayMatches(requireTelegramId(initData));
+    }
+
+    @GetMapping("/match/{matchId}/crowd")
+    public CrowdMeterResponse crowd(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int matchId
+    ) {
+        return miniAppService.crowdMeter(requireTelegramId(initData), matchId);
+    }
+
+    @GetMapping("/live-race")
+    public LiveRaceResponse liveRace(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
+    ) {
+        return miniAppService.liveRace(requireTelegramId(initData));
+    }
+
+    @GetMapping("/weeks/{weekId}/review")
+    public WeekReviewResponse weekReview(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int weekId
+    ) {
+        return miniAppService.weekReview(requireTelegramId(initData), weekId);
     }
 
     @GetMapping("/chart")

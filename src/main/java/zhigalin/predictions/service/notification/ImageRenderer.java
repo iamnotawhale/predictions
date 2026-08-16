@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,6 +58,7 @@ public class ImageRenderer {
     private final Map<String, Font> fontCache = new ConcurrentHashMap<>();
     private final OddsService oddsService;
     private volatile BufferedImage plLogo;
+    private final Semaphore renderGate = new Semaphore(1);
 
     public ImageRenderer(MatchService matchService,
                          HeadToHeadService headToHeadService,
@@ -97,6 +100,10 @@ public class ImageRenderer {
     }
 
     public String createTodayMatchesImage(List<MatchRecord> list) {
+        return withRenderGate(() -> createTodayMatchesImageUnlocked(list));
+    }
+
+    private String createTodayMatchesImageUnlocked(List<MatchRecord> list) {
         Map<Integer, List<MatchRecord>> weeks = list.stream().collect(java.util.stream.Collectors.groupingBy(MatchRecord::weekId));
         int allRows = list.size() + weeks.size();
         int fullSize = allRows * 90;
@@ -191,6 +198,15 @@ public class ImageRenderer {
                               String centerInfo,
                               NotificationImageMode mode,
                               List<Result> results) {
+        return withRenderGate(() -> createImageUnlocked(matchPublicId, homeTeamId, awayTeamId, centerInfo, mode, results));
+    }
+
+    private String createImageUnlocked(Integer matchPublicId,
+                                       Integer homeTeamId,
+                                       Integer awayTeamId,
+                                       String centerInfo,
+                                       NotificationImageMode mode,
+                                       List<Result> results) {
         try {
             BufferedImage image = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
             Graphics2D g2d = image.createGraphics();
@@ -378,6 +394,10 @@ public class ImageRenderer {
     }
 
     public String createWeeklyImage(int weekId, Map<String, Integer> usersPoints) {
+        return withRenderGate(() -> createWeeklyImageUnlocked(weekId, usersPoints));
+    }
+
+    private String createWeeklyImageUnlocked(int weekId, Map<String, Integer> usersPoints) {
         int y = (HEIGHT - usersPoints.size() * 60) / 2;
         try {
             BufferedImage image = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
@@ -661,6 +681,26 @@ public class ImageRenderer {
                 return new Font("Arial", Font.BOLD, 30);
             }
         });
+    }
+
+    private String withRenderGate(java.util.function.Supplier<String> render) {
+        boolean acquired = false;
+        try {
+            acquired = renderGate.tryAcquire(45, TimeUnit.SECONDS);
+            if (!acquired) {
+                log.warn("Image render skipped: gate busy");
+                return null;
+            }
+            return render.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Image render interrupted");
+            return null;
+        } finally {
+            if (acquired) {
+                renderGate.release();
+            }
+        }
     }
 
     private BufferedImage loadTeamLogo(int teamId) throws Exception {

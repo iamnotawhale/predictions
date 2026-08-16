@@ -175,7 +175,7 @@ public class SendBotMessageService {
 
         if (!webAppUrl.isBlank()) {
             InlineKeyboardButton appButton = InlineKeyboardButton.builder()
-                    .text("📱 Открыть приложение")
+                    .text("Открыть Mini App")
                     .webApp(WebAppInfo.builder().url(webAppUrl).build())
                     .build();
             listOfKeyboard.add(List.of(appButton));

@@ -2,6 +2,8 @@
 Description=Predictions Telegram bot
 After=network-online.target postgresql.service
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -13,8 +15,6 @@ ExecStartPre=/bin/bash -c 'test -s /home/predictions/target/predictions-1.0.0.ja
 ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -Duser.timezone=Europe/Moscow -Xms128m -Xmx384m -jar /home/predictions/target/predictions-1.0.0.jar --spring.profiles.active=prod
 Restart=on-failure
 RestartSec=15
-StartLimitIntervalSec=300
-StartLimitBurst=5
 StandardOutput=journal
 StandardError=journal
 

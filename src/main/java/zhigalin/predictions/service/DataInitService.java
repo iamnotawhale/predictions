@@ -67,8 +67,13 @@ public class DataInitService {
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
+    private static final long LIVE_INTERVAL_MS = 30_000L;
+    private static final long IDLE_INTERVAL_MS = 120_000L;
     private static final ObjectMapper mapper = new ObjectMapper();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
+
+    private volatile long lastDataInitAtMs = 0L;
+    private volatile long dataInitIntervalMs = LIVE_INTERVAL_MS;
 
     public DataInitService(TeamService teamService, WeekService weekService, MatchService matchService,
                            HeadToHeadService headToHeadService, NotificationService notificationService,
@@ -82,10 +87,14 @@ public class DataInitService {
         this.panicSender = panicSender;
     }
 
-    //    @Scheduled(initialDelay = 1000, fixedDelay = 5000000)
-    @Scheduled(cron = "*/30 * * * * *")
+    @Scheduled(fixedDelay = 5_000, initialDelay = 10_000)
     private void start() {
-        serverLogger.info("Data init start");
+        long now = System.currentTimeMillis();
+        if (now - lastDataInitAtMs < dataInitIntervalMs) {
+            return;
+        }
+        lastDataInitAtMs = now;
+        serverLogger.info("Data init start (interval={}s)", dataInitIntervalMs / 1000);
         try {
             matchUpdateFromESPN();
         } catch (Exception e) {
@@ -98,6 +107,9 @@ public class DataInitService {
             serverLogger.error("checkReminders error: {}", e.getMessage(), e);
             panicSender.sendPanic("checkReminders", e);
         }
+        boolean busy = !matchService.findOnlineMatches().isEmpty()
+                       || !matchService.findAllNearest(90).isEmpty();
+        dataInitIntervalMs = busy ? LIVE_INTERVAL_MS : IDLE_INTERVAL_MS;
     }
 
     @Scheduled(cron = "0 50 8 * * *")
@@ -151,9 +163,16 @@ public class DataInitService {
             } else if (state.equals("in")) {
                 String status = event.getStatus().getDisplayClock();
                 Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+                if (match == null) {
+                    continue;
+                }
 
                 Integer homeScore = findScore(event, "home");
                 Integer awayScore = findScore(event, "away");
+                Integer prevHome = match.getHomeTeamScore();
+                Integer prevAway = match.getAwayTeamScore();
+                int prevTotal = (prevHome == null ? 0 : prevHome) + (prevAway == null ? 0 : prevAway);
+                int nextTotal = homeScore + awayScore;
 
                 match.setHomeTeamScore(homeScore);
                 match.setAwayTeamScore(awayScore);
@@ -162,11 +181,17 @@ public class DataInitService {
                 match.setResult(findResult(homeScore, awayScore));
 
                 matchService.update(match);
+                if (nextTotal > prevTotal) {
+                    notificationService.sendLiveScoreUpdate(match, prevHome, prevAway);
+                }
             } else if (state.equals("post")) {
                 String status = "ft";
                 Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
+                if (match == null) {
+                    continue;
+                }
 
-                if (!match.getStatus().equals(status)) {
+                if (!status.equals(match.getStatus())) {
                     Integer homeScore = findScore(event, "home");
                     Integer awayScore = findScore(event, "away");
 
