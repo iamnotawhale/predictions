@@ -108,8 +108,10 @@
   - overlay-уведомления о голах;
   - offline-баннер при ошибках сети/API;
   - кэш leaderboard/chart/standings ~45с;
+  - серверные заголовки для `/miniapp/**`: `Cache-Control: no-store, must-revalidate` (фикс против залипания старого фронта в Telegram WebView);
+  - на главной (`screen-stats`) внизу по центру добавлена малозаметная подпись версии (`.miniapp-version`, формат `ver. ...`);
   - header показывает сезон/тур (`profile.weekLabel`);
-  - **Crowd Meter** в модалке матча (`GET /api/miniapp/match/{id}/crowd`);
+  - `Crowd Meter` удален из UI модалки матча (блок и клиентская загрузка выключены);
   - **Live Points Race** на главной (`GET /api/miniapp/live-race`);
   - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`).
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.

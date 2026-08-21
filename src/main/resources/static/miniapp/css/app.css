@@ -73,6 +73,24 @@ html, body {
     display: block;
 }
 
+.miniapp-version {
+    display: none;
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--nav-h) + 6px);
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--hint);
+    opacity: 0.35;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    user-select: none;
+}
+
+#screen-stats.active .miniapp-version {
+    display: block;
+}
+
 .card {
     background: var(--section);
     border-radius: var(--radius);
