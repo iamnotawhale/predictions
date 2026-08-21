@@ -354,12 +354,10 @@
     function renderTodayMatchItem(m, onClick) {
         const li = document.createElement('li');
         li.className = 'list-item' + (m.hasPrediction ? '' : ' needs-predict');
-        const timer = formatPredictTimer(m);
         li.innerHTML =
             '<div class="list-item-main">' +
             '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
             '<div class="list-item-sub">' + (m.homeName || '') + ' vs ' + (m.awayName || '') + '</div>' +
-            (timer ? '<div class="predict-timer">' + timer + '</div>' : '') +
             '</div>' +
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + todayScoreLabel(m) + '</div>' +
@@ -368,15 +366,6 @@
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
-    }
-
-    function formatPredictTimer(m) {
-        if (!m.canPredict || m.predictSecondsLeft == null) return '';
-        const sec = Math.max(0, Number(m.predictSecondsLeft));
-        if (sec <= 0) return 'можно ещё пару секунд';
-        const mm = Math.floor(sec / 60);
-        const ss = sec % 60;
-        return 'менять до ' + String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
     }
 
     function renderTodayMatchesList(matches) {
@@ -855,8 +844,7 @@
         renderH2hList('#modal-h2h-content', []);
         renderCrowdMeter(null);
         $('#modal-match-title').textContent = match.homeCode + ' — ' + match.awayCode;
-        const timer = formatPredictTimer(match);
-        $('#modal-kickoff').textContent = (match.kickoff || '') + (timer ? ' · ' + timer : '');
+        $('#modal-kickoff').textContent = match.kickoff || '';
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
         const homeLogo = $('#modal-home-logo');
