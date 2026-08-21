@@ -842,7 +842,6 @@
     function openScoreModal(match) {
         state.selectedMatch = match;
         renderH2hList('#modal-h2h-content', []);
-        renderCrowdMeter(null);
         $('#modal-match-title').textContent = match.homeCode + ' — ' + match.awayCode;
         $('#modal-kickoff').textContent = match.kickoff || '';
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
@@ -873,7 +872,6 @@
             grid.innerHTML = '<p class="empty-state">Прогноз недоступен</p>';
             $('#score-modal').classList.remove('hidden');
             loadScoreModalH2h(match).catch(() => {});
-            loadCrowdMeter(match).catch(() => {});
             return;
         }
 
@@ -894,38 +892,6 @@
         $('#score-modal').classList.remove('hidden');
         tg.BackButton.show();
         loadScoreModalH2h(match).catch(() => {});
-        loadCrowdMeter(match).catch(() => {});
-    }
-
-    async function loadCrowdMeter(match) {
-        try {
-            const data = await api('/match/' + match.publicId + '/crowd');
-            renderCrowdMeter(data);
-        } catch (_) {
-            renderCrowdMeter(null);
-        }
-    }
-
-    function renderCrowdMeter(data) {
-        const block = $('#modal-crowd');
-        if (!block) return;
-        if (!data || !data.totalPredictions) {
-            block.classList.add('hidden');
-            block.innerHTML = '';
-            return;
-        }
-        block.classList.remove('hidden');
-        const tops = (data.topScores || []).map((b) =>
-            '<span class="crowd-chip"><b>' + b.score + '</b> ' + b.percent + '%</span>'
-        ).join('');
-        block.innerHTML =
-            '<div class="crowd-title">Crowd Meter · ' + data.totalPredictions + ' прогноз.</div>' +
-            '<div class="crowd-outcome">' +
-            '<span>1 ' + data.homeWinPct + '%</span>' +
-            '<span>X ' + data.drawPct + '%</span>' +
-            '<span>2 ' + data.awayWinPct + '%</span>' +
-            '</div>' +
-            '<div class="crowd-scores">' + tops + '</div>';
     }
 
     function closeScoreModal() {
