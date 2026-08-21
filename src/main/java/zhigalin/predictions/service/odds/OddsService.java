@@ -26,9 +26,11 @@ import zhigalin.predictions.util.TeamCodeMapper;
 public class OddsService {
 
     private static final Logger log = LoggerFactory.getLogger("server");
+    private static final long REFRESH_INTERVAL_MS = 60_000L;
 
     private final PanicSender panicSender;
     private final ObjectMapper mapper;
+    private volatile long lastRefreshAtMs = 0L;
 
     public static final Map<Integer, Odd> ODDS = new HashMap<>();
 
@@ -80,6 +82,22 @@ public class OddsService {
             String message = "Failed to retrieve odds";
             panicSender.sendPanic(message, e);
         }
+    }
+
+    /**
+     * Refresh odds at most once per minute to avoid hammering ESPN
+     * on frequent Mini App polling.
+     */
+    public synchronized void ensureFresh(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastRefreshAtMs < REFRESH_INTERVAL_MS) {
+            return;
+        }
+        oddsInit2(matches);
+        lastRefreshAtMs = now;
     }
 
     private Odd extractOdd(OddV2 oddV2) {

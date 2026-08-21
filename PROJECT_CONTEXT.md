@@ -113,6 +113,7 @@
   - на главной (`screen-stats`) внизу по центру добавлена малозаметная подпись версии (`.miniapp-version`, формат `ver. ...`);
   - header показывает сезон/тур (`profile.weekLabel`);
   - `Crowd Meter` удален из UI модалки матча (блок и клиентская загрузка выключены);
+  - odds для матчей Mini App обновляются через `OddsService.ensureFresh(...)` с TTL 60с (источник ESPN scoreboard), чтобы коэффициенты появлялись без запуска today-уведомлений;
   - **Live Points Race** на главной (`GET /api/miniapp/live-race`);
   - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`).
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
