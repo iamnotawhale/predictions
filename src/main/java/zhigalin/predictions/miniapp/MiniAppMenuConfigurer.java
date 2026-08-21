@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -14,7 +13,6 @@ import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 import zhigalin.predictions.telegram.model.EPLInfoBot;
 
 @Component
-@ConditionalOnProperty(name = "bot.webAppUrl")
 public class MiniAppMenuConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger("server");
@@ -22,7 +20,7 @@ public class MiniAppMenuConfigurer {
     private final EPLInfoBot bot;
     private final String webAppUrl;
 
-    public MiniAppMenuConfigurer(EPLInfoBot bot, @Value("${bot.webAppUrl}") String webAppUrl) {
+    public MiniAppMenuConfigurer(EPLInfoBot bot, @Value("${bot.webAppUrl:}") String webAppUrl) {
         this.bot = bot;
         this.webAppUrl = webAppUrl;
     }
