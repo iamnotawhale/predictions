@@ -59,17 +59,20 @@ public class MiniAppService {
     private final MatchService matchService;
     private final PredictionService predictionService;
     private final HeadToHeadService headToHeadService;
+    private final OddsService oddsService;
 
     public MiniAppService(
             UserService userService,
             MatchService matchService,
             PredictionService predictionService,
-            HeadToHeadService headToHeadService
+            HeadToHeadService headToHeadService,
+            OddsService oddsService
     ) {
         this.userService = userService;
         this.matchService = matchService;
         this.predictionService = predictionService;
         this.headToHeadService = headToHeadService;
+        this.oddsService = oddsService;
     }
 
     public User requireUser(String telegramId) {
@@ -104,6 +107,7 @@ public class MiniAppService {
     public List<MatchItem> weekMatches(String telegramId, int weekId) {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
+        oddsService.ensureFresh(matches);
         Set<Integer> withPrediction = new HashSet<>(
                 matchService.predictableMatchesByUserTelegramIdAndWeekId(telegramId, weekId)
         );
@@ -122,6 +126,9 @@ public class MiniAppService {
     public MatchItem match(String telegramId, String homeCode, String awayCode) {
         requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
+        if (match != null) {
+            oddsService.ensureFresh(List.of(match));
+        }
         Prediction prediction = predictionService.getByUserTelegramIdAndTeams(
                 telegramId, homeCode.toUpperCase(), awayCode.toUpperCase()
         );
@@ -149,6 +156,7 @@ public class MiniAppService {
     public TodayMatchesResponse todayMatches(String telegramId) {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByTodayDate();
+        oddsService.ensureFresh(matches);
         Set<Integer> withPrediction = new HashSet<>(
                 matchService.predictableTodayMatchesByUserTelegramIdAndWeekId(telegramId)
         );

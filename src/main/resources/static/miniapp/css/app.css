@@ -376,6 +376,7 @@ html, body {
 }
 
 .modal-sheet {
+    position: relative;
     width: 100%;
     background: var(--section);
     border-radius: 16px 16px 0 0;
@@ -523,14 +524,21 @@ html, body {
 }
 
 .icon-btn {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     border: none;
     border-radius: 50%;
     background: var(--secondary);
     color: var(--text);
-    font-size: 16px;
+    font-size: 13px;
     cursor: pointer;
+}
+
+.icon-btn-floating {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
 }
 
 .score-grid {

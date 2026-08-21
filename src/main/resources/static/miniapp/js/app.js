@@ -842,7 +842,6 @@
     function openScoreModal(match) {
         state.selectedMatch = match;
         renderH2hList('#modal-h2h-content', []);
-        $('#modal-match-title').textContent = match.homeCode + ' — ' + match.awayCode;
         $('#modal-kickoff').textContent = match.kickoff || '';
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
