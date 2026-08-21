@@ -797,36 +797,3 @@ html, body {
     border: 1px solid rgba(245, 197, 66, 0.25);
 }
 
-.modal-crowd {
-    margin: 0 0 12px;
-    padding: 10px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.crowd-title {
-    font-size: 12px;
-    color: var(--hint);
-    margin-bottom: 8px;
-}
-
-.crowd-outcome {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 13px;
-    margin-bottom: 8px;
-}
-
-.crowd-scores {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.crowd-chip {
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: rgba(46, 166, 255, 0.15);
-}
