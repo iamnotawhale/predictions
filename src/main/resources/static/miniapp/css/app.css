@@ -385,6 +385,10 @@ html, body {
     overflow-y: auto;
 }
 
+#score-modal .modal-sheet {
+    padding-top: 44px;
+}
+
 .modal-header {
     display: flex;
     align-items: center;
@@ -544,7 +548,7 @@ html, body {
 
 .icon-btn-floating {
     position: absolute;
-    top: 10px;
+    top: 8px;
     right: 10px;
     z-index: 2;
 }
