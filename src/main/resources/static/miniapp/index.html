@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css?v=20260822-31">
+    <link rel="stylesheet" href="css/app.css?v=20260822-32">
 </head>
 <body>
 <div id="offline-banner" class="offline-banner hidden" role="status"></div>
@@ -58,7 +58,7 @@
                 </table>
             </div>
         </section>
-        <div class="miniapp-version">ver. 20260822-31</div>
+        <div class="miniapp-version">ver. 20260822-32</div>
     </main>
 
     <main id="screen-today" class="screen">
@@ -188,6 +188,24 @@
                             <span id="live-pitch-marker-label" class="live-pitch-marker-label"></span>
                         </div>
                     </div>
+                    <div id="live-pitch-stats-hint" class="live-pitch-stats-hint">
+                        <span class="live-pitch-stats-hint-dot"></span>
+                        Нажми на поле: статистика
+                    </div>
+                    <div id="live-pitch-stats-overlay" class="live-pitch-stats-overlay hidden">
+                        <div class="live-pitch-stats-head">
+                            <div class="live-pitch-stats-team live-pitch-stats-team-home">
+                                <img id="live-pitch-stats-home-logo" class="live-pitch-stats-team-logo" alt="home">
+                                <span id="live-pitch-stats-home-code">HOME</span>
+                            </div>
+                            <div class="live-pitch-stats-title">Статистика</div>
+                            <div class="live-pitch-stats-team live-pitch-stats-team-away">
+                                <span id="live-pitch-stats-away-code">AWAY</span>
+                                <img id="live-pitch-stats-away-logo" class="live-pitch-stats-team-logo" alt="away">
+                            </div>
+                        </div>
+                        <div id="live-pitch-stats-body" class="live-pitch-stats-body"></div>
+                    </div>
                 </div>
             </div>
             <div class="modal-live-events-title">События матча</div>
@@ -237,6 +255,6 @@
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/app.js?v=20260822-31"></script>
+<script src="js/app.js?v=20260822-32"></script>
 </body>
 </html>

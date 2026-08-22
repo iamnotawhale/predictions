@@ -138,11 +138,20 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record MatchStatItem(
+            String key,
+            String label,
+            String homeValue,
+            String awayValue
+    ) {
+    }
+
     public record LiveMatchDetailsResponse(
             boolean live,
             List<LineupPlayerItem> homeLineup,
             List<LineupPlayerItem> awayLineup,
-            List<MatchEventItem> events
+            List<MatchEventItem> events,
+            List<MatchStatItem> matchStats
     ) {
     }
 

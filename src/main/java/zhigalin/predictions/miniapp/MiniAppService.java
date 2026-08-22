@@ -34,6 +34,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.LineupPlayerItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveMatchDetailsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchEventItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchStatItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchNewsItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormItem;
@@ -203,19 +204,21 @@ public class MiniAppService {
         requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match == null) {
-            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of());
+            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of(), List.of());
         }
         boolean live = isLiveStatus(match.getStatus())
                        && match.getHomeTeamScore() != null
                        && match.getAwayTeamScore() != null;
         if (!live) {
-            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of());
+            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of(), List.of());
         }
         Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getPublicId());
         List<LineupPlayerItem> homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
         List<LineupPlayerItem> awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
-        List<MatchEventItem> events = loadLiveEvents(match);
-        return new LiveMatchDetailsResponse(true, homeLineup, awayLineup, events);
+        JsonNode summaryRoot = loadEspnSummaryRoot(match);
+        List<MatchEventItem> events = loadLiveEvents(summaryRoot);
+        List<MatchStatItem> matchStats = loadLiveStats(summaryRoot);
+        return new LiveMatchDetailsResponse(true, homeLineup, awayLineup, events, matchStats);
     }
 
     public LeaderboardResponse leaderboard(String telegramId, Integer weekId) {
@@ -679,15 +682,25 @@ public class MiniAppService {
                 .toList();
     }
 
-    private List<MatchEventItem> loadLiveEvents(Match match) {
-        if (match.getEspnId() == null || match.getEspnId().isBlank()) {
-            return List.of();
+    private JsonNode loadEspnSummaryRoot(Match match) {
+        if (match == null || match.getEspnId() == null || match.getEspnId().isBlank()) {
+            return null;
         }
         try {
             HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
                     .queryString("event", match.getEspnId())
                     .asString();
-            JsonNode root = objectMapper.readTree(response.getBody());
+            return objectMapper.readTree(response.getBody());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private List<MatchEventItem> loadLiveEvents(JsonNode root) {
+        if (root == null) {
+            return List.of();
+        }
+        try {
             JsonNode commentary = root.path("commentary");
             if (!commentary.isArray() || commentary.isEmpty()) {
                 return List.of();
@@ -733,6 +746,62 @@ public class MiniAppService {
         } catch (Exception ignored) {
             return List.of();
         }
+    }
+
+    private List<MatchStatItem> loadLiveStats(JsonNode root) {
+        if (root == null) {
+            return List.of();
+        }
+        JsonNode teams = root.path("boxscore").path("teams");
+        if (!teams.isArray() || teams.size() < 2) {
+            return List.of();
+        }
+        Map<String, String> homeStats = extractStatsMap(teams.get(0).path("statistics"));
+        Map<String, String> awayStats = extractStatsMap(teams.get(1).path("statistics"));
+        if (homeStats.isEmpty() && awayStats.isEmpty()) {
+            return List.of();
+        }
+        return List.of(
+                stat("possession", "Владение", homeStats, awayStats),
+                stat("shotsTotal", "Удары", homeStats, awayStats),
+                stat("shotsOnTarget", "В створ", homeStats, awayStats),
+                stat("foulsCommitted", "Фолы", homeStats, awayStats),
+                stat("offsides", "Офсайды", homeStats, awayStats),
+                stat("cornerKicks", "Угловые", homeStats, awayStats),
+                stat("yellowCards", "ЖК", homeStats, awayStats),
+                stat("redCards", "КК", homeStats, awayStats)
+        );
+    }
+
+    private MatchStatItem stat(String key, String label, Map<String, String> home, Map<String, String> away) {
+        return new MatchStatItem(
+                key,
+                label,
+                home.getOrDefault(key, "—"),
+                away.getOrDefault(key, "—")
+        );
+    }
+
+    private Map<String, String> extractStatsMap(JsonNode statsNode) {
+        Map<String, String> map = new LinkedHashMap<>();
+        if (!statsNode.isArray()) {
+            return map;
+        }
+        for (int i = 0; i < statsNode.size(); i++) {
+            JsonNode item = statsNode.get(i);
+            String name = item.path("name").asText("").trim();
+            if (name.isBlank()) {
+                continue;
+            }
+            String value = item.path("displayValue").asText("").trim();
+            if (value.isBlank()) {
+                value = item.path("value").asText("").trim();
+            }
+            if (!value.isBlank()) {
+                map.put(name, value);
+            }
+        }
+        return map;
     }
 
     private boolean shouldSkipCommentaryItem(String text, String type, String minute) {
