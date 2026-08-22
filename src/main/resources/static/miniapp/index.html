@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css?v=20260822-22">
+    <link rel="stylesheet" href="css/app.css?v=20260822-27">
 </head>
 <body>
 <div id="offline-banner" class="offline-banner hidden" role="status"></div>
@@ -58,7 +58,7 @@
                 </table>
             </div>
         </section>
-        <div class="miniapp-version">ver. 20260822-22</div>
+        <div class="miniapp-version">ver. 20260822-27</div>
     </main>
 
     <main id="screen-today" class="screen">
@@ -143,14 +143,19 @@
         <section id="modal-live-details" class="modal-h2h hidden">
             <h4>Составы и события</h4>
             <div class="modal-live-lineups">
-                <div>
-                    <div class="modal-live-side-title" id="modal-live-home-title">Хозяева</div>
-                    <div id="modal-live-home-lineup" class="h2h-list"></div>
-                </div>
-                <div>
-                    <div class="modal-live-side-title" id="modal-live-away-title">Гости</div>
-                    <div id="modal-live-away-lineup" class="h2h-list"></div>
-                </div>
+                <details class="lineup-spoiler">
+                    <summary class="lineup-spoiler-summary">Составы команд</summary>
+                    <div class="lineup-spoiler-content">
+                        <div>
+                            <div class="modal-live-side-title" id="modal-live-home-title">Хозяева · состав</div>
+                            <div id="modal-live-home-lineup" class="h2h-list"></div>
+                        </div>
+                        <div>
+                            <div class="modal-live-side-title" id="modal-live-away-title">Гости · состав</div>
+                            <div id="modal-live-away-lineup" class="h2h-list"></div>
+                        </div>
+                    </div>
+                </details>
             </div>
             <div id="modal-live-pitch-wrap" class="live-pitch-wrap">
                 <div id="modal-live-pitch" class="live-pitch">
@@ -160,15 +165,15 @@
                     <div class="live-pitch-box live-pitch-box-away"></div>
                     <div class="live-pitch-goal-box live-pitch-goal-box-home"></div>
                     <div class="live-pitch-goal-box live-pitch-goal-box-away"></div>
-                <div class="live-pitch-penalty-mark live-pitch-penalty-mark-home"></div>
-                <div class="live-pitch-penalty-mark live-pitch-penalty-mark-away"></div>
-                <div class="live-pitch-arc live-pitch-arc-home"></div>
-                <div class="live-pitch-arc live-pitch-arc-away"></div>
+                    <div class="live-pitch-penalty-mark live-pitch-penalty-mark-home"></div>
+                    <div class="live-pitch-penalty-mark live-pitch-penalty-mark-away"></div>
+                    <div class="live-pitch-arc live-pitch-arc-home"></div>
+                    <div class="live-pitch-arc live-pitch-arc-away"></div>
                     <div id="live-pitch-marker" class="live-pitch-marker hidden">
                         <span class="live-pitch-dot"></span>
-                    <div class="live-pitch-marker-meta">
-                        <span id="live-pitch-marker-label" class="live-pitch-marker-label"></span>
-                    </div>
+                        <div class="live-pitch-marker-meta">
+                            <span id="live-pitch-marker-label" class="live-pitch-marker-label"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -219,6 +224,6 @@
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/app.js?v=20260822-22"></script>
+<script src="js/app.js?v=20260822-27"></script>
 </body>
 </html>
