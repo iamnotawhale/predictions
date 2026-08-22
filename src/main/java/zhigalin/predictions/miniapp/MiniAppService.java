@@ -780,6 +780,7 @@ public class MiniAppService {
                             item.minute(),
                             item.text(),
                             item.type(),
+                            item.period() > 0 ? item.period() : null,
                             item.fieldX(),
                             item.fieldY(),
                             item.field2X(),
