@@ -98,6 +98,7 @@
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
 - `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч); при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
 - `DataInitService` нормализует live-статус из ESPN scoreboard: halftime определяется по `status.type.detail/shortDetail/description` и сохраняется как `ht` (а не как `45'+...`), завершение — как `ft`.
+- `DataInitService` сохраняет `espn_id` в `match` уже на стадии `pre` (не только `in`), чтобы можно было заранее использовать ESPN summary по конкретному событию.
 - live-обновления счёта в Telegram редактируют одно сообщение на матч: ключ состояния строится с приоритетом `espnId` (fallback: `publicId`/пара команд), чтобы избежать дублей при разных источниках id.
 - `message_id` live-сообщения хранится в БД (`match.live_score_message_id`), поэтому после рестарта приложения обновления продолжают редактировать старое сообщение, а не создавать новое.
 - дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей.
@@ -126,6 +127,7 @@
   - маппинг иконок live-событий кастомизирован: пенальти `P`, офсайд белый флаг, удар в створ target, угловой красный флаг.
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
 - `ApiClient.getLineups(matchPublicId)` использует in-memory `ConcurrentHashMap` кэш (по `publicId`) и держит составы до завершения матча; очистка вызывается в `DataInitService` и `NotificationService.sendFullTime`.
+- Для remind-уведомлений бот сначала пытается взять стартовые составы из ESPN `summary?event=<espn_id>` (`rosters`, только `starter=true`) и использует API-Football lineups как fallback.
 
 ## Генерация изображений уведомлений
 - В `ImageRenderer` fallback цветов команд по `teamId`, если нет записи в `team_colors.json`.

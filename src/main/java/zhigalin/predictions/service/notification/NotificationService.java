@@ -286,7 +286,14 @@ public class NotificationService {
                 if (!isReminderWindow(minutesLeft, reminderMinutes)) {
                     continue;
                 }
-                Map<Integer, List<Lineup>> lineups = api.getLineups(match.getPublicId());
+                Map<Integer, List<Lineup>> lineups = api.getLineupsFromEspnSummary(
+                        match.getEspnId(),
+                        match.getHomeTeamId(),
+                        match.getAwayTeamId()
+                );
+                if (lineups.isEmpty()) {
+                    lineups = api.getLineups(match.getPublicId());
+                }
                 List<Prediction> matchPredicts = predictionService.getByMatchPublicId(match.getPublicId());
                 for (User user : DaoUtil.USERS.values()) {
                     boolean hasPredict = matchPredicts.stream()

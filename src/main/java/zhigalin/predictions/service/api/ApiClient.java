@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Lineup;
+import zhigalin.predictions.model.event.Player;
 import zhigalin.predictions.model.input.Response;
 import zhigalin.predictions.model.input.ResponseTeam;
 import zhigalin.predictions.model.input.Root;
@@ -40,6 +41,7 @@ public class ApiClient {
     private static final String HOST = "v3.football.api-sports.io";
     private static final String BASE_URL = "https://v3.football.api-sports.io/fixtures/";
     private static final String LINEUPS = "lineups";
+    private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
 
     private static final List<String> escaped = List.of("_", "*", "[", "]", "(", ")", "~", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!");
 
@@ -171,6 +173,57 @@ public class ApiClient {
             return lineups;
         } catch (Exception e) {
             log.error("Lineups  error: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
+    public Map<Integer, List<Lineup>> getLineupsFromEspnSummary(String espnEventId, int homeTeamId, int awayTeamId) {
+        if (espnEventId == null || espnEventId.isBlank()) {
+            return Map.of();
+        }
+        try {
+            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
+                    .queryString("event", espnEventId)
+                    .asString();
+            JsonNode rosters = mapper.readTree(response.getBody()).path("rosters");
+            if (!rosters.isArray() || rosters.isEmpty()) {
+                return Map.of();
+            }
+            Map<Integer, List<Lineup>> result = new HashMap<>();
+            for (JsonNode rosterNode : rosters) {
+                String homeAway = rosterNode.path("homeAway").asText("");
+                int teamId = "home".equalsIgnoreCase(homeAway) ? homeTeamId : "away".equalsIgnoreCase(homeAway) ? awayTeamId : 0;
+                if (teamId == 0) {
+                    continue;
+                }
+                JsonNode roster = rosterNode.path("roster");
+                if (!roster.isArray() || roster.isEmpty()) {
+                    continue;
+                }
+                List<Lineup> starters = new java.util.ArrayList<>();
+                for (JsonNode athleteNode : roster) {
+                    if (!athleteNode.path("starter").asBoolean(false)) {
+                        continue;
+                    }
+                    String name = athleteNode.path("athlete").path("displayName").asText("").trim();
+                    if (name.isBlank()) {
+                        continue;
+                    }
+                    Player player = new Player();
+                    player.setName(name);
+                    player.setNumber(athleteNode.path("jersey").asInt(0));
+                    player.setPos(athleteNode.path("position").path("abbreviation").asText("").trim());
+                    Lineup lineup = new Lineup();
+                    lineup.setPlayer(player);
+                    starters.add(lineup);
+                }
+                if (!starters.isEmpty()) {
+                    result.put(teamId, List.copyOf(starters));
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("ESPN lineups error: {}", e.getMessage());
             return Map.of();
         }
     }
