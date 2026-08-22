@@ -595,26 +595,31 @@ public class MiniAppService {
         List<Match> weekMatches = matchService.findAllByWeekId(weekId);
         for (Match match : weekMatches) {
             List<Prediction> preds = predictionService.getByMatchPublicId(match.getPublicId());
+            Map<Integer, Prediction> byUser = preds.stream()
+                    .collect(Collectors.toMap(Prediction::getUserId, p -> p, (left, right) -> left));
             boolean finished = isFinishedStatus(match.getStatus());
             boolean liveLike = isLiveStatus(match.getStatus())
                                || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
                                    && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
-            for (Prediction p : preds) {
-                User user = DaoUtil.USERS.get(p.getUserId());
-                if (user == null) {
-                    continue;
-                }
-                if (finished && p.getPoints() != null) {
-                    weekProvisional.merge(user.getLogin(), Math.max(p.getPoints(), 0), Integer::sum);
-                } else if (liveLike && match.getHomeTeamScore() != null && match.getAwayTeamScore() != null) {
-                    int livePts = PredictionService.computePoints(
+            if (!finished && !liveLike) {
+                continue;
+            }
+            for (User user : DaoUtil.USERS.values()) {
+                Prediction p = byUser.get(user.getId());
+                int pts;
+                if (finished && p != null && p.getPoints() != null) {
+                    pts = p.getPoints();
+                } else if (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null) {
+                    pts = PredictionService.computePoints(
                             match.getHomeTeamScore(),
                             match.getAwayTeamScore(),
-                            p.getHomeTeamScore(),
-                            p.getAwayTeamScore()
+                            p != null ? p.getHomeTeamScore() : null,
+                            p != null ? p.getAwayTeamScore() : null
                     );
-                    weekProvisional.merge(user.getLogin(), Math.max(livePts, 0), Integer::sum);
+                } else {
+                    continue;
                 }
+                weekProvisional.merge(user.getLogin(), pts, Integer::sum);
             }
         }
         return weekProvisional;

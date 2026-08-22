@@ -7,4 +7,8 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Type {
     private String state;
+    private String detail;
+    private String shortDetail;
+    private String description;
+    private Boolean completed;
 }

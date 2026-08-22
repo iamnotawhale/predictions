@@ -97,6 +97,7 @@
 ## Надёжность и бот
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
 - `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч); при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
+- `DataInitService` нормализует live-статус из ESPN scoreboard: halftime определяется по `status.type.detail/shortDetail/description` и сохраняется как `ht` (а не как `45'+...`), завершение — как `ft`.
 - live-обновления счёта в Telegram редактируют одно сообщение на матч: ключ состояния строится с приоритетом `espnId` (fallback: `publicId`/пара команд), чтобы избежать дублей при разных источниках id.
 - `message_id` live-сообщения хранится в БД (`match.live_score_message_id`), поэтому после рестарта приложения обновления продолжают редактировать старое сообщение, а не создавать новое.
 - дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей.
@@ -118,6 +119,7 @@
   - `Crowd Meter` удален из UI модалки матча (блок и клиентская загрузка выключены);
   - odds для матчей Mini App обновляются через `OddsService.ensureFresh(...)` с TTL 60с (источник ESPN scoreboard), чтобы коэффициенты появлялись без запуска today-уведомлений;
   - `Live Points Race` удалён из UI/API; live-динамика встроена в `Общий зачёт` и `Текущий тур` (`GET /api/miniapp/leaderboard` возвращает `provisionalPoints/liveDelta/liveActive`);
+  - live-подсчёт очков в leaderboard считает очки по тем же правилам, что и финальный зачёт (включая `-1`), и учитывает пользователей без прогноза на уже live/finished матчах.
   - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`);
   - для live-матча в модалке центральный блок показывает текущий счёт и live-статус/время (`17'`, `HT`) вместо `VS + kickoff`;
   - live-события для модалки берутся из ESPN summary endpoint `.../summary?event=<espnEventId>` только из `commentary`, сортируются по времени (свежие сверху), а в UI показываются с иконкой типа события (по `commentary.play.type.type`).

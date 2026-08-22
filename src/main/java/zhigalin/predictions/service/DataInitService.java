@@ -164,7 +164,7 @@ public class DataInitService {
                     serverLogger.info("Match {}-{} rescheduled: pst -> ns, date={}", homeTeam, awayTeam, espnDate);
                 }
             } else if (state.equals("in")) {
-                String status = event.getStatus().getDisplayClock();
+                String status = normalizeEspnLiveStatus(event);
                 Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
                 if (match == null) {
                     continue;
@@ -208,6 +208,39 @@ public class DataInitService {
                 }
             }
         }
+    }
+
+    private String normalizeEspnLiveStatus(Event event) {
+        if (event == null || event.getStatus() == null) {
+            return null;
+        }
+        zhigalin.predictions.model.v2.Type type = event.getStatus().getType();
+        String displayClock = event.getStatus().getDisplayClock();
+        if (type == null) {
+            return displayClock;
+        }
+        if (Boolean.TRUE.equals(type.getCompleted()) || "post".equalsIgnoreCase(type.getState())) {
+            return "ft";
+        }
+        String detail = type.getDetail();
+        String shortDetail = type.getShortDetail();
+        String description = type.getDescription();
+        if (containsHalftime(detail) || containsHalftime(shortDetail) || containsHalftime(description)) {
+            return "ht";
+        }
+        return displayClock;
+    }
+
+    private boolean containsHalftime(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.toLowerCase();
+        return normalized.contains("halftime")
+                || normalized.contains("half-time")
+                || normalized.equals("ht")
+                || normalized.startsWith("ht ")
+                || normalized.endsWith(" ht");
     }
 
     private String realTeamCode(String teamCode) {
