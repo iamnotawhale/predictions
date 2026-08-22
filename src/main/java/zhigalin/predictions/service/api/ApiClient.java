@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import kong.unirest.HttpResponse;
 import kong.unirest.MultipartBody;
 import kong.unirest.Unirest;
@@ -27,6 +28,8 @@ public class ApiClient {
     private String urlMessage;
     @Value("${bot.urlPhoto}")
     private String urlPhoto;
+    @Value("${bot.urlEditMessage}")
+    private String urlEditMessage;
 
     private final ObjectMapper mapper;
 
@@ -45,6 +48,10 @@ public class ApiClient {
     }
 
     public boolean sendMessage(String chatId, String text, String replyMarkupJson) {
+        return sendMessageAndGetId(chatId, text, replyMarkupJson) != null;
+    }
+
+    public Integer sendMessageAndGetId(String chatId, String text, String replyMarkupJson) {
         try {
             var req = Unirest.post(urlMessage)
                     .headers(Map.of("accept", "application/json", "content-type", "application/json"))
@@ -54,9 +61,30 @@ public class ApiClient {
                 req.queryString("reply_markup", replyMarkupJson);
             }
             HttpResponse<String> resp = req.asString();
-            return checkOk("sendMessage", resp);
+            if (!checkOk("sendMessage", resp)) {
+                return null;
+            }
+            return extractMessageId(resp.getBody());
         } catch (UnirestException e) {
             log.error("sendMessage error: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public boolean editMessageText(String chatId, int messageId, String text, String replyMarkupJson) {
+        try {
+            var req = Unirest.post(urlEditMessage)
+                    .headers(Map.of("accept", "application/json", "content-type", "application/json"))
+                    .queryString("chat_id", chatId)
+                    .queryString("message_id", messageId)
+                    .queryString("text", text);
+            if (replyMarkupJson != null) {
+                req.queryString("reply_markup", replyMarkupJson);
+            }
+            HttpResponse<String> resp = req.asString();
+            return checkOk("editMessageText", resp);
+        } catch (UnirestException e) {
+            log.error("editMessageText error: {}", e.getMessage());
             return false;
         }
     }
@@ -94,6 +122,20 @@ public class ApiClient {
         } else {
             log.warn("{}: status={} body={}", op, resp.getStatus(), resp.getBody());
             return false;
+        }
+    }
+
+    private Integer extractMessageId(String body) {
+        try {
+            JsonNode root = mapper.readTree(body);
+            if (!root.path("ok").asBoolean(false)) {
+                return null;
+            }
+            JsonNode messageIdNode = root.path("result").path("message_id");
+            return messageIdNode.isInt() ? messageIdNode.asInt() : null;
+        } catch (Exception e) {
+            log.warn("extractMessageId parse error: {}", e.getMessage());
+            return null;
         }
     }
 

@@ -34,6 +34,7 @@ bot:
   webAppUrl: ${BOT_WEBAPP_URL:}
   urlMessage: https://api.telegram.org/bot${bot.token}/sendMessage
   urlPhoto: https://api.telegram.org/bot${bot.token}/sendPhoto
+  urlEditMessage: https://api.telegram.org/bot${bot.token}/editMessageText
 
 chatId: ${ADMIN_CHAT_ID:739299}
 
