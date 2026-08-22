@@ -15,7 +15,7 @@
   </text>
 
   <!-- Professional-style pitch ratio 105:68 (~1.544) -->
-  <rect x="160" y="190" width="880" height="570" rx="10" fill="#2b884b" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+  <rect x="160" y="190" width="880" height="570" rx="2" fill="#2b884b" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
 
   <!-- Grass stripes -->
   <rect x="160" y="190" width="55" height="570" fill="#2d9150"/>
@@ -36,7 +36,7 @@
   <rect x="985" y="190" width="55" height="570" fill="#287f46"/>
 
   <!-- Pitch lines -->
-  <rect x="160" y="190" width="880" height="570" rx="10" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <rect x="160" y="190" width="880" height="570" rx="2" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
   <line x1="600" y1="190" x2="600" y2="760" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
   <circle cx="600" cy="475" r="77" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
 
@@ -57,6 +57,12 @@
         fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
   <path d="M 901.71 413.72 A 76.69 76.69 0 0 0 901.71 536.28"
         fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+
+  <!-- Corner arcs (radius 1 m) -->
+  <path d="M 160 204 A 14 14 0 0 0 174 190" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 1026 190 A 14 14 0 0 0 1040 204" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 160 746 A 14 14 0 0 1 174 760" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 1026 760 A 14 14 0 0 1 1040 746" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
 
   <!-- Last event marker -->
   <circle cx="852" cy="350" r="7.5" fill="#ffffff" stroke="rgba(0,0,0,0.35)" stroke-width="2"/>

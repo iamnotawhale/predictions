@@ -636,119 +636,18 @@ html, body {
     aspect-ratio: 105 / 68;
     min-height: 140px;
     margin: 0 auto;
-    border-radius: 10px;
+    border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.28);
     overflow: hidden;
-    background:
-        repeating-linear-gradient(
-            90deg,
-            #2a8648 0px,
-            #2a8648 22px,
-            #2f9551 22px,
-            #2f9551 44px
-        );
+    background: #2a8648;
 }
 
-.live-pitch-half-line,
-.live-pitch-center-circle,
-.live-pitch-box,
-.live-pitch-goal-box,
-.live-pitch-arc {
+.live-pitch-svg {
     position: absolute;
-    border: 1px solid rgba(255, 255, 255, 0.72);
-    pointer-events: none;
-}
-
-.live-pitch-half-line {
-    top: 0;
-    bottom: 0;
-    left: 50%;
-    width: 0;
-    border-left: 1px solid rgba(255, 255, 255, 0.72);
-    border-right: none;
-    border-top: none;
-    border-bottom: none;
-}
-
-.live-pitch-center-circle {
-    top: 50%;
-    left: 50%;
-    width: 17.43%;
-    height: 26.91%;
-    margin-left: -8.715%;
-    margin-top: -13.455%;
-    border-radius: 50%;
-}
-
-.live-pitch-box {
-    top: 20.35%;
-    width: 15.71%;
-    height: 59.29%;
-}
-
-.live-pitch-box-home {
-    left: 0;
-    border-left: none;
-}
-
-.live-pitch-box-away {
-    right: 0;
-    border-right: none;
-}
-
-.live-pitch-goal-box {
-    top: 36.53%;
-    width: 5.24%;
-    height: 26.94%;
-}
-
-.live-pitch-goal-box-home {
-    left: 0;
-    border-left: none;
-}
-
-.live-pitch-goal-box-away {
-    right: 0;
-    border-right: none;
-}
-
-.live-pitch-penalty-mark {
-    position: absolute;
-    top: 50%;
-    width: 4px;
-    height: 4px;
-    margin-top: -2px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.86);
-    pointer-events: none;
-}
-
-.live-pitch-penalty-mark-home {
-    left: 10.48%;
-    margin-left: -2px;
-}
-
-.live-pitch-penalty-mark-away {
-    left: 89.52%;
-    margin-left: -2px;
-}
-
-.live-pitch-arc {
-    top: 50%;
-    width: 17.43%;
-    height: 26.91%;
-    margin-top: -13.455%;
-    border-radius: 50%;
-}
-
-.live-pitch-arc-home {
-    left: 1.76%;
-    clip-path: inset(0 0 0 80%);
-}
-
-.live-pitch-arc-away {
-    right: 1.76%;
-    clip-path: inset(0 80% 0 0);
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 .live-pitch-marker {
