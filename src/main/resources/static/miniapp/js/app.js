@@ -1365,13 +1365,30 @@
     }
 
     /**
-     * ESPN commentary coords are attack-oriented (attack toward x≈100).
-     * On our fixed pitch home attacks right (x=100), away attacks left (x=0),
-     * so away events are rotated 180°.
+     * ESPN field coords are attack-oriented (attack toward x≈100) with a team-relative origin:
+     * 1H: home (0,0)=top-left of our pitch, away (0,0)=bottom-right.
+     * 2H: teams switch ends → origins swap (home needs 180°, away is identity).
+     * Screen map: 180° rotate (x,y)→(100−x,100−y) when (away XOR second half).
      */
+    function resolveEventPeriod(event) {
+        const period = Number(event?.period);
+        if (Number.isFinite(period) && period > 0) return period;
+        const minuteText = String(event?.minute || '');
+        const match = minuteText.match(/(\d+)/);
+        if (!match) return 1;
+        const minute = Number(match[1]);
+        return minute > 45 ? 2 : 1;
+    }
+
+    function shouldRotatePitchCoords(event, match) {
+        const away = resolveEventTeamSide(match, event) === 'away';
+        const secondHalf = resolveEventPeriod(event) >= 2;
+        return away !== secondHalf;
+    }
+
     function mapEventToPitchCoords(event, match) {
         if (!event) return event;
-        if (resolveEventTeamSide(match, event) !== 'away') {
+        if (!shouldRotatePitchCoords(event, match)) {
             return event;
         }
         return Object.assign({}, event, {
@@ -1386,7 +1403,7 @@
     /**
      * Shot points on pitch (after home/away mapping):
      * Blocked: origin → fieldEnd (+ mid marker = blocker).
-     * On-target: origin → goalmouth; mid at fieldEnd when present (= keeper).
+     * On-target: origin → fieldEnd (= keeper) when present; else → goalmouth.
      * Other: origin → goalmouth / fieldEnd (no mid).
      */
     function resolveShotPoints(event) {
@@ -1407,13 +1424,12 @@
         }
 
         if (isOnTargetShotType(event.type)) {
+            // Save / on-target with fieldEnd: trail stops at keeper (do not continue past to goalmouth).
             if (hasField2) {
                 mid = { x: event.field2X, y: event.field2Y };
-            }
-            if (hasGoalY) {
-                end = { x: resolveGoalLineX(event), y: event.goalPositionY };
-            } else if (hasField2) {
                 end = mid;
+            } else if (hasGoalY) {
+                end = { x: resolveGoalLineX(event), y: event.goalPositionY };
             }
             return { origin, mid, end };
         }

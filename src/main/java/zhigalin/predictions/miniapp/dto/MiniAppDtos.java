@@ -133,6 +133,7 @@ public final class MiniAppDtos {
             String minute,
             String text,
             String type,
+            Integer period,
             Double fieldX,
             Double fieldY,
             Double field2X,
