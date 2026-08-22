@@ -21,6 +21,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveMatchDetailsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
@@ -98,6 +99,15 @@ public class MiniAppController {
             @PathVariable String awayCode
     ) {
         return miniAppService.matchInsights(requireTelegramId(initData), homeCode, awayCode);
+    }
+
+    @GetMapping("/match/{homeCode}/{awayCode}/live-details")
+    public LiveMatchDetailsResponse liveMatchDetails(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String homeCode,
+            @PathVariable String awayCode
+    ) {
+        return miniAppService.liveMatchDetails(requireTelegramId(initData), homeCode, awayCode);
     }
 
     @GetMapping("/leaderboard")

@@ -422,7 +422,7 @@
 
         card.classList.remove('hidden');
         list.innerHTML = '';
-        liveMatches.forEach((m) => list.appendChild(renderTodayMatchItem(m, openScoreModal)));
+        liveMatches.forEach((m) => list.appendChild(renderTodayMatchItem(m, openLiveMatchModal)));
     }
 
     function enqueueScoreNotification(match, previousScore, highlightTeam) {
@@ -937,6 +937,10 @@
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
         renderModalNews([]);
+        $('#modal-live-details').classList.add('hidden');
+        $('#score-grid').classList.remove('hidden');
+        $('#modal-h2h-section').classList.remove('hidden');
+        $('#modal-news-section').classList.remove('hidden');
         $('#modal-kickoff').textContent = match.kickoff || '';
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
@@ -988,6 +992,107 @@
         tg.BackButton.show();
         loadScoreModalH2h(match).catch(() => {});
         loadScoreModalInsights(match).catch(() => {});
+    }
+
+    function openLiveMatchModal(match) {
+        state.selectedMatch = match;
+        renderTeamFormDots('#modal-home-form', match.homeCode, []);
+        renderTeamFormDots('#modal-away-form', match.awayCode, []);
+        renderModalNews([]);
+        $('#modal-kickoff').textContent = match.kickoff || '';
+        $('#modal-home-code').textContent = match.homeCode || 'HOME';
+        $('#modal-away-code').textContent = match.awayCode || 'AWAY';
+        const homeLogo = $('#modal-home-logo');
+        const awayLogo = $('#modal-away-logo');
+        homeLogo.src = match.homeLogo || '';
+        awayLogo.src = match.awayLogo || '';
+        homeLogo.onerror = () => { homeLogo.style.visibility = 'hidden'; };
+        awayLogo.onerror = () => { awayLogo.style.visibility = 'hidden'; };
+        homeLogo.style.visibility = 'visible';
+        awayLogo.style.visibility = 'visible';
+        const oddsBlock = $('#modal-odds');
+        if (match.oddHome != null && match.oddDraw != null && match.oddAway != null) {
+            $('#odd-home').textContent = Number(match.oddHome).toFixed(2);
+            $('#odd-draw').textContent = Number(match.oddDraw).toFixed(2);
+            $('#odd-away').textContent = Number(match.oddAway).toFixed(2);
+            oddsBlock.classList.remove('hidden');
+        } else {
+            oddsBlock.classList.add('hidden');
+        }
+        $('#score-grid').classList.add('hidden');
+        $('#modal-delete').classList.add('hidden');
+        $('#modal-h2h-section').classList.add('hidden');
+        $('#modal-news-section').classList.add('hidden');
+        $('#modal-live-details').classList.remove('hidden');
+        renderLiveMatchDetailsPlaceholder(match);
+        $('#score-modal').classList.remove('hidden');
+        tg.BackButton.show();
+        loadLiveMatchDetails(match).catch(() => {});
+    }
+
+    function renderLiveMatchDetailsPlaceholder(match) {
+        $('#modal-live-home-title').textContent = (match.homeCode || 'HOME') + ' · состав';
+        $('#modal-live-away-title').textContent = (match.awayCode || 'AWAY') + ' · состав';
+        $('#modal-live-home-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
+        $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
+        $('#modal-live-events').innerHTML = '<p class="empty-state">Загрузка…</p>';
+    }
+
+    async function loadLiveMatchDetails(match) {
+        const modalMatchId = match.publicId;
+        const data = await api('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/live-details');
+        if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
+            return;
+        }
+        if (!data.live) {
+            $('#modal-live-home-lineup').innerHTML = '<p class="empty-state">Матч уже не в live</p>';
+            $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">—</p>';
+            $('#modal-live-events').innerHTML = '<p class="empty-state">—</p>';
+            return;
+        }
+        renderLiveLineup('#modal-live-home-lineup', data.homeLineup || []);
+        renderLiveLineup('#modal-live-away-lineup', data.awayLineup || []);
+        renderLiveEvents(data.events || []);
+    }
+
+    function renderLiveLineup(selector, lineup) {
+        const container = $(selector);
+        if (!container) return;
+        if (!lineup.length) {
+            container.innerHTML = '<p class="empty-state">Состав пока недоступен</p>';
+            return;
+        }
+        container.innerHTML = '';
+        lineup.forEach((p) => {
+            const row = document.createElement('div');
+            row.className = 'h2h-item';
+            row.innerHTML =
+                '<div class="h2h-item-head">' +
+                '<span>#' + (p.number || '-') + '</span>' +
+                '<span>' + (p.position || '') + '</span>' +
+                '</div>' +
+                '<div class="h2h-item-score">' + (p.name || '—') + '</div>';
+            container.appendChild(row);
+        });
+    }
+
+    function renderLiveEvents(events) {
+        const container = $('#modal-live-events');
+        if (!container) return;
+        if (!events.length) {
+            container.innerHTML = '<p class="empty-state">Событий пока нет</p>';
+            return;
+        }
+        container.innerHTML = '';
+        events.forEach((e) => {
+            const row = document.createElement('div');
+            row.className = 'h2h-item';
+            const minute = e.minute ? '<span>' + e.minute + '</span>' : '<span>live</span>';
+            row.innerHTML =
+                '<div class="h2h-item-head">' + minute + '</div>' +
+                '<div class="h2h-item-score">' + (e.text || '') + '</div>';
+            container.appendChild(row);
+        });
     }
 
     function closeScoreModal() {

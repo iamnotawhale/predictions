@@ -122,6 +122,27 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record LineupPlayerItem(
+            int number,
+            String name,
+            String position
+    ) {
+    }
+
+    public record MatchEventItem(
+            String minute,
+            String text
+    ) {
+    }
+
+    public record LiveMatchDetailsResponse(
+            boolean live,
+            List<LineupPlayerItem> homeLineup,
+            List<LineupPlayerItem> awayLineup,
+            List<MatchEventItem> events
+    ) {
+    }
+
     public record ClientLogRequest(
             String level,
             String event,
