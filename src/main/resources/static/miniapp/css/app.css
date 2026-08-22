@@ -590,6 +590,178 @@ html, body {
     letter-spacing: 0.04em;
 }
 
+.live-pitch-wrap {
+    margin: 8px 0 12px;
+}
+
+.live-pitch {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 105 / 68;
+    min-height: 170px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    overflow: hidden;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            #2a8648 0px,
+            #2a8648 22px,
+            #2f9551 22px,
+            #2f9551 44px
+        );
+}
+
+.live-pitch-half-line,
+.live-pitch-center-circle,
+.live-pitch-box,
+.live-pitch-goal-box,
+.live-pitch-arc {
+    position: absolute;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    pointer-events: none;
+}
+
+.live-pitch-half-line {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.72);
+    border-right: none;
+    border-top: none;
+    border-bottom: none;
+}
+
+.live-pitch-center-circle {
+    top: 50%;
+    left: 50%;
+    width: 17.43%;
+    height: 26.91%;
+    margin-left: -8.715%;
+    margin-top: -13.455%;
+    border-radius: 50%;
+}
+
+.live-pitch-box {
+    top: 20.35%;
+    width: 15.71%;
+    height: 59.29%;
+}
+
+.live-pitch-box-home {
+    left: 0;
+    border-left: none;
+}
+
+.live-pitch-box-away {
+    right: 0;
+    border-right: none;
+}
+
+.live-pitch-goal-box {
+    top: 36.53%;
+    width: 5.24%;
+    height: 26.94%;
+}
+
+.live-pitch-goal-box-home {
+    left: 0;
+    border-left: none;
+}
+
+.live-pitch-goal-box-away {
+    right: 0;
+    border-right: none;
+}
+
+.live-pitch-penalty-mark {
+    position: absolute;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    margin-top: -2px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.86);
+    pointer-events: none;
+}
+
+.live-pitch-penalty-mark-home {
+    left: 10.48%;
+    margin-left: -2px;
+}
+
+.live-pitch-penalty-mark-away {
+    left: 89.52%;
+    margin-left: -2px;
+}
+
+.live-pitch-arc {
+    top: 50%;
+    width: 17.43%;
+    height: 26.91%;
+    margin-top: -13.455%;
+    border-radius: 50%;
+}
+
+.live-pitch-arc-home {
+    left: 1.76%;
+    clip-path: inset(0 0 0 80%);
+}
+
+.live-pitch-arc-away {
+    right: 1.76%;
+    clip-path: inset(0 80% 0 0);
+}
+
+.live-pitch-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.live-pitch-dot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3), 0 0 6px rgba(255, 255, 255, 0.45);
+}
+
+.live-pitch-marker-meta {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    transform: none;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.live-pitch-marker-label {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.56);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    padding: 4px 10px;
+    max-width: 190px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
 .h2h-item {
     border: 1px solid var(--border);
     border-radius: 10px;

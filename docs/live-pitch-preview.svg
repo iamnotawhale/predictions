@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1b2430"/>
+      <stop offset="100%" stop-color="#131a22"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="1100" fill="url(#bg)"/>
+
+  <rect x="120" y="80" width="960" height="930" rx="24" fill="#1f2a36" stroke="rgba(255,255,255,0.14)"/>
+
+  <text x="160" y="150" fill="#a8b5c3" font-family="Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="1.2">
+    LIVE MATCH
+  </text>
+
+  <!-- Professional-style pitch ratio 105:68 (~1.544) -->
+  <rect x="160" y="190" width="880" height="570" rx="10" fill="#2b884b" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+
+  <!-- Grass stripes -->
+  <rect x="160" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="215" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="270" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="325" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="380" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="435" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="490" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="545" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="600" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="655" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="710" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="765" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="820" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="875" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="930" y="190" width="55" height="570" fill="#2d9150"/>
+  <rect x="985" y="190" width="55" height="570" fill="#287f46"/>
+
+  <!-- Pitch lines -->
+  <rect x="160" y="190" width="880" height="570" rx="10" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <line x1="600" y1="190" x2="600" y2="760" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <circle cx="600" cy="475" r="77" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+
+  <!-- Penalty areas -->
+  <rect x="160" y="306" width="138" height="338" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <rect x="902" y="306" width="138" height="338" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+
+  <!-- Goal areas -->
+  <rect x="160" y="398" width="46" height="154" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <rect x="994" y="398" width="46" height="154" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+
+  <!-- Penalty marks (11 m from goal line) -->
+  <circle cx="252.19" cy="475" r="3.2" fill="rgba(255,255,255,0.86)"/>
+  <circle cx="947.81" cy="475" r="3.2" fill="rgba(255,255,255,0.86)"/>
+
+  <!-- Penalty arcs (radius 9.15 m from penalty marks, outside penalty area) -->
+  <path d="M 298.29 413.72 A 76.69 76.69 0 0 1 298.29 536.28"
+        fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 901.71 413.72 A 76.69 76.69 0 0 0 901.71 536.28"
+        fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+
+  <!-- Last event marker -->
+  <circle cx="852" cy="350" r="7.5" fill="#ffffff" stroke="rgba(0,0,0,0.35)" stroke-width="2"/>
+  <rect x="784" y="364" width="136" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
+  <text x="852" y="385" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="18" font-weight="800">67' GOAL</text>
+
+  <text x="160" y="820" fill="#a8b5c3" font-family="Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="0.8">
+    Match Events
+  </text>
+
+  <rect x="160" y="850" width="880" height="62" rx="12" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)"/>
+  <text x="190" y="889" fill="#ffffff" font-family="Arial, sans-serif" font-size="22">67' Goal - right-footed shot from center of box</text>
+</svg>

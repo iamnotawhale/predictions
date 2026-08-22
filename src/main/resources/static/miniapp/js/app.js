@@ -1054,6 +1054,7 @@
         $('#modal-live-home-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
         $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
         $('#modal-live-events').innerHTML = '<p class="empty-state">Загрузка…</p>';
+        resetLivePitchMarker();
     }
 
     async function loadLiveMatchDetails(match) {
@@ -1066,6 +1067,7 @@
             $('#modal-live-home-lineup').innerHTML = '<p class="empty-state">Матч уже не в live</p>';
             $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">—</p>';
             $('#modal-live-events').innerHTML = '<p class="empty-state">—</p>';
+            resetLivePitchMarker();
             return;
         }
         renderLiveLineup('#modal-live-home-lineup', data.homeLineup || []);
@@ -1099,6 +1101,7 @@
         if (!container) return;
         if (!events.length) {
             container.innerHTML = '<p class="empty-state">Событий пока нет</p>';
+            resetLivePitchMarker();
             return;
         }
         container.innerHTML = '';
@@ -1112,6 +1115,102 @@
                 '<div class="h2h-item-score">' + (e.text || '') + '</div>';
             container.appendChild(row);
         });
+        const latestWithPosition = events.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
+        if (latestWithPosition) {
+            const minute = latestWithPosition.minute || 'live';
+            const eventType = prettyLiveEventType(latestWithPosition.type);
+            const label = (minute + ' ' + eventType).trim();
+            updateLivePitchMarker(latestWithPosition.fieldX, latestWithPosition.fieldY, label);
+        } else {
+            resetLivePitchMarker();
+        }
+    }
+
+    function updateLivePitchMarker(fieldX, fieldY, label) {
+        const marker = $('#live-pitch-marker');
+        if (!marker) return;
+        const pitch = $('#modal-live-pitch');
+        const normalizedX = clamp(fieldX, 0, 100);
+        const normalizedY = clamp(fieldY, 0, 100);
+        marker.style.left = normalizedX + '%';
+        marker.style.top = normalizedY + '%';
+        const labelEl = $('#live-pitch-marker-label');
+        if (labelEl) {
+            labelEl.textContent = label || 'live';
+        }
+        positionLivePitchBadge(marker, pitch, normalizedX, normalizedY);
+        marker.classList.remove('hidden');
+    }
+
+    function resetLivePitchMarker() {
+        const marker = $('#live-pitch-marker');
+        if (!marker) return;
+        marker.classList.add('hidden');
+        const meta = marker.querySelector('.live-pitch-marker-meta');
+        if (meta) {
+            meta.style.left = '';
+            meta.style.right = '';
+            meta.style.top = '';
+            meta.style.bottom = '';
+            meta.style.transform = '';
+        }
+    }
+
+    function prettyLiveEventType(type) {
+        const t = (type || '').toLowerCase().trim();
+        if (!t) return 'EVENT';
+        if (t.includes('goal')) return 'GOAL';
+        if (t.includes('penalty')) return 'PENALTY';
+        if (t.includes('yellow')) return 'YELLOW CARD';
+        if (t.includes('red')) return 'RED CARD';
+        if (t.includes('sub')) return 'SUB';
+        if (t.includes('offside')) return 'OFFSIDE';
+        if (t.includes('shot-on-target')) return 'SHOT ON TARGET';
+        if (t.includes('shot-off-target')) return 'SHOT OFF TARGET';
+        if (t.includes('shot-blocked')) return 'SHOT BLOCKED';
+        if (t.includes('corner')) return 'CORNER';
+        if (t.includes('save')) return 'SAVE';
+        if (t.includes('foul')) return 'FOUL';
+        if (t.includes('var')) return 'VAR';
+        if (t.includes('kickoff')) return 'KICKOFF';
+        if (t.includes('period')) return 'PERIOD';
+        return t.toUpperCase().replaceAll('-', ' ');
+    }
+
+    function positionLivePitchBadge(marker, pitch, xPercent, yPercent) {
+        if (!marker) return;
+        const meta = marker.querySelector('.live-pitch-marker-meta');
+        if (!meta) return;
+        const gap = 12;
+        const inUpperHalf = yPercent <= 50;
+        const inLeftHalf = xPercent <= 50;
+        meta.style.top = inUpperHalf ? (gap + 'px') : 'auto';
+        meta.style.bottom = inUpperHalf ? 'auto' : (gap + 'px');
+        if (inLeftHalf) {
+            meta.style.left = gap + 'px';
+            meta.style.right = 'auto';
+            meta.style.transform = 'none';
+        } else {
+            meta.style.left = 'auto';
+            meta.style.right = gap + 'px';
+            meta.style.transform = 'none';
+        }
+        if (pitch) {
+            const pitchRect = pitch.getBoundingClientRect();
+            const maxWidth = Math.max(120, Math.floor(pitchRect.width * 0.42));
+            const labelEl = marker.querySelector('.live-pitch-marker-label');
+            if (labelEl) {
+                labelEl.style.maxWidth = maxWidth + 'px';
+            }
+        }
+    }
+
+    function clamp(value, min, max) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return min;
+        if (num < min) return min;
+        if (num > max) return max;
+        return num;
     }
 
     function liveEventIcon(type) {
