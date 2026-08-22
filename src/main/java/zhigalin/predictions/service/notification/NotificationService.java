@@ -27,6 +27,7 @@ import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
+import zhigalin.predictions.repository.notification.NotificationDedupDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
@@ -52,10 +53,9 @@ public class NotificationService {
 
     private static final int[] REMINDER_MINUTES_BEFORE = {60, 40, 20};
 
-    private final Set<String> notificationBlackList = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<String, Integer> liveScoreMessageIds = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> liveScoreLastTexts = new ConcurrentHashMap<>();
-    private final Set<Integer> weeklyResultsSent = ConcurrentHashMap.newKeySet();
+    private final NotificationDedupDao notificationDedupDao;
 
     public NotificationService(MatchService matchService,
                                PredictionService predictionService,
@@ -64,7 +64,8 @@ public class NotificationService {
                                ChartRenderer charts,
                                ApiClient api,
                                PanicSender panicSender,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               NotificationDedupDao notificationDedupDao) {
         this.matchService = matchService;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
@@ -73,6 +74,7 @@ public class NotificationService {
         this.api = api;
         this.panicSender = panicSender;
         this.objectMapper = objectMapper;
+        this.notificationDedupDao = notificationDedupDao;
     }
 
     public boolean sendTodayMatchNotification() {
@@ -137,15 +139,14 @@ public class NotificationService {
             api.sendPhoto(defaultChatId, "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен", path, null);
         }
         api.evictLineups(match.getPublicId());
-        String key = String.valueOf(match.getPublicId());
-        liveScoreMessageIds.remove(key);
-        liveScoreLastTexts.remove(key);
+        matchService.updateLiveScoreMessageId(match.getPublicId(), null);
+        clearLiveScoreState(match);
     }
 
     public void sendWeeklyResults() {
         log.info("Send weekly results");
         int weekId = DaoUtil.currentWeekId;
-        if (!weeklyResultsSent.add(weekId)) {
+        if (!notificationDedupDao.tryMarkWeeklyResultsSent(weekId)) {
             return;
         }
         Map<String, Integer> usersPoints = predictionService.getWeeklyUsersPoints(weekId);
@@ -169,14 +170,14 @@ public class NotificationService {
         if (home == null || away == null) {
             return;
         }
-        String key = String.valueOf(match.getPublicId());
+        String key = buildLiveScoreKey(match, home, away);
         String next = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
         String text = "⚽ *" + home.getCode() + " " + next + " " + away.getCode() + "*\n"
                       + (prevHome == null ? "-" : prevHome) + ":" + (prevAway == null ? "-" : prevAway) + " → " + next;
         if (text.equals(liveScoreLastTexts.get(key))) {
             return;
         }
-        Integer existingMessageId = liveScoreMessageIds.get(key);
+        Integer existingMessageId = resolveExistingLiveScoreMessageId(match, key, home, away);
         boolean delivered = false;
         if (existingMessageId != null) {
             delivered = api.editMessageText(defaultChatId, existingMessageId, text, null);
@@ -188,12 +189,81 @@ public class NotificationService {
             Integer sentMessageId = api.sendMessageAndGetId(defaultChatId, text, null);
             if (sentMessageId != null) {
                 liveScoreMessageIds.put(key, sentMessageId);
+                matchService.updateLiveScoreMessageId(match.getPublicId(), sentMessageId);
                 delivered = true;
             }
         }
         if (delivered) {
             liveScoreLastTexts.put(key, text);
         }
+    }
+
+    private Integer resolveExistingLiveScoreMessageId(Match match, String primaryKey, Team home, Team away) {
+        Integer existing = liveScoreMessageIds.get(primaryKey);
+        if (existing != null) {
+            return existing;
+        }
+        if (match.getLiveScoreMessageId() != null) {
+            liveScoreMessageIds.put(primaryKey, match.getLiveScoreMessageId());
+            return match.getLiveScoreMessageId();
+        }
+        if (match.getPublicId() != 0) {
+            existing = liveScoreMessageIds.get("pub:" + match.getPublicId());
+            if (existing != null) {
+                liveScoreMessageIds.put(primaryKey, existing);
+                return existing;
+            }
+        }
+        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
+            existing = liveScoreMessageIds.get("espn:" + match.getEspnId());
+            if (existing != null) {
+                liveScoreMessageIds.put(primaryKey, existing);
+                return existing;
+            }
+        }
+        if (home != null && away != null) {
+            existing = liveScoreMessageIds.get("teams:" + home.getCode() + "-" + away.getCode());
+            if (existing != null) {
+                liveScoreMessageIds.put(primaryKey, existing);
+                return existing;
+            }
+        }
+        return null;
+    }
+
+    private void clearLiveScoreState(Match match) {
+        Team home = DaoUtil.team(match.getHomeTeamId());
+        Team away = DaoUtil.team(match.getAwayTeamId());
+        String primary = buildLiveScoreKey(match, home, away);
+        liveScoreMessageIds.remove(primary);
+        liveScoreLastTexts.remove(primary);
+        if (match.getPublicId() != 0) {
+            String publicKey = "pub:" + match.getPublicId();
+            liveScoreMessageIds.remove(publicKey);
+            liveScoreLastTexts.remove(publicKey);
+        }
+        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
+            String espnKey = "espn:" + match.getEspnId();
+            liveScoreMessageIds.remove(espnKey);
+            liveScoreLastTexts.remove(espnKey);
+        }
+        if (home != null && away != null) {
+            String teamsKey = "teams:" + home.getCode() + "-" + away.getCode();
+            liveScoreMessageIds.remove(teamsKey);
+            liveScoreLastTexts.remove(teamsKey);
+        }
+    }
+
+    private String buildLiveScoreKey(Match match, Team home, Team away) {
+        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
+            return "espn:" + match.getEspnId();
+        }
+        if (match.getPublicId() != 0) {
+            return "pub:" + match.getPublicId();
+        }
+        String homeCode = home != null ? home.getCode() : String.valueOf(match.getHomeTeamId());
+        String awayCode = away != null ? away.getCode() : String.valueOf(match.getAwayTeamId());
+        return "teams:" + homeCode + "-" + awayCode;
     }
 
     public void sendTotalPointsChart() {
@@ -210,11 +280,6 @@ public class NotificationService {
                 .filter(m -> Objects.equals(m.getStatus(), "ns") && !Objects.equals(m.getStatus(), "pst"))
                 .toList();
 
-        if (upcoming.isEmpty()) {
-            notificationBlackList.clear();
-            return;
-        }
-
         for (Match match : upcoming) {
             long minutesLeft = Duration.between(now, match.getLocalDateTime()).toMinutes();
             for (int reminderMinutes : REMINDER_MINUTES_BEFORE) {
@@ -229,8 +294,7 @@ public class NotificationService {
                     if (hasPredict) {
                         continue;
                     }
-                    String key = user.getId() + ":" + match.getPublicId() + ":" + reminderMinutes;
-                    if (!notificationBlackList.add(key)) {
+                    if (!notificationDedupDao.tryMarkReminderSent(user.getId(), match.getPublicId(), reminderMinutes)) {
                         continue;
                     }
                     Notification notification = Notification.builder()

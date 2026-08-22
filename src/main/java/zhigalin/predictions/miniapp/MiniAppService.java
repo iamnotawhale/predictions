@@ -683,56 +683,62 @@ public class MiniAppService {
                     .queryString("event", match.getEspnId())
                     .asString();
             JsonNode root = objectMapper.readTree(response.getBody());
-            List<MatchEventItem> events = new ArrayList<>();
-            Set<String> seen = new HashSet<>();
-
-            JsonNode keyEvents = root.path("keyEvents");
-            if (keyEvents.isArray()) {
-                for (int i = keyEvents.size() - 1; i >= 0; i--) {
-                    JsonNode item = keyEvents.get(i);
-                    String text = item.path("text").asText("").trim();
-                    if (text.isBlank()) {
-                        continue;
-                    }
-                    String minute = item.path("clock").path("displayValue").asText("").trim();
-                    String dedupKey = minute + "|" + text;
-                    if (!seen.add(dedupKey)) {
-                        continue;
-                    }
-                    events.add(new MatchEventItem(minute, text));
-                    if (events.size() >= 8) {
-                        break;
-                    }
-                }
-            }
-
             JsonNode commentary = root.path("commentary");
-            if (commentary.isArray()) {
-                for (int i = commentary.size() - 1; i >= 0; i--) {
-                    JsonNode item = commentary.get(i);
-                    String text = item.path("text").asText("").trim();
-                    if (text.isBlank()) {
-                        continue;
-                    }
-                    String minute = item.path("time").path("displayValue").asText("").trim();
-                    if (minute.isBlank() && text.toLowerCase().contains("lineups are announced")) {
-                        continue;
-                    }
-                    String dedupKey = minute + "|" + text;
-                    if (!seen.add(dedupKey)) {
-                        continue;
-                    }
-                    events.add(new MatchEventItem(minute, text));
-                    if (events.size() >= 18) {
-                        break;
-                    }
-                }
+            if (!commentary.isArray() || commentary.isEmpty()) {
+                return List.of();
             }
-
-            return events;
+            List<LiveCommentaryEvent> parsed = new ArrayList<>();
+            for (int i = 0; i < commentary.size(); i++) {
+                JsonNode item = commentary.get(i);
+                String text = item.path("text").asText("").trim();
+                if (text.isBlank()) {
+                    continue;
+                }
+                String minute = item.path("time").path("displayValue").asText("").trim();
+                String type = item.path("play").path("type").path("type").asText("").trim();
+                if (type.isBlank()) {
+                    type = "comment";
+                }
+                if (shouldSkipCommentaryItem(text, type, minute)) {
+                    continue;
+                }
+                double timeValue = item.path("time").path("value").asDouble(-1d);
+                long sequence = item.path("sequence").asLong(i);
+                parsed.add(new LiveCommentaryEvent(timeValue, sequence, minute, text, type));
+            }
+            if (parsed.isEmpty()) {
+                return List.of();
+            }
+            parsed.sort(Comparator
+                    .comparingDouble(LiveCommentaryEvent::timeValue)
+                    .thenComparingLong(LiveCommentaryEvent::sequence)
+                    .reversed());
+            return parsed.stream()
+                    .limit(22)
+                    .map(item -> new MatchEventItem(item.minute(), item.text(), item.type()))
+                    .toList();
         } catch (Exception ignored) {
             return List.of();
         }
+    }
+
+    private boolean shouldSkipCommentaryItem(String text, String type, String minute) {
+        String normalizedText = text.toLowerCase();
+        String normalizedType = type.toLowerCase();
+        if (normalizedText.contains("lineups are announced")) {
+            return true;
+        }
+        return minute.isBlank()
+                && (normalizedType.contains("period") || normalizedType.contains("kickoff"));
+    }
+
+    private record LiveCommentaryEvent(
+            double timeValue,
+            long sequence,
+            String minute,
+            String text,
+            String type
+    ) {
     }
 
     private List<FormItem> buildRecentForm(int teamId, int limit) {

@@ -60,5 +60,23 @@ create table if not exists users
     telegram_id varchar(255)
 );
 
+alter table match
+    add column if not exists live_score_message_id integer;
+
+create table if not exists notification_weekly_results_sent
+(
+    week_id integer primary key,
+    sent_at timestamp not null
+);
+
+create table if not exists notification_reminder_sent
+(
+    user_id integer,
+    match_public_id integer,
+    reminder_minutes integer,
+    sent_at timestamp not null,
+    primary key (user_id, match_public_id, reminder_minutes)
+);
+
 
 

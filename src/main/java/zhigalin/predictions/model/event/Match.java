@@ -36,4 +36,6 @@ public class Match {
     private LocalDateTime lastProcessedAt;
     @JsonProperty("espn_id")
     private String espnId;
+    @JsonProperty("live_score_message_id")
+    private Integer liveScoreMessageId;
 }
