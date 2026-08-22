@@ -709,13 +709,15 @@ public class MiniAppService {
                 }
                 double timeValue = item.path("time").path("value").asDouble(-1d);
                 long sequence = item.path("sequence").asLong(i);
-                parsed.add(new LiveCommentaryEvent(timeValue, sequence, minute, text, type));
+                int period = item.path("play").path("period").path("number").asInt(0);
+                parsed.add(new LiveCommentaryEvent(period, timeValue, sequence, minute, text, type));
             }
             if (parsed.isEmpty()) {
                 return List.of();
             }
             parsed.sort(Comparator
-                    .comparingDouble(LiveCommentaryEvent::timeValue)
+                    .comparingInt(LiveCommentaryEvent::period)
+                    .thenComparingDouble(LiveCommentaryEvent::timeValue)
                     .thenComparingLong(LiveCommentaryEvent::sequence)
                     .reversed());
             return parsed.stream()
@@ -738,6 +740,7 @@ public class MiniAppService {
     }
 
     private record LiveCommentaryEvent(
+            int period,
             double timeValue,
             long sequence,
             String minute,
