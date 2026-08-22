@@ -136,6 +136,7 @@ public class NotificationService {
         if (path != null) {
             api.sendPhoto(defaultChatId, "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен", path, null);
         }
+        api.evictLineups(match.getPublicId());
         String key = String.valueOf(match.getPublicId());
         liveScoreMessageIds.remove(key);
         liveScoreLastTexts.remove(key);

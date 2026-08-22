@@ -46,6 +46,7 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
+import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
@@ -61,6 +62,7 @@ public class DataInitService {
     private final HeadToHeadService headToHeadService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
+    private final ApiClient apiClient;
 
     public static final int SEASON = 2026;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
@@ -77,7 +79,7 @@ public class DataInitService {
 
     public DataInitService(TeamService teamService, WeekService weekService, MatchService matchService,
                            HeadToHeadService headToHeadService, NotificationService notificationService,
-                           PanicSender panicSender
+                           PanicSender panicSender, ApiClient apiClient
     ) {
         this.teamService = teamService;
         this.weekService = weekService;
@@ -85,6 +87,7 @@ public class DataInitService {
         this.headToHeadService = headToHeadService;
         this.notificationService = notificationService;
         this.panicSender = panicSender;
+        this.apiClient = apiClient;
     }
 
     @Scheduled(fixedDelay = 5_000, initialDelay = 10_000)
@@ -190,6 +193,7 @@ public class DataInitService {
                 if (match == null) {
                     continue;
                 }
+                apiClient.evictLineups(match.getPublicId());
 
                 if (!status.equals(match.getStatus())) {
                     Integer homeScore = findScore(event, "home");

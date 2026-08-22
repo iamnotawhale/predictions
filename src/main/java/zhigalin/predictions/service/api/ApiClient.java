@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -32,6 +33,7 @@ public class ApiClient {
     private String urlEditMessage;
 
     private final ObjectMapper mapper;
+    private final ConcurrentHashMap<Integer, Map<Integer, List<Lineup>>> lineupsCache = new ConcurrentHashMap<>();
 
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
@@ -140,6 +142,10 @@ public class ApiClient {
     }
 
     public Map<Integer, List<Lineup>> getLineups(int publicId) {
+        Map<Integer, List<Lineup>> cached = lineupsCache.get(publicId);
+        if (cached != null) {
+            return cached;
+        }
         try {
             HttpResponse<String> resp = Unirest.get(BASE_URL + LINEUPS)
                     .header(X_RAPIDAPI_KEY, apiFootballToken)
@@ -155,12 +161,21 @@ public class ApiClient {
                 int teamId = team.getId();
                 List<Lineup> lineup = response.getLineup();
 
-                lineups.put(teamId, lineup);
+                lineups.put(teamId, lineup == null ? List.of() : List.copyOf(lineup));
+            }
+            if (!lineups.isEmpty()) {
+                Map<Integer, List<Lineup>> frozen = Map.copyOf(lineups);
+                lineupsCache.put(publicId, frozen);
+                return frozen;
             }
             return lineups;
         } catch (Exception e) {
             log.error("Lineups  error: {}", e.getMessage());
             return Map.of();
         }
+    }
+
+    public void evictLineups(int publicId) {
+        lineupsCache.remove(publicId);
     }
 }
