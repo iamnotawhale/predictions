@@ -131,7 +131,8 @@ public final class MiniAppDtos {
 
     public record MatchEventItem(
             String minute,
-            String text
+            String text,
+            String type
     ) {
     }
 

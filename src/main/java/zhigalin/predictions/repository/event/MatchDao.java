@@ -410,6 +410,23 @@ public class MatchDao {
         }
     }
 
+    public void updateLiveScoreMessageId(int publicId, Integer messageId) {
+        try {
+            String sql = """
+                    UPDATE match
+                    SET live_score_message_id = :messageId
+                    WHERE public_id = :publicId
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("publicId", publicId);
+            params.addValue("messageId", messageId);
+            namedParameterJdbcTemplate.update(sql, params);
+        } catch (Exception e) {
+            panicSender.sendPanic("Error updating live score message id", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
     public CompletableFuture<Void> listenForMatchUpdates() {
         if (isProcessing.compareAndSet(false, true)) {
             return CompletableFuture.runAsync(() -> {
@@ -528,6 +545,7 @@ public class MatchDao {
                     .status(rs.getString("status"))
                     .result(rs.getString("result"))
                     .espnId(rs.getString("espn_id"))
+                    .liveScoreMessageId((Integer) rs.getObject("live_score_message_id"))
                     .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
                     .build();
         }

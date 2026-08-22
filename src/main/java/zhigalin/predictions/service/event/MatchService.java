@@ -140,6 +140,10 @@ public class MatchService {
         return matchDao.getPredictableTodayMatchIdsByUserTelegram(telegramId);
     }
 
+    public void updateLiveScoreMessageId(int publicId, Integer messageId) {
+        matchDao.updateLiveScoreMessageId(publicId, messageId);
+    }
+
     public void listenForMatchUpdates() {
         matchDao.listenForMatchUpdates();
     }

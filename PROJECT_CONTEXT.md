@@ -96,7 +96,10 @@
 
 ## Надёжность и бот
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
-- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч).
+- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч); при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
+- live-обновления счёта в Telegram редактируют одно сообщение на матч: ключ состояния строится с приоритетом `espnId` (fallback: `publicId`/пара команд), чтобы избежать дублей при разных источниках id.
+- `message_id` live-сообщения хранится в БД (`match.live_score_message_id`), поэтому после рестарта приложения обновления продолжают редактировать старое сообщение, а не создавать новое.
+- дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей.
 - Напоминания без прогноза: за 60/40/20 минут до kickoff.
 - `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM).
 - Сводка тура: картинка + текстовый зачёт + график; защита от повторной отправки на тот же `weekId`.
@@ -115,8 +118,12 @@
   - `Crowd Meter` удален из UI модалки матча (блок и клиентская загрузка выключены);
   - odds для матчей Mini App обновляются через `OddsService.ensureFresh(...)` с TTL 60с (источник ESPN scoreboard), чтобы коэффициенты появлялись без запуска today-уведомлений;
   - `Live Points Race` удалён из UI/API; live-динамика встроена в `Общий зачёт` и `Текущий тур` (`GET /api/miniapp/leaderboard` возвращает `provisionalPoints/liveDelta/liveActive`);
-  - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`).
+  - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`);
+  - для live-матча в модалке центральный блок показывает текущий счёт и live-статус/время (`17'`, `HT`) вместо `VS + kickoff`;
+  - live-события для модалки берутся из ESPN summary endpoint `.../summary?event=<espnEventId>` только из `commentary`, сортируются по времени (свежие сверху), а в UI показываются с иконкой типа события (по `commentary.play.type.type`).
+  - маппинг иконок live-событий кастомизирован: пенальти `P`, офсайд белый флаг, удар в створ target, угловой красный флаг.
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
+- `ApiClient.getLineups(matchPublicId)` использует in-memory `ConcurrentHashMap` кэш (по `publicId`) и держит составы до завершения матча; очистка вызывается в `DataInitService` и `NotificationService.sendFullTime`.
 
 ## Генерация изображений уведомлений
 - В `ImageRenderer` fallback цветов команд по `teamId`, если нет записи в `team_colors.json`.

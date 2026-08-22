@@ -1105,12 +1105,32 @@
         events.forEach((e) => {
             const row = document.createElement('div');
             row.className = 'h2h-item';
+            const icon = liveEventIcon(e.type);
             const minute = e.minute ? '<span>' + e.minute + '</span>' : '<span>live</span>';
             row.innerHTML =
-                '<div class="h2h-item-head">' + minute + '</div>' +
+                '<div class="h2h-item-head"><span>' + icon + '</span>' + minute + '</div>' +
                 '<div class="h2h-item-score">' + (e.text || '') + '</div>';
             container.appendChild(row);
         });
+    }
+
+    function liveEventIcon(type) {
+        const t = (type || '').toLowerCase();
+        if (t.includes('goal')) return '⚽';
+        if (t.includes('penalty')) return '🅿️';
+        if (t.includes('yellow')) return '🟨';
+        if (t.includes('red')) return '🟥';
+        if (t.includes('sub')) return '🔁';
+        if (t.includes('offside')) return '🏳️';
+        if (t.includes('foul')) return '✋';
+        if (t.includes('shot-on-target')) return '🎯';
+        if (t.includes('shot-blocked')) return '🧱';
+        if (t.includes('shot-off-target')) return '↗️';
+        if (t.includes('corner-awarded')) return '🚩';
+        if (t.includes('save')) return '🥅';
+        if (t.includes('var')) return '📺';
+        if (t.includes('kickoff') || t.includes('period')) return '🕒';
+        return '•';
     }
 
     function closeScoreModal() {
