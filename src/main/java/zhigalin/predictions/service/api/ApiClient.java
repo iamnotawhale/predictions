@@ -1,10 +1,14 @@
 package zhigalin.predictions.service.api;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,6 +46,9 @@ public class ApiClient {
     private static final String BASE_URL = "https://v3.football.api-sports.io/fixtures/";
     private static final String LINEUPS = "lineups";
     private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
+
+    private static final Pattern GOAL_SCORER = Pattern.compile("^Goal!\\s*.+?\\.\\s*(.+?)\\s+\\([^)]+\\)");
+    private static final Pattern GOAL_ASSIST = Pattern.compile("Assisted by\\s+(.+?)(?:\\s+with\\s+.+?)?\\.");
 
     private static final List<String> escaped = List.of("_", "*", "[", "]", "(", ")", "~", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!");
 
@@ -230,5 +237,66 @@ public class ApiClient {
 
     public void evictLineups(int publicId) {
         lineupsCache.remove(publicId);
+    }
+
+    public LatestGoalInfo findLatestGoalInfo(String espnEventId) {
+        if (espnEventId == null || espnEventId.isBlank()) {
+            return null;
+        }
+        try {
+            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
+                    .queryString("event", espnEventId)
+                    .asString();
+            JsonNode commentary = mapper.readTree(response.getBody()).path("commentary");
+            if (!commentary.isArray() || commentary.isEmpty()) {
+                return null;
+            }
+            List<GoalCommentaryEntry> goals = new ArrayList<>();
+            for (int i = 0; i < commentary.size(); i++) {
+                JsonNode item = commentary.get(i);
+                String text = item.path("text").asText("").trim();
+                if (!text.startsWith("Goal!")) {
+                    continue;
+                }
+                LatestGoalInfo parsed = parseGoalCommentary(text);
+                if (parsed == null || parsed.scorer() == null || parsed.scorer().isBlank()) {
+                    continue;
+                }
+                double timeValue = item.path("time").path("value").asDouble(-1d);
+                long sequence = item.path("sequence").asLong(i);
+                goals.add(new GoalCommentaryEntry(timeValue, sequence, parsed));
+            }
+            if (goals.isEmpty()) {
+                return null;
+            }
+            goals.sort(Comparator
+                    .comparingDouble(GoalCommentaryEntry::timeValue)
+                    .thenComparingLong(GoalCommentaryEntry::sequence)
+                    .reversed());
+            return goals.getFirst().info();
+        } catch (Exception e) {
+            log.warn("ESPN latest goal lookup failed: espnEventId={}, error={}", espnEventId, e.getMessage());
+            return null;
+        }
+    }
+
+    private LatestGoalInfo parseGoalCommentary(String text) {
+        Matcher scorerMatcher = GOAL_SCORER.matcher(text);
+        if (!scorerMatcher.find()) {
+            return null;
+        }
+        String scorer = scorerMatcher.group(1).trim();
+        String assist = null;
+        Matcher assistMatcher = GOAL_ASSIST.matcher(text);
+        if (assistMatcher.find()) {
+            assist = assistMatcher.group(1).trim();
+        }
+        return new LatestGoalInfo(scorer, assist);
+    }
+
+    private record GoalCommentaryEntry(double timeValue, long sequence, LatestGoalInfo info) {
+    }
+
+    public record LatestGoalInfo(String scorer, String assist) {
     }
 }
