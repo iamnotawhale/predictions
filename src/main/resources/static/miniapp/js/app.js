@@ -1158,13 +1158,28 @@
             stopLiveMatchModalPolling();
             return;
         }
+        if (data.homeScore != null || data.awayScore != null || data.status) {
+            state.selectedMatch = Object.assign({}, state.selectedMatch, {
+                homeScore: data.homeScore != null ? data.homeScore : state.selectedMatch.homeScore,
+                awayScore: data.awayScore != null ? data.awayScore : state.selectedMatch.awayScore,
+                status: data.status || state.selectedMatch.status
+            });
+            setLiveModalHeader(state.selectedMatch);
+            syncTodayMatchScores(state.selectedMatch);
+        }
         renderLiveLineup('#modal-live-home-lineup', data.homeLineup || []);
         renderLiveLineup('#modal-live-away-lineup', data.awayLineup || []);
         state.livePitchHomeColor = data.homeColor || '#ffffff';
         state.livePitchAwayColor = data.awayColor || '#ffffff';
-        state.selectedPitchEventKey = null;
-        renderLiveEvents(data.events || [], match);
-        renderLivePitchStats(data.matchStats || [], match);
+        renderLiveEvents(data.events || [], state.selectedMatch);
+        renderLivePitchStats(data.matchStats || [], state.selectedMatch);
+    }
+
+    function syncTodayMatchScores(match) {
+        if (!match || match.publicId == null) return;
+        if (match.homeScore == null || match.awayScore == null) return;
+        if (isNotStartedStatus(match.status)) return;
+        state.todayScoresByMatchId[match.publicId] = match.homeScore + ':' + match.awayScore;
     }
 
     function renderLivePitchStats(stats, match) {
@@ -1243,9 +1258,6 @@
             }
             try {
                 await loadLiveMatchDetails(state.selectedMatch);
-                if (state.selectedMatch) {
-                    setLiveModalHeader(state.selectedMatch);
-                }
             } catch (_) {
                 reportClientLog('WARN', 'live.poll.failed', 'live-details request failed');
             }
@@ -1332,15 +1344,6 @@
         return (type || '').toLowerCase().includes('blocked');
     }
 
-    function isGoalEventType(type) {
-        return (type || '').toLowerCase().includes('goal');
-    }
-
-    function isOnTargetShotType(type) {
-        const normalized = (type || '').toLowerCase();
-        return normalized.includes('shot-on-target') || normalized.includes('save');
-    }
-
     function resolveGoalLineX(event) {
         if (Number.isFinite(event.field2X)) {
             return event.field2X >= 50 ? 100 : 0;
@@ -1351,66 +1354,69 @@
         return 100;
     }
 
-    /** End of ball path on pitch (ESPN fieldEnd). Not the GoalMouth target. */
-    function resolveShotEndPoint(event) {
-        const type = event.type || '';
+    /**
+     * Shot points on pitch:
+     * 1) origin — fieldStart (shot)
+     * 2) mid — fieldEnd when present (block / flight end on pitch)
+     * 3) ball — goalPositionY on goal line when present; else ball at mid if mid exists
+     */
+    function resolveShotPoints(event) {
+        const hasOrigin = Number.isFinite(event.fieldX) && Number.isFinite(event.fieldY);
+        if (!hasOrigin) return null;
         const hasField2 = Number.isFinite(event.field2X) && Number.isFinite(event.field2Y);
-        const reachedGoalLine = hasField2 && event.field2X >= 95;
+        const hasGoalY = Number.isFinite(event.goalPositionY);
+        const origin = { x: event.fieldX, y: event.fieldY };
+        let mid = null;
+        let ball = null;
 
-        // Blocked: fieldEnd is the block — never draw goalPositionY on pitch.
-        if (isBlockedShotType(type)) {
-            return hasField2
-                ? { x: event.field2X, y: event.field2Y, kind: 'block' }
-                : null;
-        }
-
-        // Goal / on-target: end at goal mouth (goalPositionY on goal line).
-        if (isGoalEventType(type) || isOnTargetShotType(type)) {
-            if (Number.isFinite(event.goalPositionY)) {
-                return { x: resolveGoalLineX(event), y: event.goalPositionY, kind: 'goalmouth' };
-            }
-            if (hasField2) {
-                return {
-                    x: reachedGoalLine ? resolveGoalLineX(event) : event.field2X,
-                    y: event.field2Y,
-                    kind: 'goalmouth'
-                };
-            }
-            return null;
+        if (hasField2 && hasGoalY) {
+            mid = { x: event.field2X, y: event.field2Y };
+            ball = { x: resolveGoalLineX(event), y: event.goalPositionY };
+        } else if (hasField2) {
+            ball = { x: event.field2X, y: event.field2Y };
+        } else if (hasGoalY) {
+            ball = { x: resolveGoalLineX(event), y: event.goalPositionY };
         }
 
-        // Off-target / woodwork: fieldEnd (usually goal line); gY only if end is at goal line.
-        if (hasField2) {
-            if (reachedGoalLine && Number.isFinite(event.goalPositionY)) {
-                return { x: resolveGoalLineX(event), y: event.goalPositionY, kind: 'goalmouth' };
-            }
-            return { x: event.field2X, y: event.field2Y, kind: 'flight' };
-        }
-        if (Number.isFinite(event.goalPositionY)) {
-            return { x: resolveGoalLineX(event), y: event.goalPositionY, kind: 'goalmouth' };
-        }
-        return null;
+        return { origin, mid, ball };
     }
 
-    function resolveEventTeamColor(match, event) {
+    function resolveEventTeamSide(match, event) {
         const team = (event.teamName || '').trim().toLowerCase();
         const home = (match?.homeName || '').trim().toLowerCase();
         const away = (match?.awayName || '').trim().toLowerCase();
         if (team && away && (team === away || away.includes(team) || team.includes(away))) {
-            return state.livePitchAwayColor || '#ffffff';
+            return 'away';
         }
         if (team && home && (team === home || home.includes(team) || team.includes(home))) {
-            return state.livePitchHomeColor || '#ffffff';
+            return 'home';
         }
-        return state.livePitchHomeColor || '#ffffff';
+        return 'home';
+    }
+
+    function resolveEventTeamColor(match, event) {
+        return resolveEventTeamSide(match, event) === 'away'
+            ? (state.livePitchAwayColor || '#ffffff')
+            : (state.livePitchHomeColor || '#ffffff');
+    }
+
+    function resolveOppositeTeamColor(match, event) {
+        return resolveEventTeamSide(match, event) === 'away'
+            ? (state.livePitchHomeColor || '#ffffff')
+            : (state.livePitchAwayColor || '#ffffff');
     }
 
     function pitchPlayerLabel(event) {
-        const shortText = (event.shortText || '').trim();
+        let shortText = (event.shortText || '').trim();
         if (!shortText) return '';
-        const parts = shortText.split(/\s+/);
-        if (parts.length <= 2) return parts[0] || '';
-        return parts.slice(0, -2).join(' ').split(' ').pop() || '';
+        shortText = shortText.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+        shortText = shortText
+            .replace(/\s+(shot(\s+(on|off)\s+target)?|blocked(\s+shot)?|goal|save|woodwork|miss(ed)?|header|penalty).*$/i, '')
+            .trim();
+        const parts = shortText.split(/\s+/).filter(Boolean);
+        if (!parts.length) return '';
+        // Surname or mononym nickname (Richarlison), not first name.
+        return parts[parts.length - 1];
     }
 
     function pitchEventLabel(event) {
@@ -1451,6 +1457,9 @@
         let target = null;
         if (state.selectedPitchEventKey) {
             target = state.lastLiveEvents.find((e) => livePitchEventKey(e) === state.selectedPitchEventKey);
+            if (!target) {
+                state.selectedPitchEventKey = null;
+            }
         }
         if (!target || !Number.isFinite(target.fieldX) || !Number.isFinite(target.fieldY)) {
             target = state.lastLiveEvents.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
@@ -1473,8 +1482,10 @@
 
     function updateLivePitchMarker(event, match, teamColor, label) {
         const marker = $('#live-pitch-marker');
-        const goalMarker = $('#live-pitch-goal-marker');
+        const midMarker = $('#live-pitch-mid-marker');
+        const ballMarker = $('#live-pitch-ball-marker');
         const shotLine = $('#live-pitch-shot-line');
+        const shotLine2 = $('#live-pitch-shot-line-2');
         if (!marker) return;
 
         const pitch = $('#modal-live-pitch');
@@ -1497,16 +1508,27 @@
         marker.classList.remove('hidden');
 
         const showShotTrail = isShotEventType(event.type);
-        const endPoint = showShotTrail ? resolveShotEndPoint(event) : null;
+        const points = showShotTrail ? resolveShotPoints(event) : null;
         const trajectoryStyle = showShotTrail ? shotTrajectoryStyle(event.type) : null;
+        const midColor = isBlockedShotType(event.type)
+            ? resolveOppositeTeamColor(match, event)
+            : (teamColor || '#ffffff');
+
+        const mid = points && points.mid
+            ? { x: clamp(points.mid.x, 0, 100), y: clamp(points.mid.y, 0, 100) }
+            : null;
+        const ball = points && points.ball
+            ? { x: clamp(points.ball.x, 0, 100), y: clamp(points.ball.y, 0, 100) }
+            : null;
+        const lineEnd = mid || ball;
 
         if (shotLine) {
-            if (endPoint && trajectoryStyle) {
+            if (lineEnd && trajectoryStyle) {
                 shotLine.setAttribute('x1', String(originX));
                 shotLine.setAttribute('y1', String(originY));
-                shotLine.setAttribute('x2', String(clamp(endPoint.x, 0, 100)));
-                shotLine.setAttribute('y2', String(clamp(endPoint.y, 0, 100)));
-                shotLine.style.stroke = teamColor || '#ffffff';
+                shotLine.setAttribute('x2', String(lineEnd.x));
+                shotLine.setAttribute('y2', String(lineEnd.y));
+                shotLine.style.stroke = 'rgba(18, 20, 24, 0.88)';
                 shotLine.classList.remove('hidden', 'is-solid', 'is-dashed');
                 shotLine.classList.add(trajectoryStyle === 'dashed' ? 'is-dashed' : 'is-solid');
             } else {
@@ -1514,35 +1536,57 @@
             }
         }
 
-        if (goalMarker) {
-            const endDot = goalMarker.querySelector('.live-pitch-goal-dot');
-            if (endPoint && showShotTrail && trajectoryStyle) {
-                goalMarker.style.left = clamp(endPoint.x, 0, 100) + '%';
-                goalMarker.style.top = clamp(endPoint.y, 0, 100) + '%';
-                if (endDot) {
-                    if (endPoint.kind === 'goalmouth') {
-                        endDot.style.background = '#ffd84d';
-                        endDot.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.35)';
-                    } else {
-                        endDot.style.background = 'rgba(255, 255, 255, 0.92)';
-                        endDot.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.35)';
-                    }
-                }
-                goalMarker.classList.remove('hidden');
+        if (shotLine2) {
+            if (mid && ball && trajectoryStyle) {
+                shotLine2.setAttribute('x1', String(mid.x));
+                shotLine2.setAttribute('y1', String(mid.y));
+                shotLine2.setAttribute('x2', String(ball.x));
+                shotLine2.setAttribute('y2', String(ball.y));
+                shotLine2.style.stroke = 'rgba(18, 20, 24, 0.72)';
+                shotLine2.style.opacity = '';
+                shotLine2.classList.remove('hidden', 'is-solid', 'is-dashed');
+                shotLine2.classList.add(trajectoryStyle === 'dashed' ? 'is-dashed' : 'is-solid');
             } else {
-                goalMarker.classList.add('hidden');
-                if (endDot) {
-                    endDot.style.background = '';
-                    endDot.style.boxShadow = '';
+                shotLine2.classList.add('hidden');
+            }
+        }
+
+        if (midMarker) {
+            const midDot = midMarker.querySelector('.live-pitch-mid-dot');
+            if (mid) {
+                midMarker.style.left = mid.x + '%';
+                midMarker.style.top = mid.y + '%';
+                if (midDot) {
+                    midDot.style.background = midColor || 'rgba(255, 255, 255, 0.92)';
+                    midDot.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.35)';
                 }
+                midMarker.classList.remove('hidden');
+            } else {
+                midMarker.classList.add('hidden');
+                if (midDot) {
+                    midDot.style.background = '';
+                    midDot.style.boxShadow = '';
+                }
+            }
+        }
+
+        if (ballMarker) {
+            if (ball) {
+                ballMarker.style.left = ball.x + '%';
+                ballMarker.style.top = ball.y + '%';
+                ballMarker.classList.remove('hidden');
+            } else {
+                ballMarker.classList.add('hidden');
             }
         }
     }
 
     function resetLivePitchMarker() {
         const marker = $('#live-pitch-marker');
-        const goalMarker = $('#live-pitch-goal-marker');
+        const midMarker = $('#live-pitch-mid-marker');
+        const ballMarker = $('#live-pitch-ball-marker');
         const shotLine = $('#live-pitch-shot-line');
+        const shotLine2 = $('#live-pitch-shot-line-2');
         if (marker) {
             marker.classList.add('hidden');
             const meta = marker.querySelector('.live-pitch-marker-meta');
@@ -1559,12 +1603,18 @@
                 dot.style.boxShadow = '';
             }
         }
-        if (goalMarker) goalMarker.classList.add('hidden');
+        if (midMarker) {
+            midMarker.classList.add('hidden');
+            const midDot = midMarker.querySelector('.live-pitch-mid-dot');
+            if (midDot) {
+                midDot.style.background = '';
+                midDot.style.boxShadow = '';
+            }
+        }
+        if (ballMarker) ballMarker.classList.add('hidden');
         if (shotLine) shotLine.classList.add('hidden');
-        const endDot = goalMarker && goalMarker.querySelector('.live-pitch-goal-dot');
-        if (endDot) {
-            endDot.style.background = '';
-            endDot.style.boxShadow = '';
+        if (shotLine2) {
+            shotLine2.classList.add('hidden');
         }
     }
 
@@ -1574,7 +1624,6 @@
         if (!events.length) {
             container.innerHTML = '<p class="empty-state">Событий пока нет</p>';
             state.lastLiveEvents = [];
-        state.selectedPitchEventKey = null;
             state.selectedPitchEventKey = null;
             resetLivePitchMarker();
             return;
