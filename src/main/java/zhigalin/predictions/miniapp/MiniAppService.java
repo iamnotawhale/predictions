@@ -1,10 +1,10 @@
 package zhigalin.predictions.miniapp;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import kong.unirest.HttpResponse;
-import kong.unirest.Unirest;
-import java.time.Instant;
+import com.rometools.rome.feed.synd.SyndEntry;
+import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.io.SyndFeedInput;
+import com.rometools.rome.io.XmlReader;
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
@@ -60,9 +61,32 @@ public class MiniAppService {
 
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
-    private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
+    private static final String SPORTS_RU_TEAM_RSS = "https://www.sports.ru/stat/export/rss/taglenta.xml?id=";
+    private static final long TEAM_NEWS_CACHE_MS = 120_000L;
     private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
             "ft", "aet", "pen", "canc", "abd", "awrd", "wo"
+    );
+    private static final Map<String, Integer> TEAM_NEWS_TAG_IDS = Map.ofEntries(
+            Map.entry("ARS", 1685202),
+            Map.entry("AST", 1315275),
+            Map.entry("BOU", 5643539),
+            Map.entry("BRE", 63451855),
+            Map.entry("BRI", 5607747),
+            Map.entry("CHE", 1046674),
+            Map.entry("COV", 3612640),
+            Map.entry("CRY", 3006569),
+            Map.entry("EVE", 1300662),
+            Map.entry("FUL", 1347893),
+            Map.entry("HUL", 3096963),
+            Map.entry("IPS", 3779605),
+            Map.entry("LEE", 2793103),
+            Map.entry("LIV", 1046732),
+            Map.entry("MAC", 1328029),
+            Map.entry("MUN", 1046599),
+            Map.entry("NEW", 1062581),
+            Map.entry("NOT", 3057313),
+            Map.entry("SUN", 2682737),
+            Map.entry("TOT", 2682611)
     );
 
     private final UserService userService;
@@ -70,22 +94,20 @@ public class MiniAppService {
     private final PredictionService predictionService;
     private final HeadToHeadService headToHeadService;
     private final OddsService oddsService;
-    private final ObjectMapper objectMapper;
+    private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
 
     public MiniAppService(
             UserService userService,
             MatchService matchService,
             PredictionService predictionService,
             HeadToHeadService headToHeadService,
-            OddsService oddsService,
-            ObjectMapper objectMapper
+            OddsService oddsService
     ) {
         this.userService = userService;
         this.matchService = matchService;
         this.predictionService = predictionService;
         this.headToHeadService = headToHeadService;
         this.oddsService = oddsService;
-        this.objectMapper = objectMapper;
     }
 
     public User requireUser(String telegramId) {
@@ -629,43 +651,77 @@ public class MiniAppService {
     }
 
     private List<MatchNewsItem> loadMatchNews(Match match, int limit) {
-        if (match == null || match.getEspnId() == null || match.getEspnId().isBlank()) {
+        if (match == null) {
             return List.of();
         }
         try {
-            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
-                    .queryString("event", match.getEspnId())
-                    .asString();
-            JsonNode root = objectMapper.readTree(response.getBody());
-            JsonNode articles = root.path("news").path("articles");
-            if (!articles.isArray() || articles.isEmpty()) {
-                return List.of();
-            }
             List<MatchNewsItem> news = new ArrayList<>();
-            for (JsonNode article : articles) {
-                if (news.size() >= limit) {
-                    break;
-                }
-                String title = article.path("headline").asText("");
-                String url = article.path("links").path("web").path("href").asText("");
-                if (title.isBlank() || url.isBlank()) {
-                    continue;
-                }
-                String publishedRaw = article.path("published").asText("");
-                String published = "";
-                if (!publishedRaw.isBlank()) {
-                    try {
-                        LocalDateTime dt = LocalDateTime.ofInstant(Instant.parse(publishedRaw), ZoneId.of(AppTimeZones.DISPLAY.getId()));
-                        published = dt.format(NEWS_TS);
-                    } catch (Exception ignored) {
-                        published = "";
-                    }
-                }
-                news.add(new MatchNewsItem(title, url, published));
+            Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
+            Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
+            if (home != null) {
+                news.addAll(loadTeamNews(home.getCode(), Math.max(limit, 3)));
+            }
+            if (away != null) {
+                news.addAll(loadTeamNews(away.getCode(), Math.max(limit, 3)));
+            }
+            news = news.stream()
+                    .filter(item -> item.title() != null && !item.title().isBlank())
+                    .collect(Collectors.collectingAndThen(
+                            Collectors.toMap(
+                                    MatchNewsItem::url,
+                                    item -> item,
+                                    (a, b) -> a,
+                                    LinkedHashMap::new
+                            ),
+                            map -> new ArrayList<>(map.values())
+                    ));
+            news.sort(Comparator.comparing(MatchNewsItem::publishedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+            if (news.size() > limit) {
+                return news.subList(0, limit);
             }
             return news;
         } catch (Exception ignored) {
             return List.of();
         }
+    }
+
+    private List<MatchNewsItem> loadTeamNews(String teamCode, int limit) {
+        Integer tagId = TEAM_NEWS_TAG_IDS.get(teamCode);
+        if (tagId == null) {
+            return List.of();
+        }
+        long now = System.currentTimeMillis();
+        CachedTeamNews cached = teamNewsCache.get(teamCode);
+        if (cached != null && now - cached.cachedAtMs() <= TEAM_NEWS_CACHE_MS) {
+            return cached.news();
+        }
+        try {
+            URL source = new URL(SPORTS_RU_TEAM_RSS + tagId);
+            SyndFeed feed = new SyndFeedInput().build(new XmlReader(source));
+            List<MatchNewsItem> items = new ArrayList<>();
+            for (SyndEntry entry : feed.getEntries()) {
+                if (items.size() >= limit) {
+                    break;
+                }
+                String title = entry.getTitle() == null ? "" : entry.getTitle().trim();
+                String url = entry.getLink() == null ? "" : entry.getLink().trim();
+                if (title.isBlank() || url.isBlank()) {
+                    continue;
+                }
+                String published = "";
+                if (entry.getPublishedDate() != null) {
+                    published = LocalDateTime.ofInstant(entry.getPublishedDate().toInstant(), ZoneId.of(AppTimeZones.DISPLAY.getId()))
+                            .format(NEWS_TS);
+                }
+                items.add(new MatchNewsItem(title, url, published));
+            }
+            teamNewsCache.put(teamCode, new CachedTeamNews(now, items));
+            return items;
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    private record CachedTeamNews(long cachedAtMs, List<MatchNewsItem> news) {
     }
 }
