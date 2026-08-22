@@ -57,6 +57,7 @@
         activeScoreNotificationId: null,
         todayPollingTimerId: null,
         liveModalPollingTimerId: null,
+        livePitchStatsOpened: false,
         apiCache: {}
     };
 
@@ -998,6 +999,7 @@
 
     function openScoreModal(match) {
         stopLiveMatchModalPolling();
+        hideLivePitchStatsOverlay();
         state.selectedMatch = match;
         renderH2hList('#modal-h2h-content', []);
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
@@ -1062,6 +1064,7 @@
 
     function openLiveMatchModal(match) {
         stopLiveMatchModalPolling();
+        hideLivePitchStatsOverlay();
         state.selectedMatch = match;
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
@@ -1122,6 +1125,7 @@
         $('#modal-live-home-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
         $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
         $('#modal-live-events').innerHTML = '<p class="empty-state">Загрузка…</p>';
+        renderLivePitchStats([], match);
         resetLivePitchMarker();
     }
 
@@ -1142,6 +1146,69 @@
         renderLiveLineup('#modal-live-home-lineup', data.homeLineup || []);
         renderLiveLineup('#modal-live-away-lineup', data.awayLineup || []);
         renderLiveEvents(data.events || []);
+        renderLivePitchStats(data.matchStats || [], match);
+    }
+
+    function renderLivePitchStats(stats, match) {
+        const overlay = $('#live-pitch-stats-overlay');
+        const body = $('#live-pitch-stats-body');
+        if (!overlay || !body) return;
+        const homeCodeEl = $('#live-pitch-stats-home-code');
+        const awayCodeEl = $('#live-pitch-stats-away-code');
+        const homeLogoEl = $('#live-pitch-stats-home-logo');
+        const awayLogoEl = $('#live-pitch-stats-away-logo');
+        if (homeCodeEl) homeCodeEl.textContent = match?.homeCode || 'HOME';
+        if (awayCodeEl) awayCodeEl.textContent = match?.awayCode || 'AWAY';
+        if (homeLogoEl) {
+            homeLogoEl.src = match?.homeLogo || '';
+            homeLogoEl.onerror = () => { homeLogoEl.style.visibility = 'hidden'; };
+            homeLogoEl.style.visibility = 'visible';
+        }
+        if (awayLogoEl) {
+            awayLogoEl.src = match?.awayLogo || '';
+            awayLogoEl.onerror = () => { awayLogoEl.style.visibility = 'hidden'; };
+            awayLogoEl.style.visibility = 'visible';
+        }
+        if (!stats.length) {
+            body.innerHTML = '<div class="live-pitch-stats-row"><span class="home">—</span><span class="label">нет данных</span><span class="away">—</span></div>';
+        } else {
+            body.innerHTML = '';
+            stats.forEach((item) => {
+                const row = document.createElement('div');
+                row.className = 'live-pitch-stats-row';
+                row.innerHTML =
+                    '<span class="home">' + (item.homeValue ?? '—') + '</span>' +
+                    '<span class="label">' + (item.label || '') + '</span>' +
+                    '<span class="away">' + (item.awayValue ?? '—') + '</span>';
+                body.appendChild(row);
+            });
+        }
+        if (state.livePitchStatsOpened) {
+            overlay.classList.remove('hidden');
+        } else {
+            overlay.classList.add('hidden');
+        }
+    }
+
+    function showLivePitchStatsOverlay() {
+        const overlay = $('#live-pitch-stats-overlay');
+        if (!overlay) return;
+        state.livePitchStatsOpened = true;
+        overlay.classList.remove('hidden');
+        const hint = $('#live-pitch-stats-hint');
+        if (hint) hint.classList.add('hidden');
+    }
+
+    function hideLivePitchStatsOverlay() {
+        state.livePitchStatsOpened = false;
+        const overlay = $('#live-pitch-stats-overlay');
+        if (overlay) {
+            overlay.classList.add('hidden');
+        }
+        const hint = $('#live-pitch-stats-hint');
+        if (hint && !$('#modal-live-details').classList.contains('hidden')) {
+            hint.classList.remove('hidden');
+        }
     }
 
     function scheduleLiveMatchModalPolling() {
@@ -1313,6 +1380,39 @@
         return out;
     }
 
+    function translateGoalNarrative(rawText) {
+        let out = (rawText || '').trim();
+        if (!out) return out;
+
+        const directReplacements = [
+            [/\bfrom a free kick\b/gi, 'со штрафного'],
+            [/\bfrom the penalty spot\b/gi, 'с пенальти'],
+            [/\bwith a right footed shot\b/gi, 'ударом правой ногой'],
+            [/\bwith a left footed shot\b/gi, 'ударом левой ногой'],
+            [/\bwith a header\b/gi, 'ударом головой'],
+            [/\bto the top left corner\b/gi, 'в верхний левый угол'],
+            [/\bto the top right corner\b/gi, 'в верхний правый угол'],
+            [/\bto the bottom left corner\b/gi, 'в нижний левый угол'],
+            [/\bto the bottom right corner\b/gi, 'в нижний правый угол'],
+            [/\bto the centre of the goal\b/gi, 'по центру ворот'],
+            [/\bfrom the centre of the box\b/gi, 'из центра штрафной'],
+            [/\bfrom the left side of the box\b/gi, 'с левого края штрафной'],
+            [/\bfrom the right side of the box\b/gi, 'с правого края штрафной'],
+            [/\bfrom outside the box\b/gi, 'из-за пределов штрафной']
+        ];
+        directReplacements.forEach(([pattern, replacement]) => {
+            out = out.replace(pattern, replacement);
+        });
+
+        out = out.replace(/\.\s*Assisted by (.+?) with a through ball\.\s*$/i, '. Ассист: $1 (проникающая передача).');
+        out = out.replace(/\.\s*Assisted by (.+?) with a cross\.\s*$/i, '. Ассист: $1 (навес).');
+        out = out.replace(/\.\s*Assisted by (.+?) with a headed pass\.\s*$/i, '. Ассист: $1 (скидка головой).');
+        out = out.replace(/\.\s*Assisted by (.+?) following a corner\.\s*$/i, '. Ассист: $1 (после углового).');
+        out = out.replace(/\.\s*Assisted by (.+?) following a set piece situation\.\s*$/i, '. Ассист: $1 (после стандарта).');
+        out = out.replace(/\.\s*Assisted by (.+?)\.\s*$/i, '. Ассист: $1.');
+        return out;
+    }
+
     function translateLiveEventText(text, type) {
         const raw = (text || '').trim();
         if (!raw) return raw;
@@ -1359,7 +1459,15 @@
         m = raw.match(/^(.+) \((.+)\) is shown the yellow card\.$/);
         if (m) return m[1] + ' (' + m[2] + ') получает желтую карточку.';
 
-        if (raw.startsWith('Goal!')) return raw.replace('Goal!', 'ГОЛ!');
+        if (raw.startsWith('Goal!')) {
+            const body = raw.replace(/^Goal!\s*/i, '');
+            const firstDot = body.indexOf('.');
+            if (firstDot < 0) return 'ГОЛ! ' + body;
+            const scorePart = body.slice(0, firstDot + 1).trim();
+            const narrative = body.slice(firstDot + 1).trim();
+            const translatedNarrative = translateGoalNarrative(narrative);
+            return 'ГОЛ! ' + scorePart + (translatedNarrative ? (' ' + translatedNarrative) : '');
+        }
         if (raw.startsWith('Attempt saved.')) {
             return 'Удар в створ, сейв. ' + translateShotNarrative(raw.replace(/^Attempt saved\.\s*/i, ''));
         }
@@ -1434,6 +1542,7 @@
 
     function closeScoreModal() {
         stopLiveMatchModalPolling();
+        hideLivePitchStatsOverlay();
         $('#score-modal').classList.add('hidden');
         state.selectedMatch = null;
         if (!state.teamModalOpened && !state.h2hModalOpened && !state.predictWeekOpened && !state.myWeekOpened) {
@@ -1776,6 +1885,17 @@
         $('#modal-delete').addEventListener('click', deletePrediction);
         $('#team-modal-close').addEventListener('click', closeTeamModal);
         $('#h2h-modal-close').addEventListener('click', closeH2hModal);
+        const livePitch = $('#modal-live-pitch');
+        if (livePitch) {
+            livePitch.addEventListener('click', () => {
+                if ($('#modal-live-details').classList.contains('hidden')) return;
+                if (state.livePitchStatsOpened) {
+                    hideLivePitchStatsOverlay();
+                } else {
+                    showLivePitchStatsOverlay();
+                }
+            });
+        }
 
         tg.BackButton.onClick(() => {
             if (state.h2hModalOpened) {
