@@ -1278,11 +1278,33 @@
         });
     }
 
+    function parseLiveEventMinute(minute) {
+        const raw = (minute || '').trim();
+        if (!raw) return 0;
+        const match = raw.match(/^(\d+)/);
+        if (!match) return 0;
+        return parseInt(match[1], 10);
+    }
+
+    function hasSecondHalfActivity(events, match) {
+        if (parseLiveEventMinute(match?.status) >= 46) return true;
+        if (!events || !events.length) return false;
+        return events.some((e) => {
+            const text = (e.text || '').trim();
+            if (text.includes('Second Half begins') || text.startsWith('Начался второй тайм')) {
+                return true;
+            }
+            return parseLiveEventMinute(e.minute) >= 46;
+        });
+    }
+
     function isMatchHalftimeBreak(match, events) {
         const status = normalizeStatus(match?.status);
         if (status === 'ht') return true;
         const rawStatus = (match?.status || '').trim();
         if (/^ht$/i.test(rawStatus)) return true;
+
+        if (hasSecondHalfActivity(events, match)) return false;
 
         if (!events || !events.length) return false;
         let firstHalfEnded = false;

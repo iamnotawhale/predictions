@@ -29,6 +29,7 @@ import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.repository.notification.NotificationDedupDao;
 import zhigalin.predictions.service.api.ApiClient;
+import zhigalin.predictions.service.api.ApiClient.LatestGoalInfo;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
@@ -171,9 +172,7 @@ public class NotificationService {
             return;
         }
         String key = buildLiveScoreKey(match, home, away);
-        String next = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
-        String text = "⚽ *" + home.getCode() + " " + next + " " + away.getCode() + "*\n"
-                      + (prevHome == null ? "-" : prevHome) + ":" + (prevAway == null ? "-" : prevAway) + " → " + next;
+        String text = buildLiveScoreUpdateText(match, home, away, prevHome, prevAway);
         if (text.equals(liveScoreLastTexts.get(key))) {
             return;
         }
@@ -196,6 +195,34 @@ public class NotificationService {
         if (delivered) {
             liveScoreLastTexts.put(key, text);
         }
+    }
+
+    private String buildLiveScoreUpdateText(Match match, Team home, Team away, Integer prevHome, Integer prevAway) {
+        String next = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
+        StringBuilder text = new StringBuilder();
+        text.append("⚽ *")
+                .append(home.getCode())
+                .append(" ")
+                .append(next)
+                .append(" ")
+                .append(away.getCode())
+                .append("*\n")
+                .append(prevHome == null ? "-" : prevHome)
+                .append(":")
+                .append(prevAway == null ? "-" : prevAway)
+                .append(" → ")
+                .append(next);
+
+        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
+            LatestGoalInfo goal = api.findLatestGoalInfo(match.getEspnId());
+            if (goal != null && goal.scorer() != null && !goal.scorer().isBlank()) {
+                text.append("\nГол: ").append(goal.scorer());
+                if (goal.assist() != null && !goal.assist().isBlank()) {
+                    text.append("\nАссист: ").append(goal.assist());
+                }
+            }
+        }
+        return text.toString();
     }
 
     private Integer resolveExistingLiveScoreMessageId(Match match, String primaryKey, Team home, Team away) {
