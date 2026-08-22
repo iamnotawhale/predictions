@@ -7,18 +7,11 @@
     <filter id="dot-glow" x="-50%" y="-50%" width="200%" height="200%">
       <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#c42823" flood-opacity="0.55"/>
     </filter>
-    <radialGradient id="ball-grad" cx="32%" cy="28%" r="70%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="45%" stop-color="#f0f0f0"/>
-      <stop offset="100%" stop-color="#1a1a1a"/>
-    </radialGradient>
   </defs>
 
-  <!-- Pitch: x=160+880*p/100, y=120+570*p/100
-       ESPN BRE-TOT: Jensen 3' blocked
-       fieldStart 89/84.9 → fieldEnd 94.9/65.4 → goalMouth y=48.2
-       lines: neutral dark gray; dots: team kit colors; end: ball icon
-       badge: surname/nickname (Jensen), not first name -->
+  <!-- ESPN BRE-TOT 401879321 · 3' Mathias Jensen Shot Blocked
+       fieldStart 89/84.9 → fieldEnd 94.9/65.4
+       origin (shooter, home kit) + mid (blocker, away kit) + dashed line -->
 
   <rect width="1200" height="820" fill="url(#bg)"/>
   <rect x="120" y="80" width="960" height="660" rx="24" fill="#1f2a36" stroke="rgba(255,255,255,0.14)"/>
@@ -51,23 +44,13 @@
   <path d="M 160 676 A 14 14 0 0 1 174 690" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
   <path d="M 1026 690 A 14 14 0 0 1 1040 676" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
 
-  <!-- origin → block (neutral dark) -->
   <line x1="943.2" y1="603.93" x2="995.12" y2="492.78"
-        stroke="rgba(18,20,24,0.88)" stroke-width="3" stroke-linecap="round"/>
-  <!-- block → ball (neutral dark) -->
-  <line x1="995.12" y1="492.78" x2="1040" y2="394.74"
-        stroke="rgba(18,20,24,0.72)" stroke-width="2.5" stroke-linecap="round"/>
+        stroke="rgba(18,20,24,0.88)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="12 8"/>
 
-  <!-- 2) fieldEnd — block (away kit) -->
-  <circle cx="995.12" cy="492.78" r="6" fill="#f5f5f8" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>
-
-  <!-- 3) goalPositionY — ball icon -->
-  <circle cx="1040" cy="394.74" r="9" fill="url(#ball-grad)" stroke="rgba(0,0,0,0.55)" stroke-width="1.2"/>
-  <path d="M1040 387 L1046 392 L1044 400 L1036 400 L1034 392 Z"
-        fill="none" stroke="rgba(20,20,20,0.8)" stroke-width="1.1"/>
-
-  <!-- 1) fieldStart — shot (home kit) -->
-  <circle cx="943.2" cy="603.93" r="8" fill="#c42823" stroke="rgba(0,0,0,0.45)" stroke-width="2" filter="url(#dot-glow)"/>
+  <!-- blocker (away kit) -->
+  <circle cx="995.12" cy="492.78" r="7" fill="#f5f5f8" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>
+  <!-- shooter (home kit) -->
+  <circle cx="943.2" cy="603.93" r="9" fill="#c42823" stroke="rgba(0,0,0,0.45)" stroke-width="2" filter="url(#dot-glow)"/>
 
   <rect x="742" y="618" width="200" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
   <text x="842" y="639" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16" font-weight="800">3' Jensen · БЛОК</text>
