@@ -714,19 +714,20 @@
         const xAt = (i) => pad.left + (weekCount <= 1 ? plotW / 2 : (i / (weekCount - 1)) * plotW);
         const yAt = (v) => pad.top + plotH - ((v - minY) / yRange) * plotH;
 
+        const tickMin = Math.floor(minY);
+        const tickMax = Math.ceil(maxY);
         ctx.strokeStyle = 'rgba(255,255,255,0.1)';
         ctx.lineWidth = 1;
-        for (let g = 0; g <= 4; g++) {
-            const y = pad.top + (g / 4) * plotH;
+        for (let tick = tickMin; tick <= tickMax; tick++) {
+            const y = yAt(tick);
             ctx.beginPath();
             ctx.moveTo(pad.left, y);
             ctx.lineTo(pad.left + plotW, y);
             ctx.stroke();
-            const tickValue = (maxY - (yRange * g / 4)).toFixed(0);
             ctx.fillStyle = '#8b98a5';
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText(tickValue, pad.left - 6, y + 3);
+            ctx.fillText(String(tick), pad.left - 6, y + 3);
         }
 
         ctx.fillStyle = '#8b98a5';
@@ -1139,9 +1140,10 @@
             row.className = 'h2h-item';
             const icon = liveEventIcon(e.type);
             const minute = e.minute ? '<span>' + e.minute + '</span>' : '<span>live</span>';
+            const translatedText = translateLiveEventText(e.text || '', e.type);
             row.innerHTML =
                 '<div class="h2h-item-head"><span>' + icon + '</span>' + minute + '</div>' +
-                '<div class="h2h-item-score">' + (e.text || '') + '</div>';
+                '<div class="h2h-item-score">' + translatedText + '</div>';
             container.appendChild(row);
         });
         const latestWithPosition = events.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
@@ -1187,23 +1189,81 @@
 
     function prettyLiveEventType(type) {
         const t = (type || '').toLowerCase().trim();
-        if (!t) return 'EVENT';
-        if (t.includes('goal')) return 'GOAL';
-        if (t.includes('penalty')) return 'PENALTY';
-        if (t.includes('yellow')) return 'YELLOW CARD';
-        if (t.includes('red')) return 'RED CARD';
-        if (t.includes('sub')) return 'SUB';
-        if (t.includes('offside')) return 'OFFSIDE';
-        if (t.includes('shot-on-target')) return 'SHOT ON TARGET';
-        if (t.includes('shot-off-target')) return 'SHOT OFF TARGET';
-        if (t.includes('shot-blocked')) return 'SHOT BLOCKED';
-        if (t.includes('corner')) return 'CORNER';
-        if (t.includes('save')) return 'SAVE';
-        if (t.includes('foul')) return 'FOUL';
+        if (!t) return 'СОБЫТИЕ';
+        if (t.includes('goal')) return 'ГОЛ';
+        if (t.includes('penalty')) return 'ПЕНАЛЬТИ';
+        if (t.includes('yellow')) return 'ЖК';
+        if (t.includes('red')) return 'КК';
+        if (t.includes('sub')) return 'ЗАМЕНА';
+        if (t.includes('offside')) return 'ОФСАЙД';
+        if (t.includes('shot-on-target')) return 'В СТВОР';
+        if (t.includes('shot-off-target')) return 'МИМО';
+        if (t.includes('shot-blocked')) return 'БЛОК';
+        if (t.includes('corner')) return 'УГЛОВОЙ';
+        if (t.includes('save')) return 'СЕЙВ';
+        if (t.includes('foul')) return 'ФОЛ';
         if (t.includes('var')) return 'VAR';
-        if (t.includes('kickoff')) return 'KICKOFF';
-        if (t.includes('period')) return 'PERIOD';
+        if (t.includes('kickoff')) return 'НАЧАЛО';
+        if (t.includes('period')) return 'ТАЙМ';
         return t.toUpperCase().replaceAll('-', ' ');
+    }
+
+    function translateLiveEventText(text, type) {
+        const raw = (text || '').trim();
+        if (!raw) return raw;
+        const t = (type || '').toLowerCase();
+
+        if (raw === 'First Half begins.') return 'Начался первый тайм.';
+        if (raw.startsWith('Second Half begins')) {
+            return raw.replace('Second Half begins', 'Начался второй тайм');
+        }
+        if (raw.startsWith('First Half ends,')) {
+            return raw.replace('First Half ends,', 'Перерыв,');
+        }
+        if (raw.startsWith('Second Half ends,')) {
+            return raw.replace('Second Half ends,', 'Матч завершен,');
+        }
+        if (raw === 'Delay over. They are ready to continue.') return 'Пауза завершена. Игра продолжается.';
+        if (raw.startsWith('Delay in match because of an injury ')) {
+            return raw.replace('Delay in match because of an injury ', 'Пауза из-за травмы: ');
+        }
+        if (raw.startsWith('Lineups are announced and players are warming up.')) {
+            return 'Составы объявлены, команды разминаются.';
+        }
+
+        let m = raw.match(/^Foul by (.+)\.$/);
+        if (m) return 'Фол со стороны ' + m[1] + '.';
+        m = raw.match(/^(.+) wins a free kick in the defensive half\.$/);
+        if (m) return m[1] + ' зарабатывает штрафной на своей половине.';
+        m = raw.match(/^(.+) wins a free kick in the attacking half\.$/);
+        if (m) return m[1] + ' зарабатывает штрафной на чужой половине.';
+        m = raw.match(/^(.+) wins a free kick on the left wing\.$/);
+        if (m) return m[1] + ' зарабатывает штрафной на левом фланге.';
+        m = raw.match(/^(.+) wins a free kick on the right wing\.$/);
+        if (m) return m[1] + ' зарабатывает штрафной на правом фланге.';
+        m = raw.match(/^Offside, (.+)\. (.+) is caught offside\.$/);
+        if (m) return 'Офсайд у ' + m[1] + '. ' + m[2] + ' в положении вне игры.';
+        m = raw.match(/^Corner, (.+)\. Conceded by (.+)\.$/);
+        if (m) return 'Угловой в пользу ' + m[1] + '. Последним коснулся ' + m[2] + '.';
+        m = raw.match(/^Substitution, (.+)\. (.+) replaces (.+) because of an injury\.$/);
+        if (m) return 'Замена у ' + m[1] + ': ' + m[2] + ' вместо ' + m[3] + ' (из-за травмы).';
+        m = raw.match(/^Substitution, (.+)\. (.+) replaces (.+)\.$/);
+        if (m) return 'Замена у ' + m[1] + ': ' + m[2] + ' вместо ' + m[3] + '.';
+        m = raw.match(/^(.+) \((.+)\) is shown the yellow card for a bad foul\.$/);
+        if (m) return m[1] + ' (' + m[2] + ') получает желтую карточку за грубый фол.';
+        m = raw.match(/^(.+) \((.+)\) is shown the yellow card\.$/);
+        if (m) return m[1] + ' (' + m[2] + ') получает желтую карточку.';
+
+        if (raw.startsWith('Goal!')) return raw.replace('Goal!', 'ГОЛ!');
+        if (raw.startsWith('Attempt saved.')) return raw.replace('Attempt saved.', 'Удар в створ, сейв.');
+        if (raw.startsWith('Attempt blocked.')) return raw.replace('Attempt blocked.', 'Удар заблокирован.');
+        if (raw.startsWith('Attempt missed.')) return raw.replace('Attempt missed.', 'Удар мимо.');
+        if (raw.startsWith('Hand ball by ')) return raw.replace('Hand ball by ', 'Игра рукой: ');
+
+        if (t.includes('foul')) return 'Фол. ' + raw;
+        if (t.includes('offside')) return 'Офсайд. ' + raw;
+        if (t.includes('corner')) return 'Угловой. ' + raw;
+        return raw;
     }
 
     function positionLivePitchBadge(marker, pitch, xPercent, yPercent) {
