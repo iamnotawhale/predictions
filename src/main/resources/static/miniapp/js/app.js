@@ -29,6 +29,7 @@
     const CHART_COLORS = ['#2ea6ff', '#5cd97a', '#e85c4a', '#f5c542', '#b07aff', '#ff8ec4'];
     const TODAY_POLL_LIVE_MS = 15000;
     const TODAY_POLL_IDLE_MS = 60000;
+    const LIVE_MODAL_POLL_MS = 10000;
     const LIVE_PRESTART_WINDOW_SECONDS = 10 * 60;
     const CACHE_TTL_MS = 45000;
     const FINISHED_STATUSES = new Set(['ft', 'aet', 'pen', 'canc', 'abd', 'awrd', 'wo']);
@@ -55,6 +56,7 @@
         scoreNotificationsQueue: [],
         activeScoreNotificationId: null,
         todayPollingTimerId: null,
+        liveModalPollingTimerId: null,
         apiCache: {}
     };
 
@@ -962,6 +964,7 @@
     }
 
     function openScoreModal(match) {
+        stopLiveMatchModalPolling();
         state.selectedMatch = match;
         renderH2hList('#modal-h2h-content', []);
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
@@ -1025,6 +1028,7 @@
     }
 
     function openLiveMatchModal(match) {
+        stopLiveMatchModalPolling();
         state.selectedMatch = match;
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
@@ -1058,6 +1062,7 @@
         $('#score-modal').classList.remove('hidden');
         tg.BackButton.show();
         loadLiveMatchDetails(match).catch(() => {});
+        scheduleLiveMatchModalPolling();
     }
 
     function setModalCenterRegular(match) {
@@ -1098,11 +1103,37 @@
             $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">—</p>';
             $('#modal-live-events').innerHTML = '<p class="empty-state">—</p>';
             resetLivePitchMarker();
+            stopLiveMatchModalPolling();
             return;
         }
         renderLiveLineup('#modal-live-home-lineup', data.homeLineup || []);
         renderLiveLineup('#modal-live-away-lineup', data.awayLineup || []);
         renderLiveEvents(data.events || []);
+    }
+
+    function scheduleLiveMatchModalPolling() {
+        stopLiveMatchModalPolling();
+        state.liveModalPollingTimerId = setTimeout(async () => {
+            const active = state.selectedMatch
+                && !$('#score-modal').classList.contains('hidden')
+                && !$('#modal-live-details').classList.contains('hidden');
+            if (!active) {
+                stopLiveMatchModalPolling();
+                return;
+            }
+            try {
+                await loadLiveMatchDetails(state.selectedMatch);
+            } catch (_) {
+                // keep polling even when a single request fails
+            }
+            scheduleLiveMatchModalPolling();
+        }, LIVE_MODAL_POLL_MS);
+    }
+
+    function stopLiveMatchModalPolling() {
+        if (!state.liveModalPollingTimerId) return;
+        clearTimeout(state.liveModalPollingTimerId);
+        state.liveModalPollingTimerId = null;
     }
 
     function renderLiveLineup(selector, lineup) {
@@ -1208,6 +1239,47 @@
         return t.toUpperCase().replaceAll('-', ' ');
     }
 
+    function translateShotNarrative(rawText) {
+        let out = (rawText || '').trim();
+        if (!out) return out;
+
+        const directReplacements = [
+            [/\bright footed shot\b/gi, 'удар правой ногой'],
+            [/\bleft footed shot\b/gi, 'удар левой ногой'],
+            [/\bheader\b/gi, 'удар головой'],
+            [/\bfrom the centre of the box\b/gi, 'из центра штрафной'],
+            [/\bfrom the left side of the box\b/gi, 'с левого края штрафной'],
+            [/\bfrom the right side of the box\b/gi, 'с правого края штрафной'],
+            [/\bfrom outside the box\b/gi, 'из-за пределов штрафной'],
+            [/\bfrom very close range\b/gi, 'с очень близкой дистанции'],
+            [/\bis high and wide to the right\b/gi, 'выше и правее ворот'],
+            [/\bis high and wide to the left\b/gi, 'выше и левее ворот'],
+            [/\bis too high\b/gi, 'выше ворот'],
+            [/\bmisses to the right\b/gi, 'мимо справа'],
+            [/\bmisses to the left\b/gi, 'мимо слева'],
+            [/\bmisses\b/gi, 'мимо'],
+            [/\bis blocked\b/gi, 'заблокирован'],
+            [/\bis saved in the bottom right corner by\b/gi, 'парирует в нижнем правом углу:'],
+            [/\bis saved in the bottom left corner by\b/gi, 'парирует в нижнем левом углу:'],
+            [/\bis saved in the top right corner by\b/gi, 'парирует в верхнем правом углу:'],
+            [/\bis saved in the top left corner by\b/gi, 'парирует в верхнем левом углу:'],
+            [/\bis saved in the centre of the goal by\b/gi, 'парирует по центру ворот:'],
+            [/\bis saved by\b/gi, 'парирует:']
+        ];
+        directReplacements.forEach(([pattern, replacement]) => {
+            out = out.replace(pattern, replacement);
+        });
+
+        out = out.replace(/\.\s*Assisted by (.+?) with a through ball\.\s*$/i, '. Ассист: $1 (проникающая передача).');
+        out = out.replace(/\.\s*Assisted by (.+?) with a cross\.\s*$/i, '. Ассист: $1 (навес).');
+        out = out.replace(/\.\s*Assisted by (.+?) with a headed pass\.\s*$/i, '. Ассист: $1 (скидка головой).');
+        out = out.replace(/\.\s*Assisted by (.+?) following a corner\.\s*$/i, '. Ассист: $1 (после углового).');
+        out = out.replace(/\.\s*Assisted by (.+?) following a set piece situation\.\s*$/i, '. Ассист: $1 (после стандарта).');
+        out = out.replace(/\.\s*Assisted by (.+?)\.\s*$/i, '. Ассист: $1.');
+
+        return out;
+    }
+
     function translateLiveEventText(text, type) {
         const raw = (text || '').trim();
         if (!raw) return raw;
@@ -1255,9 +1327,15 @@
         if (m) return m[1] + ' (' + m[2] + ') получает желтую карточку.';
 
         if (raw.startsWith('Goal!')) return raw.replace('Goal!', 'ГОЛ!');
-        if (raw.startsWith('Attempt saved.')) return raw.replace('Attempt saved.', 'Удар в створ, сейв.');
-        if (raw.startsWith('Attempt blocked.')) return raw.replace('Attempt blocked.', 'Удар заблокирован.');
-        if (raw.startsWith('Attempt missed.')) return raw.replace('Attempt missed.', 'Удар мимо.');
+        if (raw.startsWith('Attempt saved.')) {
+            return 'Удар в створ, сейв. ' + translateShotNarrative(raw.replace(/^Attempt saved\.\s*/i, ''));
+        }
+        if (raw.startsWith('Attempt blocked.')) {
+            return 'Удар заблокирован. ' + translateShotNarrative(raw.replace(/^Attempt blocked\.\s*/i, ''));
+        }
+        if (raw.startsWith('Attempt missed.')) {
+            return 'Удар мимо. ' + translateShotNarrative(raw.replace(/^Attempt missed\.\s*/i, ''));
+        }
         if (raw.startsWith('Hand ball by ')) return raw.replace('Hand ball by ', 'Игра рукой: ');
 
         if (t.includes('foul')) return 'Фол. ' + raw;
@@ -1322,6 +1400,7 @@
     }
 
     function closeScoreModal() {
+        stopLiveMatchModalPolling();
         $('#score-modal').classList.add('hidden');
         state.selectedMatch = null;
         if (!state.teamModalOpened && !state.h2hModalOpened && !state.predictWeekOpened && !state.myWeekOpened) {
