@@ -53,6 +53,7 @@
 - `application.yml` — базовый конфиг.
 - `application-local.yml` — локальный/тестовый профиль (`spring.profiles.active=local`).
 - `application-prod.yml` — прод профиль (`spring.profiles.active=prod`).
+- `src/main/resources/live_event_ru_translation.json` — статичный словарь RU-перевода live-комментариев ESPN (типы событий + шаблоны фраз; имена игроков не переводятся).
 - Локальные переопределения: `deploy/local.env` (по образцу `deploy/local.env.example`).
 - Прод переменные: `deploy/predicts.env` (по образцу `deploy/predicts.env.example`).
 
