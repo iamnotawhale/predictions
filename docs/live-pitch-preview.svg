@@ -18,22 +18,16 @@
   <rect x="160" y="190" width="880" height="570" rx="2" fill="#2b884b" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
 
   <!-- Grass stripes -->
-  <rect x="160" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="215" y="190" width="55" height="570" fill="#287f46"/>
-  <rect x="270" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="325" y="190" width="55" height="570" fill="#287f46"/>
-  <rect x="380" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="435" y="190" width="55" height="570" fill="#287f46"/>
-  <rect x="490" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="545" y="190" width="55" height="570" fill="#287f46"/>
-  <rect x="600" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="655" y="190" width="55" height="570" fill="#287f46"/>
-  <rect x="710" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="765" y="190" width="55" height="570" fill="#287f46"/>
-  <rect x="820" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="875" y="190" width="55" height="570" fill="#287f46"/>
-  <rect x="930" y="190" width="55" height="570" fill="#2d9150"/>
-  <rect x="985" y="190" width="55" height="570" fill="#287f46"/>
+  <rect x="160" y="190" width="88" height="570" fill="#2d9150"/>
+  <rect x="248" y="190" width="88" height="570" fill="#287f46"/>
+  <rect x="336" y="190" width="88" height="570" fill="#2d9150"/>
+  <rect x="424" y="190" width="88" height="570" fill="#287f46"/>
+  <rect x="512" y="190" width="88" height="570" fill="#2d9150"/>
+  <rect x="600" y="190" width="88" height="570" fill="#287f46"/>
+  <rect x="688" y="190" width="88" height="570" fill="#2d9150"/>
+  <rect x="776" y="190" width="88" height="570" fill="#287f46"/>
+  <rect x="864" y="190" width="88" height="570" fill="#2d9150"/>
+  <rect x="952" y="190" width="88" height="570" fill="#287f46"/>
 
   <!-- Pitch lines -->
   <rect x="160" y="190" width="880" height="570" rx="2" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
@@ -53,9 +47,9 @@
   <circle cx="947.81" cy="475" r="3.2" fill="rgba(255,255,255,0.86)"/>
 
   <!-- Penalty arcs (radius 9.15 m from penalty marks, outside penalty area) -->
-  <path d="M 298.29 413.72 A 76.69 76.69 0 0 1 298.29 536.28"
+  <path d="M 298 401.88 A 76.69 76.69 0 0 1 298 548.12"
         fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <path d="M 901.71 413.72 A 76.69 76.69 0 0 0 901.71 536.28"
+  <path d="M 902 401.88 A 76.69 76.69 0 0 0 902 548.12"
         fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
 
   <!-- Corner arcs (radius 1 m) -->
