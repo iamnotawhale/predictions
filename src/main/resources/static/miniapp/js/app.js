@@ -59,6 +59,9 @@
         liveModalPollingTimerId: null,
         livePitchStatsOpened: false,
         lastLiveEvents: [],
+        livePitchHomeColor: '#ffffff',
+        livePitchAwayColor: '#ffffff',
+        selectedPitchEventKey: null,
         liveEventRuCompiled: null,
         apiCache: {}
     };
@@ -1011,16 +1014,13 @@
     }
 
     function openScoreModal(match) {
+        closeLiveMatchModal(false);
         stopLiveMatchModalPolling();
-        hideLivePitchStatsOverlay(false);
-        state.lastLiveEvents = [];
-        resetLivePitchMarker();
         state.selectedMatch = match;
         renderH2hList('#modal-h2h-content', []);
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
         renderModalNews([]);
-        $('#modal-live-details').classList.add('hidden');
         $('#score-grid').classList.remove('hidden');
         $('#modal-h2h-section').classList.remove('hidden');
         $('#modal-news-section').classList.remove('hidden');
@@ -1077,42 +1077,22 @@
         loadScoreModalInsights(match).catch(() => {});
     }
 
+    function isLiveModalOpen() {
+        const modal = $('#live-modal');
+        return !!(modal && !modal.classList.contains('hidden'));
+    }
+
     function openLiveMatchModal(match) {
+        closeScoreModal(false);
         stopLiveMatchModalPolling();
         hideLivePitchStatsOverlay(false);
         state.lastLiveEvents = [];
+        state.selectedPitchEventKey = null;
         resetLivePitchMarker();
         state.selectedMatch = match;
-        renderTeamFormDots('#modal-home-form', match.homeCode, []);
-        renderTeamFormDots('#modal-away-form', match.awayCode, []);
-        renderModalNews([]);
-        setModalCenterLive(match);
-        $('#modal-home-code').textContent = match.homeCode || 'HOME';
-        $('#modal-away-code').textContent = match.awayCode || 'AWAY';
-        const homeLogo = $('#modal-home-logo');
-        const awayLogo = $('#modal-away-logo');
-        homeLogo.src = match.homeLogo || '';
-        awayLogo.src = match.awayLogo || '';
-        homeLogo.onerror = () => { homeLogo.style.visibility = 'hidden'; };
-        awayLogo.onerror = () => { awayLogo.style.visibility = 'hidden'; };
-        homeLogo.style.visibility = 'visible';
-        awayLogo.style.visibility = 'visible';
-        const oddsBlock = $('#modal-odds');
-        if (match.oddHome != null && match.oddDraw != null && match.oddAway != null) {
-            $('#odd-home').textContent = Number(match.oddHome).toFixed(2);
-            $('#odd-draw').textContent = Number(match.oddDraw).toFixed(2);
-            $('#odd-away').textContent = Number(match.oddAway).toFixed(2);
-            oddsBlock.classList.remove('hidden');
-        } else {
-            oddsBlock.classList.add('hidden');
-        }
-        $('#score-grid').classList.add('hidden');
-        $('#modal-delete').classList.add('hidden');
-        $('#modal-h2h-section').classList.add('hidden');
-        $('#modal-news-section').classList.add('hidden');
-        $('#modal-live-details').classList.remove('hidden');
+        setLiveModalHeader(match);
         renderLiveMatchDetailsPlaceholder(match);
-        $('#score-modal').classList.remove('hidden');
+        $('#live-modal').classList.remove('hidden');
         tg.BackButton.show();
         loadLiveMatchDetails(match).catch(() => {});
         scheduleLiveMatchModalPolling();
@@ -1126,14 +1106,30 @@
         $('#modal-kickoff').textContent = match.kickoff || '';
     }
 
-    function setModalCenterLive(match) {
-        const center = $('#modal-center-main');
+    function setLiveModalHeader(match) {
+        $('#live-modal-home-code').textContent = match.homeCode || 'HOME';
+        $('#live-modal-away-code').textContent = match.awayCode || 'AWAY';
+        const homeLogo = $('#live-modal-home-logo');
+        const awayLogo = $('#live-modal-away-logo');
+        if (homeLogo) {
+            homeLogo.src = match.homeLogo || '';
+            homeLogo.onerror = () => { homeLogo.style.visibility = 'hidden'; };
+            homeLogo.style.visibility = 'visible';
+        }
+        if (awayLogo) {
+            awayLogo.src = match.awayLogo || '';
+            awayLogo.onerror = () => { awayLogo.style.visibility = 'hidden'; };
+            awayLogo.style.visibility = 'visible';
+        }
+        const center = $('#live-modal-center-main');
         const hasScore = match.homeScore != null && match.awayScore != null;
         if (center) {
             center.textContent = hasScore ? (match.homeScore + ':' + match.awayScore) : 'LIVE';
         }
-        const liveClock = (match.status || '').trim();
-        $('#modal-kickoff').textContent = liveClock || (match.kickoff || '');
+        const clock = $('#live-modal-clock');
+        if (clock) {
+            clock.textContent = ((match.status || '').trim()) || (match.kickoff || '');
+        }
     }
 
     function renderLiveMatchDetailsPlaceholder(match) {
@@ -1143,6 +1139,7 @@
         $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
         $('#modal-live-events').innerHTML = '<p class="empty-state">Загрузка…</p>';
         state.lastLiveEvents = [];
+        state.selectedPitchEventKey = null;
         renderLivePitchStats([], match);
         resetLivePitchMarker();
     }
@@ -1163,6 +1160,9 @@
         }
         renderLiveLineup('#modal-live-home-lineup', data.homeLineup || []);
         renderLiveLineup('#modal-live-away-lineup', data.awayLineup || []);
+        state.livePitchHomeColor = data.homeColor || '#ffffff';
+        state.livePitchAwayColor = data.awayColor || '#ffffff';
+        state.selectedPitchEventKey = null;
         renderLiveEvents(data.events || [], match);
         renderLivePitchStats(data.matchStats || [], match);
     }
@@ -1225,10 +1225,10 @@
             overlay.classList.add('hidden');
         }
         const hint = $('#live-pitch-stats-hint');
-        if (hint && !$('#modal-live-details').classList.contains('hidden')) {
+        if (hint && isLiveModalOpen()) {
             hint.classList.remove('hidden');
         }
-        if (restoreMarker !== false && !$('#modal-live-details').classList.contains('hidden')) {
+        if (restoreMarker !== false && isLiveModalOpen()) {
             applyLivePitchMarkerFromEvents(state.lastLiveEvents, state.selectedMatch);
         }
     }
@@ -1236,15 +1236,16 @@
     function scheduleLiveMatchModalPolling() {
         stopLiveMatchModalPolling();
         state.liveModalPollingTimerId = setTimeout(async () => {
-            const active = state.selectedMatch
-                && !$('#score-modal').classList.contains('hidden')
-                && !$('#modal-live-details').classList.contains('hidden');
+            const active = state.selectedMatch && isLiveModalOpen();
             if (!active) {
                 stopLiveMatchModalPolling();
                 return;
             }
             try {
                 await loadLiveMatchDetails(state.selectedMatch);
+                if (state.selectedMatch) {
+                    setLiveModalHeader(state.selectedMatch);
+                }
             } catch (_) {
                 reportClientLog('WARN', 'live.poll.failed', 'live-details request failed');
             }
@@ -1322,6 +1323,119 @@
         return firstHalfEnded && !secondHalfStarted;
     }
 
+    function isShotEventType(type) {
+        const normalized = (type || '').toLowerCase();
+        return normalized.includes('goal') || normalized.includes('shot');
+    }
+
+    function isBlockedShotType(type) {
+        return (type || '').toLowerCase().includes('blocked');
+    }
+
+    function isGoalEventType(type) {
+        return (type || '').toLowerCase().includes('goal');
+    }
+
+    function isOnTargetShotType(type) {
+        const normalized = (type || '').toLowerCase();
+        return normalized.includes('shot-on-target') || normalized.includes('save');
+    }
+
+    function resolveGoalLineX(event) {
+        if (Number.isFinite(event.field2X)) {
+            return event.field2X >= 50 ? 100 : 0;
+        }
+        if (Number.isFinite(event.fieldX)) {
+            return event.fieldX >= 50 ? 100 : 0;
+        }
+        return 100;
+    }
+
+    /** End of ball path on pitch (ESPN fieldEnd). Not the GoalMouth target. */
+    function resolveShotEndPoint(event) {
+        const type = event.type || '';
+        const hasField2 = Number.isFinite(event.field2X) && Number.isFinite(event.field2Y);
+        const reachedGoalLine = hasField2 && event.field2X >= 95;
+
+        // Blocked: fieldEnd is the block — never draw goalPositionY on pitch.
+        if (isBlockedShotType(type)) {
+            return hasField2
+                ? { x: event.field2X, y: event.field2Y, kind: 'block' }
+                : null;
+        }
+
+        // Goal / on-target: end at goal mouth (goalPositionY on goal line).
+        if (isGoalEventType(type) || isOnTargetShotType(type)) {
+            if (Number.isFinite(event.goalPositionY)) {
+                return { x: resolveGoalLineX(event), y: event.goalPositionY, kind: 'goalmouth' };
+            }
+            if (hasField2) {
+                return {
+                    x: reachedGoalLine ? resolveGoalLineX(event) : event.field2X,
+                    y: event.field2Y,
+                    kind: 'goalmouth'
+                };
+            }
+            return null;
+        }
+
+        // Off-target / woodwork: fieldEnd (usually goal line); gY only if end is at goal line.
+        if (hasField2) {
+            if (reachedGoalLine && Number.isFinite(event.goalPositionY)) {
+                return { x: resolveGoalLineX(event), y: event.goalPositionY, kind: 'goalmouth' };
+            }
+            return { x: event.field2X, y: event.field2Y, kind: 'flight' };
+        }
+        if (Number.isFinite(event.goalPositionY)) {
+            return { x: resolveGoalLineX(event), y: event.goalPositionY, kind: 'goalmouth' };
+        }
+        return null;
+    }
+
+    function resolveEventTeamColor(match, event) {
+        const team = (event.teamName || '').trim().toLowerCase();
+        const home = (match?.homeName || '').trim().toLowerCase();
+        const away = (match?.awayName || '').trim().toLowerCase();
+        if (team && away && (team === away || away.includes(team) || team.includes(away))) {
+            return state.livePitchAwayColor || '#ffffff';
+        }
+        if (team && home && (team === home || home.includes(team) || team.includes(home))) {
+            return state.livePitchHomeColor || '#ffffff';
+        }
+        return state.livePitchHomeColor || '#ffffff';
+    }
+
+    function pitchPlayerLabel(event) {
+        const shortText = (event.shortText || '').trim();
+        if (!shortText) return '';
+        const parts = shortText.split(/\s+/);
+        if (parts.length <= 2) return parts[0] || '';
+        return parts.slice(0, -2).join(' ').split(' ').pop() || '';
+    }
+
+    function pitchEventLabel(event) {
+        const minute = event.minute || 'live';
+        const typeLabel = prettyLiveEventType(event.type);
+        const player = pitchPlayerLabel(event);
+        if (player) {
+            return (minute + ' ' + player + ' · ' + typeLabel).trim();
+        }
+        return (minute + ' ' + typeLabel).trim();
+    }
+
+    function livePitchEventKey(event) {
+        return [event.minute || '', event.type || '', event.text || '', event.shortText || ''].join('|');
+    }
+
+    function shotTrajectoryStyle(type) {
+        const normalized = (type || '').toLowerCase();
+        if (normalized.includes('blocked')) return 'solid';
+        if (normalized.includes('goal')) return 'solid';
+        if (normalized.includes('shot-on-target')) return 'dashed';
+        if (normalized.includes('off-target') || normalized.includes('woodwork')) return 'dashed';
+        return 'solid';
+    }
+
     function shouldShowLivePitchMarker(match, events) {
         if (state.livePitchStatsOpened) return false;
         if (isMatchHalftimeBreak(match, events)) return false;
@@ -1334,14 +1448,123 @@
             resetLivePitchMarker();
             return;
         }
-        const latestWithPosition = state.lastLiveEvents.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
-        if (latestWithPosition) {
-            const minute = latestWithPosition.minute || 'live';
-            const eventType = prettyLiveEventType(latestWithPosition.type);
-            const label = (minute + ' ' + eventType).trim();
-            updateLivePitchMarker(latestWithPosition.fieldX, latestWithPosition.fieldY, label);
+        let target = null;
+        if (state.selectedPitchEventKey) {
+            target = state.lastLiveEvents.find((e) => livePitchEventKey(e) === state.selectedPitchEventKey);
+        }
+        if (!target || !Number.isFinite(target.fieldX) || !Number.isFinite(target.fieldY)) {
+            target = state.lastLiveEvents.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
+        }
+        if (target) {
+            applyLivePitchMarker(target, match);
         } else {
             resetLivePitchMarker();
+        }
+    }
+
+    function applyLivePitchMarker(event, match) {
+        if (!event || !Number.isFinite(event.fieldX) || !Number.isFinite(event.fieldY)) {
+            resetLivePitchMarker();
+            return;
+        }
+        const teamColor = resolveEventTeamColor(match, event);
+        updateLivePitchMarker(event, match, teamColor, pitchEventLabel(event));
+    }
+
+    function updateLivePitchMarker(event, match, teamColor, label) {
+        const marker = $('#live-pitch-marker');
+        const goalMarker = $('#live-pitch-goal-marker');
+        const shotLine = $('#live-pitch-shot-line');
+        if (!marker) return;
+
+        const pitch = $('#modal-live-pitch');
+        const originX = clamp(event.fieldX, 0, 100);
+        const originY = clamp(event.fieldY, 0, 100);
+        marker.style.left = originX + '%';
+        marker.style.top = originY + '%';
+
+        const dot = marker.querySelector('.live-pitch-dot');
+        if (dot) {
+            dot.style.background = teamColor || '#ffffff';
+            dot.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 8px ' + (teamColor || '#ffffff') + '88';
+        }
+
+        const labelEl = $('#live-pitch-marker-label');
+        if (labelEl) {
+            labelEl.textContent = label || 'live';
+        }
+        positionLivePitchBadge(marker, pitch, originX, originY);
+        marker.classList.remove('hidden');
+
+        const showShotTrail = isShotEventType(event.type);
+        const endPoint = showShotTrail ? resolveShotEndPoint(event) : null;
+        const trajectoryStyle = showShotTrail ? shotTrajectoryStyle(event.type) : null;
+
+        if (shotLine) {
+            if (endPoint && trajectoryStyle) {
+                shotLine.setAttribute('x1', String(originX));
+                shotLine.setAttribute('y1', String(originY));
+                shotLine.setAttribute('x2', String(clamp(endPoint.x, 0, 100)));
+                shotLine.setAttribute('y2', String(clamp(endPoint.y, 0, 100)));
+                shotLine.style.stroke = teamColor || '#ffffff';
+                shotLine.classList.remove('hidden', 'is-solid', 'is-dashed');
+                shotLine.classList.add(trajectoryStyle === 'dashed' ? 'is-dashed' : 'is-solid');
+            } else {
+                shotLine.classList.add('hidden');
+            }
+        }
+
+        if (goalMarker) {
+            const endDot = goalMarker.querySelector('.live-pitch-goal-dot');
+            if (endPoint && showShotTrail && trajectoryStyle) {
+                goalMarker.style.left = clamp(endPoint.x, 0, 100) + '%';
+                goalMarker.style.top = clamp(endPoint.y, 0, 100) + '%';
+                if (endDot) {
+                    if (endPoint.kind === 'goalmouth') {
+                        endDot.style.background = '#ffd84d';
+                        endDot.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.35)';
+                    } else {
+                        endDot.style.background = 'rgba(255, 255, 255, 0.92)';
+                        endDot.style.boxShadow = '0 0 0 2px rgba(0, 0, 0, 0.35)';
+                    }
+                }
+                goalMarker.classList.remove('hidden');
+            } else {
+                goalMarker.classList.add('hidden');
+                if (endDot) {
+                    endDot.style.background = '';
+                    endDot.style.boxShadow = '';
+                }
+            }
+        }
+    }
+
+    function resetLivePitchMarker() {
+        const marker = $('#live-pitch-marker');
+        const goalMarker = $('#live-pitch-goal-marker');
+        const shotLine = $('#live-pitch-shot-line');
+        if (marker) {
+            marker.classList.add('hidden');
+            const meta = marker.querySelector('.live-pitch-marker-meta');
+            if (meta) {
+                meta.style.left = '';
+                meta.style.right = '';
+                meta.style.top = '';
+                meta.style.bottom = '';
+                meta.style.transform = '';
+            }
+            const dot = marker.querySelector('.live-pitch-dot');
+            if (dot) {
+                dot.style.background = '';
+                dot.style.boxShadow = '';
+            }
+        }
+        if (goalMarker) goalMarker.classList.add('hidden');
+        if (shotLine) shotLine.classList.add('hidden');
+        const endDot = goalMarker && goalMarker.querySelector('.live-pitch-goal-dot');
+        if (endDot) {
+            endDot.style.background = '';
+            endDot.style.boxShadow = '';
         }
     }
 
@@ -1351,6 +1574,8 @@
         if (!events.length) {
             container.innerHTML = '<p class="empty-state">Событий пока нет</p>';
             state.lastLiveEvents = [];
+        state.selectedPitchEventKey = null;
+            state.selectedPitchEventKey = null;
             resetLivePitchMarker();
             return;
         }
@@ -1358,45 +1583,25 @@
         events.forEach((e) => {
             const row = document.createElement('div');
             row.className = 'h2h-item';
+            if (state.selectedPitchEventKey && livePitchEventKey(e) === state.selectedPitchEventKey) {
+                row.classList.add('pitch-selected');
+            }
             const icon = liveEventIcon(e.type);
             const minute = e.minute ? '<span>' + e.minute + '</span>' : '<span>live</span>';
             const translatedText = translateLiveEventText(e.text || '', e.type);
             row.innerHTML =
                 '<div class="h2h-item-head"><span>' + icon + '</span>' + minute + '</div>' +
                 '<div class="h2h-item-score">' + translatedText + '</div>';
+            if (Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY)) {
+                row.classList.add('pitch-selectable');
+                row.addEventListener('click', () => {
+                    state.selectedPitchEventKey = livePitchEventKey(e);
+                    renderLiveEvents(events, match || state.selectedMatch);
+                });
+            }
             container.appendChild(row);
         });
         applyLivePitchMarkerFromEvents(events, match || state.selectedMatch);
-    }
-
-    function updateLivePitchMarker(fieldX, fieldY, label) {
-        const marker = $('#live-pitch-marker');
-        if (!marker) return;
-        const pitch = $('#modal-live-pitch');
-        const normalizedX = clamp(fieldX, 0, 100);
-        const normalizedY = clamp(fieldY, 0, 100);
-        marker.style.left = normalizedX + '%';
-        marker.style.top = normalizedY + '%';
-        const labelEl = $('#live-pitch-marker-label');
-        if (labelEl) {
-            labelEl.textContent = label || 'live';
-        }
-        positionLivePitchBadge(marker, pitch, normalizedX, normalizedY);
-        marker.classList.remove('hidden');
-    }
-
-    function resetLivePitchMarker() {
-        const marker = $('#live-pitch-marker');
-        if (!marker) return;
-        marker.classList.add('hidden');
-        const meta = marker.querySelector('.live-pitch-marker-meta');
-        if (meta) {
-            meta.style.left = '';
-            meta.style.right = '';
-            meta.style.top = '';
-            meta.style.bottom = '';
-            meta.style.transform = '';
-        }
     }
 
     function prettyLiveEventType(type) {
@@ -1468,14 +1673,39 @@
         return '•';
     }
 
-    function closeScoreModal() {
-        stopLiveMatchModalPolling();
-        hideLivePitchStatsOverlay();
-        $('#score-modal').classList.add('hidden');
-        state.selectedMatch = null;
-        if (!state.teamModalOpened && !state.h2hModalOpened && !state.predictWeekOpened && !state.myWeekOpened) {
+    function closeScoreModal(clearSelection) {
+        const modal = $('#score-modal');
+        if (modal) modal.classList.add('hidden');
+        if (clearSelection !== false) {
+            state.selectedMatch = null;
+        }
+        if (shouldHideBackButton()) {
             tg.BackButton.hide();
         }
+    }
+
+    function closeLiveMatchModal(clearSelection) {
+        stopLiveMatchModalPolling();
+        hideLivePitchStatsOverlay(false);
+        resetLivePitchMarker();
+        const modal = $('#live-modal');
+        if (modal) modal.classList.add('hidden');
+        if (clearSelection !== false) {
+            state.selectedMatch = null;
+        }
+        if (shouldHideBackButton()) {
+            tg.BackButton.hide();
+        }
+    }
+
+    function shouldHideBackButton() {
+        const scoreHidden = !$('#score-modal') || $('#score-modal').classList.contains('hidden');
+        return scoreHidden
+            && !isLiveModalOpen()
+            && !state.teamModalOpened
+            && !state.h2hModalOpened
+            && !state.predictWeekOpened
+            && !state.myWeekOpened;
     }
 
     async function loadScoreModalH2h(match) {
@@ -1644,7 +1874,7 @@
     function closeTeamModal() {
         $('#team-modal').classList.add('hidden');
         state.teamModalOpened = false;
-        if (!state.h2hModalOpened && $('#score-modal').classList.contains('hidden') && !state.predictWeekOpened && !state.myWeekOpened) {
+        if (shouldHideBackButton()) {
             tg.BackButton.hide();
         }
     }
@@ -1652,7 +1882,7 @@
     function closeH2hModal() {
         $('#h2h-modal').classList.add('hidden');
         state.h2hModalOpened = false;
-        if (!state.teamModalOpened && $('#score-modal').classList.contains('hidden') && !state.predictWeekOpened && !state.myWeekOpened) {
+        if (shouldHideBackButton()) {
             tg.BackButton.hide();
         }
     }
@@ -1810,13 +2040,14 @@
         });
 
         $('#modal-close').addEventListener('click', closeScoreModal);
+        $('#live-modal-close').addEventListener('click', closeLiveMatchModal);
         $('#modal-delete').addEventListener('click', deletePrediction);
         $('#team-modal-close').addEventListener('click', closeTeamModal);
         $('#h2h-modal-close').addEventListener('click', closeH2hModal);
         const livePitch = $('#modal-live-pitch');
         if (livePitch) {
             livePitch.addEventListener('click', () => {
-                if ($('#modal-live-details').classList.contains('hidden')) return;
+                if (!isLiveModalOpen()) return;
                 if (state.livePitchStatsOpened) {
                     hideLivePitchStatsOverlay();
                 } else {
@@ -1832,6 +2063,10 @@
             }
             if (state.teamModalOpened) {
                 closeTeamModal();
+                return;
+            }
+            if (isLiveModalOpen()) {
+                closeLiveMatchModal();
                 return;
             }
             if (!$('#score-modal').classList.contains('hidden')) {

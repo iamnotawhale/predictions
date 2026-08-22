@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
+import java.io.InputStream;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -76,6 +77,7 @@ public class MiniAppService {
     private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final String SPORTS_RU_TEAM_RSS = "https://www.sports.ru/stat/export/rss/taglenta.xml?id=";
     private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
+    private static final Map<String, int[]> TEAM_PITCH_COLORS = loadTeamPitchColors();
     private static final long TEAM_NEWS_CACHE_MS = 120_000L;
     private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
             "ft", "aet", "pen", "canc", "abd", "awrd", "wo"
@@ -207,13 +209,13 @@ public class MiniAppService {
         requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match == null) {
-            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of(), List.of());
+            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of(), List.of(), null, null);
         }
         boolean live = isLiveStatus(match.getStatus())
                        && match.getHomeTeamScore() != null
                        && match.getAwayTeamScore() != null;
         if (!live) {
-            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of(), List.of());
+            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of(), List.of(), null, null);
         }
         Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getPublicId());
         List<LineupPlayerItem> homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
@@ -221,7 +223,15 @@ public class MiniAppService {
         JsonNode summaryRoot = loadEspnSummaryRoot(match);
         List<MatchEventItem> events = loadLiveEvents(summaryRoot);
         List<MatchStatItem> matchStats = loadLiveStats(summaryRoot);
-        return new LiveMatchDetailsResponse(true, homeLineup, awayLineup, events, matchStats);
+        return new LiveMatchDetailsResponse(
+                true,
+                homeLineup,
+                awayLineup,
+                events,
+                matchStats,
+                pitchColorForTeamId(match.getHomeTeamId()),
+                pitchColorForTeamId(match.getAwayTeamId())
+        );
     }
 
     public LeaderboardResponse leaderboard(String telegramId, Integer weekId) {
@@ -734,7 +744,21 @@ public class MiniAppService {
                 Double fieldY = item.path("play").path("fieldPositionY").isNumber()
                         ? item.path("play").path("fieldPositionY").asDouble()
                         : null;
-                parsed.add(new LiveCommentaryEvent(period, timeValue, sequence, minute, text, type, fieldX, fieldY));
+                Double field2X = item.path("play").path("fieldPosition2X").isNumber()
+                        ? item.path("play").path("fieldPosition2X").asDouble()
+                        : null;
+                Double field2Y = item.path("play").path("fieldPosition2Y").isNumber()
+                        ? item.path("play").path("fieldPosition2Y").asDouble()
+                        : null;
+                Double goalPositionY = item.path("play").path("goalPositionY").isNumber()
+                        ? item.path("play").path("goalPositionY").asDouble()
+                        : null;
+                String teamName = item.path("play").path("team").path("displayName").asText("").trim();
+                String shortText = item.path("play").path("shortText").asText("").trim();
+                parsed.add(new LiveCommentaryEvent(
+                        period, timeValue, sequence, minute, text, type,
+                        fieldX, fieldY, field2X, field2Y, goalPositionY, teamName, shortText
+                ));
             }
             if (parsed.isEmpty()) {
                 return List.of();
@@ -746,7 +770,18 @@ public class MiniAppService {
                     .reversed());
             return parsed.stream()
                     .limit(22)
-                    .map(item -> new MatchEventItem(item.minute(), item.text(), item.type(), item.fieldX(), item.fieldY()))
+                    .map(item -> new MatchEventItem(
+                            item.minute(),
+                            item.text(),
+                            item.type(),
+                            item.fieldX(),
+                            item.fieldY(),
+                            item.field2X(),
+                            item.field2Y(),
+                            item.goalPositionY(),
+                            item.teamName(),
+                            item.shortText()
+                    ))
                     .toList();
         } catch (Exception e) {
             log.warn("MiniApp live commentary parse failed: error={}", e.getMessage());
@@ -855,8 +890,43 @@ public class MiniAppService {
             String text,
             String type,
             Double fieldX,
-            Double fieldY
+            Double fieldY,
+            Double field2X,
+            Double field2Y,
+            Double goalPositionY,
+            String teamName,
+            String shortText
     ) {
+    }
+
+    private static Map<String, int[]> loadTeamPitchColors() {
+        Map<String, int[]> map = new LinkedHashMap<>();
+        try (InputStream input = MiniAppService.class.getClassLoader().getResourceAsStream("team_colors.json")) {
+            if (input == null) {
+                return map;
+            }
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(input);
+            root.fields().forEachRemaining(entry -> {
+                JsonNode home = entry.getValue().path("home");
+                map.put(entry.getKey(), new int[]{
+                        home.path("r").asInt(255),
+                        home.path("g").asInt(255),
+                        home.path("b").asInt(255)
+                });
+            });
+        } catch (Exception e) {
+            LoggerFactory.getLogger(MiniAppService.class).warn("team_colors.json load failed: {}", e.getMessage());
+        }
+        return map;
+    }
+
+    private String pitchColorForTeamId(int teamId) {
+        int[] rgb = TEAM_PITCH_COLORS.get(String.valueOf(teamId));
+        if (rgb == null) {
+            return "#ffffff";
+        }
+        return String.format("#%02x%02x%02x", rgb[0], rgb[1], rgb[2]);
     }
 
     private List<FormItem> buildRecentForm(int teamId, int limit) {

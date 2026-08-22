@@ -1,72 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#1b2430"/>
       <stop offset="100%" stop-color="#131a22"/>
     </linearGradient>
+    <filter id="dot-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#f42727" flood-opacity="0.55"/>
+    </filter>
   </defs>
 
-  <rect width="1200" height="1100" fill="url(#bg)"/>
+  <!-- Pitch: x=160+880*p/100, y=120+570*p/100
+       ESPN BRE-TOT: Jensen 3' blocked
+       fieldStart 89/84.9 → fieldEnd 94.9/65.4
+       goalPosition.y=48.2 is GoalMouth only — NOT drawn on pitch -->
 
-  <rect x="120" y="80" width="960" height="930" rx="24" fill="#1f2a36" stroke="rgba(255,255,255,0.14)"/>
+  <rect width="1200" height="820" fill="url(#bg)"/>
+  <rect x="120" y="80" width="960" height="660" rx="24" fill="#1f2a36" stroke="rgba(255,255,255,0.14)"/>
 
-  <text x="160" y="150" fill="#a8b5c3" font-family="Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="1.2">
-    LIVE MATCH
-  </text>
+  <rect x="160" y="120" width="880" height="570" rx="2" fill="#2b884b" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+  <rect x="160" y="120" width="88" height="570" fill="#2d9150"/>
+  <rect x="248" y="120" width="88" height="570" fill="#287f46"/>
+  <rect x="336" y="120" width="88" height="570" fill="#2d9150"/>
+  <rect x="424" y="120" width="88" height="570" fill="#287f46"/>
+  <rect x="512" y="120" width="88" height="570" fill="#2d9150"/>
+  <rect x="600" y="120" width="88" height="570" fill="#287f46"/>
+  <rect x="688" y="120" width="88" height="570" fill="#2d9150"/>
+  <rect x="776" y="120" width="88" height="570" fill="#287f46"/>
+  <rect x="864" y="120" width="88" height="570" fill="#2d9150"/>
+  <rect x="952" y="120" width="88" height="570" fill="#287f46"/>
 
-  <!-- Professional-style pitch ratio 105:68 (~1.544) -->
-  <rect x="160" y="190" width="880" height="570" rx="2" fill="#2b884b" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+  <rect x="160" y="120" width="880" height="570" rx="2" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <line x1="600" y1="120" x2="600" y2="690" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <circle cx="600" cy="405" r="77" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <rect x="160" y="236" width="138" height="338" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <rect x="902" y="236" width="138" height="338" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <rect x="160" y="328" width="46" height="154" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <rect x="994" y="328" width="46" height="154" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <circle cx="252.19" cy="405" r="3.2" fill="rgba(255,255,255,0.86)"/>
+  <circle cx="947.81" cy="405" r="3.2" fill="rgba(255,255,255,0.86)"/>
+  <path d="M 298 331.88 A 76.69 76.69 0 0 1 298 478.12" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 902 331.88 A 76.69 76.69 0 0 0 902 478.12" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 160 134 A 14 14 0 0 0 174 120" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 1026 120 A 14 14 0 0 0 1040 134" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 160 676 A 14 14 0 0 1 174 690" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <path d="M 1026 690 A 14 14 0 0 1 1040 676" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
 
-  <!-- Grass stripes -->
-  <rect x="160" y="190" width="88" height="570" fill="#2d9150"/>
-  <rect x="248" y="190" width="88" height="570" fill="#287f46"/>
-  <rect x="336" y="190" width="88" height="570" fill="#2d9150"/>
-  <rect x="424" y="190" width="88" height="570" fill="#287f46"/>
-  <rect x="512" y="190" width="88" height="570" fill="#2d9150"/>
-  <rect x="600" y="190" width="88" height="570" fill="#287f46"/>
-  <rect x="688" y="190" width="88" height="570" fill="#2d9150"/>
-  <rect x="776" y="190" width="88" height="570" fill="#287f46"/>
-  <rect x="864" y="190" width="88" height="570" fill="#2d9150"/>
-  <rect x="952" y="190" width="88" height="570" fill="#287f46"/>
+  <!-- fieldStart → fieldEnd (actual ball path to block) -->
+  <line x1="943.2" y1="603.93" x2="995.12" y2="492.78"
+        stroke="#f42727" stroke-width="3" stroke-linecap="round" opacity="0.92"/>
 
-  <!-- Pitch lines -->
-  <rect x="160" y="190" width="880" height="570" rx="2" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <line x1="600" y1="190" x2="600" y2="760" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <circle cx="600" cy="475" r="77" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <!-- fieldEnd — block -->
+  <circle cx="995.12" cy="492.78" r="5" fill="rgba(255,255,255,0.92)" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
 
-  <!-- Penalty areas -->
-  <rect x="160" y="306" width="138" height="338" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <rect x="902" y="306" width="138" height="338" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
+  <!-- fieldStart — Jensen shot (Brentford red) -->
+  <circle cx="943.2" cy="603.93" r="8" fill="#f42727" stroke="rgba(0,0,0,0.45)" stroke-width="2" filter="url(#dot-glow)"/>
 
-  <!-- Goal areas -->
-  <rect x="160" y="398" width="46" height="154" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <rect x="994" y="398" width="46" height="154" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-
-  <!-- Penalty marks (11 m from goal line) -->
-  <circle cx="252.19" cy="475" r="3.2" fill="rgba(255,255,255,0.86)"/>
-  <circle cx="947.81" cy="475" r="3.2" fill="rgba(255,255,255,0.86)"/>
-
-  <!-- Penalty arcs (radius 9.15 m from penalty marks, outside penalty area) -->
-  <path d="M 298 401.88 A 76.69 76.69 0 0 1 298 548.12"
-        fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <path d="M 902 401.88 A 76.69 76.69 0 0 0 902 548.12"
-        fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-
-  <!-- Corner arcs (radius 1 m) -->
-  <path d="M 160 204 A 14 14 0 0 0 174 190" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <path d="M 1026 190 A 14 14 0 0 0 1040 204" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <path d="M 160 746 A 14 14 0 0 1 174 760" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-  <path d="M 1026 760 A 14 14 0 0 1 1040 746" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
-
-  <!-- Last event marker -->
-  <circle cx="852" cy="350" r="7.5" fill="#ffffff" stroke="rgba(0,0,0,0.35)" stroke-width="2"/>
-  <rect x="784" y="364" width="136" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
-  <text x="852" y="385" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="18" font-weight="800">67' GOAL</text>
-
-  <text x="160" y="820" fill="#a8b5c3" font-family="Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="0.8">
-    Match Events
-  </text>
-
-  <rect x="160" y="850" width="880" height="62" rx="12" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)"/>
-  <text x="190" y="889" fill="#ffffff" font-family="Arial, sans-serif" font-size="22">67' Goal - right-footed shot from center of box</text>
+  <rect x="742" y="618" width="200" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
+  <text x="842" y="639" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16" font-weight="800">3' Jensen · БЛОК</text>
 </svg>
