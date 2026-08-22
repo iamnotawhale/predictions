@@ -99,6 +99,29 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record FormItem(
+            String outcome,
+            int ownScore,
+            int opponentScore,
+            String opponentCode,
+            String kickoff
+    ) {
+    }
+
+    public record MatchNewsItem(
+            String title,
+            String url,
+            String publishedAt
+    ) {
+    }
+
+    public record MatchInsightsResponse(
+            List<FormItem> homeForm,
+            List<FormItem> awayForm,
+            List<MatchNewsItem> news
+    ) {
+    }
+
     public record ClientLogRequest(
             String level,
             String event,

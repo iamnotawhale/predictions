@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css?v=20260822-5">
+    <link rel="stylesheet" href="css/app.css?v=20260822-7">
 </head>
 <body>
 <div id="offline-banner" class="offline-banner hidden" role="status"></div>
@@ -58,7 +58,7 @@
                 </table>
             </div>
         </section>
-        <div class="miniapp-version">ver. 20260822-5</div>
+        <div class="miniapp-version">ver. 20260822-7</div>
     </main>
 
     <main id="screen-today" class="screen">
@@ -117,6 +117,7 @@
             <div class="modal-team modal-team-home">
                 <img id="modal-home-logo" class="modal-team-logo" alt="home logo">
                 <div id="modal-home-code" class="modal-team-code">HOME</div>
+                <div id="modal-home-form" class="modal-team-form"></div>
             </div>
             <div class="modal-match-center">
                 <div class="modal-vs">VS</div>
@@ -125,6 +126,7 @@
             <div class="modal-team modal-team-away">
                 <img id="modal-away-logo" class="modal-team-logo" alt="away logo">
                 <div id="modal-away-code" class="modal-team-code">AWAY</div>
+                <div id="modal-away-form" class="modal-team-form"></div>
             </div>
         </div>
         <div id="modal-odds" class="modal-odds hidden">
@@ -143,6 +145,12 @@
             <div id="modal-h2h-content" class="h2h-list"></div>
         </section>
         <button id="modal-delete" class="btn-danger hidden">Удалить прогноз</button>
+        <section class="modal-h2h">
+            <h4>Новости матча</h4>
+            <div id="modal-news-content" class="modal-news-list">
+                <p class="empty-state">Загрузка…</p>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -176,6 +184,6 @@
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/app.js?v=20260822-5"></script>
+<script src="js/app.js?v=20260822-7"></script>
 </body>
 </html>

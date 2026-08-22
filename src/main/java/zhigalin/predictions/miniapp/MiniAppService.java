@@ -1,6 +1,12 @@
 package zhigalin.predictions.miniapp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -20,6 +26,9 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardEntry;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchNewsItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
@@ -42,6 +51,7 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
+import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
 import static zhigalin.predictions.service.odds.OddsService.ODDS;
 
@@ -49,6 +59,8 @@ import static zhigalin.predictions.service.odds.OddsService.ODDS;
 public class MiniAppService {
 
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
+    private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
+    private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
     private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
             "ft", "aet", "pen", "canc", "abd", "awrd", "wo"
     );
@@ -58,19 +70,22 @@ public class MiniAppService {
     private final PredictionService predictionService;
     private final HeadToHeadService headToHeadService;
     private final OddsService oddsService;
+    private final ObjectMapper objectMapper;
 
     public MiniAppService(
             UserService userService,
             MatchService matchService,
             PredictionService predictionService,
             HeadToHeadService headToHeadService,
-            OddsService oddsService
+            OddsService oddsService,
+            ObjectMapper objectMapper
     ) {
         this.userService = userService;
         this.matchService = matchService;
         this.predictionService = predictionService;
         this.headToHeadService = headToHeadService;
         this.oddsService = oddsService;
+        this.objectMapper = objectMapper;
     }
 
     public User requireUser(String telegramId) {
@@ -132,6 +147,18 @@ public class MiniAppService {
         );
         boolean hasPrediction = prediction != null;
         return toMatchItem(match, telegramId, hasPrediction, prediction);
+    }
+
+    public MatchInsightsResponse matchInsights(String telegramId, String homeCode, String awayCode) {
+        requireUser(telegramId);
+        Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
+        if (match == null) {
+            return new MatchInsightsResponse(List.of(), List.of(), List.of());
+        }
+        List<FormItem> homeForm = buildRecentForm(match.getHomeTeamId(), 5);
+        List<FormItem> awayForm = buildRecentForm(match.getAwayTeamId(), 5);
+        List<MatchNewsItem> news = loadMatchNews(match, 4);
+        return new MatchInsightsResponse(homeForm, awayForm, news);
     }
 
     public LeaderboardResponse leaderboard(String telegramId, Integer weekId) {
@@ -572,5 +599,73 @@ public class MiniAppService {
                 match.getAwayTeamScore(),
                 match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : ""
         );
+    }
+
+    private List<FormItem> buildRecentForm(int teamId, int limit) {
+        return matchService.findAll().stream()
+                .filter(match -> match.getHomeTeamId() == teamId || match.getAwayTeamId() == teamId)
+                .filter(match -> match.getHomeTeamScore() != null && match.getAwayTeamScore() != null)
+                .filter(match -> isFinishedStatus(match.getStatus()))
+                .sorted(Comparator.comparing(Match::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .limit(limit)
+                .map(match -> toFormItem(match, teamId))
+                .toList();
+    }
+
+    private FormItem toFormItem(Match match, int teamId) {
+        boolean teamIsHome = match.getHomeTeamId() == teamId;
+        int ownScore = teamIsHome ? match.getHomeTeamScore() : match.getAwayTeamScore();
+        int opponentScore = teamIsHome ? match.getAwayTeamScore() : match.getHomeTeamScore();
+        int opponentId = teamIsHome ? match.getAwayTeamId() : match.getHomeTeamId();
+        Team opponent = DaoUtil.TEAMS.get(opponentId);
+        String outcome = ownScore > opponentScore ? "W" : ownScore < opponentScore ? "L" : "D";
+        return new FormItem(
+                outcome,
+                ownScore,
+                opponentScore,
+                opponent != null ? opponent.getCode() : "?",
+                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : ""
+        );
+    }
+
+    private List<MatchNewsItem> loadMatchNews(Match match, int limit) {
+        if (match == null || match.getEspnId() == null || match.getEspnId().isBlank()) {
+            return List.of();
+        }
+        try {
+            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
+                    .queryString("event", match.getEspnId())
+                    .asString();
+            JsonNode root = objectMapper.readTree(response.getBody());
+            JsonNode articles = root.path("news").path("articles");
+            if (!articles.isArray() || articles.isEmpty()) {
+                return List.of();
+            }
+            List<MatchNewsItem> news = new ArrayList<>();
+            for (JsonNode article : articles) {
+                if (news.size() >= limit) {
+                    break;
+                }
+                String title = article.path("headline").asText("");
+                String url = article.path("links").path("web").path("href").asText("");
+                if (title.isBlank() || url.isBlank()) {
+                    continue;
+                }
+                String publishedRaw = article.path("published").asText("");
+                String published = "";
+                if (!publishedRaw.isBlank()) {
+                    try {
+                        LocalDateTime dt = LocalDateTime.ofInstant(Instant.parse(publishedRaw), ZoneId.of(AppTimeZones.DISPLAY.getId()));
+                        published = dt.format(NEWS_TS);
+                    } catch (Exception ignored) {
+                        published = "";
+                    }
+                }
+                news.add(new MatchNewsItem(title, url, published));
+            }
+            return news;
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 }
