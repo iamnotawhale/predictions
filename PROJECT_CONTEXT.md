@@ -122,7 +122,7 @@
   - live-подсчёт очков в leaderboard считает очки по тем же правилам, что и финальный зачёт (включая `-1`), и учитывает пользователей без прогноза на уже live/finished матчах.
   - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`);
   - для live-матча в модалке центральный блок показывает текущий счёт и live-статус/время (`17'`, `HT`) вместо `VS + kickoff`;
-  - live-события для модалки берутся из ESPN summary endpoint `.../summary?event=<espnEventId>` только из `commentary`, сортируются по времени (свежие сверху), а в UI показываются с иконкой типа события (по `commentary.play.type.type`).
+  - live-события для модалки берутся из ESPN summary endpoint `.../summary?event=<espnEventId>` только из `commentary`, сортируются с учётом тайма (`play.period.number`), затем времени/sequence (свежие сверху), а в UI показываются с иконкой типа события (по `commentary.play.type.type`).
   - маппинг иконок live-событий кастомизирован: пенальти `P`, офсайд белый флаг, удар в створ target, угловой красный флаг.
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
 - `ApiClient.getLineups(matchPublicId)` использует in-memory `ConcurrentHashMap` кэш (по `publicId`) и держит составы до завершения матча; очистка вызывается в `DataInitService` и `NotificationService.sendFullTime`.
