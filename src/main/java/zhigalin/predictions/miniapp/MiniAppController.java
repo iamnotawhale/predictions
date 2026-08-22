@@ -222,7 +222,15 @@ public class MiniAppController {
 
     @ExceptionHandler(MiniAppException.class)
     public ResponseEntity<ActionResponse> handleMiniApp(MiniAppException ex) {
+        log.warn("MiniApp handled error: status={}, message={}", ex.getStatus(), ex.getMessage());
         return ResponseEntity.status(ex.getStatus()).body(new ActionResponse(false, ex.getMessage()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ActionResponse> handleUnknown(Exception ex) {
+        log.error("MiniApp unhandled exception: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ActionResponse(false, "Внутренняя ошибка сервера."));
     }
 
     private String requireTelegramId(String initData) {

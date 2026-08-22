@@ -58,6 +58,7 @@
         todayPollingTimerId: null,
         liveModalPollingTimerId: null,
         livePitchStatsOpened: false,
+        lastLiveEvents: [],
         apiCache: {}
     };
 
@@ -95,11 +96,18 @@
     }
 
     window.addEventListener('error', (e) => {
-        reportClientLog('ERROR', 'window.error', (e && e.message) ? e.message : 'unknown');
+        const message = e && e.message ? e.message : 'unknown';
+        const file = e && e.filename ? e.filename : '-';
+        const line = e && Number.isFinite(e.lineno) ? e.lineno : '-';
+        const col = e && Number.isFinite(e.colno) ? e.colno : '-';
+        const stack = e && e.error && e.error.stack ? e.error.stack : '-';
+        reportClientLog('ERROR', 'window.error',
+            message + ' @' + file + ':' + line + ':' + col + ' stack=' + stack);
     });
     window.addEventListener('unhandledrejection', (e) => {
         const reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'unknown';
-        reportClientLog('ERROR', 'window.unhandledrejection', reason);
+        const stack = e && e.reason && e.reason.stack ? e.reason.stack : '-';
+        reportClientLog('ERROR', 'window.unhandledrejection', reason + ' stack=' + stack);
     });
 
     function headers() {
@@ -150,7 +158,8 @@
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
                 setOfflineBanner(true, data.message || ('Ошибка ' + res.status));
-                reportClientLog('ERROR', 'api.error', path + ' status=' + res.status + ' message=' + (data.message || 'n/a'));
+                reportClientLog('ERROR', 'api.error',
+                    path + ' status=' + res.status + ' message=' + (data.message || 'n/a'));
                 throw new ApiError(data.message || 'Ошибка запроса', res.status, data);
             }
             setOfflineBanner(false);
@@ -158,6 +167,9 @@
         } catch (e) {
             if (!(e instanceof ApiError)) {
                 setOfflineBanner(true, 'Нет связи с сервером');
+                reportClientLog('ERROR', 'api.network',
+                    path + ' message=' + (e && e.message ? e.message : 'network')
+                    + ' online=' + navigator.onLine);
             }
             throw e;
         }
@@ -999,7 +1011,9 @@
 
     function openScoreModal(match) {
         stopLiveMatchModalPolling();
-        hideLivePitchStatsOverlay();
+        hideLivePitchStatsOverlay(false);
+        state.lastLiveEvents = [];
+        resetLivePitchMarker();
         state.selectedMatch = match;
         renderH2hList('#modal-h2h-content', []);
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
@@ -1064,7 +1078,9 @@
 
     function openLiveMatchModal(match) {
         stopLiveMatchModalPolling();
-        hideLivePitchStatsOverlay();
+        hideLivePitchStatsOverlay(false);
+        state.lastLiveEvents = [];
+        resetLivePitchMarker();
         state.selectedMatch = match;
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
@@ -1125,6 +1141,7 @@
         $('#modal-live-home-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
         $('#modal-live-away-lineup').innerHTML = '<p class="empty-state">Загрузка…</p>';
         $('#modal-live-events').innerHTML = '<p class="empty-state">Загрузка…</p>';
+        state.lastLiveEvents = [];
         renderLivePitchStats([], match);
         resetLivePitchMarker();
     }
@@ -1145,7 +1162,7 @@
         }
         renderLiveLineup('#modal-live-home-lineup', data.homeLineup || []);
         renderLiveLineup('#modal-live-away-lineup', data.awayLineup || []);
-        renderLiveEvents(data.events || []);
+        renderLiveEvents(data.events || [], match);
         renderLivePitchStats(data.matchStats || [], match);
     }
 
@@ -1197,9 +1214,10 @@
         overlay.classList.remove('hidden');
         const hint = $('#live-pitch-stats-hint');
         if (hint) hint.classList.add('hidden');
+        resetLivePitchMarker();
     }
 
-    function hideLivePitchStatsOverlay() {
+    function hideLivePitchStatsOverlay(restoreMarker) {
         state.livePitchStatsOpened = false;
         const overlay = $('#live-pitch-stats-overlay');
         if (overlay) {
@@ -1208,6 +1226,9 @@
         const hint = $('#live-pitch-stats-hint');
         if (hint && !$('#modal-live-details').classList.contains('hidden')) {
             hint.classList.remove('hidden');
+        }
+        if (restoreMarker !== false && !$('#modal-live-details').classList.contains('hidden')) {
+            applyLivePitchMarkerFromEvents(state.lastLiveEvents, state.selectedMatch);
         }
     }
 
@@ -1224,7 +1245,7 @@
             try {
                 await loadLiveMatchDetails(state.selectedMatch);
             } catch (_) {
-                // keep polling even when a single request fails
+                reportClientLog('WARN', 'live.poll.failed', 'live-details request failed');
             }
             scheduleLiveMatchModalPolling();
         }, LIVE_MODAL_POLL_MS);
@@ -1257,11 +1278,56 @@
         });
     }
 
-    function renderLiveEvents(events) {
+    function isMatchHalftimeBreak(match, events) {
+        const status = normalizeStatus(match?.status);
+        if (status === 'ht') return true;
+        const rawStatus = (match?.status || '').trim();
+        if (/^ht$/i.test(rawStatus)) return true;
+
+        if (!events || !events.length) return false;
+        let firstHalfEnded = false;
+        let secondHalfStarted = false;
+        events.forEach((e) => {
+            const text = (e.text || '').trim();
+            if (text.includes('First Half ends') || text.startsWith('Перерыв,')) {
+                firstHalfEnded = true;
+            }
+            if (text.includes('Second Half begins') || text.startsWith('Начался второй тайм')) {
+                secondHalfStarted = true;
+            }
+        });
+        return firstHalfEnded && !secondHalfStarted;
+    }
+
+    function shouldShowLivePitchMarker(match, events) {
+        if (state.livePitchStatsOpened) return false;
+        if (isMatchHalftimeBreak(match, events)) return false;
+        return true;
+    }
+
+    function applyLivePitchMarkerFromEvents(events, match) {
+        state.lastLiveEvents = events || [];
+        if (!shouldShowLivePitchMarker(match, state.lastLiveEvents)) {
+            resetLivePitchMarker();
+            return;
+        }
+        const latestWithPosition = state.lastLiveEvents.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
+        if (latestWithPosition) {
+            const minute = latestWithPosition.minute || 'live';
+            const eventType = prettyLiveEventType(latestWithPosition.type);
+            const label = (minute + ' ' + eventType).trim();
+            updateLivePitchMarker(latestWithPosition.fieldX, latestWithPosition.fieldY, label);
+        } else {
+            resetLivePitchMarker();
+        }
+    }
+
+    function renderLiveEvents(events, match) {
         const container = $('#modal-live-events');
         if (!container) return;
         if (!events.length) {
             container.innerHTML = '<p class="empty-state">Событий пока нет</p>';
+            state.lastLiveEvents = [];
             resetLivePitchMarker();
             return;
         }
@@ -1277,15 +1343,7 @@
                 '<div class="h2h-item-score">' + translatedText + '</div>';
             container.appendChild(row);
         });
-        const latestWithPosition = events.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
-        if (latestWithPosition) {
-            const minute = latestWithPosition.minute || 'live';
-            const eventType = prettyLiveEventType(latestWithPosition.type);
-            const label = (minute + ' ' + eventType).trim();
-            updateLivePitchMarker(latestWithPosition.fieldX, latestWithPosition.fieldY, label);
-        } else {
-            resetLivePitchMarker();
-        }
+        applyLivePitchMarkerFromEvents(events, match || state.selectedMatch);
     }
 
     function updateLivePitchMarker(fieldX, fieldY, label) {
@@ -1960,7 +2018,8 @@
         } catch (e) {
             showToast(e.message, 'error');
             $('#user-greeting').textContent = e.message;
-            reportClientLog('ERROR', 'init.failed', e && e.message ? e.message : 'unknown');
+            const stack = e && e.stack ? e.stack : '-';
+            reportClientLog('ERROR', 'init.failed', (e && e.message ? e.message : 'unknown') + ' stack=' + stack);
         }
     }
 
