@@ -1,0 +1,250 @@
+{
+  "meta": {
+    "version": 3,
+    "locale": "ru",
+    "source": "ESPN summary commentary (EPL)",
+    "updatedAt": "2026-08-22"
+  },
+  "eventTypeLabels": {
+    "goal": "ГОЛ",
+    "goal---header": "ГОЛ (ГОЛОВОЙ)",
+    "goal---volley": "ГОЛ (С ЛЕТА)",
+    "goal---free-kick": "ГОЛ (ШТРАФНОЙ)",
+    "shot-on-target": "УДАР В СТВОР",
+    "shot-off-target": "УДАР МИМО",
+    "shot-blocked": "УДАР ЗАБЛОКИРОВАН",
+    "shot-hit-woodwork": "ШТАНГА",
+    "corner-awarded": "УГЛОВОЙ",
+    "offside": "ОФСАЙД",
+    "foul": "ФОЛ",
+    "free-kick": "ШТРАФНОЙ",
+    "pass": "ПЕРЕДАЧА",
+    "substitution": "ЗАМЕНА",
+    "yellow-card": "ЖК",
+    "red-card": "КК",
+    "handball": "ИГРА РУКОЙ",
+    "halftime": "ПЕРЕРЫВ",
+    "kickoff": "НАЧАЛО",
+    "start-2nd-half": "2-Й ТАЙМ",
+    "comment": "СОБЫТИЕ"
+  },
+  "exactMatches": [
+    { "en": "First Half begins.", "ru": "Начался первый тайм." },
+    { "en": "Delay over. They are ready to continue.", "ru": "Пауза завершена. Игра продолжается." },
+    { "en": "Lineups are announced and players are warming up.", "ru": "Составы объявлены, команды разминаются." }
+  ],
+  "phraseTemplates": [
+    {
+      "id": "added_time",
+      "enPattern": "Fourth official has announced {minutes} minutes of added time.",
+      "ruTemplate": "Четвертый арбитр назначил {minutes} {minutesLabel} компенсации."
+    },
+    {
+      "id": "kickoff_second",
+      "enPattern": "Second Half begins {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
+      "ruTemplate": "Начался второй тайм. Счёт: {homeTeam} {homeScore}:{awayTeam} {awayScore}."
+    },
+    {
+      "id": "halftime",
+      "enPattern": "First Half ends, {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
+      "ruTemplate": "Перерыв. {homeTeam} {homeScore}:{awayTeam} {awayScore}."
+    },
+    {
+      "id": "woodwork_right",
+      "enPattern": "{player} ({team}) hits the right post with {tail}",
+      "ruTemplate": "{player} ({team}) попадает в правую штангу. {tailRu}",
+      "narrativeFrom": "tail"
+    },
+    {
+      "id": "woodwork_left",
+      "enPattern": "{player} ({team}) hits the left post with {tail}",
+      "ruTemplate": "{player} ({team}) попадает в левую штангу. {tailRu}",
+      "narrativeFrom": "tail"
+    },
+    {
+      "id": "substitution_injury",
+      "enPattern": "Substitution, {team}. {playerIn} replaces {playerOut} because of an injury.",
+      "ruTemplate": "Замена у {team}: {playerIn} вместо {playerOut} (из-за травмы)."
+    },
+    {
+      "id": "substitution_simple",
+      "enPattern": "Substitution, {team}. {playerIn} replaces {playerOut}.",
+      "ruTemplate": "Замена у {team}: {playerIn} вместо {playerOut}."
+    },
+    {
+      "id": "yellow_bad_foul",
+      "enPattern": "{player} ({team}) is shown the yellow card for a bad foul.",
+      "ruTemplate": "{player} ({team}) получает желтую карточку за грубый фол."
+    },
+    {
+      "id": "yellow_basic",
+      "enPattern": "{player} ({team}) is shown the yellow card.",
+      "ruTemplate": "{player} ({team}) получает желтую карточку."
+    },
+    {
+      "id": "handball",
+      "enPattern": "Hand ball by {player} ({team}).",
+      "ruTemplate": "Игра рукой: {player} ({team})."
+    },
+    {
+      "id": "handball_alt",
+      "enPattern": "Handball by {player} ({team}).",
+      "ruTemplate": "Игра рукой: {player} ({team})."
+    },
+    {
+      "id": "corner_conceded",
+      "enPattern": "Corner, {team}. Conceded by {player}.",
+      "ruTemplate": "Угловой в пользу {team}. Последним коснулся {player}."
+    },
+    {
+      "id": "offside_player",
+      "enPattern": "Offside, {team}. {player} is caught offside.",
+      "ruTemplate": "Офсайд у {team}. {player} в положении вне игры."
+    },
+    {
+      "id": "wins_free_kick_def",
+      "enPattern": "{player} ({team}) wins a free kick in the defensive half.",
+      "ruTemplate": "{player} ({team}) зарабатывает штрафной на своей половине."
+    },
+    {
+      "id": "wins_free_kick_att",
+      "enPattern": "{player} ({team}) wins a free kick in the attacking half.",
+      "ruTemplate": "{player} ({team}) зарабатывает штрафной на чужой половине."
+    },
+    {
+      "id": "wins_free_kick_left",
+      "enPattern": "{player} ({team}) wins a free kick on the left wing.",
+      "ruTemplate": "{player} ({team}) зарабатывает штрафной на левом фланге."
+    },
+    {
+      "id": "wins_free_kick_right",
+      "enPattern": "{player} ({team}) wins a free kick on the right wing.",
+      "ruTemplate": "{player} ({team}) зарабатывает штрафной на правом фланге."
+    },
+    {
+      "id": "foul_by_player",
+      "enPattern": "Foul by {player}.",
+      "ruTemplate": "Фол со стороны {player}."
+    },
+    {
+      "id": "delay_start",
+      "enPattern": "Delay in match because of an injury {player} ({team}).",
+      "ruTemplate": "Пауза в матче из-за травмы: {player} ({team})."
+    }
+  ],
+  "wrappedPrefixes": [
+    { "enPrefix": "Attempt saved.", "ruPrefix": "Удар в створ, сейв. " },
+    { "enPrefix": "Attempt blocked.", "ruPrefix": "Удар заблокирован. " },
+    { "enPrefix": "Attempt missed.", "ruPrefix": "Удар мимо. " }
+  ],
+  "goal": {
+    "enPrefix": "Goal!",
+    "ruPrefix": "ГОЛ! "
+  },
+  "partialPrefixes": [
+    { "enPrefix": "Second Half begins", "ruPrefix": "Начался второй тайм" },
+    { "enPrefix": "First Half ends,", "ruPrefix": "Перерыв," },
+    { "enPrefix": "Second Half ends,", "ruPrefix": "Матч завершен," }
+  ],
+  "typeFallbacks": [
+    { "typeIncludes": "woodwork", "ruPrefix": "Штанга. " },
+    { "typeIncludes": "foul", "ruPrefix": "Фол. " },
+    { "typeIncludes": "offside", "ruPrefix": "Офсайд. " },
+    { "typeIncludes": "corner", "ruPrefix": "Угловой. " }
+  ],
+  "phraseReplacements": [
+    {
+      "en": "from a difficult angle and long range on the left is close, but misses the top right corner from a direct free kick",
+      "ru": "с острого угла и большой дистанции слева — близко, но мимо правого верхнего угла со штрафного"
+    },
+    { "en": "with a cross following a set piece situation", "ru": "навес после стандарта" },
+    { "en": "with a cross following a corner", "ru": "навес после углового" },
+    { "en": "misses to the right following a set piece situation", "ru": "мимо справа после стандарта" },
+    { "en": "misses to the left following a set piece situation", "ru": "мимо слева после стандарта" },
+    { "en": "is saved in the top centre of the goal by", "ru": "парирует в верхнем центре ворот:" },
+    { "en": "is saved in the bottom right corner by", "ru": "парирует в нижнем правом углу:" },
+    { "en": "is saved in the bottom left corner by", "ru": "парирует в нижнем левом углу:" },
+    { "en": "is saved in the top right corner by", "ru": "парирует в верхнем правом углу:" },
+    { "en": "is saved in the top left corner by", "ru": "парирует в верхнем левом углу:" },
+    { "en": "is saved in the centre of the goal by", "ru": "парирует по центру ворот:" },
+    { "en": "from the right side of the six yard box", "ru": "с правого края вратарской" },
+    { "en": "from the left side of the six yard box", "ru": "с левого края вратарской" },
+    { "en": "from the centre of the box", "ru": "из центра штрафной" },
+    { "en": "from the left side of the box", "ru": "с левого края штрафной" },
+    { "en": "from the right side of the box", "ru": "с правого края штрафной" },
+    { "en": "is close, but misses to the left", "ru": "близко, но мимо слева" },
+    { "en": "is close, but misses to the right", "ru": "близко, но мимо справа" },
+    { "en": "is high and wide to the right", "ru": "выше и правее ворот" },
+    { "en": "is high and wide to the left", "ru": "выше и левее ворот" },
+    { "en": "following a fast break", "ru": "после быстрого контратаки" },
+    { "en": "following a set piece situation", "ru": "после стандарта" },
+    { "en": "from the six yard box", "ru": "из вратарской" },
+    { "en": "from outside the box", "ru": "из-за пределов штрафной" },
+    { "en": "from very close range", "ru": "с очень близкой дистанции" },
+    { "en": "with a right footed shot", "ru": "ударом правой ногой" },
+    { "en": "with a left footed shot", "ru": "ударом левой ногой" },
+    { "en": "a right footed shot", "ru": "удар правой ногой" },
+    { "en": "a left footed shot", "ru": "удар левой ногой" },
+    { "en": "with a header", "ru": "ударом головой" },
+    { "en": "to the top left corner", "ru": "в верхний левый угол" },
+    { "en": "to the top right corner", "ru": "в верхний правый угол" },
+    { "en": "to the bottom left corner", "ru": "в нижний левый угол" },
+    { "en": "to the bottom right corner", "ru": "в нижний правый угол" },
+    { "en": "to the centre of the goal", "ru": "по центру ворот" },
+    { "en": "from a free kick", "ru": "со штрафного" },
+    { "en": "from the penalty spot", "ru": "с пенальти" },
+    { "en": "right footed shot", "ru": "удар правой ногой" },
+    { "en": "left footed shot", "ru": "удар левой ногой" },
+    { "en": "header from", "ru": "удар головой с" },
+    { "en": "is too high", "ru": "выше ворот" },
+    { "en": "misses to the right", "ru": "мимо справа" },
+    { "en": "misses to the left", "ru": "мимо слева" },
+    { "en": "is blocked", "ru": "заблокирован" },
+    { "en": "is saved by", "ru": "парирует:" },
+    { "en": "header", "ru": "удар головой" },
+    { "en": "misses", "ru": "мимо" }
+  ],
+  "assistReplacements": [
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a cross following a set piece situation\\.\\s*$",
+      "replacement": ". Ассист: $1 (навес после стандарта)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a cross following a corner\\.\\s*$",
+      "replacement": ". Ассист: $1 (навес после углового)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a through ball\\.\\s*$",
+      "replacement": ". Ассист: $1 (проникающая передача)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a cross\\.\\s*$",
+      "replacement": ". Ассист: $1 (навес)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a headed pass\\.\\s*$",
+      "replacement": ". Ассист: $1 (скидка головой)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) following a corner\\.\\s*$",
+      "replacement": ". Ассист: $1 (после углового)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) following a set piece situation\\.\\s*$",
+      "replacement": ". Ассист: $1 (после стандарта)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) following a fast break\\.\\s*$",
+      "replacement": ". Ассист: $1 (после быстрого контратаки)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?)\\.\\s*$",
+      "replacement": ". Ассист: $1."
+    }
+  ],
+  "notes": [
+    "Имена игроков и команд не переводятся.",
+    "Miniapp загружает этот файл и применяет шаблоны через js/live-event-ru.js.",
+    "phraseReplacements сортируются по длине en (длинные первыми) при загрузке."
+  ]
+}
