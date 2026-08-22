@@ -683,22 +683,52 @@ public class MiniAppService {
                     .queryString("event", match.getEspnId())
                     .asString();
             JsonNode root = objectMapper.readTree(response.getBody());
-            JsonNode details = root.path("header")
-                    .path("competitions")
-                    .path(0)
-                    .path("details");
-            if (!details.isArray() || details.isEmpty()) {
-                return List.of();
-            }
             List<MatchEventItem> events = new ArrayList<>();
-            for (JsonNode item : details) {
-                String text = item.path("text").asText("");
-                String minute = item.path("clock").path("displayValue").asText("");
-                if (text.isBlank()) {
-                    continue;
+            Set<String> seen = new HashSet<>();
+
+            JsonNode keyEvents = root.path("keyEvents");
+            if (keyEvents.isArray()) {
+                for (int i = keyEvents.size() - 1; i >= 0; i--) {
+                    JsonNode item = keyEvents.get(i);
+                    String text = item.path("text").asText("").trim();
+                    if (text.isBlank()) {
+                        continue;
+                    }
+                    String minute = item.path("clock").path("displayValue").asText("").trim();
+                    String dedupKey = minute + "|" + text;
+                    if (!seen.add(dedupKey)) {
+                        continue;
+                    }
+                    events.add(new MatchEventItem(minute, text));
+                    if (events.size() >= 8) {
+                        break;
+                    }
                 }
-                events.add(new MatchEventItem(minute, text));
             }
+
+            JsonNode commentary = root.path("commentary");
+            if (commentary.isArray()) {
+                for (int i = commentary.size() - 1; i >= 0; i--) {
+                    JsonNode item = commentary.get(i);
+                    String text = item.path("text").asText("").trim();
+                    if (text.isBlank()) {
+                        continue;
+                    }
+                    String minute = item.path("time").path("displayValue").asText("").trim();
+                    if (minute.isBlank() && text.toLowerCase().contains("lineups are announced")) {
+                        continue;
+                    }
+                    String dedupKey = minute + "|" + text;
+                    if (!seen.add(dedupKey)) {
+                        continue;
+                    }
+                    events.add(new MatchEventItem(minute, text));
+                    if (events.size() >= 18) {
+                        break;
+                    }
+                }
+            }
+
             return events;
         } catch (Exception ignored) {
             return List.of();

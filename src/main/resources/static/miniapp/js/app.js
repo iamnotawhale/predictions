@@ -941,7 +941,7 @@
         $('#score-grid').classList.remove('hidden');
         $('#modal-h2h-section').classList.remove('hidden');
         $('#modal-news-section').classList.remove('hidden');
-        $('#modal-kickoff').textContent = match.kickoff || '';
+        setModalCenterRegular(match);
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
         const homeLogo = $('#modal-home-logo');
@@ -999,7 +999,7 @@
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
         renderModalNews([]);
-        $('#modal-kickoff').textContent = match.kickoff || '';
+        setModalCenterLive(match);
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
         const homeLogo = $('#modal-home-logo');
@@ -1028,6 +1028,24 @@
         $('#score-modal').classList.remove('hidden');
         tg.BackButton.show();
         loadLiveMatchDetails(match).catch(() => {});
+    }
+
+    function setModalCenterRegular(match) {
+        const center = $('#modal-center-main');
+        if (center) {
+            center.textContent = 'VS';
+        }
+        $('#modal-kickoff').textContent = match.kickoff || '';
+    }
+
+    function setModalCenterLive(match) {
+        const center = $('#modal-center-main');
+        const hasScore = match.homeScore != null && match.awayScore != null;
+        if (center) {
+            center.textContent = hasScore ? (match.homeScore + ':' + match.awayScore) : 'LIVE';
+        }
+        const liveClock = (match.status || '').trim();
+        $('#modal-kickoff').textContent = liveClock || (match.kickoff || '');
     }
 
     function renderLiveMatchDetailsPlaceholder(match) {
