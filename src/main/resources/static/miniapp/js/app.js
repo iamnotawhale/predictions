@@ -363,9 +363,7 @@
         const teamIsHome = match.homeCode === state.selectedTeamCode;
         const teamScore = teamIsHome ? match.homeScore : match.awayScore;
         const oppScore = teamIsHome ? match.awayScore : match.homeScore;
-        if (teamScore > oppScore) return 'form-dot-win';
-        if (teamScore < oppScore) return 'form-dot-loss';
-        return 'form-dot-draw';
+        return formDotClassByScores(teamScore, oppScore);
     }
 
     function renderTodayMatchItem(m, onClick) {
@@ -936,6 +934,9 @@
     function openScoreModal(match) {
         state.selectedMatch = match;
         renderH2hList('#modal-h2h-content', []);
+        renderTeamFormDots('#modal-home-form', match.homeCode, []);
+        renderTeamFormDots('#modal-away-form', match.awayCode, []);
+        renderModalNews([]);
         $('#modal-kickoff').textContent = match.kickoff || '';
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
@@ -965,6 +966,7 @@
             grid.innerHTML = '<p class="empty-state">Прогноз недоступен</p>';
             $('#score-modal').classList.remove('hidden');
             loadScoreModalH2h(match).catch(() => {});
+            loadScoreModalInsights(match).catch(() => {});
             return;
         }
 
@@ -985,6 +987,7 @@
         $('#score-modal').classList.remove('hidden');
         tg.BackButton.show();
         loadScoreModalH2h(match).catch(() => {});
+        loadScoreModalInsights(match).catch(() => {});
     }
 
     function closeScoreModal() {
@@ -1002,6 +1005,95 @@
         } catch (e) {
             renderH2hList('#modal-h2h-content', [], e.message || 'Не удалось загрузить историю');
         }
+    }
+
+    async function loadScoreModalInsights(match) {
+        const modalMatchId = match.publicId;
+        try {
+            const insights = await apiCached('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/insights');
+            if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
+                return;
+            }
+            renderTeamFormDots('#modal-home-form', match.homeCode, insights.homeForm || []);
+            renderTeamFormDots('#modal-away-form', match.awayCode, insights.awayForm || []);
+            renderModalNews(insights.news || []);
+        } catch (_) {
+            if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
+                return;
+            }
+            renderTeamFormDots('#modal-home-form', match.homeCode, []);
+            renderTeamFormDots('#modal-away-form', match.awayCode, []);
+            renderModalNews([]);
+        }
+    }
+
+    function renderTeamFormDots(containerSelector, teamCode, items) {
+        const container = $(containerSelector);
+        if (!container) return;
+        container.innerHTML = '';
+        if (!items || !items.length) {
+            container.innerHTML = '<span class="team-form-empty">—</span>';
+            return;
+        }
+        items.forEach((item) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'team-form-btn';
+            const dot = document.createElement('span');
+            dot.className = 'form-dot ' + formDotClassByOutcome(item.outcome);
+            dot.setAttribute('aria-hidden', 'true');
+            btn.appendChild(dot);
+            btn.setAttribute('aria-label', teamCode + ' vs ' + (item.opponentCode || '?'));
+            btn.addEventListener('click', () => {
+                const own = item.ownScore ?? 0;
+                const opp = item.opponentScore ?? 0;
+                const opponent = item.opponentCode || '?';
+                const datePart = item.kickoff ? (' · ' + item.kickoff) : '';
+                showToast(teamCode + ' ' + own + ':' + opp + ' ' + opponent + datePart);
+            });
+            container.appendChild(btn);
+        });
+    }
+
+    function renderModalNews(newsItems) {
+        const container = $('#modal-news-content');
+        if (!container) return;
+        if (!newsItems || !newsItems.length) {
+            container.innerHTML = '<p class="empty-state">Новостей пока нет</p>';
+            return;
+        }
+        container.innerHTML = '';
+        newsItems.forEach((item) => {
+            const row = document.createElement('a');
+            row.className = 'h2h-item modal-news-item';
+            row.href = item.url;
+            row.target = '_blank';
+            row.rel = 'noopener noreferrer';
+            const published = item.publishedAt ? ('<span class="modal-news-time">' + item.publishedAt + '</span>') : '';
+            row.innerHTML =
+                '<span class="modal-news-title">' + item.title + '</span>' +
+                published;
+            container.appendChild(row);
+        });
+    }
+
+    function normalizeOutcome(outcome) {
+        const value = (outcome || '').toUpperCase();
+        if (value === 'W' || value === 'L' || value === 'D') return value;
+        return 'D';
+    }
+
+    function formDotClassByOutcome(outcome) {
+        const value = normalizeOutcome(outcome);
+        if (value === 'W') return 'form-dot-win';
+        if (value === 'L') return 'form-dot-loss';
+        return 'form-dot-draw';
+    }
+
+    function formDotClassByScores(teamScore, oppScore) {
+        if (teamScore > oppScore) return 'form-dot-win';
+        if (teamScore < oppScore) return 'form-dot-loss';
+        return 'form-dot-draw';
     }
 
     function renderH2hList(containerSelector, items, errorMessage) {
