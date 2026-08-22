@@ -29,6 +29,7 @@
     const CHART_COLORS = ['#2ea6ff', '#5cd97a', '#e85c4a', '#f5c542', '#b07aff', '#ff8ec4'];
     const TODAY_POLL_LIVE_MS = 15000;
     const TODAY_POLL_IDLE_MS = 60000;
+    const LIVE_PRESTART_WINDOW_SECONDS = 10 * 60;
     const CACHE_TTL_MS = 45000;
     const FINISHED_STATUSES = new Set(['ft', 'aet', 'pen', 'canc', 'abd', 'awrd', 'wo']);
     const NOT_STARTED_STATUSES = new Set(['ns', 'pst', 'tbd']);
@@ -410,8 +411,32 @@
             && m.awayScore != null;
     }
 
+    function kickoffSecondsLeftApprox(m) {
+        if (!isNotStartedStatus(m.status)) return null;
+        if (typeof m.predictSecondsLeft !== 'number') return null;
+        // predictSecondsLeft is measured to kickoff + 5m
+        return m.predictSecondsLeft - 300;
+    }
+
+    function isPreLiveSoonMatch(m) {
+        const sec = kickoffSecondsLeftApprox(m);
+        return sec != null && sec >= 0 && sec <= LIVE_PRESTART_WINDOW_SECONDS;
+    }
+
+    function isLiveModuleMatch(m) {
+        return isLiveNowMatch(m) || isPreLiveSoonMatch(m);
+    }
+
+    function openLiveModuleMatch(match) {
+        if (isLiveNowMatch(match)) {
+            openLiveMatchModal(match);
+            return;
+        }
+        openScoreModal(match);
+    }
+
     function renderHomeLiveModule(matches) {
-        const liveMatches = (matches || []).filter(isLiveNowMatch);
+        const liveMatches = (matches || []).filter(isLiveModuleMatch);
         const card = $('#home-live-card');
         const list = $('#home-live-list');
         if (!liveMatches.length) {
@@ -422,7 +447,11 @@
 
         card.classList.remove('hidden');
         list.innerHTML = '';
-        liveMatches.forEach((m) => list.appendChild(renderTodayMatchItem(m, openLiveMatchModal)));
+        liveMatches.forEach((m) => list.appendChild(renderTodayMatchItem(m, openLiveModuleMatch)));
+    }
+
+    function hasLiveOrSoonMatches(matches) {
+        return (matches || []).some(isLiveModuleMatch);
     }
 
     function enqueueScoreNotification(match, previousScore, highlightTeam) {
@@ -584,7 +613,7 @@
 
     async function loadTodayMatches() {
         const data = await api('/today');
-        state.todayHasLive = !!data.hasLive;
+        state.todayHasLive = hasLiveOrSoonMatches(data.matches) || !!data.hasLive;
         const previousScores = { ...state.todayScoresByMatchId };
         processTodayScoreUpdates(data.matches, previousScores);
         renderHomeLiveModule(data.matches);
@@ -596,7 +625,7 @@
 
     async function pollTodayMatchesForUpdates() {
         const data = await api('/today');
-        state.todayHasLive = !!data.hasLive;
+        state.todayHasLive = hasLiveOrSoonMatches(data.matches) || !!data.hasLive;
         const previousScores = { ...state.todayScoresByMatchId };
         processTodayScoreUpdates(data.matches, previousScores);
         renderHomeLiveModule(data.matches);
@@ -610,7 +639,7 @@
 
     async function loadHomeLiveModule() {
         const data = await api('/today');
-        state.todayHasLive = !!data.hasLive;
+        state.todayHasLive = hasLiveOrSoonMatches(data.matches) || !!data.hasLive;
         renderHomeLiveModule(data.matches);
     }
 
