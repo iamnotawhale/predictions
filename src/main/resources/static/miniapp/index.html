@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css?v=20260822-7">
+    <link rel="stylesheet" href="css/app.css?v=20260822-8">
 </head>
 <body>
 <div id="offline-banner" class="offline-banner hidden" role="status"></div>
@@ -58,7 +58,7 @@
                 </table>
             </div>
         </section>
-        <div class="miniapp-version">ver. 20260822-7</div>
+        <div class="miniapp-version">ver. 20260822-8</div>
     </main>
 
     <main id="screen-today" class="screen">
@@ -140,12 +140,27 @@
             </div>
         </div>
         <div id="score-grid" class="score-grid"></div>
-        <section class="modal-h2h">
+        <section id="modal-live-details" class="modal-h2h hidden">
+            <h4>Составы и события</h4>
+            <div class="modal-live-lineups">
+                <div>
+                    <div class="modal-live-side-title" id="modal-live-home-title">Хозяева</div>
+                    <div id="modal-live-home-lineup" class="h2h-list"></div>
+                </div>
+                <div>
+                    <div class="modal-live-side-title" id="modal-live-away-title">Гости</div>
+                    <div id="modal-live-away-lineup" class="h2h-list"></div>
+                </div>
+            </div>
+            <div class="modal-live-events-title">События матча</div>
+            <div id="modal-live-events" class="h2h-list"></div>
+        </section>
+        <section id="modal-h2h-section" class="modal-h2h">
             <h4>История встреч</h4>
             <div id="modal-h2h-content" class="h2h-list"></div>
         </section>
         <button id="modal-delete" class="btn-danger hidden">Удалить прогноз</button>
-        <section class="modal-h2h">
+        <section id="modal-news-section" class="modal-h2h">
             <h4>Новости матча</h4>
             <div id="modal-news-content" class="modal-news-list">
                 <p class="empty-state">Загрузка…</p>
@@ -184,6 +199,6 @@
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/app.js?v=20260822-7"></script>
+<script src="js/app.js?v=20260822-8"></script>
 </body>
 </html>

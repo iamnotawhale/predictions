@@ -4,6 +4,10 @@ import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -26,7 +30,10 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdScoreBucket;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardEntry;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.LineupPlayerItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveMatchDetailsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchEventItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchNewsItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormItem;
@@ -44,8 +51,10 @@ import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -62,6 +71,7 @@ public class MiniAppService {
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final String SPORTS_RU_TEAM_RSS = "https://www.sports.ru/stat/export/rss/taglenta.xml?id=";
+    private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
     private static final long TEAM_NEWS_CACHE_MS = 120_000L;
     private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
             "ft", "aet", "pen", "canc", "abd", "awrd", "wo"
@@ -94,6 +104,8 @@ public class MiniAppService {
     private final PredictionService predictionService;
     private final HeadToHeadService headToHeadService;
     private final OddsService oddsService;
+    private final ApiClient apiClient;
+    private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
 
     public MiniAppService(
@@ -101,13 +113,17 @@ public class MiniAppService {
             MatchService matchService,
             PredictionService predictionService,
             HeadToHeadService headToHeadService,
-            OddsService oddsService
+            OddsService oddsService,
+            ApiClient apiClient,
+            ObjectMapper objectMapper
     ) {
         this.userService = userService;
         this.matchService = matchService;
         this.predictionService = predictionService;
         this.headToHeadService = headToHeadService;
         this.oddsService = oddsService;
+        this.apiClient = apiClient;
+        this.objectMapper = objectMapper;
     }
 
     public User requireUser(String telegramId) {
@@ -181,6 +197,25 @@ public class MiniAppService {
         List<FormItem> awayForm = buildRecentForm(match.getAwayTeamId(), 5);
         List<MatchNewsItem> news = loadMatchNews(match, 4);
         return new MatchInsightsResponse(homeForm, awayForm, news);
+    }
+
+    public LiveMatchDetailsResponse liveMatchDetails(String telegramId, String homeCode, String awayCode) {
+        requireUser(telegramId);
+        Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
+        if (match == null) {
+            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of());
+        }
+        boolean live = isLiveStatus(match.getStatus())
+                       && match.getHomeTeamScore() != null
+                       && match.getAwayTeamScore() != null;
+        if (!live) {
+            return new LiveMatchDetailsResponse(false, List.of(), List.of(), List.of());
+        }
+        Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getPublicId());
+        List<LineupPlayerItem> homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
+        List<LineupPlayerItem> awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
+        List<MatchEventItem> events = loadLiveEvents(match);
+        return new LiveMatchDetailsResponse(true, homeLineup, awayLineup, events);
     }
 
     public LeaderboardResponse leaderboard(String telegramId, Integer weekId) {
@@ -621,6 +656,53 @@ public class MiniAppService {
                 match.getAwayTeamScore(),
                 match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : ""
         );
+    }
+
+    private List<LineupPlayerItem> toLineupItems(List<Lineup> lineup) {
+        if (lineup == null || lineup.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Integer> order = Map.of("G", 1, "D", 2, "M", 3, "F", 4);
+        return lineup.stream()
+                .filter(item -> item != null && item.getPlayer() != null)
+                .sorted(Comparator.comparingInt(item -> order.getOrDefault(item.getPlayer().getPos(), 99)))
+                .map(item -> new LineupPlayerItem(
+                        item.getPlayer().getNumber(),
+                        item.getPlayer().getName(),
+                        item.getPlayer().getPos()
+                ))
+                .toList();
+    }
+
+    private List<MatchEventItem> loadLiveEvents(Match match) {
+        if (match.getEspnId() == null || match.getEspnId().isBlank()) {
+            return List.of();
+        }
+        try {
+            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
+                    .queryString("event", match.getEspnId())
+                    .asString();
+            JsonNode root = objectMapper.readTree(response.getBody());
+            JsonNode details = root.path("header")
+                    .path("competitions")
+                    .path(0)
+                    .path("details");
+            if (!details.isArray() || details.isEmpty()) {
+                return List.of();
+            }
+            List<MatchEventItem> events = new ArrayList<>();
+            for (JsonNode item : details) {
+                String text = item.path("text").asText("");
+                String minute = item.path("clock").path("displayValue").asText("");
+                if (text.isBlank()) {
+                    continue;
+                }
+                events.add(new MatchEventItem(minute, text));
+            }
+            return events;
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     private List<FormItem> buildRecentForm(int teamId, int limit) {
