@@ -27,7 +27,7 @@
     }
 
     const CHART_COLORS = ['#2ea6ff', '#5cd97a', '#e85c4a', '#f5c542', '#b07aff', '#ff8ec4'];
-    const TODAY_POLL_LIVE_MS = 15000;
+    const TODAY_POLL_LIVE_MS = 10000;
     const TODAY_POLL_IDLE_MS = 60000;
     const LIVE_MODAL_POLL_MS = 10000;
     const LIVE_PRESTART_WINDOW_SECONDS = 10 * 60;
@@ -187,6 +187,10 @@
         state.apiCache[key] = { at: Date.now(), data };
     }
 
+    function cacheDrop(key) {
+        delete state.apiCache[key];
+    }
+
     async function apiCached(path) {
         const cached = cacheGet(path);
         if (cached) return cached;
@@ -267,8 +271,17 @@
         if ($('#screen-today').classList.contains('active')) {
             await loadTodayMatches();
         }
+        await refreshLeaderboardByMode();
         await loadWeeksGrid('#predict-weeks', showPredictWeek);
         await loadWeeksGrid('#my-weeks', showMyWeek);
+    }
+
+    function selectedLeaderboardWeekId() {
+        return state.leaderboardMode === 'current' && state.currentWeekId ? state.currentWeekId : null;
+    }
+
+    async function refreshLeaderboardByMode() {
+        await loadLeaderboard(selectedLeaderboardWeekId());
     }
 
     function showToast(msg, type) {
@@ -620,7 +633,7 @@
         processTodayScoreUpdates(data.matches, previousScores);
         renderHomeLiveModule(data.matches);
         renderTodayMatchesList(data.matches);
-        await loadLeaderboard(null);
+        await refreshLeaderboardByMode();
         state.todayLoaded = true;
         scheduleTodayPolling();
     }
@@ -635,7 +648,21 @@
             renderTodayMatchesList(data.matches);
             state.todayLoaded = true;
         }
-        await loadLeaderboard(null);
+        await refreshLeaderboardByMode();
+        if ($('#screen-stats').classList.contains('active')) {
+            await Promise.all([
+                loadStandings(true),
+                loadPointsChart(true)
+            ]);
+        }
+        const predictBlock = $('#predict-matches');
+        if (!predictBlock.classList.contains('hidden') && predictBlock.dataset.weekId) {
+            await loadPredictMatches(parseInt(predictBlock.dataset.weekId, 10));
+        }
+        const myBlock = $('#my-predictions');
+        if (!myBlock.classList.contains('hidden') && myBlock.dataset.weekId) {
+            await loadMyPredictions(parseInt(myBlock.dataset.weekId, 10));
+        }
         scheduleTodayPolling();
     }
 
@@ -860,13 +887,19 @@
         tooltip.style.top = top + 'px';
     }
 
-    async function loadPointsChart() {
-        const data = await apiCached('/chart');
+    async function loadPointsChart(forceFresh = false) {
+        if (forceFresh) {
+            cacheDrop('/chart');
+        }
+        const data = forceFresh ? await api('/chart') : await apiCached('/chart');
         drawPointsChart(data);
     }
 
-    async function loadStandings() {
-        const rows = await apiCached('/standings');
+    async function loadStandings(forceFresh = false) {
+        if (forceFresh) {
+            cacheDrop('/standings');
+        }
+        const rows = forceFresh ? await api('/standings') : await apiCached('/standings');
         const tbody = $('#standings-body');
         tbody.innerHTML = '';
         rows.forEach(r => {
@@ -1714,6 +1747,7 @@
                 $$('.segmented-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 const mode = btn.dataset.leaderboard;
+                state.leaderboardMode = mode || '';
                 if (mode === 'current' && state.currentWeekId) {
                     await loadLeaderboard(state.currentWeekId);
                 } else {
@@ -1792,7 +1826,7 @@
             await loadProfile();
             await Promise.all([
                 loadHomeLiveModule(),
-                loadLeaderboard(null),
+                refreshLeaderboardByMode(),
                 loadStandings(),
                 loadPointsChart(),
                 loadWeeksGrid('#predict-weeks', showPredictWeek),
