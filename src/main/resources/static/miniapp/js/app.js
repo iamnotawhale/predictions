@@ -1365,10 +1365,9 @@
     }
 
     /**
-     * ESPN field coords are attack-oriented (attack toward x≈100) with a team-relative origin:
-     * 1H: home (0,0)=top-left of our pitch, away (0,0)=bottom-right.
-     * 2H: teams switch ends → origins swap (home needs 180°, away is identity).
-     * Screen map: 180° rotate (x,y)→(100−x,100−y) when (away XOR second half).
+     * ESPN coords: attack toward x≈100; Y shares the same touchline for both teams
+     * (y=0 = top of our pitch). Ends swap at half-time, so flip X only when
+     * (away XOR second half). Do not flip Y / goalPositionY.
      */
     function resolveEventPeriod(event) {
         const period = Number(event?.period);
@@ -1380,7 +1379,7 @@
         return minute > 45 ? 2 : 1;
     }
 
-    function shouldRotatePitchCoords(event, match) {
+    function shouldMirrorPitchX(event, match) {
         const away = resolveEventTeamSide(match, event) === 'away';
         const secondHalf = resolveEventPeriod(event) >= 2;
         return away !== secondHalf;
@@ -1388,15 +1387,12 @@
 
     function mapEventToPitchCoords(event, match) {
         if (!event) return event;
-        if (!shouldRotatePitchCoords(event, match)) {
+        if (!shouldMirrorPitchX(event, match)) {
             return event;
         }
         return Object.assign({}, event, {
             fieldX: flipPitchPercent(event.fieldX),
-            fieldY: flipPitchPercent(event.fieldY),
-            field2X: flipPitchPercent(event.field2X),
-            field2Y: flipPitchPercent(event.field2Y),
-            goalPositionY: flipPitchPercent(event.goalPositionY)
+            field2X: flipPitchPercent(event.field2X)
         });
     }
 

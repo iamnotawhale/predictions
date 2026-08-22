@@ -5,14 +5,12 @@
       <stop offset="100%" stop-color="#131a22"/>
     </linearGradient>
     <filter id="dot-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#f5f5f8" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#c42823" flood-opacity="0.55"/>
     </filter>
   </defs>
 
-  <!-- ESPN BRE-TOT 401879321 · 62' Mikey Moore Shot On Target (saved) · period 2
-       raw fieldStart 91.7/31.6 → fieldEnd 98.2/46.4 · goalY 52.9
-       2H away = identity (ends swapped) → origin 91.7/31.6 · keeper 98.2/46.4
-       origin (shooter, away kit) + dashed to keeper (home kit); trail stops at save -->
+  <!-- ESPN BRE-TOT 401879321 · 80' Yehor Yarmoliuk Handball · period 2 home
+       raw 59.8/20.2 → mirror X only → 40.2/20.2 (upper half; Y not flipped) -->
 
   <rect width="1200" height="820" fill="url(#bg)"/>
   <rect x="120" y="80" width="960" height="660" rx="24" fill="#1f2a36" stroke="rgba(255,255,255,0.14)"/>
@@ -45,14 +43,9 @@
   <path d="M 160 676 A 14 14 0 0 1 174 690" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
   <path d="M 1026 690 A 14 14 0 0 1 1040 676" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
 
-  <line x1="966.96" y1="300.12" x2="1024.16" y2="384.48"
-        stroke="rgba(18,20,24,0.88)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="12 8"/>
+  <!-- handball (home kit), upper half -->
+  <circle cx="513.76" cy="235.14" r="9" fill="#c42823" stroke="rgba(0,0,0,0.45)" stroke-width="2" filter="url(#dot-glow)"/>
 
-  <!-- keeper (home kit) -->
-  <circle cx="1024.16" cy="384.48" r="7" fill="#c42823" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>
-  <!-- shooter (away kit) -->
-  <circle cx="966.96" cy="300.12" r="9" fill="#f5f5f8" stroke="rgba(0,0,0,0.45)" stroke-width="2" filter="url(#dot-glow)"/>
-
-  <rect x="740" y="278" width="220" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
-  <text x="850" y="299" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16" font-weight="800">62' Moore · В СТВОР</text>
+  <rect x="404" y="252" width="220" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
+  <text x="514" y="273" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16" font-weight="800">80' Yarmoliuk · РУКА</text>
 </svg>
