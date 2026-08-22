@@ -59,6 +59,7 @@
         liveModalPollingTimerId: null,
         livePitchStatsOpened: false,
         lastLiveEvents: [],
+        liveEventRuCompiled: null,
         apiCache: {}
     };
 
@@ -1399,170 +1400,16 @@
     }
 
     function prettyLiveEventType(type) {
-        const t = (type || '').toLowerCase().trim();
-        if (!t) return 'СОБЫТИЕ';
-        if (t.includes('goal')) return 'ГОЛ';
-        if (t.includes('penalty')) return 'ПЕНАЛЬТИ';
-        if (t.includes('yellow')) return 'ЖК';
-        if (t.includes('red')) return 'КК';
-        if (t.includes('sub')) return 'ЗАМЕНА';
-        if (t.includes('offside')) return 'ОФСАЙД';
-        if (t.includes('shot-on-target')) return 'В СТВОР';
-        if (t.includes('shot-off-target')) return 'МИМО';
-        if (t.includes('shot-blocked')) return 'БЛОК';
-        if (t.includes('corner')) return 'УГЛОВОЙ';
-        if (t.includes('save')) return 'СЕЙВ';
-        if (t.includes('foul')) return 'ФОЛ';
-        if (t.includes('var')) return 'VAR';
-        if (t.includes('kickoff')) return 'НАЧАЛО';
-        if (t.includes('period')) return 'ТАЙМ';
-        return t.toUpperCase().replaceAll('-', ' ');
+        return LiveEventRu.prettyLiveEventType(type, state.liveEventRuCompiled);
     }
 
-    function translateShotNarrative(rawText) {
-        let out = (rawText || '').trim();
-        if (!out) return out;
-
-        const directReplacements = [
-            [/\bright footed shot\b/gi, 'удар правой ногой'],
-            [/\bleft footed shot\b/gi, 'удар левой ногой'],
-            [/\bheader\b/gi, 'удар головой'],
-            [/\bfrom the centre of the box\b/gi, 'из центра штрафной'],
-            [/\bfrom the left side of the box\b/gi, 'с левого края штрафной'],
-            [/\bfrom the right side of the box\b/gi, 'с правого края штрафной'],
-            [/\bfrom outside the box\b/gi, 'из-за пределов штрафной'],
-            [/\bfrom very close range\b/gi, 'с очень близкой дистанции'],
-            [/\bis high and wide to the right\b/gi, 'выше и правее ворот'],
-            [/\bis high and wide to the left\b/gi, 'выше и левее ворот'],
-            [/\bis too high\b/gi, 'выше ворот'],
-            [/\bmisses to the right\b/gi, 'мимо справа'],
-            [/\bmisses to the left\b/gi, 'мимо слева'],
-            [/\bmisses\b/gi, 'мимо'],
-            [/\bis blocked\b/gi, 'заблокирован'],
-            [/\bis saved in the bottom right corner by\b/gi, 'парирует в нижнем правом углу:'],
-            [/\bis saved in the bottom left corner by\b/gi, 'парирует в нижнем левом углу:'],
-            [/\bis saved in the top right corner by\b/gi, 'парирует в верхнем правом углу:'],
-            [/\bis saved in the top left corner by\b/gi, 'парирует в верхнем левом углу:'],
-            [/\bis saved in the centre of the goal by\b/gi, 'парирует по центру ворот:'],
-            [/\bis saved by\b/gi, 'парирует:']
-        ];
-        directReplacements.forEach(([pattern, replacement]) => {
-            out = out.replace(pattern, replacement);
-        });
-
-        out = out.replace(/\.\s*Assisted by (.+?) with a through ball\.\s*$/i, '. Ассист: $1 (проникающая передача).');
-        out = out.replace(/\.\s*Assisted by (.+?) with a cross\.\s*$/i, '. Ассист: $1 (навес).');
-        out = out.replace(/\.\s*Assisted by (.+?) with a headed pass\.\s*$/i, '. Ассист: $1 (скидка головой).');
-        out = out.replace(/\.\s*Assisted by (.+?) following a corner\.\s*$/i, '. Ассист: $1 (после углового).');
-        out = out.replace(/\.\s*Assisted by (.+?) following a set piece situation\.\s*$/i, '. Ассист: $1 (после стандарта).');
-        out = out.replace(/\.\s*Assisted by (.+?)\.\s*$/i, '. Ассист: $1.');
-
-        return out;
-    }
-
-    function translateGoalNarrative(rawText) {
-        let out = (rawText || '').trim();
-        if (!out) return out;
-
-        const directReplacements = [
-            [/\bfrom a free kick\b/gi, 'со штрафного'],
-            [/\bfrom the penalty spot\b/gi, 'с пенальти'],
-            [/\bwith a right footed shot\b/gi, 'ударом правой ногой'],
-            [/\bwith a left footed shot\b/gi, 'ударом левой ногой'],
-            [/\bwith a header\b/gi, 'ударом головой'],
-            [/\bto the top left corner\b/gi, 'в верхний левый угол'],
-            [/\bto the top right corner\b/gi, 'в верхний правый угол'],
-            [/\bto the bottom left corner\b/gi, 'в нижний левый угол'],
-            [/\bto the bottom right corner\b/gi, 'в нижний правый угол'],
-            [/\bto the centre of the goal\b/gi, 'по центру ворот'],
-            [/\bfrom the centre of the box\b/gi, 'из центра штрафной'],
-            [/\bfrom the left side of the box\b/gi, 'с левого края штрафной'],
-            [/\bfrom the right side of the box\b/gi, 'с правого края штрафной'],
-            [/\bfrom outside the box\b/gi, 'из-за пределов штрафной']
-        ];
-        directReplacements.forEach(([pattern, replacement]) => {
-            out = out.replace(pattern, replacement);
-        });
-
-        out = out.replace(/\.\s*Assisted by (.+?) with a through ball\.\s*$/i, '. Ассист: $1 (проникающая передача).');
-        out = out.replace(/\.\s*Assisted by (.+?) with a cross\.\s*$/i, '. Ассист: $1 (навес).');
-        out = out.replace(/\.\s*Assisted by (.+?) with a headed pass\.\s*$/i, '. Ассист: $1 (скидка головой).');
-        out = out.replace(/\.\s*Assisted by (.+?) following a corner\.\s*$/i, '. Ассист: $1 (после углового).');
-        out = out.replace(/\.\s*Assisted by (.+?) following a set piece situation\.\s*$/i, '. Ассист: $1 (после стандарта).');
-        out = out.replace(/\.\s*Assisted by (.+?)\.\s*$/i, '. Ассист: $1.');
-        return out;
+    async function loadLiveEventTranslations() {
+        if (state.liveEventRuCompiled) return;
+        state.liveEventRuCompiled = await LiveEventRu.loadLiveEventTranslations('/miniapp/live_event_ru_translation.json');
     }
 
     function translateLiveEventText(text, type) {
-        const raw = (text || '').trim();
-        if (!raw) return raw;
-        const t = (type || '').toLowerCase();
-
-        if (raw === 'First Half begins.') return 'Начался первый тайм.';
-        if (raw.startsWith('Second Half begins')) {
-            return raw.replace('Second Half begins', 'Начался второй тайм');
-        }
-        if (raw.startsWith('First Half ends,')) {
-            return raw.replace('First Half ends,', 'Перерыв,');
-        }
-        if (raw.startsWith('Second Half ends,')) {
-            return raw.replace('Second Half ends,', 'Матч завершен,');
-        }
-        if (raw === 'Delay over. They are ready to continue.') return 'Пауза завершена. Игра продолжается.';
-        if (raw.startsWith('Delay in match because of an injury ')) {
-            return raw.replace('Delay in match because of an injury ', 'Пауза из-за травмы: ');
-        }
-        if (raw.startsWith('Lineups are announced and players are warming up.')) {
-            return 'Составы объявлены, команды разминаются.';
-        }
-
-        let m = raw.match(/^Foul by (.+)\.$/);
-        if (m) return 'Фол со стороны ' + m[1] + '.';
-        m = raw.match(/^(.+) wins a free kick in the defensive half\.$/);
-        if (m) return m[1] + ' зарабатывает штрафной на своей половине.';
-        m = raw.match(/^(.+) wins a free kick in the attacking half\.$/);
-        if (m) return m[1] + ' зарабатывает штрафной на чужой половине.';
-        m = raw.match(/^(.+) wins a free kick on the left wing\.$/);
-        if (m) return m[1] + ' зарабатывает штрафной на левом фланге.';
-        m = raw.match(/^(.+) wins a free kick on the right wing\.$/);
-        if (m) return m[1] + ' зарабатывает штрафной на правом фланге.';
-        m = raw.match(/^Offside, (.+)\. (.+) is caught offside\.$/);
-        if (m) return 'Офсайд у ' + m[1] + '. ' + m[2] + ' в положении вне игры.';
-        m = raw.match(/^Corner, (.+)\. Conceded by (.+)\.$/);
-        if (m) return 'Угловой в пользу ' + m[1] + '. Последним коснулся ' + m[2] + '.';
-        m = raw.match(/^Substitution, (.+)\. (.+) replaces (.+) because of an injury\.$/);
-        if (m) return 'Замена у ' + m[1] + ': ' + m[2] + ' вместо ' + m[3] + ' (из-за травмы).';
-        m = raw.match(/^Substitution, (.+)\. (.+) replaces (.+)\.$/);
-        if (m) return 'Замена у ' + m[1] + ': ' + m[2] + ' вместо ' + m[3] + '.';
-        m = raw.match(/^(.+) \((.+)\) is shown the yellow card for a bad foul\.$/);
-        if (m) return m[1] + ' (' + m[2] + ') получает желтую карточку за грубый фол.';
-        m = raw.match(/^(.+) \((.+)\) is shown the yellow card\.$/);
-        if (m) return m[1] + ' (' + m[2] + ') получает желтую карточку.';
-
-        if (raw.startsWith('Goal!')) {
-            const body = raw.replace(/^Goal!\s*/i, '');
-            const firstDot = body.indexOf('.');
-            if (firstDot < 0) return 'ГОЛ! ' + body;
-            const scorePart = body.slice(0, firstDot + 1).trim();
-            const narrative = body.slice(firstDot + 1).trim();
-            const translatedNarrative = translateGoalNarrative(narrative);
-            return 'ГОЛ! ' + scorePart + (translatedNarrative ? (' ' + translatedNarrative) : '');
-        }
-        if (raw.startsWith('Attempt saved.')) {
-            return 'Удар в створ, сейв. ' + translateShotNarrative(raw.replace(/^Attempt saved\.\s*/i, ''));
-        }
-        if (raw.startsWith('Attempt blocked.')) {
-            return 'Удар заблокирован. ' + translateShotNarrative(raw.replace(/^Attempt blocked\.\s*/i, ''));
-        }
-        if (raw.startsWith('Attempt missed.')) {
-            return 'Удар мимо. ' + translateShotNarrative(raw.replace(/^Attempt missed\.\s*/i, ''));
-        }
-        if (raw.startsWith('Hand ball by ')) return raw.replace('Hand ball by ', 'Игра рукой: ');
-
-        if (t.includes('foul')) return 'Фол. ' + raw;
-        if (t.includes('offside')) return 'Офсайд. ' + raw;
-        if (t.includes('corner')) return 'Угловой. ' + raw;
-        return raw;
+        return LiveEventRu.translateLiveEventText(text, type, state.liveEventRuCompiled);
     }
 
     function positionLivePitchBadge(marker, pitch, xPercent, yPercent) {
@@ -1613,6 +1460,7 @@
         if (t.includes('shot-on-target')) return '🎯';
         if (t.includes('shot-blocked')) return '🧱';
         if (t.includes('shot-off-target')) return '↗️';
+        if (t.includes('shot-hit-woodwork') || t.includes('woodwork')) return '🪵';
         if (t.includes('corner-awarded')) return '🚩';
         if (t.includes('save')) return '🥅';
         if (t.includes('var')) return '📺';
@@ -2024,6 +1872,7 @@
                 document.getElementById('app-title').textContent = 'EPL Predictions [dev]';
             }
             await loadProfile();
+            await loadLiveEventTranslations();
             await Promise.all([
                 loadHomeLiveModule(),
                 refreshLeaderboardByMode(),
