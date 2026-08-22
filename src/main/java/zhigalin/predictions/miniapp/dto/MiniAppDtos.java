@@ -134,7 +134,12 @@ public final class MiniAppDtos {
             String text,
             String type,
             Double fieldX,
-            Double fieldY
+            Double fieldY,
+            Double field2X,
+            Double field2Y,
+            Double goalPositionY,
+            String teamName,
+            String shortText
     ) {
     }
 
@@ -151,7 +156,9 @@ public final class MiniAppDtos {
             List<LineupPlayerItem> homeLineup,
             List<LineupPlayerItem> awayLineup,
             List<MatchEventItem> events,
-            List<MatchStatItem> matchStats
+            List<MatchStatItem> matchStats,
+            String homeColor,
+            String awayColor
     ) {
     }
 

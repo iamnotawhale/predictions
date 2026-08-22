@@ -385,7 +385,8 @@ html, body {
     overflow-y: auto;
 }
 
-#score-modal .modal-sheet {
+#score-modal .modal-sheet,
+#live-modal .modal-sheet {
     padding-top: 44px;
 }
 
@@ -648,6 +649,56 @@ html, body {
     width: 100%;
     height: 100%;
     display: block;
+    z-index: 0;
+}
+
+.live-pitch-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.live-pitch-shot-line {
+    stroke-width: 0.65;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.live-pitch-shot-line.hidden {
+    visibility: hidden;
+}
+
+.live-pitch-shot-line.is-solid {
+    stroke-dasharray: none;
+}
+
+.live-pitch-shot-line.is-dashed {
+    stroke-dasharray: 2.2 1.8;
+}
+
+.live-pitch-goal-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.live-pitch-goal-dot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ffd84d;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
 }
 
 .live-pitch-marker {
@@ -656,6 +707,7 @@ html, body {
     width: 0;
     height: 0;
     pointer-events: none;
+    z-index: 3;
 }
 
 .live-pitch-dot {
@@ -663,11 +715,11 @@ html, body {
     left: 0;
     top: 0;
     transform: translate(-50%, -50%);
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     background: #ffffff;
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3), 0 0 6px rgba(255, 255, 255, 0.45);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 8px rgba(255, 255, 255, 0.25);
 }
 
 .live-pitch-marker-meta {
@@ -823,6 +875,15 @@ html, body {
 .live-pitch-stats-row .away {
     text-align: right;
     font-weight: 700;
+}
+
+.h2h-item.pitch-selectable {
+    cursor: pointer;
+}
+
+.h2h-item.pitch-selected {
+    border-color: rgba(245, 197, 66, 0.55);
+    background: rgba(245, 197, 66, 0.08);
 }
 
 .h2h-item {

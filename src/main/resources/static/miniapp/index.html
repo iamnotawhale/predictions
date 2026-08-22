@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css?v=20260822-32">
+    <link rel="stylesheet" href="css/app.css?v=20260822-39">
 </head>
 <body>
 <div id="offline-banner" class="offline-banner hidden" role="status"></div>
@@ -58,7 +58,7 @@
                 </table>
             </div>
         </section>
-        <div class="miniapp-version">ver. 20260822-34</div>
+        <div class="miniapp-version">ver. 20260822-39</div>
     </main>
 
     <main id="screen-today" class="screen">
@@ -140,7 +140,38 @@
             </div>
         </div>
         <div id="score-grid" class="score-grid"></div>
-        <section id="modal-live-details" class="modal-h2h hidden">
+        <section id="modal-h2h-section" class="modal-h2h">
+            <h4>История встреч</h4>
+            <div id="modal-h2h-content" class="h2h-list"></div>
+        </section>
+        <button id="modal-delete" class="btn-danger hidden">Удалить прогноз</button>
+        <section id="modal-news-section" class="modal-h2h">
+            <h4>Новости матча</h4>
+            <div id="modal-news-content" class="modal-news-list">
+                <p class="empty-state">Загрузка…</p>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div id="live-modal" class="modal hidden">
+    <div class="modal-sheet">
+        <button id="live-modal-close" class="icon-btn icon-btn-floating" aria-label="Закрыть">&#10005;</button>
+        <div class="modal-match-header">
+            <div class="modal-team modal-team-home">
+                <img id="live-modal-home-logo" class="modal-team-logo" alt="home logo">
+                <div id="live-modal-home-code" class="modal-team-code">HOME</div>
+            </div>
+            <div class="modal-match-center">
+                <div id="live-modal-center-main" class="modal-vs">LIVE</div>
+                <p id="live-modal-clock" class="modal-sub"></p>
+            </div>
+            <div class="modal-team modal-team-away">
+                <img id="live-modal-away-logo" class="modal-team-logo" alt="away logo">
+                <div id="live-modal-away-code" class="modal-team-code">AWAY</div>
+            </div>
+        </div>
+        <section id="modal-live-details" class="modal-h2h">
             <h4>Составы и события</h4>
             <div class="modal-live-lineups">
                 <details class="lineup-spoiler">
@@ -182,6 +213,12 @@
                         <path d="M 0 666 A 14 14 0 0 1 14 680" fill="none" stroke="rgba(255,255,255,0.72)" stroke-width="2"></path>
                         <path d="M 1036 680 A 14 14 0 0 1 1050 666" fill="none" stroke="rgba(255,255,255,0.72)" stroke-width="2"></path>
                     </svg>
+                    <svg id="live-pitch-overlay" class="live-pitch-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        <line id="live-pitch-shot-line" class="live-pitch-shot-line hidden" x1="0" y1="0" x2="100" y2="50"></line>
+                    </svg>
+                    <div id="live-pitch-goal-marker" class="live-pitch-goal-marker hidden">
+                        <span class="live-pitch-goal-dot"></span>
+                    </div>
                     <div id="live-pitch-marker" class="live-pitch-marker hidden">
                         <span class="live-pitch-dot"></span>
                         <div class="live-pitch-marker-meta">
@@ -210,17 +247,6 @@
             </div>
             <div class="modal-live-events-title">События матча</div>
             <div id="modal-live-events" class="h2h-list"></div>
-        </section>
-        <section id="modal-h2h-section" class="modal-h2h">
-            <h4>История встреч</h4>
-            <div id="modal-h2h-content" class="h2h-list"></div>
-        </section>
-        <button id="modal-delete" class="btn-danger hidden">Удалить прогноз</button>
-        <section id="modal-news-section" class="modal-h2h">
-            <h4>Новости матча</h4>
-            <div id="modal-news-content" class="modal-news-list">
-                <p class="empty-state">Загрузка…</p>
-            </div>
         </section>
     </div>
 </div>
@@ -255,7 +281,7 @@
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/live-event-ru.js?v=20260822-34"></script>
-<script src="js/app.js?v=20260822-34"></script>
+<script src="js/live-event-ru.js?v=20260822-39"></script>
+<script src="js/app.js?v=20260822-39"></script>
 </body>
 </html>
