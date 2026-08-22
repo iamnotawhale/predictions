@@ -158,7 +158,10 @@ public final class MiniAppDtos {
             List<MatchEventItem> events,
             List<MatchStatItem> matchStats,
             String homeColor,
-            String awayColor
+            String awayColor,
+            Integer homeScore,
+            Integer awayScore,
+            String status
     ) {
     }
 

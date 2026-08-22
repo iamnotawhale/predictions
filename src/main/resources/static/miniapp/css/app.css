@@ -680,7 +680,8 @@ html, body {
     stroke-dasharray: 2.2 1.8;
 }
 
-.live-pitch-goal-marker {
+.live-pitch-mid-marker,
+.live-pitch-ball-marker {
     position: absolute;
     transform: translate(-50%, -50%);
     width: 0;
@@ -689,16 +690,39 @@ html, body {
     pointer-events: none;
 }
 
-.live-pitch-goal-dot {
+.live-pitch-mid-dot {
     position: absolute;
     left: 0;
     top: 0;
     transform: translate(-50%, -50%);
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #ffd84d;
+    background: rgba(255, 255, 255, 0.92);
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+}
+
+.live-pitch-ball-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 32% 28%, #ffffff 0 22%, transparent 23%),
+        radial-gradient(circle at 50% 50%, #f4f4f4 0 48%, #1a1a1a 49% 52%, #f0f0f0 53% 100%);
+    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.live-pitch-ball-icon::before {
+    content: '';
+    position: absolute;
+    inset: 22%;
+    border-radius: 50%;
+    border: 1.2px solid rgba(20, 20, 20, 0.75);
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
 }
 
 .live-pitch-marker {
