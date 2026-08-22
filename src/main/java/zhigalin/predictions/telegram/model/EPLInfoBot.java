@@ -34,6 +34,7 @@ import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.telegram.command.CommandContainer;
 import zhigalin.predictions.telegram.command.TeamName;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
+import zhigalin.predictions.util.DaoUtil;
 
 import static zhigalin.predictions.telegram.command.CommandName.NO;
 
@@ -242,15 +243,14 @@ public class EPLInfoBot extends TelegramLongPollingBot {
 
     private boolean isValidTeamCommand(String[] array) {
         return array.length == 6 &&
-               EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[2])) &&
-               EnumSet.allOf(TeamName.class).stream().anyMatch(n -> n.getName().toLowerCase().contains(array[4]));
+               isKnownTeamCode(array[2]) &&
+               isKnownTeamCode(array[4]);
     }
 
     private boolean isValidTeamCommand(Matcher matcher) {
         return matcher.find() &&
                matcher.groupCount() == 2 &&
-               Stream.of(matcher.group(1), matcher.group(2)).allMatch(team -> EnumSet.allOf(TeamName.class).stream()
-                       .anyMatch(t -> t.getName().toLowerCase().contains(team.toLowerCase())));
+               Stream.of(matcher.group(1), matcher.group(2)).allMatch(this::isKnownTeamCode);
     }
 
     private boolean isValidTeamName(Matcher matcher) {
@@ -258,6 +258,15 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                matcher.groupCount() == 1 &&
                EnumSet.allOf(TeamName.class).stream()
                        .anyMatch(t -> t.getName().toLowerCase().contains(matcher.group(1).toLowerCase()));
+    }
+
+    private boolean isKnownTeamCode(String teamCode) {
+        if (teamCode == null) {
+            return false;
+        }
+        String normalized = teamCode.toUpperCase();
+        return DaoUtil.TEAMS.values().stream()
+                .anyMatch(team -> normalized.equals(team.getCode()));
     }
 
     private void putMessageToDelete(Long chatId, Integer messageId) {

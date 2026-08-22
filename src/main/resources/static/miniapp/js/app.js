@@ -44,6 +44,9 @@
         myWeekOpened: false,
         leaderboardMode: '',
         chartLoaded: false,
+        chartData: null,
+        chartActiveLogin: null,
+        chartNodes: [],
         todayLoaded: false,
         todayHasLive: false,
         todaySnapshotInitialized: false,
@@ -105,6 +108,20 @@
 
     function sleep(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function hexToRgba(hex, alpha) {
+        if (!hex || typeof hex !== 'string') return 'rgba(255,255,255,' + alpha + ')';
+        const normalized = hex.replace('#', '');
+        const full = normalized.length === 3
+            ? normalized.split('').map(c => c + c).join('')
+            : normalized;
+        const intVal = Number.parseInt(full, 16);
+        if (!Number.isFinite(intVal)) return 'rgba(255,255,255,' + alpha + ')';
+        const r = (intVal >> 16) & 255;
+        const g = (intVal >> 8) & 255;
+        const b = intVal & 255;
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
     }
 
     function isRetryableStatus(status) {
@@ -272,11 +289,11 @@
     }
 
     function matchScoreLabel(m) {
-        if (m.status === 'ft' && m.homeScore != null) {
-            return m.homeScore + ' : ' + m.awayScore;
-        }
         if (m.hasPrediction && m.predictHome != null) {
             return m.predictHome + ' : ' + m.predictAway;
+        }
+        if (m.status === 'ft' && m.homeScore != null) {
+            return m.homeScore + ' : ' + m.awayScore;
         }
         return m.kickoff || '—';
     }
@@ -543,7 +560,7 @@
 
     async function loadLeaderboard(weekId) {
         const path = weekId != null ? '/leaderboard?weekId=' + weekId : '/leaderboard';
-        const data = await apiCached(path);
+        const data = await api(path);
         $('#leaderboard-title').textContent = data.title;
         const list = $('#leaderboard-list');
         list.innerHTML = '';
@@ -555,10 +572,14 @@
             const li = document.createElement('li');
             li.className = 'list-item';
             li.style.cursor = 'default';
+            const shownPoints = e.provisionalPoints != null ? e.provisionalPoints : e.points;
+            const sub = e.provisionalPoints != null && data.liveActive
+                ? '<div class="list-item-sub">база ' + e.points + ' · live ' + (e.liveDelta >= 0 ? '+' : '') + e.liveDelta + '</div>'
+                : '';
             li.innerHTML =
                 '<span class="rank">' + (i + 1) + '</span>' +
-                '<div class="list-item-main"><div class="list-item-title">' + e.login.toUpperCase() + '</div></div>' +
-                '<span class="pts">' + e.points + '</span>';
+                '<div class="list-item-main"><div class="list-item-title">' + e.login.toUpperCase() + '</div>' + sub + '</div>' +
+                '<span class="pts">' + shownPoints + '</span>';
             list.appendChild(li);
         });
     }
@@ -570,7 +591,7 @@
         processTodayScoreUpdates(data.matches, previousScores);
         renderHomeLiveModule(data.matches);
         renderTodayMatchesList(data.matches);
-        await loadLiveRace();
+        await loadLeaderboard(null);
         state.todayLoaded = true;
         scheduleTodayPolling();
     }
@@ -585,7 +606,7 @@
             renderTodayMatchesList(data.matches);
             state.todayLoaded = true;
         }
-        await loadLiveRace();
+        await loadLeaderboard(null);
         scheduleTodayPolling();
     }
 
@@ -593,36 +614,6 @@
         const data = await api('/today');
         state.todayHasLive = !!data.hasLive;
         renderHomeLiveModule(data.matches);
-        await loadLiveRace();
-    }
-
-    async function loadLiveRace() {
-        const card = $('#home-live-race');
-        const list = $('#home-live-race-list');
-        if (!card || !list) return;
-        try {
-            const data = await api('/live-race');
-            if (!data.active || !data.entries.length) {
-                card.classList.add('hidden');
-                list.innerHTML = '';
-                return;
-            }
-            card.classList.remove('hidden');
-            list.innerHTML = '';
-            data.entries.slice(0, 8).forEach((e, i) => {
-                const li = document.createElement('li');
-                li.className = 'list-item';
-                li.style.cursor = 'default';
-                li.innerHTML =
-                    '<span class="rank">' + (i + 1) + '</span>' +
-                    '<div class="list-item-main"><div class="list-item-title">' + e.login.toUpperCase() + '</div>' +
-                    '<div class="list-item-sub">live-зачёт тура ' + data.weekId + '</div></div>' +
-                    '<span class="pts">' + e.provisionalPoints + '</span>';
-                list.appendChild(li);
-            });
-        } catch (_) {
-            card.classList.add('hidden');
-        }
     }
 
     function scheduleTodayPolling() {
@@ -642,6 +633,7 @@
     function drawPointsChart(data) {
         const canvas = $('#points-chart');
         const ctx = canvas.getContext('2d');
+        state.chartData = data;
         const dpr = window.devicePixelRatio || 1;
         const width = canvas.parentElement.clientWidth || 320;
         const height = 200;
@@ -661,20 +653,39 @@
             ctx.fillStyle = '#8b98a5';
             ctx.font = '14px sans-serif';
             ctx.fillText('Нет данных', pad.left, height / 2);
+            $('#chart-legend').innerHTML = '';
             return;
         }
 
-        let maxY = 0;
+        if (state.chartActiveLogin && !data.series.some(s => s.login === state.chartActiveLogin)) {
+            state.chartActiveLogin = null;
+        }
+
+        let maxY = Number.NEGATIVE_INFINITY;
+        let minY = Number.POSITIVE_INFINITY;
         data.series.forEach(s => {
             s.points.forEach(p => {
-                if (p >= 0) maxY = Math.max(maxY, p);
+                if (p == null) return;
+                maxY = Math.max(maxY, p);
+                minY = Math.min(minY, p);
             });
         });
+        if (!Number.isFinite(maxY) || !Number.isFinite(minY)) {
+            ctx.fillStyle = '#8b98a5';
+            ctx.font = '14px sans-serif';
+            ctx.fillText('Нет данных', pad.left, height / 2);
+            return;
+        }
+        minY = Math.min(minY, 0);
         maxY = Math.max(maxY, 4);
+        if (maxY <= minY) {
+            maxY = minY + 1;
+        }
+        const yRange = maxY - minY;
 
         const weekCount = data.weeks.length;
         const xAt = (i) => pad.left + (weekCount <= 1 ? plotW / 2 : (i / (weekCount - 1)) * plotW);
-        const yAt = (v) => pad.top + plotH - (v / maxY) * plotH;
+        const yAt = (v) => pad.top + plotH - ((v - minY) / yRange) * plotH;
 
         ctx.strokeStyle = 'rgba(255,255,255,0.1)';
         ctx.lineWidth = 1;
@@ -684,6 +695,11 @@
             ctx.moveTo(pad.left, y);
             ctx.lineTo(pad.left + plotW, y);
             ctx.stroke();
+            const tickValue = (maxY - (yRange * g / 4)).toFixed(0);
+            ctx.fillStyle = '#8b98a5';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(tickValue, pad.left - 6, y + 3);
         }
 
         ctx.fillStyle = '#8b98a5';
@@ -694,15 +710,18 @@
             ctx.fillText(String(w), xAt(i), height - 8);
         });
 
+        const hasActiveSeries = !!state.chartActiveLogin;
+        const nodes = [];
         data.series.forEach((s, si) => {
             const color = CHART_COLORS[si % CHART_COLORS.length];
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
-            ctx.lineWidth = 2;
+            const isActive = !hasActiveSeries || s.login === state.chartActiveLogin;
+            ctx.strokeStyle = isActive ? color : hexToRgba(color, 0.22);
+            ctx.fillStyle = isActive ? color : hexToRgba(color, 0.28);
+            ctx.lineWidth = isActive ? 2.4 : 1.6;
             let started = false;
             ctx.beginPath();
             s.points.forEach((p, i) => {
-                if (p < 0) {
+                if (p == null) {
                     started = false;
                     return;
                 }
@@ -717,23 +736,98 @@
             });
             ctx.stroke();
             s.points.forEach((p, i) => {
-                if (p < 0) return;
+                if (p == null) return;
+                const x = xAt(i);
+                const y = yAt(p);
                 ctx.beginPath();
-                ctx.arc(xAt(i), yAt(p), 3, 0, Math.PI * 2);
+                ctx.arc(x, y, isActive ? 3.4 : 2.6, 0, Math.PI * 2);
                 ctx.fill();
+                nodes.push({
+                    x: x,
+                    y: y,
+                    login: s.login,
+                    week: data.weeks[i],
+                    points: p,
+                    color: color
+                });
             });
         });
+        state.chartNodes = nodes;
 
         const legend = $('#chart-legend');
         legend.innerHTML = '';
         data.series.forEach((s, si) => {
             const li = document.createElement('li');
+            const isActive = !hasActiveSeries || s.login === state.chartActiveLogin;
+            li.className = isActive ? 'active' : 'muted';
             li.innerHTML =
                 '<span class="dot" style="background:' + CHART_COLORS[si % CHART_COLORS.length] + '"></span>' +
-                s.label + ' · ' + s.login;
+                s.login.toUpperCase();
+            li.addEventListener('click', () => {
+                state.chartActiveLogin = (state.chartActiveLogin === s.login) ? null : s.login;
+                hideChartTooltip();
+                drawPointsChart(state.chartData);
+            });
             legend.appendChild(li);
         });
+
+        canvas.onclick = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const nearest = findNearestChartNode(x, y);
+            if (!nearest) {
+                hideChartTooltip();
+                return;
+            }
+            showChartTooltip(nearest, width);
+        };
         state.chartLoaded = true;
+    }
+
+    function findNearestChartNode(x, y) {
+        let nearest = null;
+        let bestDistSq = Number.POSITIVE_INFINITY;
+        state.chartNodes.forEach(n => {
+            if (state.chartActiveLogin && n.login !== state.chartActiveLogin) return;
+            const dx = n.x - x;
+            const dy = n.y - y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                nearest = n;
+            }
+        });
+        return bestDistSq <= 196 ? nearest : null;
+    }
+
+    function hideChartTooltip() {
+        const tooltip = $('#chart-tooltip');
+        if (tooltip) {
+            tooltip.classList.remove('visible');
+        }
+    }
+
+    function showChartTooltip(node, chartWidth) {
+        const wrap = $('.chart-wrap');
+        if (!wrap) return;
+        let tooltip = $('#chart-tooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'chart-tooltip';
+            tooltip.className = 'chart-tooltip';
+            wrap.appendChild(tooltip);
+        }
+        tooltip.textContent = node.login.toUpperCase() + ' · тур ' + node.week + ': ' + node.points;
+        tooltip.style.borderColor = node.color;
+        tooltip.classList.add('visible');
+        const tooltipWidth = Math.min(180, chartWidth - 12);
+        tooltip.style.maxWidth = tooltipWidth + 'px';
+        const actualWidth = tooltip.offsetWidth || 140;
+        const top = Math.max(6, node.y - 34);
+        const left = Math.min(Math.max(6, node.x - Math.round(actualWidth / 2)), chartWidth - actualWidth - 6);
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
     }
 
     async function loadPointsChart() {

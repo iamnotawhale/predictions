@@ -19,8 +19,6 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdScoreBucket;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardEntry;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
-import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveRaceEntry;
-import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveRaceResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
@@ -138,19 +136,71 @@ public class MiniAppService {
 
     public LeaderboardResponse leaderboard(String telegramId, Integer weekId) {
         requireUser(telegramId);
-        Map<String, Integer> points;
+        List<LeaderboardEntry> entries;
         String title;
+        boolean liveActive = false;
         if (weekId != null) {
-            points = predictionService.getWeeklyUsersPoints(weekId);
-            title = "Очки за " + weekId + " тур";
+            Map<String, Integer> points = predictionService.getWeeklyUsersPoints(weekId);
+            if (weekId == DaoUtil.currentWeekId) {
+                Map<String, Integer> provisional = computeCurrentWeekProvisionalPoints(weekId);
+                List<LeaderboardEntry> liveEntries = new ArrayList<>();
+                for (User user : DaoUtil.USERS.values()) {
+                    String login = user.getLogin();
+                    int base = points.getOrDefault(login, 0);
+                    int prov = provisional.getOrDefault(login, 0);
+                    int delta = prov - base;
+                    if (delta != 0) {
+                        liveActive = true;
+                    }
+                    liveEntries.add(new LeaderboardEntry(login, base, prov, delta));
+                }
+                title = liveActive ? "Очки за " + weekId + " тур (live)" : "Очки за " + weekId + " тур";
+                entries = liveEntries.stream()
+                        .sorted(Comparator.comparingInt((LeaderboardEntry e) -> e.provisionalPoints() != null ? e.provisionalPoints() : e.points())
+                                .reversed()
+                                .thenComparing(LeaderboardEntry::login))
+                        .toList();
+            } else {
+                title = "Очки за " + weekId + " тур";
+                entries = points.entrySet().stream()
+                        .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
+                                .thenComparing(Map.Entry::getKey))
+                        .map(e -> new LeaderboardEntry(e.getKey(), e.getValue(), null, null))
+                        .toList();
+            }
         } else {
-            points = predictionService.getAllPointsByUsers();
-            title = "Общий зачёт";
+            int currentWeekId = DaoUtil.currentWeekId;
+            Map<String, Integer> seasonPoints = new LinkedHashMap<>(predictionService.getAllPointsByUsers());
+            Map<String, Integer> weekStored = predictionService.getWeeklyUsersPoints(currentWeekId);
+            Map<String, Integer> weekProvisional = computeCurrentWeekProvisionalPoints(currentWeekId);
+            Map<String, Integer> seasonProvisional = new LinkedHashMap<>();
+
+            for (User user : DaoUtil.USERS.values()) {
+                String login = user.getLogin();
+                int base = seasonPoints.getOrDefault(login, 0);
+                int storedWeek = weekStored.getOrDefault(login, 0);
+                int provisionalWeek = weekProvisional.getOrDefault(login, 0);
+                int liveDelta = provisionalWeek - storedWeek;
+                if (liveDelta != 0) {
+                    liveActive = true;
+                }
+                seasonProvisional.put(login, base + liveDelta);
+                seasonPoints.putIfAbsent(login, base);
+            }
+            title = liveActive ? "Общий зачёт (live)" : "Общий зачёт";
+            entries = seasonProvisional.entrySet().stream()
+                    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
+                            .thenComparing(Map.Entry::getKey))
+                    .map(e -> {
+                        String login = e.getKey();
+                        int base = seasonPoints.getOrDefault(login, 0);
+                        int provisional = e.getValue();
+                        int delta = provisional - base;
+                        return new LeaderboardEntry(login, base, provisional, delta);
+                    })
+                    .toList();
         }
-        List<LeaderboardEntry> entries = points.entrySet().stream()
-                .map(e -> new LeaderboardEntry(e.getKey(), e.getValue()))
-                .toList();
-        return new LeaderboardResponse(entries, weekId, title);
+        return new LeaderboardResponse(entries, weekId, title, liveActive);
     }
 
     public TodayMatchesResponse todayMatches(String telegramId) {
@@ -213,56 +263,6 @@ public class MiniAppService {
         );
     }
 
-    public LiveRaceResponse liveRace(String telegramId) {
-        requireUser(telegramId);
-        int weekId = DaoUtil.currentWeekId;
-        List<Match> weekMatches = matchService.findAllByWeekId(weekId);
-        boolean hasLiveOrStarted = weekMatches.stream().anyMatch(m ->
-                isLiveStatus(m.getStatus()) || isFinishedStatus(m.getStatus())
-                || (m.getHomeTeamScore() != null && m.getAwayTeamScore() != null
-                    && !"ns".equalsIgnoreCase(String.valueOf(m.getStatus()))));
-        if (!hasLiveOrStarted) {
-            return new LiveRaceResponse(weekId, false, List.of());
-        }
-        Map<String, Integer> points = new LinkedHashMap<>();
-        Map<String, Integer> provisional = new LinkedHashMap<>();
-        for (User user : DaoUtil.USERS.values()) {
-            points.put(user.getLogin(), 0);
-            provisional.put(user.getLogin(), 0);
-        }
-        for (Match match : weekMatches) {
-            List<Prediction> preds = predictionService.getByMatchPublicId(match.getPublicId());
-            boolean finished = isFinishedStatus(match.getStatus());
-            boolean liveLike = isLiveStatus(match.getStatus())
-                               || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
-                                   && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
-            for (Prediction p : preds) {
-                User user = DaoUtil.USERS.get(p.getUserId());
-                if (user == null) {
-                    continue;
-                }
-                if (finished && p.getPoints() != null) {
-                    points.merge(user.getLogin(), Math.max(p.getPoints(), 0), Integer::sum);
-                    provisional.merge(user.getLogin(), Math.max(p.getPoints(), 0), Integer::sum);
-                } else if (liveLike) {
-                    int livePts = PredictionService.computePoints(
-                            match.getHomeTeamScore(),
-                            match.getAwayTeamScore(),
-                            p.getHomeTeamScore(),
-                            p.getAwayTeamScore()
-                    );
-                    provisional.merge(user.getLogin(), Math.max(livePts, 0), Integer::sum);
-                }
-            }
-        }
-        List<LiveRaceEntry> entries = provisional.entrySet().stream()
-                .map(e -> new LiveRaceEntry(e.getKey(), points.getOrDefault(e.getKey(), 0), e.getValue()))
-                .sorted(Comparator.comparingInt(LiveRaceEntry::provisionalPoints).reversed()
-                        .thenComparing(LiveRaceEntry::login))
-                .toList();
-        return new LiveRaceResponse(weekId, true, entries);
-    }
-
     public WeekReviewResponse weekReview(String telegramId, int weekId) {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
@@ -319,8 +319,7 @@ public class MiniAppService {
             String login = entry.getKey();
             String label = login.length() >= 3 ? login.substring(0, 3).toUpperCase() : login.toUpperCase();
             List<Integer> points = weeks.stream()
-                    .map(w -> entry.getValue().getOrDefault(w, null))
-                    .map(v -> v == null ? -1 : v)
+                    .map(entry.getValue()::get)
                     .toList();
             series.add(new ChartSeries(login, label, points));
         }
@@ -502,6 +501,39 @@ public class MiniAppService {
 
     private static int percent(int part, int total) {
         return total == 0 ? 0 : (int) Math.round(part * 100.0 / total);
+    }
+
+    private Map<String, Integer> computeCurrentWeekProvisionalPoints(int weekId) {
+        Map<String, Integer> weekProvisional = new LinkedHashMap<>();
+        for (User user : DaoUtil.USERS.values()) {
+            weekProvisional.put(user.getLogin(), 0);
+        }
+        List<Match> weekMatches = matchService.findAllByWeekId(weekId);
+        for (Match match : weekMatches) {
+            List<Prediction> preds = predictionService.getByMatchPublicId(match.getPublicId());
+            boolean finished = isFinishedStatus(match.getStatus());
+            boolean liveLike = isLiveStatus(match.getStatus())
+                               || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
+                                   && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
+            for (Prediction p : preds) {
+                User user = DaoUtil.USERS.get(p.getUserId());
+                if (user == null) {
+                    continue;
+                }
+                if (finished && p.getPoints() != null) {
+                    weekProvisional.merge(user.getLogin(), Math.max(p.getPoints(), 0), Integer::sum);
+                } else if (liveLike && match.getHomeTeamScore() != null && match.getAwayTeamScore() != null) {
+                    int livePts = PredictionService.computePoints(
+                            match.getHomeTeamScore(),
+                            match.getAwayTeamScore(),
+                            p.getHomeTeamScore(),
+                            p.getAwayTeamScore()
+                    );
+                    weekProvisional.merge(user.getLogin(), Math.max(livePts, 0), Integer::sum);
+                }
+            }
+        }
+        return weekProvisional;
     }
 
     private static boolean canPredict(Match match) {

@@ -21,7 +21,6 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
-import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveRaceResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
@@ -136,13 +135,6 @@ public class MiniAppController {
             @PathVariable int matchId
     ) {
         return miniAppService.crowdMeter(requireTelegramId(initData), matchId);
-    }
-
-    @GetMapping("/live-race")
-    public LiveRaceResponse liveRace(
-            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
-    ) {
-        return miniAppService.liveRace(requireTelegramId(initData));
     }
 
     @GetMapping("/weeks/{weekId}/review")
