@@ -1,7 +1,6 @@
 package zhigalin.predictions.telegram.command;
 
 import java.time.LocalDateTime;
-import java.util.EnumSet;
 import java.util.Objects;
 
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -10,6 +9,7 @@ import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
+import zhigalin.predictions.util.DaoUtil;
 
 public class NotificationPredictCommand implements Command {
 
@@ -38,17 +38,13 @@ public class NotificationPredictCommand implements Command {
         try {
             String[] matchToUpdate = text.split(REGEX);
 
-            String homeTeam = EnumSet.allOf(TeamName.class).stream()
-                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[2].toLowerCase()))
-                    .map(Enum::name).findFirst().orElse(null);
+            String homeTeam = resolveTeamCode(matchToUpdate[2]);
             if (homeTeam == null) {
                 message = "Неизвестная домашняя команда";
                 messageService.sendMessage(chatId, message);
                 return;
             }
-            String awayTeam = EnumSet.allOf(TeamName.class).stream()
-                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[4].toLowerCase()))
-                    .map(Enum::name).findFirst().orElse(null);
+            String awayTeam = resolveTeamCode(matchToUpdate[4]);
             if (awayTeam == null) {
                 message = "Неизвестная гостевая команда";
                 messageService.sendMessage(chatId, message);
@@ -82,5 +78,15 @@ public class NotificationPredictCommand implements Command {
         }
 
         messageService.sendMessageNotificationPicture(chatId, message, Objects.requireNonNull(match), homePredict, awayPredict);
+    }
+
+    private String resolveTeamCode(String rawTeamCode) {
+        if (rawTeamCode == null) {
+            return null;
+        }
+        String normalized = rawTeamCode.toUpperCase();
+        boolean exists = DaoUtil.TEAMS.values().stream()
+                .anyMatch(team -> normalized.equals(team.getCode()));
+        return exists ? normalized : null;
     }
 }

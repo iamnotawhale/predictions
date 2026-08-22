@@ -44,10 +44,10 @@ public final class MiniAppDtos {
     ) {
     }
 
-    public record LeaderboardEntry(String login, int points) {
+    public record LeaderboardEntry(String login, int points, Integer provisionalPoints, Integer liveDelta) {
     }
 
-    public record LeaderboardResponse(List<LeaderboardEntry> entries, Integer weekId, String title) {
+    public record LeaderboardResponse(List<LeaderboardEntry> entries, Integer weekId, String title, boolean liveActive) {
     }
 
     public record StandingItem(
@@ -136,16 +136,6 @@ public final class MiniAppDtos {
             int drawPct,
             int awayWinPct,
             List<CrowdScoreBucket> topScores
-    ) {
-    }
-
-    public record LiveRaceEntry(String login, int points, int provisionalPoints) {
-    }
-
-    public record LiveRaceResponse(
-            int weekId,
-            boolean active,
-            List<LiveRaceEntry> entries
     ) {
     }
 

@@ -1,7 +1,6 @@
 package zhigalin.predictions.telegram.command;
 
 import java.time.LocalDateTime;
-import java.util.EnumSet;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -12,6 +11,7 @@ import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
+import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 public class PredictCommand implements Command {
@@ -48,15 +48,11 @@ public class PredictCommand implements Command {
                 awayIndex = 4;
             }
 
-            String homeTeam = EnumSet.allOf(TeamName.class).stream()
-                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[homeIndex].toLowerCase()))
-                    .map(Enum::name).findFirst().orElse(null);
+            String homeTeam = resolveTeamCode(matchToUpdate[homeIndex]);
             if (homeTeam == null) {
                 return "Неизвестная домашняя команда";
             }
-            String awayTeam = EnumSet.allOf(TeamName.class).stream()
-                    .filter(t -> t.getName().toLowerCase().contains(matchToUpdate[awayIndex].toLowerCase()))
-                    .map(Enum::name).findFirst().orElse(null);
+            String awayTeam = resolveTeamCode(matchToUpdate[awayIndex]);
             if (awayTeam == null) {
                 return "Неизвестная гостевая команда";
             }
@@ -88,5 +84,15 @@ public class PredictCommand implements Command {
             return message;
         }
 
+    }
+
+    private String resolveTeamCode(String rawTeamCode) {
+        if (rawTeamCode == null) {
+            return null;
+        }
+        String normalized = rawTeamCode.toUpperCase();
+        boolean exists = DaoUtil.TEAMS.values().stream()
+                .anyMatch(team -> normalized.equals(team.getCode()));
+        return exists ? normalized : null;
     }
 }
