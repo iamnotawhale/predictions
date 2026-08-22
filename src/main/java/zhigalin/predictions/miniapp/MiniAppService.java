@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ChartSeries;
@@ -68,6 +70,7 @@ import static zhigalin.predictions.service.odds.OddsService.ODDS;
 
 @Service
 public class MiniAppService {
+    private static final Logger log = LoggerFactory.getLogger("server");
 
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
@@ -691,7 +694,9 @@ public class MiniAppService {
                     .queryString("event", match.getEspnId())
                     .asString();
             return objectMapper.readTree(response.getBody());
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("MiniApp summary fetch failed: matchId={}, espnId={}, error={}",
+                    match.getPublicId(), match.getEspnId(), e.getMessage());
             return null;
         }
     }
@@ -743,7 +748,8 @@ public class MiniAppService {
                     .limit(22)
                     .map(item -> new MatchEventItem(item.minute(), item.text(), item.type(), item.fieldX(), item.fieldY()))
                     .toList();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("MiniApp live commentary parse failed: error={}", e.getMessage());
             return List.of();
         }
     }
@@ -762,24 +768,51 @@ public class MiniAppService {
             return List.of();
         }
         return List.of(
-                stat("possession", "Владение", homeStats, awayStats),
-                stat("shotsTotal", "Удары", homeStats, awayStats),
-                stat("shotsOnTarget", "В створ", homeStats, awayStats),
-                stat("foulsCommitted", "Фолы", homeStats, awayStats),
-                stat("offsides", "Офсайды", homeStats, awayStats),
-                stat("cornerKicks", "Угловые", homeStats, awayStats),
-                stat("yellowCards", "ЖК", homeStats, awayStats),
-                stat("redCards", "КК", homeStats, awayStats)
+                statPercent("possessionPct", "possession", "Владение", homeStats, awayStats),
+                stat("totalShots", "shotsTotal", "Удары", homeStats, awayStats),
+                stat("shotsOnTarget", null, "В створ", homeStats, awayStats),
+                stat("foulsCommitted", null, "Фолы", homeStats, awayStats),
+                stat("offsides", null, "Офсайды", homeStats, awayStats),
+                stat("wonCorners", "cornerKicks", "Угловые", homeStats, awayStats),
+                stat("yellowCards", null, "ЖК", homeStats, awayStats),
+                stat("redCards", null, "КК", homeStats, awayStats)
         );
     }
 
-    private MatchStatItem stat(String key, String label, Map<String, String> home, Map<String, String> away) {
+    private MatchStatItem stat(String primaryKey, String fallbackKey, String label, Map<String, String> home, Map<String, String> away) {
         return new MatchStatItem(
-                key,
+                primaryKey,
                 label,
-                home.getOrDefault(key, "—"),
-                away.getOrDefault(key, "—")
+                pickStatValue(home, primaryKey, fallbackKey),
+                pickStatValue(away, primaryKey, fallbackKey)
         );
+    }
+
+    private MatchStatItem statPercent(String primaryKey, String fallbackKey, String label, Map<String, String> home, Map<String, String> away) {
+        return new MatchStatItem(
+                primaryKey,
+                label,
+                formatPercent(pickStatValue(home, primaryKey, fallbackKey)),
+                formatPercent(pickStatValue(away, primaryKey, fallbackKey))
+        );
+    }
+
+    private String pickStatValue(Map<String, String> map, String primaryKey, String fallbackKey) {
+        String value = map.get(primaryKey);
+        if (value == null || value.isBlank()) {
+            value = fallbackKey != null ? map.get(fallbackKey) : null;
+        }
+        return (value == null || value.isBlank()) ? "—" : value;
+    }
+
+    private String formatPercent(String value) {
+        if ("—".equals(value)) {
+            return value;
+        }
+        if (value.endsWith("%")) {
+            return value;
+        }
+        return value + "%";
     }
 
     private Map<String, String> extractStatsMap(JsonNode statsNode) {
@@ -883,7 +916,9 @@ public class MiniAppService {
                 return news.subList(0, limit);
             }
             return news;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("MiniApp match news load failed: matchId={}, error={}",
+                    match.getPublicId(), e.getMessage());
             return List.of();
         }
     }
@@ -920,7 +955,9 @@ public class MiniAppService {
             }
             teamNewsCache.put(teamCode, new CachedTeamNews(now, items));
             return items;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("MiniApp team news load failed: teamCode={}, tagId={}, error={}",
+                    teamCode, tagId, e.getMessage());
             return List.of();
         }
     }
