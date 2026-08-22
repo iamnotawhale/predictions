@@ -1344,6 +1344,11 @@
         return (type || '').toLowerCase().includes('blocked');
     }
 
+    function isOnTargetShotType(type) {
+        const normalized = (type || '').toLowerCase();
+        return normalized.includes('shot-on-target') || normalized.includes('save');
+    }
+
     function resolveGoalLineX(event) {
         if (Number.isFinite(event.field2X)) {
             return event.field2X >= 50 ? 100 : 0;
@@ -1354,11 +1359,35 @@
         return 100;
     }
 
+    function flipPitchPercent(value) {
+        if (!Number.isFinite(value)) return value;
+        return 100 - value;
+    }
+
     /**
-     * Shot points on pitch:
-     * 1) origin — fieldStart (shot)
-     * 2) mid — fieldEnd when present (block / flight end on pitch)
-     * 3) ball — goalPositionY on goal line when present; else ball at mid if mid exists
+     * ESPN commentary coords are attack-oriented (attack toward x≈100).
+     * On our fixed pitch home attacks right (x=100), away attacks left (x=0),
+     * so away events are rotated 180°.
+     */
+    function mapEventToPitchCoords(event, match) {
+        if (!event) return event;
+        if (resolveEventTeamSide(match, event) !== 'away') {
+            return event;
+        }
+        return Object.assign({}, event, {
+            fieldX: flipPitchPercent(event.fieldX),
+            fieldY: flipPitchPercent(event.fieldY),
+            field2X: flipPitchPercent(event.field2X),
+            field2Y: flipPitchPercent(event.field2Y),
+            goalPositionY: flipPitchPercent(event.goalPositionY)
+        });
+    }
+
+    /**
+     * Shot points on pitch (after home/away mapping):
+     * Blocked: origin → fieldEnd (+ mid marker = blocker).
+     * On-target: origin → goalmouth; mid at fieldEnd when present (= keeper).
+     * Other: origin → goalmouth / fieldEnd (no mid).
      */
     function resolveShotPoints(event) {
         const hasOrigin = Number.isFinite(event.fieldX) && Number.isFinite(event.fieldY);
@@ -1367,18 +1396,35 @@
         const hasGoalY = Number.isFinite(event.goalPositionY);
         const origin = { x: event.fieldX, y: event.fieldY };
         let mid = null;
-        let ball = null;
+        let end = null;
 
-        if (hasField2 && hasGoalY) {
-            mid = { x: event.field2X, y: event.field2Y };
-            ball = { x: resolveGoalLineX(event), y: event.goalPositionY };
-        } else if (hasField2) {
-            ball = { x: event.field2X, y: event.field2Y };
-        } else if (hasGoalY) {
-            ball = { x: resolveGoalLineX(event), y: event.goalPositionY };
+        if (isBlockedShotType(event.type)) {
+            if (hasField2) {
+                mid = { x: event.field2X, y: event.field2Y };
+                end = mid;
+            }
+            return { origin, mid, end };
         }
 
-        return { origin, mid, ball };
+        if (isOnTargetShotType(event.type)) {
+            if (hasField2) {
+                mid = { x: event.field2X, y: event.field2Y };
+            }
+            if (hasGoalY) {
+                end = { x: resolveGoalLineX(event), y: event.goalPositionY };
+            } else if (hasField2) {
+                end = mid;
+            }
+            return { origin, mid, end };
+        }
+
+        if (hasGoalY) {
+            end = { x: resolveGoalLineX(event), y: event.goalPositionY };
+        } else if (hasField2) {
+            end = { x: event.field2X, y: event.field2Y };
+        }
+
+        return { origin, mid: null, end };
     }
 
     function resolveEventTeamSide(match, event) {
@@ -1406,17 +1452,50 @@
             : (state.livePitchAwayColor || '#ffffff');
     }
 
-    function pitchPlayerLabel(event) {
-        let shortText = (event.shortText || '').trim();
-        if (!shortText) return '';
-        shortText = shortText.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-        shortText = shortText
-            .replace(/\s+(shot(\s+(on|off)\s+target)?|blocked(\s+shot)?|goal|save|woodwork|miss(ed)?|header|penalty).*$/i, '')
+    const PITCH_NON_PLAYER_TOKEN = /^(foul|goal|shot|blocked|save|woodwork|miss|missed|header|penalty|free|kick|card|yellow|red|corner|offside|var|substitution|sub|target|on|off|by|won|shown|awarded)$/i;
+    const PITCH_NAME_PARTICLE = /^(van|von|de|da|dos|del|della|di|der|den|la|le)$/i;
+
+    function surnameFromPlayerName(name) {
+        const cleaned = String(name || '')
+            .replace(/\s*\([^)]*\)\s*/g, ' ')
+            .replace(/[.,;:]+$/g, '')
             .trim();
-        const parts = shortText.split(/\s+/).filter(Boolean);
+        const parts = cleaned.split(/\s+/).filter(Boolean);
         if (!parts.length) return '';
-        // Surname or mononym nickname (Richarlison), not first name.
-        return parts[parts.length - 1];
+        if (parts.length >= 2 && PITCH_NAME_PARTICLE.test(parts[parts.length - 2])) {
+            const compound = parts.slice(-2).join(' ');
+            if (!PITCH_NON_PLAYER_TOKEN.test(parts[parts.length - 1])) {
+                return compound;
+            }
+        }
+        const last = parts[parts.length - 1];
+        if (PITCH_NON_PLAYER_TOKEN.test(last)) return '';
+        return last;
+    }
+
+    function pitchPlayerLabel(event) {
+        // Prefer ESPN play.participants[0].athlete.displayName from backend.
+        const fromParticipant = surnameFromPlayerName(event.playerName || '');
+        if (fromParticipant) return fromParticipant;
+
+        // Fallback: shortText like "Dango Ouattara Foul" / full commentary text.
+        for (const blob of [event.shortText || '', event.text || '']) {
+            let text = String(blob).trim();
+            if (!text) continue;
+            text = text.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+            const byMatch = text.match(/\bby\s+(.+?)(?:\s*[.!]|$)/i);
+            if (byMatch) {
+                const name = surnameFromPlayerName(byMatch[1]);
+                if (name) return name;
+            }
+            text = text
+                .replace(/\s+(foul|shot(\s+(on|off)\s+target)?|blocked(\s+shot)?|goal|save|woodwork|miss(ed)?|header|penalty|offside).*$/i, '')
+                .replace(/^(foul|free\s*kick|offside|corner|goal|penalty|save)\b[\s.:-]*/i, '')
+                .trim();
+            const name = surnameFromPlayerName(text);
+            if (name) return name;
+        }
+        return '';
     }
 
     function pitchEventLabel(event) {
@@ -1435,16 +1514,18 @@
 
     function shotTrajectoryStyle(type) {
         const normalized = (type || '').toLowerCase();
-        if (normalized.includes('blocked')) return 'solid';
-        if (normalized.includes('goal')) return 'solid';
+        // Goal: solid. All other shot trails (on/off target, block, woodwork): dashed.
+        if (normalized.includes('goal') && !normalized.includes('own')) return 'solid';
+        if (normalized.includes('blocked')) return 'dashed';
         if (normalized.includes('shot-on-target')) return 'dashed';
         if (normalized.includes('off-target') || normalized.includes('woodwork')) return 'dashed';
+        if (normalized.includes('shot') || normalized.includes('save')) return 'dashed';
         return 'solid';
     }
 
     function shouldShowLivePitchMarker(match, events) {
+        // Stats overlay still blocks the marker entirely.
         if (state.livePitchStatsOpened) return false;
-        if (isMatchHalftimeBreak(match, events)) return false;
         return true;
     }
 
@@ -1461,10 +1542,15 @@
                 state.selectedPitchEventKey = null;
             }
         }
-        if (!target || !Number.isFinite(target.fieldX) || !Number.isFinite(target.fieldY)) {
+        // At HT: hide auto marker, but keep an explicitly selected event from the list.
+        if (!target) {
+            if (isMatchHalftimeBreak(match, state.lastLiveEvents)) {
+                resetLivePitchMarker();
+                return;
+            }
             target = state.lastLiveEvents.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
         }
-        if (target) {
+        if (target && Number.isFinite(target.fieldX) && Number.isFinite(target.fieldY)) {
             applyLivePitchMarker(target, match);
         } else {
             resetLivePitchMarker();
@@ -1476,14 +1562,14 @@
             resetLivePitchMarker();
             return;
         }
+        const mapped = mapEventToPitchCoords(event, match);
         const teamColor = resolveEventTeamColor(match, event);
-        updateLivePitchMarker(event, match, teamColor, pitchEventLabel(event));
+        updateLivePitchMarker(mapped, match, teamColor, pitchEventLabel(event));
     }
 
     function updateLivePitchMarker(event, match, teamColor, label) {
         const marker = $('#live-pitch-marker');
         const midMarker = $('#live-pitch-mid-marker');
-        const ballMarker = $('#live-pitch-ball-marker');
         const shotLine = $('#live-pitch-shot-line');
         const shotLine2 = $('#live-pitch-shot-line-2');
         if (!marker) return;
@@ -1510,24 +1596,21 @@
         const showShotTrail = isShotEventType(event.type);
         const points = showShotTrail ? resolveShotPoints(event) : null;
         const trajectoryStyle = showShotTrail ? shotTrajectoryStyle(event.type) : null;
-        const midColor = isBlockedShotType(event.type)
-            ? resolveOppositeTeamColor(match, event)
-            : (teamColor || '#ffffff');
+        const midColor = resolveOppositeTeamColor(match, event);
 
         const mid = points && points.mid
             ? { x: clamp(points.mid.x, 0, 100), y: clamp(points.mid.y, 0, 100) }
             : null;
-        const ball = points && points.ball
-            ? { x: clamp(points.ball.x, 0, 100), y: clamp(points.ball.y, 0, 100) }
+        const end = points && points.end
+            ? { x: clamp(points.end.x, 0, 100), y: clamp(points.end.y, 0, 100) }
             : null;
-        const lineEnd = mid || ball;
 
         if (shotLine) {
-            if (lineEnd && trajectoryStyle) {
+            if (end && trajectoryStyle) {
                 shotLine.setAttribute('x1', String(originX));
                 shotLine.setAttribute('y1', String(originY));
-                shotLine.setAttribute('x2', String(lineEnd.x));
-                shotLine.setAttribute('y2', String(lineEnd.y));
+                shotLine.setAttribute('x2', String(end.x));
+                shotLine.setAttribute('y2', String(end.y));
                 shotLine.style.stroke = 'rgba(18, 20, 24, 0.88)';
                 shotLine.classList.remove('hidden', 'is-solid', 'is-dashed');
                 shotLine.classList.add(trajectoryStyle === 'dashed' ? 'is-dashed' : 'is-solid');
@@ -1536,20 +1619,7 @@
             }
         }
 
-        if (shotLine2) {
-            if (mid && ball && trajectoryStyle) {
-                shotLine2.setAttribute('x1', String(mid.x));
-                shotLine2.setAttribute('y1', String(mid.y));
-                shotLine2.setAttribute('x2', String(ball.x));
-                shotLine2.setAttribute('y2', String(ball.y));
-                shotLine2.style.stroke = 'rgba(18, 20, 24, 0.72)';
-                shotLine2.style.opacity = '';
-                shotLine2.classList.remove('hidden', 'is-solid', 'is-dashed');
-                shotLine2.classList.add(trajectoryStyle === 'dashed' ? 'is-dashed' : 'is-solid');
-            } else {
-                shotLine2.classList.add('hidden');
-            }
-        }
+        if (shotLine2) shotLine2.classList.add('hidden');
 
         if (midMarker) {
             const midDot = midMarker.querySelector('.live-pitch-mid-dot');
@@ -1569,22 +1639,11 @@
                 }
             }
         }
-
-        if (ballMarker) {
-            if (ball) {
-                ballMarker.style.left = ball.x + '%';
-                ballMarker.style.top = ball.y + '%';
-                ballMarker.classList.remove('hidden');
-            } else {
-                ballMarker.classList.add('hidden');
-            }
-        }
     }
 
     function resetLivePitchMarker() {
         const marker = $('#live-pitch-marker');
         const midMarker = $('#live-pitch-mid-marker');
-        const ballMarker = $('#live-pitch-ball-marker');
         const shotLine = $('#live-pitch-shot-line');
         const shotLine2 = $('#live-pitch-shot-line-2');
         if (marker) {
@@ -1611,11 +1670,8 @@
                 midDot.style.boxShadow = '';
             }
         }
-        if (ballMarker) ballMarker.classList.add('hidden');
         if (shotLine) shotLine.classList.add('hidden');
-        if (shotLine2) {
-            shotLine2.classList.add('hidden');
-        }
+        if (shotLine2) shotLine2.classList.add('hidden');
     }
 
     function renderLiveEvents(events, match) {

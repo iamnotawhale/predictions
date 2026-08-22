@@ -760,9 +760,10 @@ public class MiniAppService {
                         : null;
                 String teamName = item.path("play").path("team").path("displayName").asText("").trim();
                 String shortText = item.path("play").path("shortText").asText("").trim();
+                String playerName = extractPrimaryParticipantName(item.path("play"));
                 parsed.add(new LiveCommentaryEvent(
                         period, timeValue, sequence, minute, text, type,
-                        fieldX, fieldY, field2X, field2Y, goalPositionY, teamName, shortText
+                        fieldX, fieldY, field2X, field2Y, goalPositionY, teamName, shortText, playerName
                 ));
             }
             if (parsed.isEmpty()) {
@@ -785,13 +786,27 @@ public class MiniAppService {
                             item.field2Y(),
                             item.goalPositionY(),
                             item.teamName(),
-                            item.shortText()
+                            item.shortText(),
+                            item.playerName()
                     ))
                     .toList();
         } catch (Exception e) {
             log.warn("MiniApp live commentary parse failed: error={}", e.getMessage());
             return List.of();
         }
+    }
+
+    private String extractPrimaryParticipantName(JsonNode play) {
+        JsonNode participants = play.path("participants");
+        if (!participants.isArray() || participants.isEmpty()) {
+            return "";
+        }
+        String displayName = participants.get(0).path("athlete").path("displayName").asText("").trim();
+        if (!displayName.isBlank()) {
+            return displayName;
+        }
+        String lastName = participants.get(0).path("athlete").path("lastName").asText("").trim();
+        return lastName;
     }
 
     private List<MatchStatItem> loadLiveStats(JsonNode root) {
@@ -900,7 +915,8 @@ public class MiniAppService {
             Double field2Y,
             Double goalPositionY,
             String teamName,
-            String shortText
+            String shortText,
+            String playerName
     ) {
     }
 

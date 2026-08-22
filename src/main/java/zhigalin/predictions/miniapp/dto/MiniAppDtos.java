@@ -139,7 +139,8 @@ public final class MiniAppDtos {
             Double field2Y,
             Double goalPositionY,
             String teamName,
-            String shortText
+            String shortText,
+            String playerName
     ) {
     }
 
