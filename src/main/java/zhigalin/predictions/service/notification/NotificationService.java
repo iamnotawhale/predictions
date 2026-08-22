@@ -53,9 +53,9 @@ public class NotificationService {
     private static final int[] REMINDER_MINUTES_BEFORE = {60, 40, 20};
 
     private final Set<String> notificationBlackList = ConcurrentHashMap.newKeySet();
-    private final ConcurrentHashMap<String, Long> liveScoreNotifyAt = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> liveScoreMessageIds = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> liveScoreLastTexts = new ConcurrentHashMap<>();
     private final Set<Integer> weeklyResultsSent = ConcurrentHashMap.newKeySet();
-    private static final long LIVE_SCORE_DEDUP_MS = 60_000L;
 
     public NotificationService(MatchService matchService,
                                PredictionService predictionService,
@@ -136,6 +136,9 @@ public class NotificationService {
         if (path != null) {
             api.sendPhoto(defaultChatId, "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен", path, null);
         }
+        String key = String.valueOf(match.getPublicId());
+        liveScoreMessageIds.remove(key);
+        liveScoreLastTexts.remove(key);
     }
 
     public void sendWeeklyResults() {
@@ -166,17 +169,30 @@ public class NotificationService {
             return;
         }
         String key = String.valueOf(match.getPublicId());
-        long now = System.currentTimeMillis();
-        Long last = liveScoreNotifyAt.get(key);
-        if (last != null && now - last < LIVE_SCORE_DEDUP_MS) {
-            return;
-        }
-        liveScoreNotifyAt.put(key, now);
-        String prev = (prevHome == null ? "-" : prevHome) + ":" + (prevAway == null ? "-" : prevAway);
         String next = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
         String text = "⚽ *" + home.getCode() + " " + next + " " + away.getCode() + "*\n"
-                      + prev + " → " + next;
-        api.sendMessage(defaultChatId, text, null);
+                      + (prevHome == null ? "-" : prevHome) + ":" + (prevAway == null ? "-" : prevAway) + " → " + next;
+        if (text.equals(liveScoreLastTexts.get(key))) {
+            return;
+        }
+        Integer existingMessageId = liveScoreMessageIds.get(key);
+        boolean delivered = false;
+        if (existingMessageId != null) {
+            delivered = api.editMessageText(defaultChatId, existingMessageId, text, null);
+            if (!delivered) {
+                liveScoreMessageIds.remove(key);
+            }
+        }
+        if (!delivered) {
+            Integer sentMessageId = api.sendMessageAndGetId(defaultChatId, text, null);
+            if (sentMessageId != null) {
+                liveScoreMessageIds.put(key, sentMessageId);
+                delivered = true;
+            }
+        }
+        if (delivered) {
+            liveScoreLastTexts.put(key, text);
+        }
     }
 
     public void sendTotalPointsChart() {
