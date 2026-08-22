@@ -153,15 +153,26 @@ public class DataInitService {
 
             if (state.equals("pre")) {
                 Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
-                if (match != null && "pst".equals(match.getStatus())) {
+                if (match == null) {
+                    continue;
+                }
+                boolean updated = false;
+                if (event.getId() != null && !event.getId().isBlank() && !event.getId().equals(match.getEspnId())) {
+                    match.setEspnId(event.getId());
+                    updated = true;
+                }
+                if ("pst".equals(match.getStatus())) {
                     String dateStr = event.getDate().replaceAll("(T\\d{2}:\\d{2})Z", "$1:00Z");
                     LocalDateTime espnDate = Instant.parse(dateStr)
                             .atZone(AppTimeZones.DISPLAY)
                             .toLocalDateTime();
                     match.setStatus("ns");
                     match.setLocalDateTime(espnDate);
-                    matchService.update(match);
+                    updated = true;
                     serverLogger.info("Match {}-{} rescheduled: pst -> ns, date={}", homeTeam, awayTeam, espnDate);
+                }
+                if (updated) {
+                    matchService.update(match);
                 }
             } else if (state.equals("in")) {
                 String status = normalizeEspnLiveStatus(event);
