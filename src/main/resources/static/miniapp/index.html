@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/app.css?v=20260822-12">
+    <link rel="stylesheet" href="css/app.css?v=20260822-21">
 </head>
 <body>
 <div id="offline-banner" class="offline-banner hidden" role="status"></div>
@@ -58,7 +58,7 @@
                 </table>
             </div>
         </section>
-        <div class="miniapp-version">ver. 20260822-12</div>
+        <div class="miniapp-version">ver. 20260822-21</div>
     </main>
 
     <main id="screen-today" class="screen">
@@ -152,6 +152,26 @@
                     <div id="modal-live-away-lineup" class="h2h-list"></div>
                 </div>
             </div>
+            <div id="modal-live-pitch-wrap" class="live-pitch-wrap">
+                <div id="modal-live-pitch" class="live-pitch">
+                    <div class="live-pitch-half-line"></div>
+                    <div class="live-pitch-center-circle"></div>
+                    <div class="live-pitch-box live-pitch-box-home"></div>
+                    <div class="live-pitch-box live-pitch-box-away"></div>
+                    <div class="live-pitch-goal-box live-pitch-goal-box-home"></div>
+                    <div class="live-pitch-goal-box live-pitch-goal-box-away"></div>
+                <div class="live-pitch-penalty-mark live-pitch-penalty-mark-home"></div>
+                <div class="live-pitch-penalty-mark live-pitch-penalty-mark-away"></div>
+                <div class="live-pitch-arc live-pitch-arc-home"></div>
+                <div class="live-pitch-arc live-pitch-arc-away"></div>
+                    <div id="live-pitch-marker" class="live-pitch-marker hidden">
+                        <span class="live-pitch-dot"></span>
+                    <div class="live-pitch-marker-meta">
+                        <span id="live-pitch-marker-label" class="live-pitch-marker-label"></span>
+                    </div>
+                    </div>
+                </div>
+            </div>
             <div class="modal-live-events-title">События матча</div>
             <div id="modal-live-events" class="h2h-list"></div>
         </section>
@@ -199,6 +219,6 @@
 <div id="toast" class="toast hidden"></div>
 <div id="score-notifications" class="score-notifications"></div>
 
-<script src="js/app.js?v=20260822-12"></script>
+<script src="js/app.js?v=20260822-21"></script>
 </body>
 </html>

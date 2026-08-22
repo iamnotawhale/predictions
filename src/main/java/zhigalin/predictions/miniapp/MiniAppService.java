@@ -710,7 +710,13 @@ public class MiniAppService {
                 double timeValue = item.path("time").path("value").asDouble(-1d);
                 long sequence = item.path("sequence").asLong(i);
                 int period = item.path("play").path("period").path("number").asInt(0);
-                parsed.add(new LiveCommentaryEvent(period, timeValue, sequence, minute, text, type));
+                Double fieldX = item.path("play").path("fieldPositionX").isNumber()
+                        ? item.path("play").path("fieldPositionX").asDouble()
+                        : null;
+                Double fieldY = item.path("play").path("fieldPositionY").isNumber()
+                        ? item.path("play").path("fieldPositionY").asDouble()
+                        : null;
+                parsed.add(new LiveCommentaryEvent(period, timeValue, sequence, minute, text, type, fieldX, fieldY));
             }
             if (parsed.isEmpty()) {
                 return List.of();
@@ -722,7 +728,7 @@ public class MiniAppService {
                     .reversed());
             return parsed.stream()
                     .limit(22)
-                    .map(item -> new MatchEventItem(item.minute(), item.text(), item.type()))
+                    .map(item -> new MatchEventItem(item.minute(), item.text(), item.type(), item.fieldX(), item.fieldY()))
                     .toList();
         } catch (Exception ignored) {
             return List.of();
@@ -745,7 +751,9 @@ public class MiniAppService {
             long sequence,
             String minute,
             String text,
-            String type
+            String type,
+            Double fieldX,
+            Double fieldY
     ) {
     }
 
