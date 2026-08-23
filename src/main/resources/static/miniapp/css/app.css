@@ -640,17 +640,29 @@ html, body {
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
+.formation-lineup {
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.14));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+
+.formation-lineup.hidden {
+    display: none;
+}
+
 .formation-pitch {
     position: relative;
     min-height: 360px;
-    border-radius: 12px;
     padding: 14px 8px 10px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.14));
-    border: 1px solid rgba(255, 255, 255, 0.12);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     gap: 10px;
+}
+
+.formation-lineup.has-bench .formation-pitch {
+    padding-bottom: 8px;
 }
 
 .formation-row {
@@ -723,9 +735,8 @@ html, body {
 }
 
 .formation-bench {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 10px 10px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .formation-bench.hidden {
@@ -770,13 +781,6 @@ html, body {
     border-radius: 8px;
     padding: 1px 4px;
     line-height: 1.2;
-}
-
-.formation-badge-sub {
-    background: rgba(92, 217, 122, 0.35);
-    color: #d8ffe3;
-    font-size: 10px;
-    padding: 1px 5px;
 }
 
 .formation-empty {

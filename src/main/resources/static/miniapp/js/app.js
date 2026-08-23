@@ -1239,7 +1239,6 @@
         updateFormationTabs(match, state.homeFormation, state.awayFormation);
         const formation = state.formationSide === 'away' ? state.awayFormation : state.homeFormation;
         renderFormationPitch(formation);
-        renderFormationBench(formation);
     }
 
     function allFormationPlayers(formation) {
@@ -1289,48 +1288,62 @@
         '4-4-1-1': [[9], [10], [11, 8, 6, 7], [3, 5, 4, 2], [1]]
     };
 
-    function buildFormationRows(formation) {
-        if (!formation || !formation.starters || !formation.starters.length) return [];
-        const byId = formationPlayersById(formation);
-        const byPlace = new Map();
-        formation.starters.forEach((p) => {
-            if (p.formationPlace) {
-                byPlace.set(p.formationPlace, resolvePitchSlot(formation, p, byId));
-            }
-        });
-        const key = (formation.formation || '').trim();
-        const placeRows = FORMATION_PLACE_ROWS[key];
-        if (placeRows) {
-            return placeRows
-                .map((places) => places.map((place) => byPlace.get(place)).filter(Boolean))
-                .filter((row) => row.length);
-        }
-        return fallbackFormationRows(formation);
+    function inferFormationKey(formation) {
+        const key = (formation?.formation || '').trim();
+        if (FORMATION_PLACE_ROWS[key]) return key;
+        return '4-2-3-1';
     }
 
-    function fallbackFormationRows(formation) {
+    function formationPlaceSlots(formation) {
         const byId = formationPlayersById(formation);
-        const slots = formation.starters.map((p) => ({
-            starter: p,
-            slot: resolvePitchSlot(formation, p, byId)
-        }));
-        const gk = slots
-            .filter(({ starter }) => starter.formationPlace === 1 || /^G/i.test(starter.position || ''))
-            .map(({ slot }) => slot);
-        const rest = slots
-            .filter(({ starter }) => !(starter.formationPlace === 1 || /^G/i.test(starter.position || '')))
-            .sort((a, b) => (a.starter.formationPlace || 99) - (b.starter.formationPlace || 99))
-            .map(({ slot }) => slot);
+        const byPlace = new Map();
+        (formation?.starters || []).forEach((p) => {
+            const place = Number(p.formationPlace);
+            if (place > 0) {
+                byPlace.set(place, resolvePitchSlot(formation, p, byId));
+            }
+        });
+        return byPlace;
+    }
+
+    function rowsFromPlaceMap(byPlace, placeRows) {
+        return placeRows
+            .map((places) => places.map((place) => byPlace.get(Number(place))).filter(Boolean))
+            .filter((row) => row.length);
+    }
+
+    function buildFormationRows(formation) {
+        if (!formation || !formation.starters || !formation.starters.length) return [];
+        const byPlace = formationPlaceSlots(formation);
+        if (!byPlace.size) return [];
+        const key = inferFormationKey(formation);
+        const rows = rowsFromPlaceMap(byPlace, FORMATION_PLACE_ROWS[key]);
+        if (rows.length) return rows;
+        return fallbackFormationRows(formation, byPlace);
+    }
+
+    function fallbackFormationRows(formation, byPlace) {
+        if (!byPlace) byPlace = formationPlaceSlots(formation);
         const parts = String(formation.formation || '')
             .split('-')
             .map((n) => parseInt(n, 10))
             .filter((n) => Number.isFinite(n) && n > 0);
         if (!parts.length) {
-            const rows = [];
-            if (rest.length) rows.push(rest);
-            if (gk.length) rows.push(gk);
-            return rows;
+            return rowsFromPlaceMap(byPlace, FORMATION_PLACE_ROWS['4-2-3-1']);
         }
+        const slots = (formation.starters || [])
+            .map((p) => ({
+                starter: p,
+                slot: byPlace.get(Number(p.formationPlace))
+            }))
+            .filter(({ slot }) => slot);
+        const gk = slots
+            .filter(({ starter }) => Number(starter.formationPlace) === 1 || /^G/i.test(starter.position || ''))
+            .map(({ slot }) => slot);
+        const rest = slots
+            .filter(({ starter }) => !(Number(starter.formationPlace) === 1 || /^G/i.test(starter.position || '')))
+            .sort((a, b) => (Number(a.starter.formationPlace) || 99) - (Number(b.starter.formationPlace) || 99))
+            .map(({ slot }) => slot);
         const defenseToAttack = [];
         let idx = 0;
         parts.forEach((count) => {
@@ -1342,52 +1355,85 @@
         }
         const rows = defenseToAttack.reverse().filter((row) => row.length);
         if (gk.length) rows.push(gk);
-        return rows;
+        return rows.length ? rows : rowsFromPlaceMap(byPlace, FORMATION_PLACE_ROWS['4-2-3-1']);
+    }
+
+    function formationPlayerLabel(player) {
+        return (player?.lastName || player?.shortName || player?.name || '').trim();
+    }
+
+    function formationJerseyNumber(player) {
+        const num = Number(player?.number);
+        if (Number.isFinite(num) && num > 0) return String(num);
+        const label = formationPlayerLabel(player);
+        return label ? label.charAt(0).toUpperCase() : '?';
+    }
+
+    function formatBenchLabel(player) {
+        const name = formationPlayerLabel(player);
+        if (!name) return null;
+        const parts = [];
+        const num = Number(player.number);
+        if (Number.isFinite(num) && num > 0) parts.push(String(num));
+        parts.push(name);
+        const pos = (player.position || '').trim();
+        if (pos && !/^SUB$/i.test(pos)) parts.push(pos);
+        return parts.join(' · ');
+    }
+
+    function setFormationLineupVisible(hasPitch, hasBench) {
+        const lineup = $('#formation-lineup');
+        const empty = $('#formation-empty');
+        if (lineup) {
+            lineup.classList.toggle('hidden', !hasPitch);
+            lineup.classList.toggle('has-bench', !!hasBench);
+        }
+        if (empty) empty.classList.toggle('hidden', hasPitch);
     }
 
     function renderFormationBench(formation) {
         const benchEl = $('#formation-bench');
-        if (!benchEl) return;
+        if (!benchEl) return false;
         benchEl.innerHTML = '';
         if (!formation || !formation.bench || !formation.bench.length) {
             benchEl.classList.add('hidden');
-            return;
+            return false;
         }
         const unused = formation.bench.filter((p) => !p.subbedIn);
         if (!unused.length) {
             benchEl.classList.add('hidden');
-            return;
+            return false;
         }
         benchEl.classList.remove('hidden');
         const list = document.createElement('ul');
         list.className = 'formation-bench-list';
         unused.forEach((player) => {
+            const label = formatBenchLabel(player);
+            if (!label) return;
             const item = document.createElement('li');
             item.className = 'formation-bench-item';
-            const number = player.number ? ('#' + player.number + ' ') : '';
-            const name = player.lastName || player.shortName || player.name || '—';
-            const pos = player.position ? (' · ' + player.position) : '';
-            item.textContent = number + name + pos;
+            item.textContent = label;
             list.appendChild(item);
         });
+        if (!list.childElementCount) {
+            benchEl.classList.add('hidden');
+            return false;
+        }
         benchEl.appendChild(list);
+        return true;
     }
 
     function renderFormationPitch(formation) {
         const pitch = $('#formation-pitch');
-        const empty = $('#formation-empty');
-        const benchEl = $('#formation-bench');
         if (!pitch) return;
         pitch.innerHTML = '';
         const rows = buildFormationRows(formation);
         if (!rows.length) {
             pitch.classList.add('hidden');
-            if (benchEl) benchEl.classList.add('hidden');
-            if (empty) empty.classList.remove('hidden');
+            setFormationLineupVisible(false, false);
             return;
         }
         pitch.classList.remove('hidden');
-        if (empty) empty.classList.add('hidden');
         const kitColor = normalizeKitColor(formation.kitColor);
         rows.forEach((row) => {
             const rowEl = document.createElement('div');
@@ -1395,6 +1441,7 @@
             row.forEach((slot) => rowEl.appendChild(createFormationPlayerButton(slot, kitColor)));
             pitch.appendChild(rowEl);
         });
+        setFormationLineupVisible(true, renderFormationBench(formation));
     }
 
     function normalizeKitColor(color) {
@@ -1412,17 +1459,15 @@
             (slot.subbedOutOnly ? ' subbed-out' : '') +
             (slot.isSubstitution ? ' is-substitute-in' : '');
         const isGk = slot.formationPlace === 1 || /^G/i.test(player.position || '');
-        const hasImage = !!player.jerseyImage;
         const jerseyStyle = [];
-        if (hasImage) {
-            jerseyStyle.push('background-image:url(\'' + player.jerseyImage.replace(/'/g, '%27') + '\')');
-        } else if (kitColor) {
+        if (kitColor) {
             jerseyStyle.push('background-color:' + kitColor);
+        } else if (isGk) {
+            jerseyStyle.push('background-color:#4a5560');
+        } else {
+            jerseyStyle.push('background-color:#3a4a58');
         }
         const badges = [];
-        if (slot.isSubstitution) {
-            badges.push('<span class="formation-badge formation-badge-sub" title="Замена">↕</span>');
-        }
         if ((player.goals || 0) > 0) {
             badges.push('<span class="formation-badge">⚽' + player.goals + '</span>');
         }
@@ -1437,11 +1482,11 @@
         }
         btn.innerHTML =
             (badges.length ? '<div class="formation-badges">' + badges.join('') + '</div>' : '') +
-            '<span class="formation-jersey' + (isGk ? ' is-gk' : '') + (hasImage ? ' has-image' : '') + '"' +
+            '<span class="formation-jersey' + (isGk ? ' is-gk' : '') + '"' +
             (jerseyStyle.length ? ' style="' + jerseyStyle.join(';') + '"' : '') + '>' +
-            (hasImage ? '' : (player.number || '')) +
+            formationJerseyNumber(player) +
             '</span>' +
-            '<span class="formation-player-name">' + escapeHtml(player.lastName || player.shortName || player.name || '') + '</span>';
+            '<span class="formation-player-name">' + escapeHtml(formationPlayerLabel(player) || '?') + '</span>';
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             openPlayerModal(player, kitColor);
@@ -1488,7 +1533,7 @@
         $('#player-modal-title').textContent = player.name || player.shortName || 'Игрок';
         $('#player-modal-sub').textContent =
             (player.positionName || player.position || '') +
-            (player.number ? ' · #' + player.number : '');
+            (player.number ? ' · ' + player.number : '');
         const jersey = $('#player-modal-jersey');
         if (jersey) {
             jersey.textContent = player.number || '';
