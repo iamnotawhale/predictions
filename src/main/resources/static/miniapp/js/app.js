@@ -1471,9 +1471,6 @@
             jerseyStyle.push('background-color:#3a4a58');
         }
         const badges = [];
-        if (slot.isSubstitution) {
-            badges.push('<span class="formation-badge formation-badge-sub" title="Замена">↕</span>');
-        }
         if ((player.goals || 0) > 0) {
             badges.push('<span class="formation-badge">⚽' + player.goals + '</span>');
         }
@@ -1486,8 +1483,12 @@
         if ((player.redCards || 0) > 0) {
             badges.push('<span class="formation-badge">🟥</span>');
         }
+        const subIcon = slot.isSubstitution
+            ? '<span class="formation-sub-icon" title="Замена">↕</span>'
+            : '';
         btn.innerHTML =
             (badges.length ? '<div class="formation-badges">' + badges.join('') + '</div>' : '') +
+            subIcon +
             '<span class="formation-jersey' + (isGk ? ' is-gk' : '') + (hasImage ? ' has-image' : '') + '"' +
             (jerseyStyle.length ? ' style="' + jerseyStyle.join(';') + '"' : '') + '>' +
             (hasImage ? '' : formationJerseyNumber(player)) +
