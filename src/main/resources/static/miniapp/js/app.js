@@ -1542,9 +1542,13 @@
             (player.number ? ' · ' + player.number : '');
         const jersey = $('#player-modal-jersey');
         if (jersey) {
-            jersey.textContent = player.number || '';
-            jersey.style.backgroundImage = player.jerseyImage ? 'url(\'' + player.jerseyImage.replace(/'/g, '%27') + '\')' : '';
-            jersey.style.backgroundColor = kitColor || '';
+            const hasImage = !!player.jerseyImage;
+            jersey.textContent = hasImage ? '' : (player.number || '');
+            jersey.style.backgroundImage = hasImage
+                ? 'url(\'' + player.jerseyImage.replace(/'/g, '%27') + '\')'
+                : '';
+            jersey.style.backgroundColor = hasImage ? '' : (kitColor || '');
+            jersey.classList.toggle('has-image', hasImage);
             jersey.classList.toggle('is-gk', /^G/i.test(player.position || '') || player.formationPlace === 1);
         }
         const badges = $('#player-modal-badges');
