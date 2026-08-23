@@ -150,6 +150,8 @@ public final class MiniAppDtos {
             boolean starter,
             boolean subbedOut,
             boolean subbedIn,
+            String subPartnerId,
+            String subPartnerName,
             String jerseyImage,
             Integer goals,
             Integer assists,

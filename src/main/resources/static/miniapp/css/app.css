@@ -718,6 +718,76 @@ html, body {
     opacity: 0.55;
 }
 
+.formation-player.is-substitute-in .formation-jersey {
+    box-shadow: 0 0 0 2px rgba(92, 217, 122, 0.75);
+}
+
+.formation-bench {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.formation-bench.hidden {
+    display: none;
+}
+
+.formation-bench-title {
+    font-size: 11px;
+    color: var(--hint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 6px;
+}
+
+.formation-bench-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.formation-bench-player {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 10px 4px 4px;
+    cursor: pointer;
+}
+
+.formation-bench-player:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.formation-bench-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+}
+
+.formation-bench-name {
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.formation-bench-pos {
+    color: var(--hint);
+    font-size: 10px;
+}
+
 .formation-badges {
     position: absolute;
     top: -4px;
@@ -738,6 +808,13 @@ html, body {
     border-radius: 8px;
     padding: 1px 4px;
     line-height: 1.2;
+}
+
+.formation-badge-sub {
+    background: rgba(92, 217, 122, 0.35);
+    color: #d8ffe3;
+    font-size: 10px;
+    padding: 1px 5px;
 }
 
 .formation-empty {

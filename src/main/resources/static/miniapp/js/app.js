@@ -1203,6 +1203,8 @@
                 starter: true,
                 subbedOut: false,
                 subbedIn: false,
+                subPartnerId: '',
+                subPartnerName: '',
                 jerseyImage: null,
                 goals: null,
                 assists: null,
@@ -1237,6 +1239,38 @@
         updateFormationTabs(match, state.homeFormation, state.awayFormation);
         const formation = state.formationSide === 'away' ? state.awayFormation : state.homeFormation;
         renderFormationPitch(formation);
+        renderFormationBench(formation);
+    }
+
+    function allFormationPlayers(formation) {
+        return [...(formation?.starters || []), ...(formation?.bench || [])];
+    }
+
+    function formationPlayersById(formation) {
+        const byId = new Map();
+        allFormationPlayers(formation).forEach((p) => {
+            if (p.id) byId.set(String(p.id), p);
+        });
+        return byId;
+    }
+
+    function resolvePitchSlot(formation, starter, byId) {
+        const formationPlace = starter.formationPlace || 0;
+        if (!starter?.subbedOut) {
+            return { player: starter, isSubstitution: false, formationPlace };
+        }
+        let replacement = null;
+        if (starter.subPartnerId && byId.has(String(starter.subPartnerId))) {
+            replacement = byId.get(String(starter.subPartnerId));
+        } else {
+            replacement = allFormationPlayers(formation).find(
+                (p) => p.subbedIn && String(p.subPartnerId) === String(starter.id)
+            );
+        }
+        if (replacement) {
+            return { player: replacement, isSubstitution: true, formationPlace };
+        }
+        return { player: starter, isSubstitution: false, subbedOutOnly: true, formationPlace };
     }
 
     // Opta/ESPN formationPlace rows: attack → GK (top → bottom)
@@ -1257,9 +1291,12 @@
 
     function buildFormationRows(formation) {
         if (!formation || !formation.starters || !formation.starters.length) return [];
+        const byId = formationPlayersById(formation);
         const byPlace = new Map();
         formation.starters.forEach((p) => {
-            if (p.formationPlace) byPlace.set(p.formationPlace, p);
+            if (p.formationPlace) {
+                byPlace.set(p.formationPlace, resolvePitchSlot(formation, p, byId));
+            }
         });
         const key = (formation.formation || '').trim();
         const placeRows = FORMATION_PLACE_ROWS[key];
@@ -1272,11 +1309,18 @@
     }
 
     function fallbackFormationRows(formation) {
-        const starters = formation.starters.slice();
-        const gk = starters.filter((p) => p.formationPlace === 1 || /^G/i.test(p.position || ''));
-        const rest = starters
-            .filter((p) => !gk.includes(p))
-            .sort((a, b) => (a.formationPlace || 99) - (b.formationPlace || 99));
+        const byId = formationPlayersById(formation);
+        const slots = formation.starters.map((p) => ({
+            starter: p,
+            slot: resolvePitchSlot(formation, p, byId)
+        }));
+        const gk = slots
+            .filter(({ starter }) => starter.formationPlace === 1 || /^G/i.test(starter.position || ''))
+            .map(({ slot }) => slot);
+        const rest = slots
+            .filter(({ starter }) => !(starter.formationPlace === 1 || /^G/i.test(starter.position || '')))
+            .sort((a, b) => (a.starter.formationPlace || 99) - (b.starter.formationPlace || 99))
+            .map(({ slot }) => slot);
         const parts = String(formation.formation || '')
             .split('-')
             .map((n) => parseInt(n, 10))
@@ -1287,7 +1331,6 @@
             if (gk.length) rows.push(gk);
             return rows;
         }
-        // parts: defense → attack; display attack → GK
         const defenseToAttack = [];
         let idx = 0;
         parts.forEach((count) => {
@@ -1302,14 +1345,60 @@
         return rows;
     }
 
+    function renderFormationBench(formation) {
+        const benchEl = $('#formation-bench');
+        if (!benchEl) return;
+        benchEl.innerHTML = '';
+        if (!formation || !formation.bench || !formation.bench.length) {
+            benchEl.classList.add('hidden');
+            return;
+        }
+        const unused = formation.bench.filter((p) => !p.subbedIn);
+        if (!unused.length) {
+            benchEl.classList.add('hidden');
+            return;
+        }
+        benchEl.classList.remove('hidden');
+        const title = document.createElement('div');
+        title.className = 'formation-bench-title';
+        title.textContent = 'Запасные';
+        benchEl.appendChild(title);
+        const list = document.createElement('div');
+        list.className = 'formation-bench-list';
+        const kitColor = normalizeKitColor(formation.kitColor);
+        unused.forEach((player) => list.appendChild(createFormationBenchButton(player, kitColor)));
+        benchEl.appendChild(list);
+    }
+
+    function createFormationBenchButton(player, kitColor) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'formation-bench-player';
+        const pos = player.position || '';
+        btn.innerHTML =
+            '<span class="formation-bench-num"' +
+            (kitColor ? ' style="background-color:' + kitColor + '"' : '') + '>' +
+            (player.number || '—') +
+            '</span>' +
+            '<span class="formation-bench-name">' + escapeHtml(player.lastName || player.shortName || player.name || '') + '</span>' +
+            (pos ? '<span class="formation-bench-pos">' + escapeHtml(pos) + '</span>' : '');
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openPlayerModal(player, kitColor);
+        });
+        return btn;
+    }
+
     function renderFormationPitch(formation) {
         const pitch = $('#formation-pitch');
         const empty = $('#formation-empty');
+        const benchEl = $('#formation-bench');
         if (!pitch) return;
         pitch.innerHTML = '';
         const rows = buildFormationRows(formation);
         if (!rows.length) {
             pitch.classList.add('hidden');
+            if (benchEl) benchEl.classList.add('hidden');
             if (empty) empty.classList.remove('hidden');
             return;
         }
@@ -1319,7 +1408,7 @@
         rows.forEach((row) => {
             const rowEl = document.createElement('div');
             rowEl.className = 'formation-row';
-            row.forEach((player) => rowEl.appendChild(createFormationPlayerButton(player, kitColor)));
+            row.forEach((slot) => rowEl.appendChild(createFormationPlayerButton(slot, kitColor)));
             pitch.appendChild(rowEl);
         });
     }
@@ -1331,11 +1420,14 @@
         return value.startsWith('#') ? value : ('#' + value);
     }
 
-    function createFormationPlayerButton(player, kitColor) {
+    function createFormationPlayerButton(slot, kitColor) {
+        const player = slot.player;
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'formation-player' + (player.subbedOut ? ' subbed-out' : '');
-        const isGk = /^G/i.test(player.position || '') || player.formationPlace === 1;
+        btn.className = 'formation-player' +
+            (slot.subbedOutOnly ? ' subbed-out' : '') +
+            (slot.isSubstitution ? ' is-substitute-in' : '');
+        const isGk = slot.formationPlace === 1 || /^G/i.test(player.position || '');
         const hasImage = !!player.jerseyImage;
         const jerseyStyle = [];
         if (hasImage) {
@@ -1344,6 +1436,9 @@
             jerseyStyle.push('background-color:' + kitColor);
         }
         const badges = [];
+        if (slot.isSubstitution) {
+            badges.push('<span class="formation-badge formation-badge-sub" title="Замена">↕</span>');
+        }
         if ((player.goals || 0) > 0) {
             badges.push('<span class="formation-badge">⚽' + player.goals + '</span>');
         }
@@ -1422,8 +1517,14 @@
             const chips = [];
             if ((player.goals || 0) > 0) chips.push('<span class="player-modal-chip">Голы: ' + player.goals + '</span>');
             if ((player.assists || 0) > 0) chips.push('<span class="player-modal-chip">Ассисты: ' + player.assists + '</span>');
-            if (player.subbedOut) chips.push('<span class="player-modal-chip">Заменён</span>');
-            if (player.subbedIn) chips.push('<span class="player-modal-chip">Вышел на замену</span>');
+            if (player.subbedOut) {
+                chips.push('<span class="player-modal-chip">Заменён' +
+                    (player.subPartnerName ? ': ' + escapeHtml(player.subPartnerName) : '') + '</span>');
+            }
+            if (player.subbedIn) {
+                chips.push('<span class="player-modal-chip">Вышел на замену' +
+                    (player.subPartnerName ? ' · ' + escapeHtml(player.subPartnerName) : '') + '</span>');
+            }
             badges.innerHTML = chips.join('');
         }
         const statsBox = $('#player-modal-stats');
