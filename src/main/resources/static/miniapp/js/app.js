@@ -1366,8 +1366,8 @@
 
     /**
      * ESPN coords: attack toward x≈100; ends swap at half-time.
-     * Flip X when (away XOR second half); flip Y in the complementary cases
-     * (home XOR 1st half) so touchlines match our fixed pitch (y=0 = top).
+     * Mirror X when (away XOR second half); flip Y in the complementary cases
+     * (home XOR 1st half, away XOR 2nd half).
      */
     function resolveEventPeriod(event) {
         const period = Number(event?.period);
@@ -1385,19 +1385,37 @@
         return away !== secondHalf;
     }
 
+    function shouldFlipPitchY(event, match) {
+        return !shouldMirrorPitchX(event, match);
+    }
+
     function mapEventToPitchCoords(event, match) {
         if (!event) return event;
+        const mapped = Object.assign({}, event);
         if (shouldMirrorPitchX(event, match)) {
-            return Object.assign({}, event, {
-                fieldX: flipPitchPercent(event.fieldX),
-                field2X: flipPitchPercent(event.field2X)
-            });
+            mapped.fieldX = flipPitchPercent(event.fieldX);
+            mapped.field2X = flipPitchPercent(event.field2X);
         }
-        return Object.assign({}, event, {
-            fieldY: flipPitchPercent(event.fieldY),
-            field2Y: flipPitchPercent(event.field2Y),
-            goalPositionY: flipPitchPercent(event.goalPositionY)
-        });
+        if (shouldFlipPitchY(event, match)) {
+            mapped.fieldY = flipPitchPercent(event.fieldY);
+            mapped.field2Y = flipPitchPercent(event.field2Y);
+            mapped.goalPositionY = flipPitchPercent(event.goalPositionY);
+        }
+        return mapped;
+    }
+
+    function isOffsideEventType(type) {
+        return (type || '').toLowerCase().includes('offside');
+    }
+
+    function resolveOffsidePoints(event) {
+        const hasLine = Number.isFinite(event.fieldX) && Number.isFinite(event.fieldY);
+        const hasPlayer = Number.isFinite(event.field2X) && Number.isFinite(event.field2Y);
+        if (!hasLine || !hasPlayer) return null;
+        return {
+            line: { x: event.fieldX, y: event.fieldY },
+            player: { x: event.field2X, y: event.field2Y }
+        };
     }
 
     /**
@@ -1405,6 +1423,7 @@
      * Blocked: origin → fieldEnd (+ mid marker = blocker).
      * On-target: origin → fieldEnd (= keeper) when present; else → goalmouth.
      * Other: origin → goalmouth / fieldEnd (no mid).
+     * Offside: fieldStart = offside line, field2 = caught player (see resolveOffsidePoints).
      */
     function resolveShotPoints(event) {
         const hasOrigin = Number.isFinite(event.fieldX) && Number.isFinite(event.fieldY);
@@ -1489,7 +1508,25 @@
         return last;
     }
 
+    function pitchOffsidePlayerFromText(event) {
+        for (const blob of [event.text || '', event.shortText || '']) {
+            const text = String(blob).trim();
+            if (!text) continue;
+            const caught = text.match(/\.\s*(.+?)\s+is caught offside\b/i);
+            if (caught) {
+                const name = surnameFromPlayerName(caught[1]);
+                if (name) return name;
+            }
+        }
+        return '';
+    }
+
     function pitchPlayerLabel(event) {
+        if (isOffsideEventType(event.type)) {
+            const fromText = pitchOffsidePlayerFromText(event);
+            if (fromText) return fromText;
+        }
+
         // Prefer ESPN play.participants[0].athlete.displayName from backend.
         const fromParticipant = surnameFromPlayerName(event.playerName || '');
         if (fromParticipant) return fromParticipant;
@@ -1591,10 +1628,41 @@
         if (!marker) return;
 
         const pitch = $('#modal-live-pitch');
-        const originX = clamp(event.fieldX, 0, 100);
-        const originY = clamp(event.fieldY, 0, 100);
-        marker.style.left = originX + '%';
-        marker.style.top = originY + '%';
+        const offsidePoints = isOffsideEventType(event.type) ? resolveOffsidePoints(event) : null;
+
+        let markerX;
+        let markerY;
+        let mid = null;
+        let end = null;
+        let trajectoryStyle = null;
+        let midColor = resolveOppositeTeamColor(match, event);
+
+        if (offsidePoints) {
+            markerX = clamp(offsidePoints.player.x, 0, 100);
+            markerY = clamp(offsidePoints.player.y, 0, 100);
+            mid = {
+                x: clamp(offsidePoints.line.x, 0, 100),
+                y: clamp(offsidePoints.line.y, 0, 100)
+            };
+            end = { x: markerX, y: markerY };
+            trajectoryStyle = 'dashed';
+            midColor = teamColor;
+        } else {
+            markerX = clamp(event.fieldX, 0, 100);
+            markerY = clamp(event.fieldY, 0, 100);
+            const showShotTrail = isShotEventType(event.type);
+            const points = showShotTrail ? resolveShotPoints(event) : null;
+            trajectoryStyle = showShotTrail ? shotTrajectoryStyle(event.type) : null;
+            mid = points && points.mid
+                ? { x: clamp(points.mid.x, 0, 100), y: clamp(points.mid.y, 0, 100) }
+                : null;
+            end = points && points.end
+                ? { x: clamp(points.end.x, 0, 100), y: clamp(points.end.y, 0, 100) }
+                : null;
+        }
+
+        marker.style.left = markerX + '%';
+        marker.style.top = markerY + '%';
 
         const dot = marker.querySelector('.live-pitch-dot');
         if (dot) {
@@ -1606,25 +1674,16 @@
         if (labelEl) {
             labelEl.textContent = label || 'live';
         }
-        positionLivePitchBadge(marker, pitch, originX, originY);
+        positionLivePitchBadge(marker, pitch, markerX, markerY);
         marker.classList.remove('hidden');
 
-        const showShotTrail = isShotEventType(event.type);
-        const points = showShotTrail ? resolveShotPoints(event) : null;
-        const trajectoryStyle = showShotTrail ? shotTrajectoryStyle(event.type) : null;
-        const midColor = resolveOppositeTeamColor(match, event);
-
-        const mid = points && points.mid
-            ? { x: clamp(points.mid.x, 0, 100), y: clamp(points.mid.y, 0, 100) }
-            : null;
-        const end = points && points.end
-            ? { x: clamp(points.end.x, 0, 100), y: clamp(points.end.y, 0, 100) }
-            : null;
+        const lineStartX = offsidePoints ? mid.x : markerX;
+        const lineStartY = offsidePoints ? mid.y : markerY;
 
         if (shotLine) {
             if (end && trajectoryStyle) {
-                shotLine.setAttribute('x1', String(originX));
-                shotLine.setAttribute('y1', String(originY));
+                shotLine.setAttribute('x1', String(lineStartX));
+                shotLine.setAttribute('y1', String(lineStartY));
                 shotLine.setAttribute('x2', String(end.x));
                 shotLine.setAttribute('y2', String(end.y));
                 shotLine.style.stroke = 'rgba(18, 20, 24, 0.88)';
