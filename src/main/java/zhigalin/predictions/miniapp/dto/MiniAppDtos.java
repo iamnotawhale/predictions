@@ -130,6 +130,45 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record PlayerStatItem(
+            String name,
+            String label,
+            String abbreviation,
+            String value
+    ) {
+    }
+
+    public record FormationPlayerItem(
+            String id,
+            int number,
+            String name,
+            String shortName,
+            String lastName,
+            String position,
+            String positionName,
+            int formationPlace,
+            boolean starter,
+            boolean subbedOut,
+            boolean subbedIn,
+            String jerseyImage,
+            Integer goals,
+            Integer assists,
+            Integer yellowCards,
+            Integer redCards,
+            List<PlayerStatItem> stats
+    ) {
+    }
+
+    public record TeamFormationItem(
+            String side,
+            String teamCode,
+            String formation,
+            String kitColor,
+            List<FormationPlayerItem> starters,
+            List<FormationPlayerItem> bench
+    ) {
+    }
+
     public record MatchEventItem(
             String minute,
             String text,
@@ -158,6 +197,8 @@ public final class MiniAppDtos {
             boolean live,
             List<LineupPlayerItem> homeLineup,
             List<LineupPlayerItem> awayLineup,
+            TeamFormationItem homeFormation,
+            TeamFormationItem awayFormation,
             List<MatchEventItem> events,
             List<MatchStatItem> matchStats,
             String homeColor,

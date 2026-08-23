@@ -583,7 +583,7 @@ html, body {
     border: 1px solid var(--border);
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.02);
-    padding: 4px 8px;
+    padding: 4px 8px 8px;
 }
 
 .lineup-spoiler-summary {
@@ -609,11 +609,205 @@ html, body {
     content: '▾';
 }
 
-.lineup-spoiler-content {
+.formation-board {
+    margin-top: 4px;
+}
+
+.formation-tabs {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 3px;
+    margin-bottom: 10px;
+}
+
+.formation-tab {
+    border: 0;
+    background: transparent;
+    color: var(--hint);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.formation-tab.active {
+    background: var(--secondary);
+    color: var(--text);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.formation-pitch {
+    position: relative;
+    min-height: 360px;
+    border-radius: 12px;
+    padding: 14px 8px 10px;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.28)),
+        repeating-linear-gradient(
+            90deg,
+            #2d9150 0,
+            #2d9150 18px,
+            #287f46 18px,
+            #287f46 36px
+        );
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.formation-row {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.formation-player {
+    position: relative;
+    width: 64px;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.formation-jersey {
+    width: 42px;
+    height: 48px;
+    border-radius: 8px 8px 10px 10px;
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    background: #1b3a22;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.28);
+    background-size: cover;
+    background-position: center top;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.formation-jersey.is-gk {
+    background-color: #4a5560;
+}
+
+.formation-jersey.has-image {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+.formation-player-name {
+    font-size: 10px;
+    line-height: 1.15;
+    text-align: center;
+    max-width: 64px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.formation-player.subbed-out .formation-jersey {
+    opacity: 0.55;
+}
+
+.formation-badges {
+    position: absolute;
+    top: -4px;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 1;
+}
+
+.formation-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 8px;
+    padding: 1px 4px;
+    line-height: 1.2;
+}
+
+.formation-empty {
+    margin: 8px 0 0;
+}
+
+.player-modal-sheet {
+    max-height: 78vh;
+}
+
+.player-modal-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.player-modal-jersey {
+    width: 44px;
+    height: 50px;
+    border-radius: 8px;
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: #1b3a22;
+    background-size: cover;
+    background-position: center top;
+}
+
+.player-modal-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 10px;
+}
+
+.player-modal-chip {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--hint);
+}
+
+.player-modal-stats {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    font-size: 14px;
+}
+
+.player-modal-stat-label {
+    color: var(--hint);
+}
+
+.player-modal-stat-value {
+    font-weight: 600;
+    text-align: right;
 }
 
 .modal-live-side-title {
