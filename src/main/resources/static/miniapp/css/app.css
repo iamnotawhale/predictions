@@ -819,6 +819,16 @@ html, body {
     background: #1b3a22;
     background-size: cover;
     background-position: center top;
+    background-repeat: no-repeat;
+}
+
+.player-modal-jersey.is-gk {
+    background-color: #4a5560;
+}
+
+.player-modal-jersey.has-image {
+    background-color: transparent;
+    border-color: transparent;
 }
 
 .player-modal-badges {
