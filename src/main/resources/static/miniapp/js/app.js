@@ -1359,34 +1359,18 @@
             return;
         }
         benchEl.classList.remove('hidden');
-        const title = document.createElement('div');
-        title.className = 'formation-bench-title';
-        title.textContent = 'Запасные';
-        benchEl.appendChild(title);
-        const list = document.createElement('div');
+        const list = document.createElement('ul');
         list.className = 'formation-bench-list';
-        const kitColor = normalizeKitColor(formation.kitColor);
-        unused.forEach((player) => list.appendChild(createFormationBenchButton(player, kitColor)));
-        benchEl.appendChild(list);
-    }
-
-    function createFormationBenchButton(player, kitColor) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'formation-bench-player';
-        const pos = player.position || '';
-        btn.innerHTML =
-            '<span class="formation-bench-num"' +
-            (kitColor ? ' style="background-color:' + kitColor + '"' : '') + '>' +
-            (player.number || '—') +
-            '</span>' +
-            '<span class="formation-bench-name">' + escapeHtml(player.lastName || player.shortName || player.name || '') + '</span>' +
-            (pos ? '<span class="formation-bench-pos">' + escapeHtml(pos) + '</span>' : '');
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openPlayerModal(player, kitColor);
+        unused.forEach((player) => {
+            const item = document.createElement('li');
+            item.className = 'formation-bench-item';
+            const number = player.number ? ('#' + player.number + ' ') : '';
+            const name = player.lastName || player.shortName || player.name || '—';
+            const pos = player.position ? (' · ' + player.position) : '';
+            item.textContent = number + name + pos;
+            list.appendChild(item);
         });
-        return btn;
+        benchEl.appendChild(list);
     }
 
     function renderFormationPitch(formation) {

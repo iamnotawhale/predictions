@@ -723,69 +723,31 @@ html, body {
 }
 
 .formation-bench {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .formation-bench.hidden {
     display: none;
 }
 
-.formation-bench-title {
-    font-size: 11px;
-    color: var(--hint);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin: 0 0 6px;
-}
-
 .formation-bench-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-}
-
-.formation-bench-player {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.03);
-    color: #fff;
-    font-size: 11px;
-    padding: 4px 10px 4px 4px;
-    cursor: pointer;
-}
-
-.formation-bench-player:hover {
-    background: rgba(255, 255, 255, 0.07);
-}
-
-.formation-bench-num {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-    background: rgba(0, 0, 0, 0.35);
-    flex-shrink: 0;
+    gap: 6px 14px;
+    text-align: center;
 }
 
-.formation-bench-name {
-    max-width: 120px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.formation-bench-pos {
-    color: var(--hint);
-    font-size: 10px;
+.formation-bench-item {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text);
+    opacity: 0.88;
 }
 
 .formation-badges {
