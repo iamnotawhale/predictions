@@ -62,6 +62,7 @@
         livePitchHomeColor: '#ffffff',
         livePitchAwayColor: '#ffffff',
         selectedPitchEventKey: null,
+        lastSeenLatestPitchEventKey: null,
         homeFormation: null,
         awayFormation: null,
         formationSide: 'home',
@@ -1085,6 +1086,7 @@
         hideLivePitchStatsOverlay(false);
         state.lastLiveEvents = [];
         state.selectedPitchEventKey = null;
+        state.lastSeenLatestPitchEventKey = null;
         resetLivePitchMarker();
         state.selectedMatch = match;
         setLiveModalHeader(match);
@@ -1133,6 +1135,7 @@
         $('#modal-live-events').innerHTML = '<p class="empty-state">Загрузка…</p>';
         state.lastLiveEvents = [];
         state.selectedPitchEventKey = null;
+        state.lastSeenLatestPitchEventKey = null;
         state.homeFormation = null;
         state.awayFormation = null;
         state.formationSide = 'home';
@@ -1830,7 +1833,32 @@
     }
 
     function livePitchEventKey(event) {
-        return [event.minute || '', event.type || '', event.text || '', event.shortText || ''].join('|');
+        const fx = Number.isFinite(event.fieldX) ? event.fieldX.toFixed(1) : '';
+        const fy = Number.isFinite(event.fieldY) ? event.fieldY.toFixed(1) : '';
+        return [
+            event.type || '',
+            event.shortText || '',
+            event.text || '',
+            event.playerName || '',
+            fx,
+            fy
+        ].join('|');
+    }
+
+    function findLatestPitchEvent(events) {
+        return (events || []).find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY)) || null;
+    }
+
+    function syncLatestPitchEvent(events) {
+        const latest = findLatestPitchEvent(events);
+        const latestKey = latest ? livePitchEventKey(latest) : null;
+        if (latestKey && latestKey !== state.lastSeenLatestPitchEventKey) {
+            state.selectedPitchEventKey = null;
+        }
+        if (latestKey) {
+            state.lastSeenLatestPitchEventKey = latestKey;
+        }
+        return latest;
     }
 
     function shotTrajectoryStyle(type) {
@@ -1856,6 +1884,7 @@
             resetLivePitchMarker();
             return;
         }
+        const latest = syncLatestPitchEvent(state.lastLiveEvents);
         let target = null;
         if (state.selectedPitchEventKey) {
             target = state.lastLiveEvents.find((e) => livePitchEventKey(e) === state.selectedPitchEventKey);
@@ -1863,13 +1892,12 @@
                 state.selectedPitchEventKey = null;
             }
         }
-        // At HT: hide auto marker, but keep an explicitly selected event from the list.
         if (!target) {
             if (isMatchHalftimeBreak(match, state.lastLiveEvents)) {
                 resetLivePitchMarker();
                 return;
             }
-            target = state.lastLiveEvents.find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY));
+            target = latest;
         }
         if (target && Number.isFinite(target.fieldX) && Number.isFinite(target.fieldY)) {
             applyLivePitchMarker(target, match);
@@ -2024,9 +2052,11 @@
             container.innerHTML = '<p class="empty-state">Событий пока нет</p>';
             state.lastLiveEvents = [];
             state.selectedPitchEventKey = null;
+            state.lastSeenLatestPitchEventKey = null;
             resetLivePitchMarker();
             return;
         }
+        syncLatestPitchEvent(events);
         container.innerHTML = '';
         events.forEach((e) => {
             const row = document.createElement('div');
