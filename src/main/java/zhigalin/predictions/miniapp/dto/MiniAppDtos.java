@@ -40,7 +40,8 @@ public final class MiniAppDtos {
             Double oddDraw,
             Double oddAway,
             String predictUntil,
-            Long predictSecondsLeft
+            Long predictSecondsLeft,
+            Long kickoffSecondsLeft
     ) {
     }
 
@@ -217,15 +218,13 @@ public final class MiniAppDtos {
             Integer predictHome,
             Integer predictAway,
             Integer points,
-            boolean hasPrediction,
-            String summary
+            boolean hasPrediction
     ) {
     }
 
     public record WeekReviewResponse(
             int weekId,
             int totalPoints,
-            String summary,
             List<WeekReviewItem> items
     ) {
     }
