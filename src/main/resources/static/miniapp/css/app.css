@@ -733,16 +733,16 @@ html, body {
 }
 
 .live-pitch-marker-label {
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.04em;
-    line-height: 1;
+    letter-spacing: 0.02em;
+    line-height: 1.15;
     color: #ffffff;
     background: rgba(0, 0, 0, 0.56);
     border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 10px;
-    padding: 3px 8px;
-    max-width: 160px;
+    border-radius: 8px;
+    padding: 2px 6px;
+    max-width: 148px;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
