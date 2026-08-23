@@ -63,6 +63,15 @@ create table if not exists users
 alter table match
     add column if not exists live_score_message_id integer;
 
+alter table match
+    add column if not exists odd_home numeric(6, 2);
+
+alter table match
+    add column if not exists odd_draw numeric(6, 2);
+
+alter table match
+    add column if not exists odd_away numeric(6, 2);
+
 create table if not exists notification_weekly_results_sent
 (
     week_id integer primary key,

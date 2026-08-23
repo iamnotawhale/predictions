@@ -206,17 +206,17 @@ public class DataInitService {
                 }
                 apiClient.evictLineups(match.getPublicId());
 
-                if (!status.equals(match.getStatus())) {
-                    Integer homeScore = findScore(event, "home");
-                    Integer awayScore = findScore(event, "away");
+                Integer homeScore = findScore(event, "home");
+                Integer awayScore = findScore(event, "away");
+                match.setHomeTeamScore(homeScore);
+                match.setAwayTeamScore(awayScore);
 
-                    match.setHomeTeamScore(homeScore);
-                    match.setAwayTeamScore(awayScore);
+                if (!status.equals(match.getStatus())) {
                     match.setStatus(status);
                     match.setResult(findResult(homeScore, awayScore));
-
                     matchService.update(match);
                 }
+                headToHeadService.saveFromFinishedMatch(match);
             }
         }
     }

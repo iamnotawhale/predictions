@@ -171,6 +171,22 @@ html, body {
     margin-top: 2px;
 }
 
+.review-summary {
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--hint);
+    margin: 0 0 12px;
+}
+
+.review-match-summary {
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+.review-item .list-item-main {
+    min-width: 0;
+}
+
 .list-item-meta {
     text-align: right;
     flex-shrink: 0;

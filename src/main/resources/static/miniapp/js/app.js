@@ -965,15 +965,6 @@
     }
 
     async function loadMyPredictions(weekId) {
-        const matches = await api('/weeks/' + weekId + '/my-predictions');
-        $('#my-week-title').textContent = 'Прогнозы · тур ' + weekId;
-        const list = $('#my-prediction-list');
-        list.innerHTML = '';
-        if (!matches.length) {
-            list.innerHTML = '<li class="empty-state">Прогнозов нет</li>';
-        } else {
-            matches.forEach(m => list.appendChild(renderMatchItem(m, openScoreModal)));
-        }
         await loadWeekReview(weekId);
     }
 
@@ -981,11 +972,21 @@
         const card = $('#my-review-card');
         const list = $('#my-review-list');
         const title = $('#my-review-title');
+        const summary = $('#my-review-summary');
         if (!card || !list) return;
         try {
             const data = await api('/weeks/' + weekId + '/review');
             card.classList.remove('hidden');
             title.textContent = 'Разбор тура · ' + data.totalPoints + ' очк.';
+            if (summary) {
+                if (data.summary) {
+                    summary.textContent = data.summary;
+                    summary.classList.remove('hidden');
+                } else {
+                    summary.textContent = '';
+                    summary.classList.add('hidden');
+                }
+            }
             list.innerHTML = '';
             if (!data.items.length) {
                 list.innerHTML = '<li class="empty-state">Нет матчей</li>';
@@ -993,17 +994,21 @@
             }
             data.items.forEach((item) => {
                 const li = document.createElement('li');
-                li.className = 'list-item';
+                li.className = 'list-item review-item';
                 li.style.cursor = 'default';
                 const actual = (item.homeScore ?? '-') + ':' + (item.awayScore ?? '-');
                 const pred = item.hasPrediction
                     ? ((item.predictHome ?? '-') + ':' + (item.predictAway ?? '-'))
                     : '—';
                 const pts = item.points == null ? '—' : String(item.points);
+                const matchSummary = item.summary
+                    ? '<div class="list-item-sub review-match-summary">' + item.summary + '</div>'
+                    : '';
                 li.innerHTML =
                     '<div class="list-item-main">' +
                     '<div class="list-item-title">' + item.homeCode + ' — ' + item.awayCode + '</div>' +
                     '<div class="list-item-sub">факт ' + actual + ' · прогноз ' + pred + '</div>' +
+                    matchSummary +
                     '</div>' +
                     '<span class="pts">' + pts + '</span>';
                 list.appendChild(li);
