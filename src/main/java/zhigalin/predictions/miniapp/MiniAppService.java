@@ -831,6 +831,15 @@ public class MiniAppService {
                 ));
             }
         }
+        String subPartnerId = "";
+        String subPartnerName = "";
+        if (athleteNode.path("subbedOut").asBoolean(false)) {
+            subPartnerId = athleteNode.path("subbedOutFor").path("athlete").path("id").asText("").trim();
+            subPartnerName = athleteNode.path("subbedOutFor").path("athlete").path("displayName").asText("").trim();
+        } else if (athleteNode.path("subbedIn").asBoolean(false)) {
+            subPartnerId = athleteNode.path("subbedInFor").path("athlete").path("id").asText("").trim();
+            subPartnerName = athleteNode.path("subbedInFor").path("athlete").path("displayName").asText("").trim();
+        }
         return new FormationPlayerItem(
                 athlete.path("id").asText(""),
                 athleteNode.path("jersey").asInt(0),
@@ -843,6 +852,8 @@ public class MiniAppService {
                 athleteNode.path("starter").asBoolean(false),
                 athleteNode.path("subbedOut").asBoolean(false),
                 athleteNode.path("subbedIn").asBoolean(false),
+                subPartnerId,
+                subPartnerName,
                 jerseyImageUrl(athlete.path("jerseyImages")),
                 intStat(stats, "totalGoals"),
                 intStat(stats, "goalAssists"),
