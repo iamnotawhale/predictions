@@ -29,6 +29,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.event.MatchOdds;
 import zhigalin.predictions.model.football.Standing;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.util.DaoUtil;
@@ -528,6 +529,86 @@ public class MatchDao {
         } catch (Exception e) {
             panicSender.sendPanic("Error isAlreadyProcessed", e);
             serverLogger.error(e.getMessage());
+        }
+    }
+
+    public void saveOdds(int publicId, double home, double draw, double away) {
+        String sql = """
+                UPDATE match
+                SET odd_home = :home,
+                    odd_draw = :draw,
+                    odd_away = :away
+                WHERE public_id = :publicId
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("publicId", publicId);
+        params.addValue("home", home);
+        params.addValue("draw", draw);
+        params.addValue("away", away);
+        try {
+            namedParameterJdbcTemplate.update(sql, params);
+        } catch (Exception e) {
+            panicSender.sendPanic("Error saveOdds", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
+    public MatchOdds findOdds(int publicId) {
+        String sql = """
+                SELECT odd_home, odd_draw, odd_away
+                FROM match
+                WHERE public_id = :publicId
+                  AND odd_home IS NOT NULL
+                  AND odd_draw IS NOT NULL
+                  AND odd_away IS NOT NULL
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("publicId", publicId);
+        try {
+            return namedParameterJdbcTemplate.query(sql, params, rs -> {
+                if (!rs.next()) {
+                    return null;
+                }
+                return new MatchOdds(
+                        rs.getDouble("odd_home"),
+                        rs.getDouble("odd_draw"),
+                        rs.getDouble("odd_away")
+                );
+            });
+        } catch (Exception e) {
+            panicSender.sendPanic("Error findOdds", e);
+            serverLogger.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public java.util.Map<Integer, MatchOdds> findAllOdds() {
+        String sql = """
+                SELECT public_id, odd_home, odd_draw, odd_away
+                FROM match
+                WHERE odd_home IS NOT NULL
+                  AND odd_draw IS NOT NULL
+                  AND odd_away IS NOT NULL
+                """;
+        try {
+            return namedParameterJdbcTemplate.query(sql, rs -> {
+                java.util.Map<Integer, MatchOdds> odds = new java.util.HashMap<>();
+                while (rs.next()) {
+                    odds.put(
+                            rs.getInt("public_id"),
+                            new MatchOdds(
+                                    rs.getDouble("odd_home"),
+                                    rs.getDouble("odd_draw"),
+                                    rs.getDouble("odd_away")
+                            )
+                    );
+                }
+                return odds;
+            });
+        } catch (Exception e) {
+            panicSender.sendPanic("Error findAllOdds", e);
+            serverLogger.error(e.getMessage());
+            return java.util.Map.of();
         }
     }
 

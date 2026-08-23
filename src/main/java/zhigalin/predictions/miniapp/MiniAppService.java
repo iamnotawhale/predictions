@@ -67,7 +67,6 @@ import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
-import static zhigalin.predictions.service.odds.OddsService.ODDS;
 
 @Service
 public class MiniAppService {
@@ -112,6 +111,7 @@ public class MiniAppService {
     private final OddsService oddsService;
     private final ApiClient apiClient;
     private final ObjectMapper objectMapper;
+    private final WeekReviewSummaryService weekReviewSummaryService;
     private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
 
     public MiniAppService(
@@ -121,7 +121,8 @@ public class MiniAppService {
             HeadToHeadService headToHeadService,
             OddsService oddsService,
             ApiClient apiClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            WeekReviewSummaryService weekReviewSummaryService
     ) {
         this.userService = userService;
         this.matchService = matchService;
@@ -130,6 +131,7 @@ public class MiniAppService {
         this.oddsService = oddsService;
         this.apiClient = apiClient;
         this.objectMapper = objectMapper;
+        this.weekReviewSummaryService = weekReviewSummaryService;
     }
 
     public User requireUser(String telegramId) {
@@ -371,6 +373,8 @@ public class MiniAppService {
     public WeekReviewResponse weekReview(String telegramId, int weekId) {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
+        oddsService.ensureFresh(matches);
+        List<Match> allMatches = matchService.findAll();
         List<WeekReviewItem> items = new ArrayList<>();
         int total = 0;
         for (Match match : matches) {
@@ -379,25 +383,69 @@ public class MiniAppService {
                     teamCode(match.getHomeTeamId()),
                     teamCode(match.getAwayTeamId())
             );
-            boolean has = prediction != null;
-            Integer pts = has ? prediction.getPoints() : null;
-            if (pts != null && pts > 0) {
+            boolean hasPrediction = prediction != null
+                    && prediction.getHomeTeamScore() != null
+                    && prediction.getAwayTeamScore() != null;
+            Integer pts = resolveWeekReviewPoints(match, prediction);
+            if (pts != null) {
                 total += pts;
             }
+            String homeCode = teamCode(match.getHomeTeamId());
+            String awayCode = teamCode(match.getAwayTeamId());
+            List<FormItem> homeForm = weekReviewSummaryService.buildRecentFormBefore(
+                    allMatches, match.getHomeTeamId(), 5, match.getLocalDateTime());
+            List<FormItem> awayForm = weekReviewSummaryService.buildRecentFormBefore(
+                    allMatches, match.getAwayTeamId(), 5, match.getLocalDateTime());
+            OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
+            String summary = weekReviewSummaryService.buildMatchSummary(
+                    match,
+                    homeCode,
+                    awayCode,
+                    prediction,
+                    hasPrediction,
+                    pts,
+                    homeForm,
+                    awayForm,
+                    odd
+            );
             items.add(new WeekReviewItem(
                     match.getPublicId(),
-                    teamCode(match.getHomeTeamId()),
-                    teamCode(match.getAwayTeamId()),
+                    homeCode,
+                    awayCode,
                     match.getStatus(),
                     match.getHomeTeamScore(),
                     match.getAwayTeamScore(),
-                    has ? prediction.getHomeTeamScore() : null,
-                    has ? prediction.getAwayTeamScore() : null,
+                    hasPrediction ? prediction.getHomeTeamScore() : null,
+                    hasPrediction ? prediction.getAwayTeamScore() : null,
                     pts,
-                    has
+                    hasPrediction,
+                    summary
             ));
         }
-        return new WeekReviewResponse(weekId, total, items);
+        String weekSummary = weekReviewSummaryService.buildWeekSummary(total, items);
+        return new WeekReviewResponse(weekId, total, weekSummary, items);
+    }
+
+    private Integer resolveWeekReviewPoints(Match match, Prediction prediction) {
+        boolean finished = isFinishedStatus(match.getStatus());
+        boolean liveLike = isLiveStatus(match.getStatus())
+                           || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
+                               && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
+        if (!finished && !liveLike) {
+            return null;
+        }
+        if (finished && prediction != null && prediction.getPoints() != null) {
+            return prediction.getPoints();
+        }
+        if (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null) {
+            return PredictionService.computePoints(
+                    match.getHomeTeamScore(),
+                    match.getAwayTeamScore(),
+                    prediction != null ? prediction.getHomeTeamScore() : null,
+                    prediction != null ? prediction.getAwayTeamScore() : null
+            );
+        }
+        return null;
     }
 
     public PointsChartResponse pointsChart(String telegramId) {
@@ -550,7 +598,7 @@ public class MiniAppService {
     private MatchItem toMatchItem(Match match, String telegramId, boolean hasPrediction, Prediction prediction) {
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
-        OddsService.Odd odd = ODDS.get(match.getPublicId());
+        OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
         LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
         Long secondsLeft = null;
         if (until != null && canPredict(match)) {

@@ -34,7 +34,6 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.util.DaoUtil;
 
-import static zhigalin.predictions.service.odds.OddsService.ODDS;
 import static zhigalin.predictions.service.odds.OddsService.Odd;
 import static zhigalin.predictions.util.ColorComparator.similarTo;
 
@@ -259,7 +258,7 @@ public class ImageRenderer {
 
             switch (mode) {
                 case NOTIFICATION -> {
-                    Odd odd = ODDS.getOrDefault(matchPublicId, null);
+                    Odd odd = oddsService.getOdd(matchPublicId);
                     List<Match> homeTeamLast = matchService.findLast5MatchesByTeamId(homeTeamId);
                     List<Match> awayTeamLast = matchService.findLast5MatchesByTeamId(awayTeamId);
                     List<HeadToHead> h2h = headToHeadService.findAllByTwoTeamsCode(
@@ -286,7 +285,7 @@ public class ImageRenderer {
 
                     if (odd == null) {
                         oddsService.oddsInit2(List.of(matchService.findByTeamIds(homeTeamId, awayTeamId)));
-                        odd = ODDS.getOrDefault(matchPublicId, null);
+                        odd = oddsService.getOdd(matchPublicId);
                     }
 
                     if (odd != null) {

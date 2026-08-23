@@ -217,13 +217,15 @@ public final class MiniAppDtos {
             Integer predictHome,
             Integer predictAway,
             Integer points,
-            boolean hasPrediction
+            boolean hasPrediction,
+            String summary
     ) {
     }
 
     public record WeekReviewResponse(
             int weekId,
             int totalPoints,
+            String summary,
             List<WeekReviewItem> items
     ) {
     }

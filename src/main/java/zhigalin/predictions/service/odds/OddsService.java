@@ -7,18 +7,21 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.event.MatchOdds;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.v2.Competition;
 import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.OddV2;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
+import zhigalin.predictions.repository.event.MatchDao;
 import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.util.TeamCodeMapper;
 
@@ -30,13 +33,39 @@ public class OddsService {
 
     private final PanicSender panicSender;
     private final ObjectMapper mapper;
+    private final MatchDao matchDao;
     private volatile long lastRefreshAtMs = 0L;
 
-    public static final Map<Integer, Odd> ODDS = new HashMap<>();
+    /** In-memory cache; persisted odds are loaded from DB on startup and after fetch. */
+    private final Map<Integer, Odd> oddsCache = new HashMap<>();
 
-    public OddsService(PanicSender panicSender, ObjectMapper objectMapper) {
+    public OddsService(PanicSender panicSender, ObjectMapper objectMapper, MatchDao matchDao) {
         this.panicSender = panicSender;
         this.mapper = objectMapper;
+        this.matchDao = matchDao;
+    }
+
+    @PostConstruct
+    void loadPersistedOdds() {
+        Map<Integer, MatchOdds> persisted = matchDao.findAllOdds();
+        persisted.forEach((publicId, stored) -> oddsCache.put(publicId, toOdd(stored)));
+        if (!persisted.isEmpty()) {
+            log.info("Loaded {} persisted match odds from database", persisted.size());
+        }
+    }
+
+    public Odd getOdd(int matchPublicId) {
+        Odd cached = oddsCache.get(matchPublicId);
+        if (cached != null) {
+            return cached;
+        }
+        MatchOdds stored = matchDao.findOdds(matchPublicId);
+        if (stored == null) {
+            return null;
+        }
+        Odd odd = toOdd(stored);
+        oddsCache.put(matchPublicId, odd);
+        return odd;
     }
 
     public void oddsInit2(List<Match> matches) {
@@ -71,8 +100,8 @@ public class OddsService {
                             OddV2 oddV2 = competition.getOdds().getFirst();
                             Odd odd = extractOdd(oddV2);
                             if (odd != null) {
-                                ODDS.put(match.getPublicId(), odd);
-                                log.info("Odds loaded for {}-{}: {} / {} / {}", home, away, odd.home, odd.draw, odd.away);
+                                storeOdd(match.getPublicId(), odd);
+                                log.info("Odds loaded for {}-{}: {} / {} / {}", home, away, odd.home(), odd.draw(), odd.away());
                             }
                         }
                     }
@@ -98,6 +127,15 @@ public class OddsService {
         }
         oddsInit2(matches);
         lastRefreshAtMs = now;
+    }
+
+    private void storeOdd(int publicId, Odd odd) {
+        oddsCache.put(publicId, odd);
+        matchDao.saveOdds(publicId, odd.home(), odd.draw(), odd.away());
+    }
+
+    private static Odd toOdd(MatchOdds stored) {
+        return new Odd(stored.home(), stored.draw(), stored.away());
     }
 
     private Odd extractOdd(OddV2 oddV2) {
