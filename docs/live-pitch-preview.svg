@@ -4,13 +4,13 @@
       <stop offset="0%" stop-color="#1b2430"/>
       <stop offset="100%" stop-color="#131a22"/>
     </linearGradient>
-    <filter id="dot-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#c42823" flood-opacity="0.55"/>
+    <filter id="dot-glow-home" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#0606fa" flood-opacity="0.55"/>
     </filter>
   </defs>
 
-  <!-- ESPN BRE-TOT 401879321 · 80' Yehor Yarmoliuk Handball · period 2 home
-       raw 59.8/20.2 → mirror X only → 40.2/20.2 (upper half; Y not flipped) -->
+  <!-- ESPN BHA-AVL 401879297 · 31' Jack Hinshelwood goal · period 1 home
+       raw 88.7/56.1 → flip Y only → 88.7/43.9 · trail → goalmouth 100/47.1 (bottom left corner) -->
 
   <rect width="1200" height="820" fill="url(#bg)"/>
   <rect x="120" y="80" width="960" height="660" rx="24" fill="#1f2a36" stroke="rgba(255,255,255,0.14)"/>
@@ -43,9 +43,14 @@
   <path d="M 160 676 A 14 14 0 0 1 174 690" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
   <path d="M 1026 690 A 14 14 0 0 1 1040 676" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="2"/>
 
-  <!-- handball (home kit), upper half -->
-  <circle cx="513.76" cy="235.14" r="9" fill="#c42823" stroke="rgba(0,0,0,0.45)" stroke-width="2" filter="url(#dot-glow)"/>
+  <!-- goal trail (solid): origin → goalmouth -->
+  <line x1="940.56" y1="370.23" x2="1040" y2="388.47"
+        stroke="rgba(18, 20, 24, 0.88)" stroke-width="3"
+        stroke-linecap="round"/>
 
-  <rect x="404" y="252" width="220" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
-  <text x="514" y="273" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16" font-weight="800">80' Yarmoliuk · РУКА</text>
+  <!-- scorer (Brighton home kit) -->
+  <circle cx="940.56" cy="370.23" r="9" fill="#0606fa" stroke="rgba(0,0,0,0.45)" stroke-width="2" filter="url(#dot-glow-home)"/>
+
+  <rect x="700" y="387" width="220" height="30" rx="12" fill="rgba(0,0,0,0.56)" stroke="rgba(255,255,255,0.18)"/>
+  <text x="810" y="408" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="16" font-weight="800">31' Hinshelwood · ГОЛ</text>
 </svg>

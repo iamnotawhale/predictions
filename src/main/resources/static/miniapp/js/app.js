@@ -1365,9 +1365,9 @@
     }
 
     /**
-     * ESPN coords: attack toward x≈100; Y shares the same touchline for both teams
-     * (y=0 = top of our pitch). Ends swap at half-time, so flip X only when
-     * (away XOR second half). Do not flip Y / goalPositionY.
+     * ESPN coords: attack toward x≈100; ends swap at half-time.
+     * Flip X when (away XOR second half); flip Y in the complementary cases
+     * (home XOR 1st half) so touchlines match our fixed pitch (y=0 = top).
      */
     function resolveEventPeriod(event) {
         const period = Number(event?.period);
@@ -1387,12 +1387,16 @@
 
     function mapEventToPitchCoords(event, match) {
         if (!event) return event;
-        if (!shouldMirrorPitchX(event, match)) {
-            return event;
+        if (shouldMirrorPitchX(event, match)) {
+            return Object.assign({}, event, {
+                fieldX: flipPitchPercent(event.fieldX),
+                field2X: flipPitchPercent(event.field2X)
+            });
         }
         return Object.assign({}, event, {
-            fieldX: flipPitchPercent(event.fieldX),
-            field2X: flipPitchPercent(event.field2X)
+            fieldY: flipPitchPercent(event.fieldY),
+            field2Y: flipPitchPercent(event.field2Y),
+            goalPositionY: flipPitchPercent(event.goalPositionY)
         });
     }
 
