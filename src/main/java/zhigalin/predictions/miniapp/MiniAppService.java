@@ -111,7 +111,6 @@ public class MiniAppService {
     private final OddsService oddsService;
     private final ApiClient apiClient;
     private final ObjectMapper objectMapper;
-    private final WeekReviewSummaryService weekReviewSummaryService;
     private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
 
     public MiniAppService(
@@ -121,8 +120,7 @@ public class MiniAppService {
             HeadToHeadService headToHeadService,
             OddsService oddsService,
             ApiClient apiClient,
-            ObjectMapper objectMapper,
-            WeekReviewSummaryService weekReviewSummaryService
+            ObjectMapper objectMapper
     ) {
         this.userService = userService;
         this.matchService = matchService;
@@ -131,7 +129,6 @@ public class MiniAppService {
         this.oddsService = oddsService;
         this.apiClient = apiClient;
         this.objectMapper = objectMapper;
-        this.weekReviewSummaryService = weekReviewSummaryService;
     }
 
     public User requireUser(String telegramId) {
@@ -373,8 +370,6 @@ public class MiniAppService {
     public WeekReviewResponse weekReview(String telegramId, int weekId) {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
-        oddsService.ensureFresh(matches);
-        List<Match> allMatches = matchService.findAll();
         List<WeekReviewItem> items = new ArrayList<>();
         int total = 0;
         for (Match match : matches) {
@@ -390,40 +385,20 @@ public class MiniAppService {
             if (pts != null) {
                 total += pts;
             }
-            String homeCode = teamCode(match.getHomeTeamId());
-            String awayCode = teamCode(match.getAwayTeamId());
-            List<FormItem> homeForm = weekReviewSummaryService.buildRecentFormBefore(
-                    allMatches, match.getHomeTeamId(), 5, match.getLocalDateTime());
-            List<FormItem> awayForm = weekReviewSummaryService.buildRecentFormBefore(
-                    allMatches, match.getAwayTeamId(), 5, match.getLocalDateTime());
-            OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
-            String summary = weekReviewSummaryService.buildMatchSummary(
-                    match,
-                    homeCode,
-                    awayCode,
-                    prediction,
-                    hasPrediction,
-                    pts,
-                    homeForm,
-                    awayForm,
-                    odd
-            );
             items.add(new WeekReviewItem(
                     match.getPublicId(),
-                    homeCode,
-                    awayCode,
+                    teamCode(match.getHomeTeamId()),
+                    teamCode(match.getAwayTeamId()),
                     match.getStatus(),
                     match.getHomeTeamScore(),
                     match.getAwayTeamScore(),
                     hasPrediction ? prediction.getHomeTeamScore() : null,
                     hasPrediction ? prediction.getAwayTeamScore() : null,
                     pts,
-                    hasPrediction,
-                    summary
+                    hasPrediction
             ));
         }
-        String weekSummary = weekReviewSummaryService.buildWeekSummary(total, items);
-        return new WeekReviewResponse(weekId, total, weekSummary, items);
+        return new WeekReviewResponse(weekId, total, items);
     }
 
     private Integer resolveWeekReviewPoints(Match match, Prediction prediction) {
@@ -557,7 +532,7 @@ public class MiniAppService {
         String away = request.awayCode().toUpperCase();
         Match match = matchService.findByTeamCodes(home, away);
         if (!canPredict(match)) {
-            return new ActionResponse(false, "Время для прогноза истекло. Матч уже начался.");
+            return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
         }
         if (request.homeScore() < 0 || request.homeScore() > 5 || request.awayScore() < 0 || request.awayScore() > 5) {
             return new ActionResponse(false, "Счёт должен быть от 0 до 5.");
@@ -599,13 +574,18 @@ public class MiniAppService {
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
         OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
+        LocalDateTime now = LocalDateTime.now();
         LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
-        Long secondsLeft = null;
+        Long predictSecondsLeft = null;
         if (until != null && canPredict(match)) {
-            secondsLeft = java.time.Duration.between(LocalDateTime.now(), until).getSeconds();
-            if (secondsLeft < 0) {
-                secondsLeft = 0L;
+            predictSecondsLeft = java.time.Duration.between(now, until).getSeconds();
+            if (predictSecondsLeft < 0) {
+                predictSecondsLeft = 0L;
             }
+        }
+        Long kickoffSecondsLeft = null;
+        if (match.getLocalDateTime() != null && isNotStartedStatus(match.getStatus())) {
+            kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
         }
         return new MatchItem(
                 match.getPublicId(),
@@ -629,8 +609,16 @@ public class MiniAppService {
                 odd != null ? odd.draw() : null,
                 odd != null ? odd.away() : null,
                 until != null ? until.format(KICKOFF) : null,
-                secondsLeft
+                predictSecondsLeft,
+                kickoffSecondsLeft
         );
+    }
+
+    private static boolean isNotStartedStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return true;
+        }
+        return Set.of("ns", "pst", "tbd").contains(status.toLowerCase());
     }
 
     private static Comparator<MatchItem> todayMatchOrder() {

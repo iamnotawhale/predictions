@@ -12,6 +12,7 @@ import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.MatchOdds;
@@ -26,6 +27,7 @@ import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
+@DependsOn("matchOddsSchemaMigration")
 public class OddsService {
 
     private static final Logger log = LoggerFactory.getLogger("server");

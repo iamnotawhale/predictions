@@ -443,16 +443,19 @@
             && m.awayScore != null;
     }
 
-    function kickoffSecondsLeftApprox(m) {
+    function kickoffSecondsLeft(m) {
         if (!isNotStartedStatus(m.status)) return null;
+        if (typeof m.kickoffSecondsLeft === 'number') return m.kickoffSecondsLeft;
         if (typeof m.predictSecondsLeft !== 'number') return null;
-        // predictSecondsLeft is measured to kickoff + 5m
+        // legacy: predictSecondsLeft counted to kickoff + 5m
         return m.predictSecondsLeft - 300;
     }
 
     function isPreLiveSoonMatch(m) {
-        const sec = kickoffSecondsLeftApprox(m);
-        return sec != null && sec >= 0 && sec <= LIVE_PRESTART_WINDOW_SECONDS;
+        const sec = kickoffSecondsLeft(m);
+        if (sec == null) return false;
+        if (sec <= 0) return true;
+        return sec <= LIVE_PRESTART_WINDOW_SECONDS;
     }
 
     function isLiveModuleMatch(m) {
@@ -972,21 +975,11 @@
         const card = $('#my-review-card');
         const list = $('#my-review-list');
         const title = $('#my-review-title');
-        const summary = $('#my-review-summary');
         if (!card || !list) return;
         try {
             const data = await api('/weeks/' + weekId + '/review');
             card.classList.remove('hidden');
             title.textContent = 'Разбор тура · ' + data.totalPoints + ' очк.';
-            if (summary) {
-                if (data.summary) {
-                    summary.textContent = data.summary;
-                    summary.classList.remove('hidden');
-                } else {
-                    summary.textContent = '';
-                    summary.classList.add('hidden');
-                }
-            }
             list.innerHTML = '';
             if (!data.items.length) {
                 list.innerHTML = '<li class="empty-state">Нет матчей</li>';
@@ -1001,14 +994,10 @@
                     ? ((item.predictHome ?? '-') + ':' + (item.predictAway ?? '-'))
                     : '—';
                 const pts = item.points == null ? '—' : String(item.points);
-                const matchSummary = item.summary
-                    ? '<div class="list-item-sub review-match-summary">' + item.summary + '</div>'
-                    : '';
                 li.innerHTML =
                     '<div class="list-item-main">' +
                     '<div class="list-item-title">' + item.homeCode + ' — ' + item.awayCode + '</div>' +
                     '<div class="list-item-sub">факт ' + actual + ' · прогноз ' + pred + '</div>' +
-                    matchSummary +
                     '</div>' +
                     '<span class="pts">' + pts + '</span>';
                 list.appendChild(li);
