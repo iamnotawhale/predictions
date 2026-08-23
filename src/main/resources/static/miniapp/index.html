@@ -172,17 +172,15 @@
         <section id="modal-live-details" class="modal-h2h">
             <h4>Составы и события</h4>
             <div class="modal-live-lineups">
-                <details class="lineup-spoiler">
+                <details class="lineup-spoiler" id="formation-spoiler" open>
                     <summary class="lineup-spoiler-summary">Составы команд</summary>
-                    <div class="lineup-spoiler-content">
-                        <div>
-                            <div class="modal-live-side-title" id="modal-live-home-title">Хозяева · состав</div>
-                            <div id="modal-live-home-lineup" class="h2h-list"></div>
+                    <div class="formation-board">
+                        <div class="formation-tabs" id="formation-tabs" role="tablist">
+                            <button type="button" class="formation-tab active" data-side="home" id="formation-tab-home">—</button>
+                            <button type="button" class="formation-tab" data-side="away" id="formation-tab-away">—</button>
                         </div>
-                        <div>
-                            <div class="modal-live-side-title" id="modal-live-away-title">Гости · состав</div>
-                            <div id="modal-live-away-lineup" class="h2h-list"></div>
-                        </div>
+                        <div class="formation-pitch" id="formation-pitch" aria-label="Расстановка"></div>
+                        <p class="formation-empty empty-state hidden" id="formation-empty">Состав пока недоступен</p>
                     </div>
                 </details>
             </div>
@@ -274,6 +272,23 @@
             <button id="h2h-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
         </div>
         <div id="h2h-modal-content" class="h2h-list"></div>
+    </div>
+</div>
+
+<div id="player-modal" class="modal hidden">
+    <div class="modal-sheet player-modal-sheet">
+        <div class="modal-header">
+            <div class="player-modal-head">
+                <div id="player-modal-jersey" class="player-modal-jersey" aria-hidden="true">0</div>
+                <div>
+                    <h3 id="player-modal-title">Игрок</h3>
+                    <p id="player-modal-sub" class="modal-sub"></p>
+                </div>
+            </div>
+            <button id="player-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
+        </div>
+        <div id="player-modal-badges" class="player-modal-badges"></div>
+        <div id="player-modal-stats" class="player-modal-stats"></div>
     </div>
 </div>
 

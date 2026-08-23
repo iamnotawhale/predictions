@@ -33,6 +33,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdScoreBucket;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardEntry;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormationPlayerItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LineupPlayerItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveMatchDetailsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
@@ -41,10 +42,12 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchStatItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchNewsItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.PlayerStatItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamFormationItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
@@ -208,26 +211,32 @@ public class MiniAppService {
         requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match == null) {
-            return new LiveMatchDetailsResponse(
-                    false, List.of(), List.of(), List.of(), List.of(), null, null, null, null, null);
+            return emptyLiveDetails();
         }
         boolean live = isLiveStatus(match.getStatus())
                        && match.getHomeTeamScore() != null
                        && match.getAwayTeamScore() != null;
         if (!live) {
-            return new LiveMatchDetailsResponse(
-                    false, List.of(), List.of(), List.of(), List.of(), null, null, null, null, null);
+            return emptyLiveDetails();
         }
-        Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getPublicId());
-        List<LineupPlayerItem> homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
-        List<LineupPlayerItem> awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
         JsonNode summaryRoot = loadEspnSummaryRoot(match);
+        TeamFormationItem homeFormation = loadTeamFormation(summaryRoot, "home", teamCode(match.getHomeTeamId()));
+        TeamFormationItem awayFormation = loadTeamFormation(summaryRoot, "away", teamCode(match.getAwayTeamId()));
+        List<LineupPlayerItem> homeLineup = toLineupItemsFromFormation(homeFormation);
+        List<LineupPlayerItem> awayLineup = toLineupItemsFromFormation(awayFormation);
+        if (homeLineup.isEmpty() && awayLineup.isEmpty()) {
+            Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getPublicId());
+            homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
+            awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
+        }
         List<MatchEventItem> events = loadLiveEvents(summaryRoot);
         List<MatchStatItem> matchStats = loadLiveStats(summaryRoot);
         return new LiveMatchDetailsResponse(
                 true,
                 homeLineup,
                 awayLineup,
+                homeFormation,
+                awayFormation,
                 events,
                 matchStats,
                 pitchColorForTeamId(match.getHomeTeamId(), true),
@@ -236,6 +245,11 @@ public class MiniAppService {
                 match.getAwayTeamScore(),
                 match.getStatus()
         );
+    }
+
+    private static LiveMatchDetailsResponse emptyLiveDetails() {
+        return new LiveMatchDetailsResponse(
+                false, List.of(), List.of(), null, null, List.of(), List.of(), null, null, null, null, null);
     }
 
     public LeaderboardResponse leaderboard(String telegramId, Integer weekId) {
@@ -734,6 +748,153 @@ public class MiniAppService {
                         item.getPlayer().getPos()
                 ))
                 .toList();
+    }
+
+    private static List<LineupPlayerItem> toLineupItemsFromFormation(TeamFormationItem formation) {
+        if (formation == null || formation.starters() == null || formation.starters().isEmpty()) {
+            return List.of();
+        }
+        return formation.starters().stream()
+                .map(p -> new LineupPlayerItem(p.number(), p.name(), p.position()))
+                .toList();
+    }
+
+    private TeamFormationItem loadTeamFormation(JsonNode root, String side, String teamCode) {
+        if (root == null) {
+            return null;
+        }
+        JsonNode rosters = root.path("rosters");
+        if (!rosters.isArray()) {
+            return null;
+        }
+        for (JsonNode rosterNode : rosters) {
+            if (!side.equalsIgnoreCase(rosterNode.path("homeAway").asText(""))) {
+                continue;
+            }
+            String formation = rosterNode.path("formation").asText("").trim();
+            String kitColor = rosterNode.path("uniform").path("color").asText("").trim();
+            if (!kitColor.isBlank() && !kitColor.startsWith("#")) {
+                kitColor = "#" + kitColor;
+            }
+            List<FormationPlayerItem> starters = new ArrayList<>();
+            List<FormationPlayerItem> bench = new ArrayList<>();
+            JsonNode roster = rosterNode.path("roster");
+            if (roster.isArray()) {
+                for (JsonNode athleteNode : roster) {
+                    FormationPlayerItem player = toFormationPlayer(athleteNode);
+                    if (player == null) {
+                        continue;
+                    }
+                    if (player.starter()) {
+                        starters.add(player);
+                    } else {
+                        bench.add(player);
+                    }
+                }
+            }
+            starters.sort(Comparator.comparingInt(FormationPlayerItem::formationPlace));
+            if (starters.isEmpty() && formation.isBlank()) {
+                return null;
+            }
+            return new TeamFormationItem(side, teamCode, formation, kitColor, starters, bench);
+        }
+        return null;
+    }
+
+    private FormationPlayerItem toFormationPlayer(JsonNode athleteNode) {
+        JsonNode athlete = athleteNode.path("athlete");
+        String name = athlete.path("displayName").asText("").trim();
+        if (name.isBlank()) {
+            return null;
+        }
+        String lastName = athlete.path("lastName").asText("").trim();
+        if (lastName.isBlank()) {
+            lastName = shortLastName(name);
+        }
+        String shortName = athlete.path("shortName").asText("").trim();
+        if (shortName.isBlank()) {
+            shortName = lastName;
+        }
+        List<PlayerStatItem> stats = new ArrayList<>();
+        JsonNode statsNode = athleteNode.path("stats");
+        if (statsNode.isArray()) {
+            for (JsonNode stat : statsNode) {
+                String value = stat.path("displayValue").asText("").trim();
+                if (value.isBlank()) {
+                    continue;
+                }
+                stats.add(new PlayerStatItem(
+                        stat.path("name").asText(""),
+                        stat.path("displayName").asText(""),
+                        stat.path("abbreviation").asText(""),
+                        value
+                ));
+            }
+        }
+        return new FormationPlayerItem(
+                athlete.path("id").asText(""),
+                athleteNode.path("jersey").asInt(0),
+                name,
+                shortName,
+                lastName,
+                athleteNode.path("position").path("abbreviation").asText("").trim(),
+                athleteNode.path("position").path("displayName").asText("").trim(),
+                athleteNode.path("formationPlace").asInt(0),
+                athleteNode.path("starter").asBoolean(false),
+                athleteNode.path("subbedOut").asBoolean(false),
+                athleteNode.path("subbedIn").asBoolean(false),
+                jerseyImageUrl(athlete.path("jerseyImages")),
+                intStat(stats, "totalGoals"),
+                intStat(stats, "goalAssists"),
+                intStat(stats, "yellowCards"),
+                intStat(stats, "redCards"),
+                stats
+        );
+    }
+
+    private static String jerseyImageUrl(JsonNode images) {
+        if (!images.isArray()) {
+            return null;
+        }
+        String dark = null;
+        String any = null;
+        for (JsonNode image : images) {
+            String href = image.path("href").asText("").trim();
+            if (href.isBlank()) {
+                continue;
+            }
+            any = href;
+            JsonNode rel = image.path("rel");
+            if (rel.isArray()) {
+                for (JsonNode r : rel) {
+                    if ("dark".equalsIgnoreCase(r.asText(""))) {
+                        dark = href;
+                    }
+                }
+            }
+            if (href.contains("darkMode=true")) {
+                dark = href;
+            }
+        }
+        return dark != null ? dark : any;
+    }
+
+    private static Integer intStat(List<PlayerStatItem> stats, String name) {
+        for (PlayerStatItem stat : stats) {
+            if (name.equals(stat.name())) {
+                try {
+                    return Integer.parseInt(stat.value());
+                } catch (NumberFormatException ignored) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String shortLastName(String fullName) {
+        String[] parts = fullName.trim().split("\\s+");
+        return parts.length == 0 ? fullName : parts[parts.length - 1];
     }
 
     private JsonNode loadEspnSummaryRoot(Match match) {
