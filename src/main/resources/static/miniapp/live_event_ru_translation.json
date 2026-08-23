@@ -3,7 +3,7 @@
     "version": 3,
     "locale": "ru",
     "source": "ESPN summary commentary (EPL)",
-    "updatedAt": "2026-08-22"
+    "updatedAt": "2026-08-23"
   },
   "eventTypeLabels": {
     "goal": "ГОЛ",
@@ -130,6 +130,26 @@
       "id": "delay_start",
       "enPattern": "Delay in match because of an injury {player} ({team}).",
       "ruTemplate": "Пауза в матче из-за травмы: {player} ({team})."
+    },
+    {
+      "id": "own_goal",
+      "enPattern": "Own Goal by {player}, {team}. {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
+      "ruTemplate": "Автогол: {player} ({team}). {homeTeam} {homeScore}:{awayTeam} {awayScore}."
+    },
+    {
+      "id": "var_card_upgraded",
+      "enPattern": "VAR Decision: Card upgraded {player} ({team}).",
+      "ruTemplate": "VAR: карточка изменена — {player} ({team})."
+    },
+    {
+      "id": "red_violent_conduct",
+      "enPattern": "{player} ({team}) is shown the red card for violent conduct.",
+      "ruTemplate": "{player} ({team}) получает красную карточку за грубую игру."
+    },
+    {
+      "id": "red_basic",
+      "enPattern": "{player} ({team}) is shown the red card.",
+      "ruTemplate": "{player} ({team}) получает красную карточку."
     }
   ],
   "wrappedPrefixes": [
@@ -174,6 +194,9 @@
     { "en": "from the right side of the box", "ru": "с правого края штрафной" },
     { "en": "is close, but misses to the left", "ru": "близко, но мимо слева" },
     { "en": "is close, but misses to the right", "ru": "близко, но мимо справа" },
+    { "en": "is close, but misses the top left corner", "ru": "близко, но мимо левого верхнего угла" },
+    { "en": "is close, but misses the top right corner", "ru": "близко, но мимо правого верхнего угла" },
+    { "en": "is just a bit too high", "ru": "чуть выше ворот" },
     { "en": "is high and wide to the right", "ru": "выше и правее ворот" },
     { "en": "is high and wide to the left", "ru": "выше и левее ворот" },
     { "en": "following a fast break", "ru": "после быстрого контратаки" },
