@@ -17,7 +17,7 @@ public enum TeamName {
     LEI("/leicester"),
     LIV("/liverpoollfc"),
     LUT("/luton"),
-    MAC("/mcmncmac"),
+    MCI("/mcmncmacmci"),
     MUN("/munmnu"),
     NEW("/newcastle"),
     NOR("/norwich"),

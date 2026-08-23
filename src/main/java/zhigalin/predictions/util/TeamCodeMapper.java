@@ -9,7 +9,7 @@ public final class TeamCodeMapper {
             case "AVL" -> "AST";
             case "BHA" -> "BRI";
             case "WHU" -> "WES";
-            case "MNC" -> "MAC";
+            case "MNC" -> "MCI";
             case "NFO" -> "NOT";
             case "MAN" -> "MUN";
             default -> espnCode;
