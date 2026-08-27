@@ -16,7 +16,7 @@ public class DBConfig {
     @Priority(1)
     @Bean
     public DataSource dataSource(
-            @Value("${spring.datasource.driverClassName}") String driverClassName,
+            @Value("${spring.datasource.driverClassName:org.postgresql.Driver}") String driverClassName,
             @Value("${spring.datasource.url}") String url,
             @Value("${spring.datasource.username}") String username,
             @Value("${spring.datasource.password}") String password

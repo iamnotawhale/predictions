@@ -83,4 +83,16 @@ jobs:
           scp "$JAR" "prod:${APP_DIR}/target/predictions-1.0.0.jar.new"
           scp /tmp/predicts.service "prod:${APP_DIR}/deploy/predicts.service"
           ssh prod "mv -f '${APP_DIR}/target/predictions-1.0.0.jar.new' '${APP_DIR}/target/predictions-1.0.0.jar' && jar tf '${APP_DIR}/target/predictions-1.0.0.jar' >/dev/null"
-          ssh prod "sudo install -m 644 '${APP_DIR}/deploy/predicts.service' /etc/systemd/system/predicts.service && sudo systemctl daemon-reload && sudo systemctl reset-failed predicts 2>/dev/null || true; sudo systemctl start predicts && sleep 8 && sudo systemctl is-active predicts && curl -sf -o /dev/null http://127.0.0.1:8080/miniapp/"
+          ssh prod "sudo install -m 644 '${APP_DIR}/deploy/predicts.service' /etc/systemd/system/predicts.service && sudo systemctl daemon-reload && sudo systemctl reset-failed predicts 2>/dev/null || true; sudo systemctl start predicts"
+          # Spring Boot often needs >8s; wait up to ~90s for active + miniapp
+          ssh prod 'for i in $(seq 1 30); do
+            if systemctl is-active --quiet predicts && curl -sf -o /dev/null http://127.0.0.1:8080/miniapp/; then
+              echo "healthy after ${i} checks"
+              exit 0
+            fi
+            echo "wait $i: $(systemctl is-active predicts 2>/dev/null || true)"
+            sleep 3
+          done
+          systemctl --no-pager -l status predicts || true
+          journalctl -u predicts -n 80 --no-pager || true
+          exit 1'
