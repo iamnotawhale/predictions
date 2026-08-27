@@ -38,8 +38,10 @@ logs/
 deploy/predicts.env
 deploy/local.env
 deploy/local-https.env
+deploy/local-https.properties
 deploy/deploy.env
 out/
 fixtures_resp.json
 deploy/duckdns.env
 deploy/ci/
+scripts/data/

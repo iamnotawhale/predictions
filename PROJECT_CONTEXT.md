@@ -49,7 +49,7 @@
 - `src/main/resources/static/miniapp` — клиентская часть Mini App (`index.html`, `js/app.js`, `css/app.css`, `js/live-event-ru.js`).
 - `scripts` — локальный запуск, dev HTTPS, утилиты.
 - `deploy` — конфиги и сценарии деплоя/прод запуска (секреты — только `*.env`, в git только `*.example`).
-- `docs` — артефакты документации (`live-pitch-preview.svg`, `week-review-example.md`).
+- `docs` — артефакты документации (`live-pitch-preview.svg`).
 
 ## Подключения и профили
 - `application.yml` — базовый конфиг (placeholders `${ENV_VAR:default}`).
@@ -87,7 +87,7 @@
 | `${MINIAPP_DEV_TELEGRAM_ID:}` | `miniapp.dev-telegram-id` (только local) | `local.env` |
 | `${SEASON:2026}` | `season` | опционально env |
 | `${SPRING_PROFILES_ACTIVE:}` | профиль Spring | `predicts.env` → обычно `prod` |
-| `PUBLIC_HTTPS_URL` / `PUBLIC_DOMAIN` / `HTTPS_PORT` / `APP_PORT` | Caddy / sync-tunnel / menu URL (не Spring напрямую) | `predicts.env` |
+| `PUBLIC_HTTPS_URL` / `PUBLIC_DOMAIN` / `HTTPS_PORT` / `APP_PORT` | Caddy / menu URL (не Spring напрямую) | `predicts.env` |
 | `DUCKDNS_DOMAIN` / `DUCKDNS_TOKEN` / `DUCKDNS_FULL` / `PUBLIC_IP` | скрипт обновления DynDNS | `duckdns.env` |
 | `DEPLOY_SERVER` / `DEPLOY_APP_DIR` / `DEPLOY_REMOTE_SUDO` | `upload-jar.sh` | `deploy.env` |
 
@@ -147,8 +147,6 @@
 | `ssh-tunnel-prod-db.sh` | SSH-туннель к удалённой БД для локального debug |
 | `verify-timezone.sh` | Проверка TZ |
 | `poll-lineups.sh` | Опрос API-Football на доступность составов |
-| `fetch-missing-h2h.py` | Догрузка H2H из API-Football → `scripts/data/` |
-| `generate-week-review-example.sh` | Пример разбора тура → `docs/week-review-example.md` |
 
 ## Надёжность и бот
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
@@ -225,7 +223,6 @@
 ### Разбор тура («Мои»)
 - `GET /weeks/{weekId}/review` → список матчей: факт, прогноз, очки; заголовок «Разбор тура · N очк.».
 - Очки суммируются по всем матчам тура (включая `-1`), логика как в leaderboard.
-- Пример вывода: `./scripts/generate-week-review-example.sh` → `docs/week-review-example.md`.
 
 ### Live-блок на главной и pre-start
 - Показывает live-матчи и «скоро стартующие» за ~10 минут до kickoff (`LIVE_PRESTART_WINDOW_SECONDS`).
