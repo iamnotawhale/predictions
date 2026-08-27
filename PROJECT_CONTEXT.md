@@ -23,8 +23,9 @@
 - локально bot+miniapp: ./scripts/run-local.sh
 - локально только бот: ./scripts/run-bot-only.sh
 - сборка jar: mvn package -DskipTests
-- деплой на прод: ./deploy/upload-jar.sh (читает deploy/deploy.env)
+- деплой на прод: ./deploy/upload-jar.sh (читает deploy/deploy.env) или GitHub Actions (push в master по path-filter / workflow_dispatch)
 - прод: systemd unit predicts (+ caddy / net-refresh — см. deploy/)
+- cold-standby: бэкап с домашнего сервера на VPS + оркестратор на VPS (failover/failback) — см. раздел «Отказоустойчивость»
 
 Обязательное правило:
 - если в проект добавлен новый код/фича/скрипт/конфиг/эндпоинт/процесс запуска, ОБЯЗАТЕЛЬНО обнови PROJECT_CONTEXT.md в этом же изменении (что добавлено, где лежит, как запускать/использовать).
@@ -65,7 +66,9 @@
 | `deploy/local-https.env` | генерируется скриптами | `run-local.sh` / IDEA | временный cloudflared URL |
 | `deploy/predicts.env` | `deploy/predicts.env.example` | systemd `EnvironmentFile=` на проде | прод-секреты бота/БД/Mini App |
 | `deploy/deploy.env` | `deploy/deploy.env.example` | `deploy/upload-jar.sh` | куда деплоить (SSH host, APP_DIR) |
-| `deploy/duckdns.env` | `deploy/duckdns.env.example` | `predictions-net-refresh` на проде | DynDNS token + обновление IP/UPnP |
+| `deploy/duckdns.env` | `deploy/duckdns.env.example` | `predictions-net-refresh` на проде / failover | DynDNS token + обновление IP/UPnP |
+| `deploy/backup.env` | `deploy/backup.env.example` | `backup-to-vps.sh` на домашнем сервере | куда слать cold-standby (VPS_SSH, dirs) |
+| `deploy/orchestrator.env` | `deploy/orchestrator.env.example` | `orchestrator.sh` на VPS | пороги failover/failback, AUTO_* флаги |
 
 Создать: `cp deploy/<name>.env.example deploy/<name>.env` и заполнить. **Не коммитить** `*.env` (кроме `*.example`).
 
@@ -109,15 +112,56 @@
 - `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`)
 
 ## Прод-окружение (без секретов)
-- Прод крутится на домашнем сервере (не VPS): Spring Boot jar + PostgreSQL + Caddy (HTTPS на нестандартном порту).
+- Прод (primary) крутится на домашнем сервере: Spring Boot jar + PostgreSQL + Caddy (HTTPS на нестандартном порту).
 - Публичный URL Mini App и SSH/доступ — только в локальных env / SSH config оператора, не в репозитории.
-- Typical units: `predicts`, `caddy`, `predictions-net-refresh.timer` (обновление DynDNS + UPnP пробросов), опционально `disable-wifi`.
-- Сертификат: Let's Encrypt через DNS-01 (acme.sh + DuckDNS); файлы сертификатов на сервере вне git.
+- Typical units на primary: `predicts`, `caddy`, `predictions-net-refresh.timer` (DynDNS + UPnP), `predictions-backup.timer` (cold-standby на VPS), опционально `disable-wifi`.
+- Сертификат primary: Let's Encrypt через DNS-01 (acme.sh + DuckDNS); файлы сертификатов на сервере вне git.
 - С домашней Wi‑Fi сети нужен split-DNS / hairpin на роутере (локальная A-запись публичного hostname → LAN IP сервера), иначе Mini App с телефона в той же Wi‑Fi может не открыться.
-- Legacy VPS — cold-standby + оркестратор: раз в 2ч Odyssey льёт дамп/jar/env; на VPS `predictions-orchestrator.timer` (каждые 10 мин) проверяет Odyssey и при N фейлах делает failover, при восстановлении — failback. Алерты в Telegram `ADMIN_CHAT_ID`.
-- Аварийный запуск вручную: `sudo /home/predictions/deploy/failover-to-vps.sh`. Обратно: `sudo /home/predictions/deploy/failback-to-odyssey.sh`.
-- RPO ≈ до 2 часов (бэкап). RTO ≈ 30 мин при пороге 3×10 мин. Логи: Odyssey `logs/backup-to-vps.log`; VPS `logs/orchestrator.log` + `journalctl -u predictions-orchestrator`.
-- После ручной починки Odyssey: не поднимай бота в двух местах сразу — оркестратор/failback сами разрулят DNS и unit’ы.
+- `application.yml` / `application-prod.yml` упаковываются в jar (Maven resources из корня репо) — на сервере рядом с jar дублировать не обязательно, но не мешает.
+- Ветка продакшен-кода: **`master`** (бывший `v2-lite` влит и удалён).
+
+## Отказоустойчивость (cold-standby + оркестратор)
+Цель: если домашний primary недоступен — быстро поднять тот же бот/Mini App на VPS с относительно свежей БД; когда primary оживёт — вернуть нагрузку домой. **Бот Telegram может быть только в одном месте** (один long-polling).
+
+### Роли
+| Узел | Роль | Что крутится |
+|------|------|----------------|
+| Домашний сервер | primary | `predicts`, `caddy`, бэкап-таймер → VPS |
+| VPS | cold-standby + оркестратор | обычно бот **остановлен**; `predictions-orchestrator.timer`; хранит дампы/jar/env |
+
+### Бэкап primary → VPS
+- Скрипт: `deploy/backup-to-vps.sh` (на primary).
+- Unit/timer: `deploy/predictions-backup.service` + `deploy/predictions-backup.timer` (каждые **2 часа** + после boot).
+- Конфиг: `deploy/backup.env` (gitignore; пример `backup.env.example`).
+- Что копируется: `pg_dump -Fc` БД prod, jar, `predicts.env` → `predicts.env.odyssey`, `duckdns.env`, `odyssey-endpoint.env` (WAN-ориентиры primary для проверок), скрипты failover/failback/orchestrator.
+- На VPS бот при бэкапе **не** стартует; если вдруг active — скрипт останавливает.
+- Логи: `logs/backup-to-vps.log` + `journalctl -u predictions-backup`.
+- RPO ≈ до 2 часов (интервал таймера). Ручной прогон: `./deploy/backup-to-vps.sh`.
+
+### Оркестратор (на VPS, не на primary)
+- Скрипт: `deploy/orchestrator.sh`.
+- Unit/timer: `deploy/predictions-orchestrator.service` + `deploy/predictions-orchestrator.timer` (каждые **10 минут**).
+- Конфиг: `deploy/orchestrator.env` (gitignore; пример `orchestrator.env.example`).
+- Проверки primary: SSH + `curl` miniapp на localhost primary; запасной внешний HTTPS на endpoint из `odyssey-endpoint.env`.
+- Состояние: каталог state на VPS (`odyssey` \| `vps`, счётчики fail/ok).
+- Пороги по умолчанию: **3** подряд fail → failover; **3** подряд ok при primary=vps → failback (`FAILURES_BEFORE_FAILOVER` / `SUCCESSES_BEFORE_FAILBACK`).
+- `AUTO_FAILOVER` / `AUTO_FAILBACK` — можно выключить автопереключение (останутся алерты).
+- Telegram: сообщения в `ADMIN_CHAT_ID` через `BOT_TOKEN` из `predicts.env.odyssey` (не спамит каждый тик — только смена/порог/авария).
+- Логи: `logs/orchestrator.log` + `journalctl -u predictions-orchestrator`.
+- RTO ≈ ~30 мин при дефолтных порогах (3×10 мин) + время restore/старта.
+
+### Failover / failback
+| Скрипт | Где запускать | Что делает |
+|--------|---------------|------------|
+| `deploy/failover-to-vps.sh` | VPS (root) | best-effort stop primary → restore latest dump → env под стандартный HTTPS → DynDNS на IP VPS → start `caddy`+`predicts` |
+| `deploy/failback-to-odyssey.sh` | VPS (root) | stop VPS bot → DynDNS на IP primary → SSH start `caddy`+`predicts` на primary → state=odyssey |
+
+Ручной вызов тех же скриптов допустим, если оркестратор выключен или нужен срочный переключатель.
+
+### Важно
+- Не поднимай `predicts` одновременно на primary и VPS.
+- После ручных экспериментов сверь state оркестратора и DNS; при сомнении смотри логи и Telegram-алерты.
+- VPS — запасной контур (мало RAM): не использовать как постоянный primary без нужды.
 
 ## Запуск и деплой
 - Локально (бот + miniapp + dev HTTPS): `./scripts/run-local.sh`
@@ -131,14 +175,31 @@
 - Деплой: `./deploy/upload-jar.sh` (сервер/путь/sudo — из `deploy/deploy.env`)
 - CI/CD (GitHub Actions): push в `master` (или manual `workflow_dispatch`) → build jar в CI → scp + `systemctl restart predicts` на прод.
   - Workflow: `.github/workflows/deploy-prod.yml`
-  - Срабатывает только при изменениях в `src/**`, `pom.xml`, `application*.yml`, `deploy/predicts.service` (не на каждый README).
+  - Срабатывает только при изменениях в `src/**`, `pom.xml`, `application*.yml`, `deploy/predicts.service`, `deploy/upload-jar.sh`, сам workflow (не на docs/ops-скрипты вроде backup/orchestrator).
   - Секреты репозитория (Settings → Secrets → Actions):
     - `PROD_SSH_PRIVATE_KEY` — приватный ключ deploy (пара на сервере в `authorized_keys`)
     - `PROD_HOST` — hostname/IP для SSH с интернета
     - `PROD_SSH_PORT` — порт SSH (WAN)
     - `PROD_USER` — SSH user
     - `PROD_APP_DIR` — абсолютный путь приложения на сервере
+  - Заполнить секреты: `./deploy/setup-github-actions-secrets.sh` (нужен `gh auth login`)
   - Ключ CI локально (не в git): `deploy/ci/` (gitignore)
+  - Ручной прогон: Actions → Deploy to prod → Run workflow, или `gh workflow run deploy-prod.yml --ref master`
+
+### Скрипты (`deploy/`)
+| Скрипт / unit | Назначение |
+|---------------|------------|
+| `upload-jar.sh` | Локальная сборка + scp jar + restart `predicts` на primary |
+| `setup-github-actions-secrets.sh` | Запись GitHub Actions secrets из `deploy.env` + CI-ключа |
+| `predicts.service` | Шаблон systemd unit приложения |
+| `Caddyfile` / `caddy.service` | HTTPS reverse-proxy к приложению |
+| `backup-to-vps.sh` | Дамп БД + jar/env → VPS standby |
+| `predictions-backup.service` / `.timer` | Таймер бэкапа на primary (2ч) |
+| `orchestrator.sh` | Health + авто failover/failback + Telegram (на VPS) |
+| `predictions-orchestrator.service` / `.timer` | Таймер оркестратора на VPS (10 мин) |
+| `failover-to-vps.sh` | Аварийный старт прода на VPS |
+| `failback-to-odyssey.sh` | Возврат прода на primary |
+| `backup.env.example` / `orchestrator.env.example` | Шаблоны конфигов (реальные `*.env` в gitignore) |
 
 ### Скрипты (`scripts/`)
 | Скрипт | Назначение |
