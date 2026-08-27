@@ -126,7 +126,7 @@
 - Локально только бот: `./scripts/run-bot-only.sh`
 - Ручная сборка: `mvn package -DskipTests`
 - Деплой: `./deploy/upload-jar.sh` (сервер/путь/sudo — из `deploy/deploy.env`)
-- CI/CD (GitHub Actions): push в `v2-lite` (или manual `workflow_dispatch`) → build jar в CI → scp + `systemctl restart predicts` на прод.
+- CI/CD (GitHub Actions): push в `master` (или manual `workflow_dispatch`) → build jar в CI → scp + `systemctl restart predicts` на прод.
   - Workflow: `.github/workflows/deploy-prod.yml`
   - Срабатывает только при изменениях в `src/**`, `pom.xml`, `application*.yml`, `deploy/predicts.service` (не на каждый README).
   - Секреты репозитория (Settings → Secrets → Actions):
