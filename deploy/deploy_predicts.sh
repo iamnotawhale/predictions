@@ -76,9 +76,9 @@ else
     grep -q '^BOT_WEBAPP_URL=' "$ENV_FILE" || echo "BOT_WEBAPP_URL=" >> "$ENV_FILE"
 fi
 grep -q '^SPRING_PROFILES_ACTIVE=' "$ENV_FILE" 2>/dev/null || echo "SPRING_PROFILES_ACTIVE=prod" >> "$ENV_FILE"
-grep -q '^BOT_USERNAME=' "$ENV_FILE" 2>/dev/null || echo "BOT_USERNAME=eplinfobot" >> "$ENV_FILE"
-grep -q '^BOT_CHAT_ID=' "$ENV_FILE" 2>/dev/null || echo "BOT_CHAT_ID=-1001762896029" >> "$ENV_FILE"
-grep -q '^SPRING_DATASOURCE_PASSWORD=' "$ENV_FILE" 2>/dev/null || echo "SPRING_DATASOURCE_PASSWORD=postgres" >> "$ENV_FILE"
+grep -q '^BOT_USERNAME=' "$ENV_FILE" 2>/dev/null || echo "BOT_USERNAME=" >> "$ENV_FILE"
+grep -q '^BOT_CHAT_ID=' "$ENV_FILE" 2>/dev/null || echo "BOT_CHAT_ID=" >> "$ENV_FILE"
+grep -q '^SPRING_DATASOURCE_PASSWORD=' "$ENV_FILE" 2>/dev/null || echo "SPRING_DATASOURCE_PASSWORD=" >> "$ENV_FILE"
 if ! grep -q '^BOT_TOKEN=.\+' "$ENV_FILE" 2>/dev/null; then
     log "WARN: BOT_TOKEN не задан в $ENV_FILE"
 fi

@@ -21,8 +21,8 @@ if [[ -f deploy/local-https.env ]]; then
     set +a
 fi
 
-if [[ -z "${BOT_TOKEN:-}" ]] && [[ -f application-local.yml ]]; then
-    BOT_TOKEN="$(awk '/^[[:space:]]*token:[[:space:]]*/ {print $2; exit}' application-local.yml)"
+if [[ -z "${BOT_TOKEN:-}" ]]; then
+    echo "[prepare-idea-debug] WARN: BOT_TOKEN not set (put it in deploy/local.env)"
 fi
 
 if [[ -n "${BOT_TOKEN:-}" && -n "${BOT_WEBAPP_URL:-}" ]]; then

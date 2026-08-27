@@ -14,11 +14,12 @@ public class UpdateCommand implements Command {
     private final SendBotMessageService messageService;
     private final MatchService matchService;
     private final PredictionService predictionService;
+    private final long adminChatId;
     private static final String REGEX = "[^A-Za-z0-9]";
 
     @Override
     public void execute(Update update) {
-        if (update.getMessage().getChatId() == 739299) {
+        if (update.getMessage().getChatId() == adminChatId) {
             Match match = getMatchDto(update);
             if (match != null) {
                 predictionService.updateByMatch(match);

@@ -7,12 +7,13 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=/home/predictions
-EnvironmentFile=-/home/predictions/deploy/predicts.env
+User=REPLACE_USER
+Group=REPLACE_USER
+WorkingDirectory=/path/to/predictions
+EnvironmentFile=-/path/to/predictions/deploy/predicts.env
 Environment=TZ=Europe/Moscow
-ExecStartPre=/bin/bash -c 'test -s /home/predictions/target/predictions-1.0.0.jar && jar tf /home/predictions/target/predictions-1.0.0.jar >/dev/null'
-ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -Duser.timezone=Europe/Moscow -Xms128m -Xmx384m -jar /home/predictions/target/predictions-1.0.0.jar --spring.profiles.active=prod
+ExecStartPre=/bin/bash -c 'test -s /path/to/predictions/target/predictions-1.0.0.jar && jar tf /path/to/predictions/target/predictions-1.0.0.jar >/dev/null'
+ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -Duser.timezone=Europe/Moscow -Xms128m -Xmx384m -jar /path/to/predictions/target/predictions-1.0.0.jar --spring.profiles.active=prod
 Restart=on-failure
 RestartSec=15
 StandardOutput=journal

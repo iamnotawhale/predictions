@@ -1,0 +1,25 @@
+[Unit]
+Description=SSH reverse tunnel app:8080 → remote edge:8080 (optional legacy)
+After=network-online.target predicts.service
+Wants=network-online.target predicts.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=REPLACE_USER
+Group=REPLACE_USER
+Environment=AUTOSSH_GATETIME=0
+Environment=AUTOSSH_PORT=0
+# Замените REMOTE_SSH на user@host из deploy.env
+ExecStart=/usr/bin/autossh -M 0 -N \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -o ExitOnForwardFailure=yes \
+  -o StrictHostKeyChecking=accept-new \
+  -R 127.0.0.1:8080:127.0.0.1:8080 \
+  REMOTE_SSH
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
