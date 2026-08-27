@@ -36,7 +36,7 @@ bot:
   urlPhoto: https://api.telegram.org/bot${bot.token}/sendPhoto
   urlEditMessage: https://api.telegram.org/bot${bot.token}/editMessageText
 
-chatId: ${ADMIN_CHAT_ID:739299}
+chatId: ${ADMIN_CHAT_ID:}
 
 api:
   football:

@@ -9,10 +9,11 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 public class RefreshCommand implements Command {
     private final SendBotMessageService messageService;
     private final PredictionService predictionService;
+    private final long adminChatId;
 
     @Override
     public void execute(Update update) {
-        if (update.getMessage().getChatId() == 739299) {
+        if (update.getMessage().getChatId() == adminChatId) {
             predictionService.updateUnpredictable();
             String message = "update unpredictable";
             messageService.sendMessage(update.getMessage().getChatId().toString(), message);

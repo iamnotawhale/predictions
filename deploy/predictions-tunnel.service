@@ -5,10 +5,13 @@ Wants=predicts.service
 
 [Service]
 Type=simple
-Environment=APP_DIR=/home/predictions
-ExecStart=/usr/local/bin/cloudflared tunnel --url http://127.0.0.1:8080
-ExecStartPost=/bin/sleep 4
-ExecStartPost=/home/predictions/deploy/sync-tunnel-env.sh
+User=REPLACE_USER
+Group=REPLACE_USER
+Environment=APP_DIR=/path/to/predictions
+Environment=HOME=/home/REPLACE_USER
+ExecStart=/usr/bin/cloudflared tunnel --protocol http2 --url http://127.0.0.1:8080
+ExecStartPost=/bin/sleep 6
+ExecStartPost=/path/to/predictions/deploy/sync-tunnel-env.sh
 Restart=always
 RestartSec=5
 

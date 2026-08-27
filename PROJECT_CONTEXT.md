@@ -11,71 +11,110 @@
 - SQL схема: src/main/resources/tablesInit.sql
 - скрипты локального запуска: scripts/
 - деплой и прод-окружение: deploy/
+- документация/примеры: docs/
 
-Подключения:
-- TEST/LOCAL DB: jdbc:postgresql://localhost:5432/predicts_local (application-local.yml, можно переопределять через deploy/local.env)
-- PROD DB: jdbc:postgresql://localhost:5432/predicts_prod (application-prod.yml, пароль через deploy/predicts.env -> SPRING_DATASOURCE_PASSWORD)
-- TEST DB на сервере: predicts_test
-
-Удаленный сервер:
-- SSH: root@81.31.209.186
-- APP_DIR: /home/predictions
-- Mini App: https://81-31-209-186.sslip.io:8443/miniapp/
-- DB tunnel for local debug: ./scripts/ssh-tunnel-prod-db.sh → localhost:15432
+Подключения (секреты только в gitignored env, не коммитить):
+- см. раздел «Env-файлы» и таблицу `${SPRING_DATASOURCE_URL:}` / `${BOT_TOKEN:}` / …
+- LOCAL: deploy/local.env (+ application-local.yml)
+- PROD: deploy/predicts.env (+ application-prod.yml)
+- деплой/DynDNS: deploy/deploy.env, deploy/duckdns.env
 
 Механизмы запуска:
 - локально bot+miniapp: ./scripts/run-local.sh
-- локально только bot: ./scripts/run-bot-only.sh
+- локально только бот: ./scripts/run-bot-only.sh
 - сборка jar: mvn package -DskipTests
-- деплой (локальная сборка + upload): ./deploy/upload-jar.sh
-- деплой на сервере: ./deploy/deploy_predicts.sh
-- прод сервис: systemd unit predicts (deploy/predicts.service)
+- деплой на прод: ./deploy/upload-jar.sh (читает deploy/deploy.env)
+- прод: systemd unit predicts (+ caddy / net-refresh — см. deploy/)
 
 Обязательное правило:
 - если в проект добавлен новый код/фича/скрипт/конфиг/эндпоинт/процесс запуска, ОБЯЗАТЕЛЬНО обнови PROJECT_CONTEXT.md в этом же изменении (что добавлено, где лежит, как запускать/использовать).
-- при каждом push/deploy с изменениями miniapp frontend ОБЯЗАТЕЛЬНО увеличивай `ver` в `src/main/resources/static/miniapp/index.html` (см. раздел «Версия miniapp»).
+- версия miniapp в UI — git short hash из maven-сборки (см. раздел «Версия miniapp»); после deploy проверяй подпись `ver. …` на главном экране.
+- В PROJECT_CONTEXT.md НЕ писать: IP, домены, токены, пароли, SSH-порты/алиасы, пути с домашними логинами, данные роутера.
 ```
 
 ## Кратко о проекте
 - `predictions` — сервис прогнозов матчей АПЛ.
 - Интерфейсы: Telegram-бот + Telegram Mini App.
 - Данные хранятся в PostgreSQL, базовые таблицы описаны в `src/main/resources/tablesInit.sql`.
+- Стек: Java 21, Spring Boot 3.3, JDBC (без JPA), Unirest, Telegram Bots 6.9, vanilla JS/CSS/HTML в miniapp.
 
 ## Структура проекта
 - `src/main/java/zhigalin/predictions/telegram` — команды и обработка апдейтов Telegram-бота.
 - `src/main/java/zhigalin/predictions/miniapp` — REST API и auth для Telegram WebApp (`X-Telegram-Init-Data`).
 - `src/main/java/zhigalin/predictions/service` — бизнес-логика (матчи, прогнозы, уведомления, синхронизация).
+- `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты ESPN scoreboard, TTL 60с, сохранение в БД.
+- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary).
 - `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой.
-- `src/main/resources/static/miniapp` — клиентская часть Mini App.
-- `scripts` — локальный запуск и dev HTTPS.
-- `deploy` — конфиги и сценарии деплоя/прод запуска.
+- `src/main/java/zhigalin/predictions/config` — конфигурация, в т.ч. **`MatchOddsSchemaMigration`** (миграция колонок odds при старте).
+- `src/main/resources/static/miniapp` — клиентская часть Mini App (`index.html`, `js/app.js`, `css/app.css`, `js/live-event-ru.js`).
+- `scripts` — локальный запуск, dev HTTPS, утилиты.
+- `deploy` — конфиги и сценарии деплоя/прод запуска (секреты — только `*.env`, в git только `*.example`).
+- `docs` — артефакты документации (`live-pitch-preview.svg`, `week-review-example.md`).
 
 ## Подключения и профили
-- `application.yml` — базовый конфиг.
-- `application-local.yml` — локальный/тестовый профиль (`spring.profiles.active=local`).
-- `application-prod.yml` — прод профиль (`spring.profiles.active=prod`).
-- `src/main/resources/static/miniapp/live_event_ru_translation.json` — единственный источник RU-перевода live-комментариев ESPN (типы событий, шаблоны фраз, замены, ассисты); загружается miniapp через `js/live-event-ru.js`.
-- Локальные переопределения: `deploy/local.env` (по образцу `deploy/local.env.example`).
-- Прод переменные: `deploy/predicts.env` (по образцу `deploy/predicts.env.example`).
+- `application.yml` — базовый конфиг (placeholders `${ENV_VAR:default}`).
+- `application-local.yml` — профиль `local` (`spring.profiles.active=local`).
+- `application-prod.yml` — профиль `prod` (`spring.profiles.active=prod`).
+- `src/main/resources/static/miniapp/live_event_ru_translation.json` — RU-перевод live-комментариев ESPN; грузится через `js/live-event-ru.js`.
+
+### Env-файлы (значения НЕ в git; в репо только `*.example`)
+
+| Файл (gitignore) | Пример | Кто читает | Назначение |
+|------------------|--------|------------|------------|
+| `deploy/local.env` | `deploy/local.env.example` | `scripts/run-local.sh`, `prepare-idea-debug.sh` (`source`) | локальный/dev запуск |
+| `deploy/local-https.env` | генерируется скриптами | `run-local.sh` / IDEA | временный cloudflared URL |
+| `deploy/predicts.env` | `deploy/predicts.env.example` | systemd `EnvironmentFile=` на проде | прод-секреты бота/БД/Mini App |
+| `deploy/deploy.env` | `deploy/deploy.env.example` | `deploy/upload-jar.sh` | куда деплоить (SSH host, APP_DIR) |
+| `deploy/duckdns.env` | `deploy/duckdns.env.example` | `predictions-net-refresh` на проде | DynDNS token + обновление IP/UPnP |
+
+Создать: `cp deploy/<name>.env.example deploy/<name>.env` и заполнить. **Не коммитить** `*.env` (кроме `*.example`).
+
+### Маппинг env → Spring / код (как в yml)
+
+Формат как в `application.yml`: `${ИМЯ_ПЕРЕМЕННОЙ:}` или `${ИМЯ:default}`.
+
+| Env-ключ | Куда попадает | Где задавать |
+|----------|---------------|--------------|
+| `${SPRING_DATASOURCE_URL:}` | `spring.datasource.url` | `local.env` / `predicts.env` (prod может брать url из `application-prod.yml`) |
+| `${SPRING_DATASOURCE_USERNAME:admin}` | `spring.datasource.username` | обычно default; при необходимости env |
+| `${SPRING_DATASOURCE_PASSWORD:}` | `spring.datasource.password` | `local.env` / `predicts.env` |
+| `${BOT_USERNAME:}` | `bot.username` | `local.env` / `predicts.env` |
+| `${BOT_TOKEN:}` | `bot.token` | `local.env` / `predicts.env` |
+| `${BOT_CHAT_ID:}` | `bot.chatId` (чат/группа бота) | `local.env` / `predicts.env` |
+| `${BOT_WEBAPP_URL:}` | `bot.webAppUrl` (кнопка Mini App) | `local.env` / `predicts.env` / `local-https.env` |
+| `${ADMIN_CHAT_ID:}` | `chatId` (panic + admin-команды) | `local.env` / `predicts.env` |
+| `${API_FOOTBALL_TOKEN:}` | `api.football.token` | `local.env` / `predicts.env` |
+| `${MINIAPP_DEV_TELEGRAM_ID:}` | `miniapp.dev-telegram-id` (только local) | `local.env` |
+| `${SEASON:2026}` | `season` | опционально env |
+| `${SPRING_PROFILES_ACTIVE:}` | профиль Spring | `predicts.env` → обычно `prod` |
+| `PUBLIC_HTTPS_URL` / `PUBLIC_DOMAIN` / `HTTPS_PORT` / `APP_PORT` | Caddy / sync-tunnel / menu URL (не Spring напрямую) | `predicts.env` |
+| `DUCKDNS_DOMAIN` / `DUCKDNS_TOKEN` / `DUCKDNS_FULL` / `PUBLIC_IP` | скрипт обновления DynDNS | `duckdns.env` |
+| `DEPLOY_SERVER` / `DEPLOY_APP_DIR` / `DEPLOY_REMOTE_SUDO` | `upload-jar.sh` | `deploy.env` |
+
+Связка: значения из env подхватываются Spring Boot как environment variables (systemd `EnvironmentFile`, или `source deploy/local.env` перед `java`/`mvn`).
 
 ## База данных
-- LOCAL/TEST:
-  - `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/predicts_local`
-  - `SPRING_DATASOURCE_USERNAME=admin`
-  - `SPRING_DATASOURCE_PASSWORD` через `deploy/local.env` (или дефолт локального профиля)
-- PROD:
-  - `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/predicts_prod`
-  - `SPRING_DATASOURCE_USERNAME=admin`
-  - `SPRING_DATASOURCE_PASSWORD` задается в `deploy/predicts.env`
+- URL/user/password — через `${SPRING_DATASOURCE_*}` (см. таблицу выше).
+- Имена БД по умолчанию: local `predicts_local`, prod `predicts_prod` (см. `application-*.yml`).
+- Реальные пароли только в gitignored `deploy/*.env`.
 
-## Удаленный сервер
-- IP: `81.31.209.186`
-- SSH: `root@81.31.209.186`
-- Каталог приложения: `/home/predictions`
-- Mini App HTTPS: `https://81-31-209-186.sslip.io:8443/miniapp/` (Caddy :8443 → Spring :8080)
-- Прод сервис: `systemctl status predicts`
-- Прод БД на сервере: `predicts_prod`; test БД: `predicts_test`
-- Postgres слушает только `localhost` (снаружи закрыт). Для IDEA Debug: `./scripts/ssh-tunnel-prod-db.sh` → JDBC `jdbc:postgresql://localhost:15432/predicts_test`
+**Таблица `match` (важные поля сверх базовой схемы):**
+- `espn_id` — ESPN event id (заполняется уже на стадии `pre`).
+- `live_score_message_id` — id Telegram-сообщения live-счёта (переживает рестарт).
+- `odd_home`, `odd_draw`, `odd_away` — коэффициенты 1/X/2 (`NUMERIC(6,2)`), заполняются `OddsService`, читаются в miniapp и разборе тура.
+- Миграция колонок odds: `MatchOddsSchemaMigration` + `ALTER` в `tablesInit.sql`; `OddsService` зависит от неё через `@DependsOn`.
+
+**Дедуп уведомлений:**
+- `notification_weekly_results_sent` (по `week_id`)
+- `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`)
+
+## Прод-окружение (без секретов)
+- Прод крутится на домашнем сервере (не VPS): Spring Boot jar + PostgreSQL + Caddy (HTTPS на нестандартном порту).
+- Публичный URL Mini App и SSH/доступ — только в локальных env / SSH config оператора, не в репозитории.
+- Typical units: `predicts`, `caddy`, `predictions-net-refresh.timer` (обновление DynDNS + UPnP пробросов), опционально `disable-wifi`.
+- Сертификат: Let's Encrypt через DNS-01 (acme.sh + DuckDNS); файлы сертификатов на сервере вне git.
+- С домашней Wi‑Fi сети нужен split-DNS / hairpin на роутере (локальная A-запись публичного hostname → LAN IP сервера), иначе Mini App с телефона в той же Wi‑Fi может не открыться.
+- Legacy VPS больше не используется для прода (туннель/Caddy на VPS выключены).
 
 ## Запуск и деплой
 - Локально (бот + miniapp + dev HTTPS): `./scripts/run-local.sh`
@@ -83,18 +122,23 @@
 - `scripts/run-local.sh` автоматически использует `~/.local/bin/cloudflared`, если `cloudflared` не найден в системном `PATH`.
 - Для one-click Debug в IntelliJ IDEA добавлены shared run-конфиги в `.run/`:
   - `01 Prepare Local HTTPS` → запускает `scripts/prepare-idea-debug.sh` (обновляет `deploy/local-https.env` и `deploy/local-https.properties` через cloudflared и принудительно обновляет Telegram menu button на актуальный `BOT_WEBAPP_URL`);
-  - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, JDBC через SSH-туннель `localhost:15432/predicts_test` (см. `scripts/ssh-tunnel-prod-db.sh`) и автоподхватом `optional:file:./deploy/local-https.properties`.
-- **Демо Telegram + TEST БД + авто-счет + откат БД:** `./scripts/run-telegram-test-demo.sh` (нужен `cloudflared`, остановка `Ctrl+C`)
-- Локально на TEST БД `predicts_test` (браузер, без cloudflared): `./scripts/run-local-test-db.sh`
-- Локально на TEST БД + Telegram HTTPS: `./scripts/run-local-test-db.sh --telegram` (нужен `cloudflared`)
-- Симуляция матчей «Сегодня» в TEST БД: `./scripts/simulate-today-matches-test-db.sh`
-- Откат симуляции: `./scripts/restore-today-matches-test-db.sh`
-- Тест live-уведомлений (смена счета): `./scripts/bump-today-live-scores-test-db.sh`
+  - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, JDBC через SSH-туннель (см. `scripts/ssh-tunnel-prod-db.sh`) и автоподхватом `optional:file:./deploy/local-https.properties`.
 - Локально только бот: `./scripts/run-bot-only.sh`
 - Ручная сборка: `mvn package -DskipTests`
-- Деплой с локальной сборкой jar: `./deploy/upload-jar.sh` (использует `deploy/deploy.env`, сервер `root@81.31.209.186`)
-- Деплой на сервере: `./deploy/deploy_predicts.sh`
-- Прод процесс: `systemctl status predicts`
+- Деплой: `./deploy/upload-jar.sh` (сервер/путь/sudo — из `deploy/deploy.env`)
+
+### Скрипты (`scripts/`)
+| Скрипт | Назначение |
+|--------|------------|
+| `run-local.sh` | Локальный jar + cloudflared HTTPS для Telegram Mini App |
+| `run-bot-only.sh` | Только бот |
+| `dev-https.sh`, `https-env.sh` | Настройка HTTPS-туннеля |
+| `prepare-idea-debug.sh` | IDEA: cloudflared + обновление menu button |
+| `ssh-tunnel-prod-db.sh` | SSH-туннель к удалённой БД для локального debug |
+| `verify-timezone.sh` | Проверка TZ |
+| `poll-lineups.sh` | Опрос API-Football на доступность составов |
+| `fetch-missing-h2h.py` | Догрузка H2H из API-Football → `scripts/data/` |
+| `generate-week-review-example.sh` | Пример разбора тура → `docs/week-review-example.md` |
 
 ## Надёжность и бот
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
@@ -110,34 +154,102 @@
 - `/start` и меню: кнопка «Открыть Mini App» первой.
 - `MiniAppMenuConfigurer` всегда инициализируется на старте; URL берется из `bot.webAppUrl` (с пустым default), чтобы системная кнопка меню Telegram гарантированно обновлялась после деплоя.
 
-## Mini App: экран "Сегодня", live и новые фичи
-- Файлы `static/miniapp/js/app.js`, `index.html`, `css/app.css`:
-  - «Сегодня»: текущий счёт / время старта, таймер до `kickoff+5м`, приоритет матчей без прогноза, polling 15с (live) / 60с (idle);
-  - overlay-уведомления о голах;
-  - offline-баннер при ошибках сети/API;
-  - кэш leaderboard/chart/standings ~45с;
-  - серверные заголовки для `/miniapp/**`: `Cache-Control: no-store, must-revalidate` (фикс против залипания старого фронта в Telegram WebView);
-  - на главной (`screen-stats`) внизу по центру добавлена малозаметная подпись версии (`.miniapp-version`, формат `ver. YYYYMMDD-N`);
-  - **версия miniapp (обязательно при push/deploy):** строка `ver` в `src/main/resources/static/miniapp/index.html` (`<div class="miniapp-version">ver. …</div>`). При каждом push/deploy, где меняется miniapp (`index.html`, `js/app.js`, `css/app.css` или связанный backend API miniapp) — **увеличивай версию в том же коммите**. Формат: `YYYYMMDD-N` (дата + порядковый номер деплоя за день, напр. `20260822-33` → `20260822-34`; в новый день можно начать с `-1`). По подписи на главном экране в Telegram WebView проверяют, что подтянулся свежий фронт после деплоя.
-  - header показывает сезон/тур (`profile.weekLabel`);
-  - `Crowd Meter` удален из UI модалки матча (блок и клиентская загрузка выключены);
-  - odds для матчей Mini App обновляются через `OddsService.ensureFresh(...)` с TTL 60с (источник ESPN scoreboard), чтобы коэффициенты появлялись без запуска today-уведомлений;
-  - `Live Points Race` удалён из UI/API; live-динамика встроена в `Общий зачёт` и `Текущий тур` (`GET /api/miniapp/leaderboard` возвращает `provisionalPoints/liveDelta/liveActive`);
-  - live-подсчёт очков в leaderboard считает очки по тем же правилам, что и финальный зачёт (включая `-1`), и учитывает пользователей без прогноза на уже live/finished матчах.
-  - **Разбор тура** в «Мои» (`GET /api/miniapp/weeks/{weekId}/review`);
-  - для live-матча в модалке центральный блок показывает текущий счёт и live-статус/время (`17'`, `HT`) вместо `VS + kickoff`;
-  - live-события для модалки берутся из ESPN summary endpoint `.../summary?event=<espnEventId>` только из `commentary`, сортируются с учётом тайма (`play.period.number`), затем времени/sequence (свежие сверху), а в UI показываются с иконкой типа события (по `commentary.play.type.type`).
-  - текст live-событий в miniapp переводится на русский из `live_event_ru_translation.json` (шаблоны + замены фраз; имена игроков/команд не переводятся).
-  - live-матч открывается в отдельной модалке `#live-modal` (не `#score-modal`): только шапка (логотипы, коды, счёт, минута), составы, мини-поле и лента событий — без котировок, сетки прогноза, H2H и новостей; модалка прогноза `#score-modal` остаётся отдельно.
-  - в live-модалке над лентой событий добавлено постоянное мини-поле (горизонтальное, с разметкой и вертикальными полосами травы) в пропорции профессионального поля `105:68`; разметка отрисовывается встроенным `SVG` (стабильнее в Telegram WebView), геометрия приведена к значениям IFAB (штрафная `16.5m`, вратарская `5.5m`, точка пенальти `11m`, радиус центра/дуги `9.15m`, угловые четверти окружности `1m`), включая полуокружности штрафной; точка удара `fieldStart` цветом команды; для **блока** — вторая точка на `fieldEnd` цветом соперника (блокирующий); для **удара в створ** при наличии `fieldEnd` — линия и вторая точка на вратаре (цвет соперника), без продолжения за сейв; иначе линия к `goalPositionY`; **гол — сплошная**, **створ/мимо/блок — пунктир**; бейдж `мин' фамилия · ТИП`; ESPN: атака к `x≈100`, ось Y общая (верх поля); после смены ворот во 2-м тайме зеркалим только X (`x → 100−x`) когда `away XOR 2-й тайм` (`period`), Y/`goalPositionY` не трогаем; на `HT` авто-маркер скрывается, тап по событию в ленте снова показывает; превью: `docs/live-pitch-preview.svg`.
-  - live-статистика матча (`GET .../live-details` → `matchStats`) берётся из ESPN `boxscore.teams[].statistics` с ключами `possessionPct`, `totalShots`, `shotsOnTarget`, `foulsCommitted`, `offsides`, `wonCorners`, `yellowCards`, `redCards` (владение с суффиксом `%`).
-  - составы в live-модалке отображаются в одном общем свернутом спойлере (`Составы команд`) и раскрываются по тапу; внутри — две колонки по командам; мини-поле ограничено по ширине и центрировано, чтобы корректно помещаться на узких экранах.
-  - блок `Live` на главной начинает показывать «скоро стартующие» матчи за ~10 минут до kickoff; если матч еще не live, клик ведет в обычную модалку прогноза, а polling в этот период работает как live (15с).
-  - график очков рисует горизонтальные линии/подписи `Y` по целым значениям (без округления дробных грид-уровней), чтобы точки точно совпадали с числовыми отметками.
-  - маппинг иконок live-событий кастомизирован: пенальти `P`, офсайд белый флаг, удар в створ target, угловой красный флаг.
+## Mini App API (`MiniAppController`, base `/api/miniapp`)
+Все эндпоинты требуют `X-Telegram-Init-Data` (в local-профиле — `miniapp.dev-mode` + `dev-telegram-id`).
+
+| Method | Path | Назначение |
+|--------|------|------------|
+| GET | `/profile` | Профиль, сезон, тур |
+| GET | `/weeks` | Список туров |
+| GET | `/weeks/{weekId}/matches` | Матчи тура |
+| GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
+| GET | `/weeks/{weekId}/review` | **Разбор тура** |
+| GET | `/match/{homeCode}/{awayCode}` | Матч + odds + canPredict |
+| GET | `/match/.../insights` | Форма команд + новости Sports.ru |
+| GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
+| GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
+| GET | `/standings` | Таблица АПЛ |
+| GET | `/team/{teamCode}/matches` | Последние/ближайшие матчи команды |
+| GET | `/h2h/{homeCode}/{awayCode}` | Личные встречи |
+| GET | `/today` | Матчи сегодня |
+| GET | `/chart` | Данные графика очков |
+| POST/DELETE | `/predictions` | Сохранить / удалить прогноз |
+| POST | `/client-log` | Клиентские логи на сервер |
+
+## Mini App: экраны и UX
+**4 экрана (нижняя навигация):**
+- **Главная** (`screen-stats`): live-карточка, зачёт (Общий / Текущий тур), график очков, таблица АПЛ, версия miniapp.
+- **Сегодня** (`screen-today`): матчи дня, счёт/старт, бейджи прогнозов.
+- **Прогноз** (`screen-predict`): выбор тура → список матчей → модалка прогноза.
+- **Мои** (`screen-my`): прогнозы тура + **Разбор тура**.
+
+**Модалки:**
+- `#score-modal` — прогноз, odds 1/X/2, H2H, форма, новости Sports.ru.
+- `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
+- `#team-modal`, `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
+
+**Файлы:** `static/miniapp/js/app.js`, `index.html`, `css/app.css`.
+
+### Общее поведение
+- «Сегодня»: текущий счёт / время старта, таймер до `kickoff+5м`, приоритет матчей без прогноза.
+- **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с.
+- overlay-уведомления о голах; offline-баннер при ошибках сети/API.
+- `Cache-Control: no-store, must-revalidate` для `/miniapp/**` (фикс залипания WebView).
+- header показывает сезон/тур (`profile.weekLabel`).
+- `Crowd Meter` удален из UI; backend-эндпоинт остаётся.
+- `Live Points Race` удалён; live-динамика встроена в зачёт (`provisionalPoints/liveDelta/liveActive`).
+- live-подсчёт очков в leaderboard учитывает `-1` и пользователей без прогноза на live/finished матчах.
+- график очков: целочисленная сетка Y.
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
-- `ApiClient.getLineups(matchPublicId)` использует in-memory `ConcurrentHashMap` кэш (по `publicId`) и держит составы до завершения матча; очистка вызывается в `DataInitService` и `NotificationService.sendFullTime`.
-- Для remind-уведомлений бот сначала пытается взять стартовые составы из ESPN `summary?event=<espn_id>` (`rosters`, только `starter=true`) и использует API-Football lineups как fallback.
+
+### Версия miniapp
+- В `index.html`: `<div class="miniapp-version">ver. @git.commit.id.abbrev@</div>`.
+- Maven `git-commit-id-maven-plugin` подставляет **git short hash** (7 символов) при `mvn package` в HTML и `?v=` для CSS/JS.
+- После deploy проверяй подпись `ver. …` на главном экране — она должна совпадать с коммитом сборки.
+
+### Коэффициенты (odds)
+- `OddsService.ensureFresh(...)` — ESPN scoreboard, TTL 60с.
+- Odds сохраняются в БД (`match.odd_home/draw/away`) для переиспользования в miniapp и разборе тура.
+- В модалке прогноза показываются odds из API матча.
+
+### Разбор тура («Мои»)
+- `GET /weeks/{weekId}/review` → список матчей: факт, прогноз, очки; заголовок «Разбор тура · N очк.».
+- Очки суммируются по всем матчам тура (включая `-1`), логика как в leaderboard.
+- Пример вывода: `./scripts/generate-week-review-example.sh` → `docs/week-review-example.md`.
+
+### Live-блок на главной и pre-start
+- Показывает live-матчи и «скоро стартующие» за ~10 минут до kickoff (`LIVE_PRESTART_WINDOW_SECONDS`).
+- API отдаёт `kickoffSecondsLeft` (секунды до свистка); pre-live держится при `sec <= 0`, пока статус `ns` (фикс пропадания блока сразу после kickoff).
+- Если матч ещё не live — клик ведёт в `#score-modal`; если live — в `#live-modal`.
+- В pre-start период polling «Сегодня» ускорен до 10с.
+
+### Live-модалка: составы
+- Свернутый спойлер «Составы команд» (по умолчанию закрыт).
+- Переключатель HOME/AWAY с подписью схемы (`NEW · 4-2-3-1`).
+- Единый блок `.formation-lineup`: **расстановка** + разделитель + **запасные** (центрированный текстовый список, без клика).
+- Данные из ESPN `summary.rosters`: `formation`, `formationPlace`, `jerseyImages`, stats, `subbedOut`/`subbedIn`, связи `subbedOutFor`/`subbedInFor` → `subPartnerId/Name`.
+- Fallback: API-Football lineups, если ESPN rosters пусты.
+- Расстановка по Opta `formationPlace` (словарь схем 4-2-3-1, 4-3-3, …; fallback на 4-2-3-1 при неизвестной схеме).
+- **Форма игрока:** картинка ESPN `jerseyImages` (не цветной прямоугольник); при отсутствии — номер на фоне цвета команды.
+- **Замены на поле:** вышедший запасной занимает позицию `formationPlace` заменённого; зелёная обводка формы; иконка ↕ справа сверху (без фонового бейджа).
+- Бейджи событий на поле: голы, ассисты, карточки (слева сверху).
+- Тап по игроку основного состава → `#player-modal` (форма без двоения: при `jerseyImage` номер/рамка не рисуются поверх картинки; stats из ESPN).
+- Запасные в списке: `23 Murphy · RB` (без `#`, позиция `SUB` скрыта).
+
+### Live-модалка: мини-поле и события
+- Постоянное мини-поле (горизонтальное, 105:68, SVG IFAB + полосы травы) над лентой событий.
+- События из ESPN `commentary` (сортировка по period/time/sequence, свежие сверху); RU-перевод из `live_event_ru_translation.json`.
+- Маркер на поле: последнее событие с координатами; тап по событию в ленте — просмотр выбранного; при **новом** событии в ленте авто-переключение на него.
+- На `HT` авто-маркер скрывается; выбранное событие из ленты можно показать вручную.
+- Траектории: гол — сплошная; створ/мимо/блок — пунктир; offside — пунктир player→линия; X зеркалится во 2-м тайме для away (`period`); Y не трогаем.
+- Тап по полю → overlay live-статистики (`matchStats` из ESPN boxscore: владение, удары, фолы, …).
+- Превью геометрии/пример: `docs/live-pitch-preview.svg`.
+- Live-модалка polling `/live-details` каждые 10с.
+
+### Прочее
+- `ApiClient.getLineups(matchPublicId)` — in-memory кэш до завершения матча; очистка в `DataInitService` и `NotificationService.sendFullTime`.
+- Remind-уведомления: ESPN rosters (`starter=true`) → fallback API-Football.
+- Новости в miniapp: Sports.ru RSS по тегам команд (`MiniAppService.loadMatchNews`).
 
 ## Генерация изображений уведомлений
 - В `ImageRenderer` fallback цветов команд по `teamId`, если нет записи в `team_colors.json`.
@@ -147,4 +259,5 @@
 ## Обязательная актуализация файла
 - Любое изменение архитектуры, конфигов, env, запусков, деплоя, эндпоинтов, интеграций или новых файлов должно сопровождаться обновлением `PROJECT_CONTEXT.md`.
 - Если агент меняет код и не обновил этот файл при контекстно значимом изменении — задача считается выполненной не полностью.
-- Перед push/deploy с изменениями miniapp: проверь, что в `src/main/resources/static/miniapp/index.html` обновлена подпись `ver. YYYYMMDD-N`.
+- После deploy с изменениями miniapp: проверь, что на главном экране отображается актуальный `ver. <git-hash>`.
+- Не добавлять в этот файл секреты и инфраструктурные идентификаторы (IP, домены, порты WAN SSH, логины, пароли, токены).

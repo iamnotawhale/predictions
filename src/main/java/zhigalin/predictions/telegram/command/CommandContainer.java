@@ -43,7 +43,8 @@ public class CommandContainer {
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
-                            PredictionService predictionService, PanicSender panicSender, String botChatId, NotificationService notificationService) {
+                            PredictionService predictionService, PanicSender panicSender, String botChatId,
+                            NotificationService notificationService, long adminChatId) {
         commandMap = new HashMap<>();
         commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService, botChatId));
         commandMap.put(START.getName(), new StartCommand(sendBotMessageService));
@@ -53,11 +54,11 @@ public class CommandContainer {
         commandMap.put(TABLE.getName(), new TableCommand(sendBotMessageService, matchService));
         commandMap.put(NEWS.getName(), new NewsCommand(sendBotMessageService, dataInitService));
         commandMap.put(UPCOMING.getName(), new UpcomingCommand(sendBotMessageService, matchService));
-        commandMap.put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, predictionService));
+        commandMap.put(REFRESH.getName(), new RefreshCommand(sendBotMessageService, predictionService, adminChatId));
         unknownCommand = new UnknownCommand(sendBotMessageService);
         teamCommand = new TeamCommand(sendBotMessageService, teamService, matchService, headToHeadService);
         headToHeadCommand = new HeadToHeadCommand(sendBotMessageService, headToHeadService);
-        updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService);
+        updateCommand = new UpdateCommand(sendBotMessageService, matchService, predictionService, adminChatId);
         predictCommand = new PredictCommand(sendBotMessageService, predictionService, matchService, panicSender);
         notificationPredictCommand = new NotificationPredictCommand(sendBotMessageService, predictionService, matchService, panicSender);
         predictKeyboardCommand = new PredictKeyboardCommand(sendBotMessageService, predictionService);
@@ -69,7 +70,7 @@ public class CommandContainer {
         notificationPredictKeyboardCommand = new NotificationPredictKeyBoardCommand(sendBotMessageService);
         totalCommand = new TotalCommand(sendBotMessageService, predictionService);
         this.generateCommand = new GenerateCommand(matchService, notificationService, panicSender);
-        this.todayNotifyCommand = new TodayNotifyCommand(sendBotMessageService, notificationService, panicSender);
+        this.todayNotifyCommand = new TodayNotifyCommand(sendBotMessageService, notificationService, panicSender, adminChatId);
     }
 
     public Command retrieveCommand(String commandIdentifier) {

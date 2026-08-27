@@ -63,6 +63,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
 
     public EPLInfoBot(@Value("${bot.token}") String token, @Value("${bot.username}") String name,
                       @Value("${bot.chatId}") String botChatId,
+                      @Value("${chatId:0}") String adminChatId,
                       @Value("${bot.webAppUrl:}") String webAppUrl,
                       MatchService matchService, TeamService teamService,
                       HeadToHeadService headToHeadService, DataInitService dataInitService,
@@ -72,8 +73,14 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         this.name = name;
         this.sendBotMessageService = new SendBotMessageService(this, imageRenderer, webAppUrl);
         this.panicSender = panicSender;
+        long adminId = 0L;
+        try {
+            adminId = Long.parseLong(adminChatId.trim());
+        } catch (Exception ignored) {
+            // admin commands disabled until ADMIN_CHAT_ID / chatId is set
+        }
         this.commandContainer = new CommandContainer(sendBotMessageService, matchService, teamService,
-                headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService);
+                headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService, adminId);
     }
 
     @EventListener(ApplicationReadyEvent.class)

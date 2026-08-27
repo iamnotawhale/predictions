@@ -55,10 +55,17 @@ print(json.dumps({
     log "Menu button updated via API"
 }
 
+# Берем URL только из текущего запуска unit (иначе подхватывается старый из journal)
 URL=""
-for _ in $(seq 1 45); do
-    URL=$(journalctl -u "$JOURNAL_UNIT" --no-pager 2>/dev/null \
-        | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | tail -1 || true)
+SINCE=$(systemctl show -p ActiveEnterTimestamp --value "$JOURNAL_UNIT" 2>/dev/null || true)
+for _ in $(seq 1 60); do
+    if [[ -n "$SINCE" && "$SINCE" != "n/a" ]]; then
+        URL=$(journalctl -u "$JOURNAL_UNIT" --since "$SINCE" --no-pager 2>/dev/null \
+            | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | tail -1 || true)
+    else
+        URL=$(journalctl -u "$JOURNAL_UNIT" -n 80 --no-pager 2>/dev/null \
+            | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | tail -1 || true)
+    fi
     if [[ -n "$URL" ]]; then
         break
     fi

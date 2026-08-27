@@ -5,7 +5,8 @@
 # Прод: jdbc:postgresql://localhost:15432/predicts_prod
 set -euo pipefail
 
-DEPLOY_SERVER="${DEPLOY_SERVER:-root@81.31.209.186}"
+# Задайте DEPLOY_SERVER в окружении или deploy/deploy.env
+: "${DEPLOY_SERVER:?Set DEPLOY_SERVER=user@host}"
 LOCAL_PORT="${LOCAL_PORT:-15432}"
 REMOTE_PORT="${REMOTE_PORT:-5432}"
 

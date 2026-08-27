@@ -1,20 +1,20 @@
 # Локальный профиль: --spring.profiles.active=local (scripts/run-local.sh)
-# Переопределения БД и секретов: deploy/local.env (см. deploy/local.env.example)
+# Секреты: deploy/local.env (см. deploy/local.env.example) — не коммитить токены сюда
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/predicts_local}
     username: ${SPRING_DATASOURCE_USERNAME:admin}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
 
 bot:
-  username: eplinfodevbot
-  token: 6610261457:AAHofB9PStvQBH9NTKzddjy7abxMQOtOo40
-  chatId: -4551040804
+  username: ${BOT_USERNAME:}
+  token: ${BOT_TOKEN:}
+  chatId: ${BOT_CHAT_ID:}
   webAppUrl: ${BOT_WEBAPP_URL:}
 
 miniapp:
   dev-mode: true
-  dev-telegram-id: "739299"
+  dev-telegram-id: ${MINIAPP_DEV_TELEGRAM_ID:}
 
 predictions:
   startup:
@@ -24,6 +24,6 @@ predictions:
 
 api:
   football:
-    token: 8b72220a5a43c9b249b85d81652f7aef
+    token: ${API_FOOTBALL_TOKEN:}
 
 # HTTPS для Telegram Mini App: ./scripts/dev-https.sh → deploy/local-https.env

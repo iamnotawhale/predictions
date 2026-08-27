@@ -15,7 +15,6 @@ import zhigalin.predictions.telegram.service.SendBotMessageService;
 @RequiredArgsConstructor
 public class TodayNotifyCommand implements Command {
 
-    private static final long ADMIN_CHAT_ID = 739299L;
     private static final Pattern DATE_PATTERN = Pattern.compile("\\b(\\d{8})\\b");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("ddMMyyyy");
     private static final DateTimeFormatter DISPLAY_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -23,13 +22,14 @@ public class TodayNotifyCommand implements Command {
     private final SendBotMessageService messageService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
+    private final long adminChatId;
 
     @Override
     public void execute(Update update) {
-        if (update.getMessage().getChatId() != ADMIN_CHAT_ID) {
+        if (update.getMessage().getChatId() != adminChatId) {
             return;
         }
-        String chatId = String.valueOf(ADMIN_CHAT_ID);
+        String chatId = String.valueOf(adminChatId);
         try {
             LocalDate date = parseDate(update.getMessage().getText());
             if (notificationService.sendTodayMatchNotification(date)) {
