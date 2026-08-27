@@ -153,13 +153,12 @@
 ### Failover / failback
 | Скрипт | Где запускать | Что делает |
 |--------|---------------|------------|
-| `deploy/failover-to-vps.sh` | VPS (root) | best-effort stop primary → restore latest dump → env под стандартный HTTPS → DynDNS на IP VPS → start `caddy`+`predicts` |
+| `deploy/failover-to-vps.sh` | VPS (root) | stop primary → restore dump → DynDNS → Caddy `:443`+`:8443` → `predicts` → force Telegram menu URL |
 | `deploy/failback-to-odyssey.sh` | VPS (root) | stop VPS bot → DynDNS на IP primary → SSH start `caddy`+`predicts` на primary → state=odyssey |
 
 Ручной вызов тех же скриптов допустим, если оркестратор выключен или нужен срочный переключатель.
-
-### Важно
 - Не поднимай `predicts` одновременно на primary и VPS.
+- **Mini App после failover:** с домашней Wi‑Fi split-DNS на роутере часто резолвит публичный hostname на LAN primary (он уже down) — с телефона в той же сети Mini App «не открывается». Проверка: **мобильный интернет**, не домашний Wi‑Fi; либо временно убрать локальную A-запись. На VPS Caddy слушает и `:443`, и `:8443` (старая кнопка Telegram с портом primary).
 - После ручных экспериментов сверь state оркестратора и DNS; при сомнении смотри логи и Telegram-алерты.
 - VPS — запасной контур (мало RAM): не использовать как постоянный primary без нужды.
 
