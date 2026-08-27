@@ -2,24 +2,23 @@
 # Аварийный запуск прода на VPS, когда Odyssey недоступен.
 # Запускать НА VPS: sudo /home/predictions/deploy/failover-to-vps.sh
 #
-# Делает: restore latest dump → predicts.env под :443 → DuckDNS на IP VPS → caddy+predicts.
+# Делает: restore latest dump → env → DynDNS → Caddy :443+:8443 → predicts → Telegram menu.
 # Важно: бот может быть только в одном месте. Скрипт пытается остановить Odyssey.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/predictions}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/predictions}"
 DUMP="${DUMP:-$BACKUP_DIR/predicts_prod-latest.sql.gz}"
-# backward-compat: старый custom dump больше не поддерживается (PG18→PG16)
-if [[ ! -s "$DUMP" && -s "$BACKUP_DIR/predicts_prod-latest.dump" ]]; then
-  log "ERROR: найден только старый .dump (custom). Нужен новый бэкап plain SQL (.sql.gz) с Odyssey."
-  exit 1
-fi
 ODYSSEY_SSH="${ODYSSEY_SSH:-nikita@192.168.1.38}"
-# WAN fallback если LAN недоступен с VPS
 ODYSSEY_SSH_WAN="${ODYSSEY_SSH_WAN:-nikita@predicts.duckdns.org}"
 ODYSSEY_SSH_WAN_PORT="${ODYSSEY_SSH_WAN_PORT:-2222}"
 
 log() { echo "[failover-to-vps] $*"; }
+
+if [[ ! -s "$DUMP" && -s "$BACKUP_DIR/predicts_prod-latest.dump" ]]; then
+  log "ERROR: найден только старый .dump (custom). Нужен новый бэкап plain SQL (.sql.gz) с Odyssey."
+  exit 1
+fi
 
 [[ "$(id -u)" -eq 0 ]] || { log "Запустите от root (sudo)"; exit 1; }
 [[ -s "$DUMP" ]] || { log "ERROR: нет дампа $DUMP — сначала нужен backup-to-vps с Odyssey"; exit 1; }
@@ -31,7 +30,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=5 "$ODYSSEY_SSH" 'sudo systemctl stop pre
   || ssh -o BatchMode=yes -o ConnectTimeout=8 -p "$ODYSSEY_SSH_WAN_PORT" "$ODYSSEY_SSH_WAN" 'sudo systemctl stop predicts caddy 2>/dev/null || true' 2>/dev/null \
   || log "WARN: Odyssey unreachable — продолжаем (убедитесь, что домашний бот мёртв)"
 
-log "Prepare predicts.env for VPS (:443)..."
+log "Prepare predicts.env for VPS (:443, :8443 alias)..."
 # shellcheck disable=SC1091
 source "$APP_DIR/deploy/predicts.env.odyssey"
 DOMAIN="${PUBLIC_DOMAIN:-${DUCKDNS_FULL:-predicts.duckdns.org}}"
@@ -109,16 +108,8 @@ WantedBy=multi-user.target
 UNIT
 fi
 
-log "Caddyfile for :443..."
-mkdir -p /etc/caddy
-cat > /etc/caddy/Caddyfile <<EOF
-${DOMAIN} {
-	reverse_proxy 127.0.0.1:8080
-	encode gzip
-}
-EOF
-
-log "DuckDNS → this VPS public IP..."
+log "DuckDNS → this VPS public IP (до старта Caddy)..."
+VPS_IP=""
 if [[ -f "$APP_DIR/deploy/duckdns.env" ]]; then
   # shellcheck disable=SC1091
   source "$APP_DIR/deploy/duckdns.env"
@@ -127,10 +118,25 @@ if [[ -f "$APP_DIR/deploy/duckdns.env" ]]; then
     curl -fsS "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${VPS_IP}" || true
     echo
     log "DuckDNS updated to $VPS_IP"
+    sleep 3
   else
     log "WARN: cannot update DuckDNS (missing token or IP)"
   fi
 fi
+
+log "Caddyfile :443 + :8443 (совместимость со старой кнопкой Telegram)..."
+mkdir -p /etc/caddy
+cat > /etc/caddy/Caddyfile <<EOF
+${DOMAIN} {
+	reverse_proxy 127.0.0.1:8080
+	encode gzip
+}
+
+https://${DOMAIN}:8443 {
+	reverse_proxy 127.0.0.1:8080
+	encode gzip
+}
+EOF
 
 log "Start caddy + predicts..."
 systemctl daemon-reload
@@ -141,7 +147,7 @@ systemctl restart predicts
 ok=0
 for i in $(seq 1 40); do
   if systemctl is-active --quiet predicts && curl -sf -o /dev/null http://127.0.0.1:8080/miniapp/; then
-    log "healthy after ${i} checks"
+    log "app healthy after ${i} checks"
     ok=1
     break
   fi
@@ -149,5 +155,36 @@ for i in $(seq 1 40); do
 done
 [[ "$ok" -eq 1 ]] || { systemctl --no-pager -l status predicts || true; journalctl -u predicts -n 60 --no-pager || true; exit 1; }
 
-log "DONE. Mini App: ${WEBAPP}"
-log "Проверь бота в Telegram. Когда Odyssey оживёт — не запускай predicts там, пока не сделаешь failback."
+https_ok=0
+for i in $(seq 1 20); do
+  if curl -skf -o /dev/null --connect-timeout 5 --max-time 10 \
+      --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/miniapp/" \
+    && curl -skf -o /dev/null --connect-timeout 5 --max-time 10 \
+      --resolve "${DOMAIN}:8443:127.0.0.1" "https://${DOMAIN}:8443/miniapp/"; then
+    log "HTTPS :443 and :8443 OK (local SNI)"
+    https_ok=1
+    break
+  fi
+  log "wait TLS $i..."
+  sleep 3
+done
+[[ "$https_ok" -eq 1 ]] || log "WARN: TLS check не прошёл сразу — смотри journalctl -u caddy"
+
+log "Force Telegram menu button → ${WEBAPP}..."
+if [[ -n "${BOT_TOKEN:-}" ]]; then
+  payload=$(printf '{"menu_button":{"type":"web_app","text":"Открыть приложение","web_app":{"url":"%s"}}}' "$WEBAPP")
+  if curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setChatMenuButton" \
+      -H 'Content-Type: application/json' \
+      -d "$payload" >/dev/null; then
+    log "Telegram menu button updated"
+  else
+    log "WARN: setChatMenuButton failed"
+  fi
+else
+  log "WARN: no BOT_TOKEN — menu button not updated"
+fi
+
+log "DONE. Mini App: ${WEBAPP} (и https://${DOMAIN}:8443/miniapp/)"
+log "ВАЖНО: с домашней Wi‑Fi split-DNS на роутере может резолвить hostname → LAN primary (он выключен)."
+log "Проверяй Mini App с мобильного интернета или временно убери локальную A-запись на роутере."
+log "Когда Odyssey оживёт — failback; не запускай predicts в двух местах."
