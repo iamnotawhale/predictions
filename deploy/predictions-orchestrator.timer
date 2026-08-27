@@ -1,0 +1,12 @@
+[Unit]
+Description=Predictions orchestrator every 10 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Persistent=true
+Unit=predictions-orchestrator.service
+
+[Install]
+WantedBy=timers.target

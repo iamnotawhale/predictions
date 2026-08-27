@@ -114,10 +114,10 @@
 - Typical units: `predicts`, `caddy`, `predictions-net-refresh.timer` (обновление DynDNS + UPnP пробросов), опционально `disable-wifi`.
 - Сертификат: Let's Encrypt через DNS-01 (acme.sh + DuckDNS); файлы сертификатов на сервере вне git.
 - С домашней Wi‑Fi сети нужен split-DNS / hairpin на роутере (локальная A-запись публичного hostname → LAN IP сервера), иначе Mini App с телефона в той же Wi‑Fi может не открыться.
-- Legacy VPS — cold-standby (не активный бот): раз в 6ч Odyssey льёт дамп БД + jar/env на VPS (`predictions-backup.timer`).
-- Аварийный запуск на VPS: `sudo /home/predictions/deploy/failover-to-vps.sh` (restore dump, Caddy :443, DuckDNS → IP VPS, start `predicts`). Бот должен быть только в одном месте.
-- RPO ≈ до 2 часов (интервал таймера). Ручной бэкап: `./deploy/backup-to-vps.sh` на Odyssey. Логи: `journalctl -u predictions-backup` и `logs/backup-to-vps.log`.
-- После починки Odyssey: остановить VPS `predicts`+`caddy`, вернуть DuckDNS на домашний IP (net-refresh на Odyssey), задеплоить/стартовать `predicts` дома, URL Mini App снова с `:8443`.
+- Legacy VPS — cold-standby + оркестратор: раз в 2ч Odyssey льёт дамп/jar/env; на VPS `predictions-orchestrator.timer` (каждые 10 мин) проверяет Odyssey и при N фейлах делает failover, при восстановлении — failback. Алерты в Telegram `ADMIN_CHAT_ID`.
+- Аварийный запуск вручную: `sudo /home/predictions/deploy/failover-to-vps.sh`. Обратно: `sudo /home/predictions/deploy/failback-to-odyssey.sh`.
+- RPO ≈ до 2 часов (бэкап). RTO ≈ 30 мин при пороге 3×10 мин. Логи: Odyssey `logs/backup-to-vps.log`; VPS `logs/orchestrator.log` + `journalctl -u predictions-orchestrator`.
+- После ручной починки Odyssey: не поднимай бота в двух местах сразу — оркестратор/failback сами разрулят DNS и unit’ы.
 
 ## Запуск и деплой
 - Локально (бот + miniapp + dev HTTPS): `./scripts/run-local.sh`
