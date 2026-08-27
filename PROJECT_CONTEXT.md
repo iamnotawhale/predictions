@@ -213,6 +213,7 @@
 | `poll-lineups.sh` | Опрос API-Football на доступность составов |
 
 ## Надёжность и бот
+- `StartupNotifier`: при `ApplicationReady` шлёт в `ADMIN_CHAT_ID` хост, commit/branch, время старта (MSK), profile, port, java/os, pid, webAppUrl. Нужны `chatId` и `git.properties` (maven `git-commit-id` → `generateGitPropertiesFile=true`).
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
 - `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч) с автором гола и ассистом (если есть) из ESPN `summary.commentary`; при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
 - `DataInitService` нормализует live-статус из ESPN scoreboard: halftime определяется по `status.type.detail/shortDetail/description` и сохраняется как `ht` (а не как `45'+...`), завершение — как `ft`.
@@ -276,8 +277,8 @@
 
 ### Версия miniapp
 - В `index.html`: `<div class="miniapp-version">ver. @git.commit.id.abbrev@</div>`.
-- Maven `git-commit-id-maven-plugin` подставляет **git short hash** (7 символов) при `mvn package` в HTML и `?v=` для CSS/JS.
-- После deploy проверяй подпись `ver. …` на главном экране — она должна совпадать с коммитом сборки.
+- Maven `git-commit-id-maven-plugin` подставляет **git short hash** (7 символов) при `mvn package` в HTML и `?v=` для CSS/JS; также пишет `git.properties` в jar (для `StartupNotifier` / `GitProperties`).
+- После deploy проверяй подпись `ver. …` на главном экране — она должна совпадать с коммитом сборки и с commit в Telegram startup-алерте.
 
 ### Коэффициенты (odds)
 - `OddsService.ensureFresh(...)` — ESPN scoreboard, TTL 60с.
