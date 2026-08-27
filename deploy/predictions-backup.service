@@ -1,0 +1,12 @@
+[Unit]
+Description=Backup predictions DB+artifacts to VPS standby
+
+[Service]
+Type=oneshot
+User=nikita
+Group=nikita
+WorkingDirectory=/home/nikita/predictions
+ExecStart=/home/nikita/predictions/deploy/backup-to-vps.sh
+
+# Не считаем ошибкой краткий сетевой сбой — следующий тик таймера повторит
+Nice=10

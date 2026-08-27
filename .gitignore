@@ -44,4 +44,5 @@ out/
 fixtures_resp.json
 deploy/duckdns.env
 deploy/ci/
+deploy/backup.env
 scripts/data/
