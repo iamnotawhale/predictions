@@ -42,3 +42,4 @@ deploy/deploy.env
 out/
 fixtures_resp.json
 deploy/duckdns.env
+deploy/ci/
