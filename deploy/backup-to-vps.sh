@@ -44,15 +44,20 @@ DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-predicts_prod}"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
-DUMP_LOCAL="/tmp/predicts_prod-${STAMP}.dump"
+# plain SQL: portable PG18 (Odyssey) → PG16 (VPS); custom -Fc не откатывается на старший→младший major
+DUMP_LOCAL="/tmp/predicts_prod-${STAMP}.sql.gz"
 log() { echo "$(date -Iseconds) [backup-to-vps] $*"; }
 
 log "START"
 [[ -s "$JAR" ]] || { log "ERROR: missing $JAR"; exit 1; }
 
-log "pg_dump ${DB_NAME}..."
+log "pg_dump ${DB_NAME} (plain SQL gzip for cross-major restore)..."
 export PGPASSWORD="$DB_PASS"
-pg_dump -Fc -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$DUMP_LOCAL"
+# PG17+ пишет \restrict и SET transaction_timeout — старый psql/PG16 на VPS их не ест
+pg_dump --format=plain --no-owner --no-acl \
+  -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+  | grep -v -E '^\\(un)?restrict |^SET transaction_timeout' \
+  | gzip -c > "$DUMP_LOCAL"
 unset PGPASSWORD
 DUMP_SIZE=$(stat -c%s "$DUMP_LOCAL")
 [[ "$DUMP_SIZE" -gt 1000 ]] || { log "ERROR: dump too small"; exit 1; }
@@ -61,8 +66,8 @@ log "Ensure remote dirs on $VPS_SSH..."
 ssh "$VPS_SSH" "mkdir -p '$VPS_APP_DIR/target' '$VPS_APP_DIR/deploy' '$VPS_BACKUP_DIR'"
 
 log "Upload dump ($DUMP_SIZE bytes)..."
-scp -q "$DUMP_LOCAL" "$VPS_SSH:$VPS_BACKUP_DIR/predicts_prod-${STAMP}.dump"
-scp -q "$DUMP_LOCAL" "$VPS_SSH:$VPS_BACKUP_DIR/predicts_prod-latest.dump"
+scp -q "$DUMP_LOCAL" "$VPS_SSH:$VPS_BACKUP_DIR/predicts_prod-${STAMP}.sql.gz"
+scp -q "$DUMP_LOCAL" "$VPS_SSH:$VPS_BACKUP_DIR/predicts_prod-latest.sql.gz"
 rm -f "$DUMP_LOCAL"
 
 log "Sync jar + env (standby, bot stays stopped)..."
@@ -94,7 +99,7 @@ rm -f "$ENDPOINT_LOCAL"
 ssh "$VPS_SSH" "chmod 700 '$VPS_APP_DIR/deploy/predicts.env.odyssey' '$VPS_APP_DIR/deploy/duckdns.env' 2>/dev/null || true; chmod 755 '$VPS_APP_DIR/deploy/'*.sh 2>/dev/null || true"
 
 log "Rotate dumps (keep $KEEP_DUMPS)..."
-ssh "$VPS_SSH" "cd '$VPS_BACKUP_DIR' && ls -1t predicts_prod-*.dump 2>/dev/null | grep -v latest | tail -n +$((KEEP_DUMPS + 1)) | xargs -r rm -f"
+ssh "$VPS_SSH" "cd '$VPS_BACKUP_DIR' && ls -1t predicts_prod-*.sql.gz 2>/dev/null | grep -v latest | tail -n +$((KEEP_DUMPS + 1)) | xargs -r rm -f; rm -f predicts_prod-*.dump 2>/dev/null || true"
 
 log "Verify VPS predicts is NOT running..."
 ssh "$VPS_SSH" "systemctl is-active predicts 2>/dev/null || true" | grep -qx active && {
