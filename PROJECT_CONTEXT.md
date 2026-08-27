@@ -146,7 +146,7 @@
 - Состояние: каталог state на VPS (`odyssey` \| `vps`, счётчики fail/ok).
 - Пороги по умолчанию: **3** подряд fail → failover; **3** подряд ok при primary=vps → failback (`FAILURES_BEFORE_FAILOVER` / `SUCCESSES_BEFORE_FAILBACK`).
 - `AUTO_FAILOVER` / `AUTO_FAILBACK` — можно выключить автопереключение (останутся алерты).
-- Telegram: сообщения в `ADMIN_CHAT_ID` через `BOT_TOKEN` из `predicts.env.odyssey` (не спамит каждый тик — только смена/порог/авария).
+- Telegram: только при проблемах и реальном failover/failback (`ADMIN_CHAT_ID` / `BOT_TOKEN` из `predicts.env.odyssey`). В штатном режиме (всё ок) сообщений нет.
 - Логи: `logs/orchestrator.log` + `journalctl -u predictions-orchestrator`.
 - RTO ≈ ~30 мин при дефолтных порогах (3×10 мин) + время restore/старта.
 

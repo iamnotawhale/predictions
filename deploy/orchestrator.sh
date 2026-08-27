@@ -146,10 +146,8 @@ log "counts fail=$fails ok=$oks primary=$primary"
 
 if [[ "$primary" == "odyssey" ]]; then
   if [[ "$odyssey_ok" -eq 0 ]]; then
-    if [[ "$fails" -eq 1 ]] || [[ "$fails" -eq "$FAILURES_BEFORE_FAILOVER" ]]; then
-      tg "⚠️ Odyssey check FAIL ($fails/$FAILURES_BEFORE_FAILOVER). IP=${ODYSSEY_PUBLIC_IP:-?}"
-    fi
     if [[ "$fails" -ge "$FAILURES_BEFORE_FAILOVER" ]]; then
+      tg "⚠️ Odyssey check FAIL ($fails/$FAILURES_BEFORE_FAILOVER). IP=${ODYSSEY_PUBLIC_IP:-?}"
       if [[ "$AUTO_FAILOVER" == "true" ]]; then
         do_failover || true
       else
@@ -169,9 +167,6 @@ elif [[ "$primary" == "vps" ]]; then
     tg "🚨 Primary=VPS, но локальный predicts мёртв! Проверь VPS вручную."
   fi
   if [[ "$odyssey_ok" -eq 1 ]]; then
-    if [[ "$oks" -eq 1 ]] || [[ "$oks" -eq "$SUCCESSES_BEFORE_FAILBACK" ]]; then
-      tg "ℹ️ Odyssey снова отвечает ($oks/$SUCCESSES_BEFORE_FAILBACK)."
-    fi
     if [[ "$oks" -ge "$SUCCESSES_BEFORE_FAILBACK" ]]; then
       if [[ "$AUTO_FAILBACK" == "true" ]]; then
         do_failback || true
