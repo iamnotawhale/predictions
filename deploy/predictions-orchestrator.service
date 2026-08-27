@@ -1,0 +1,11 @@
+[Unit]
+Description=Predictions Odyssey/VPS health orchestrator
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/predictions
+ExecStart=/home/predictions/deploy/orchestrator.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=predictions-orchestrator
+Nice=5

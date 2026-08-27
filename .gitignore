@@ -45,4 +45,5 @@ fixtures_resp.json
 deploy/duckdns.env
 deploy/ci/
 deploy/backup.env
+deploy/orchestrator.env
 scripts/data/
