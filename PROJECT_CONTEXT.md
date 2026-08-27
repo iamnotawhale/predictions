@@ -133,7 +133,7 @@
 - Скрипт: `deploy/backup-to-vps.sh` (на primary).
 - Unit/timer: `deploy/predictions-backup.service` + `deploy/predictions-backup.timer` (каждые **2 часа** + после boot).
 - Конфиг: `deploy/backup.env` (gitignore; пример `backup.env.example`).
-- Что копируется: `pg_dump -Fc` БД prod, jar, `predicts.env` → `predicts.env.odyssey`, `duckdns.env`, `odyssey-endpoint.env` (WAN-ориентиры primary для проверок), скрипты failover/failback/orchestrator.
+- Что копируется: `pg_dump` plain SQL gzip (совместимость major PG primary→VPS; custom `-Fc` с нового major на старый не восстанавливается), jar, `predicts.env` → `predicts.env.odyssey`, `duckdns.env`, `odyssey-endpoint.env`, скрипты failover/failback/orchestrator.
 - На VPS бот при бэкапе **не** стартует; если вдруг active — скрипт останавливает.
 - Логи: `logs/backup-to-vps.log` + `journalctl -u predictions-backup`.
 - RPO ≈ до 2 часов (интервал таймера). Ручной прогон: `./deploy/backup-to-vps.sh`.

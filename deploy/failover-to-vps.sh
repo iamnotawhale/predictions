@@ -8,7 +8,12 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/predictions}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/predictions}"
-DUMP="${DUMP:-$BACKUP_DIR/predicts_prod-latest.dump}"
+DUMP="${DUMP:-$BACKUP_DIR/predicts_prod-latest.sql.gz}"
+# backward-compat: старый custom dump больше не поддерживается (PG18→PG16)
+if [[ ! -s "$DUMP" && -s "$BACKUP_DIR/predicts_prod-latest.dump" ]]; then
+  log "ERROR: найден только старый .dump (custom). Нужен новый бэкап plain SQL (.sql.gz) с Odyssey."
+  exit 1
+fi
 ODYSSEY_SSH="${ODYSSEY_SSH:-nikita@192.168.1.38}"
 # WAN fallback если LAN недоступен с VPS
 ODYSSEY_SSH_WAN="${ODYSSEY_SSH_WAN:-nikita@predicts.duckdns.org}"
@@ -58,17 +63,22 @@ chmod 600 "$APP_DIR/deploy/predicts.env"
 
 log "Restore DB from $DUMP..."
 export PGPASSWORD="${SPRING_DATASOURCE_PASSWORD:?}"
-# terminate sessions then restore
 sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
 SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'predicts_prod' AND pid <> pg_backend_pid();
 SQL
 sudo -u postgres psql -d postgres -c "DROP DATABASE IF EXISTS predicts_prod;"
 sudo -u postgres psql -d postgres -c "CREATE DATABASE predicts_prod OWNER admin;"
-pg_restore -h localhost -U admin -d predicts_prod --no-owner --role=admin "$DUMP" || {
-  # custom dumps often exit 1 on non-fatal warnings
-  log "WARN: pg_restore exit $? — проверяем таблицы"
-}
+if [[ "$DUMP" == *.gz ]]; then
+  gunzip -c "$DUMP" | grep -v -E '^\\(un)?restrict |^SET transaction_timeout' \
+    | psql -h localhost -U admin -d predicts_prod -v ON_ERROR_STOP=1
+else
+  grep -v -E '^\\(un)?restrict |^SET transaction_timeout' "$DUMP" \
+    | psql -h localhost -U admin -d predicts_prod -v ON_ERROR_STOP=1
+fi
 unset PGPASSWORD
+TABLES=$(sudo -u postgres psql -d predicts_prod -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")
+log "tables in public schema: $TABLES"
+[[ "$TABLES" -gt 0 ]] || { log "ERROR: restore produced empty DB"; exit 1; }
 sudo -u postgres psql -d predicts_prod -c '\dt' | head -20
 
 log "Install systemd unit if needed..."
