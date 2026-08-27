@@ -7,6 +7,9 @@ User=nikita
 Group=nikita
 WorkingDirectory=/home/nikita/predictions
 ExecStart=/home/nikita/predictions/deploy/backup-to-vps.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-to-vps
 
 # Не считаем ошибкой краткий сетевой сбой — следующий тик таймера повторит
 Nice=10

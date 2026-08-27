@@ -6,6 +6,17 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/home/nikita/predictions}"
 cd "$APP_DIR"
 
+LOG_DIR="${LOG_DIR:-$APP_DIR/logs}"
+LOG_FILE="${LOG_FILE:-$LOG_DIR/backup-to-vps.log}"
+mkdir -p "$LOG_DIR"
+# rotation до открытия лога (~1MB)
+if [[ -f "$LOG_FILE" ]] && [[ "$(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0)" -gt 1048576 ]]; then
+  mv -f "$LOG_FILE" "${LOG_FILE}.1"
+fi
+
+# Дублируем stdout/stderr в файл и в journal (через systemd)
+exec > >(tee -a "$LOG_FILE") 2>&1
+
 if [[ -f deploy/backup.env ]]; then
   # shellcheck disable=SC1091
   source deploy/backup.env
@@ -34,8 +45,9 @@ DB_NAME="${DB_NAME:-predicts_prod}"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 DUMP_LOCAL="/tmp/predicts_prod-${STAMP}.dump"
-log() { echo "[backup-to-vps] $*"; }
+log() { echo "$(date -Iseconds) [backup-to-vps] $*"; }
 
+log "START"
 [[ -s "$JAR" ]] || { log "ERROR: missing $JAR"; exit 1; }
 
 log "pg_dump ${DB_NAME}..."
@@ -59,7 +71,6 @@ scp -q "$APP_DIR/deploy/predicts.env" "$VPS_SSH:$VPS_APP_DIR/deploy/predicts.env
 [[ -f "$APP_DIR/deploy/duckdns.env" ]] && scp -q "$APP_DIR/deploy/duckdns.env" "$VPS_SSH:$VPS_APP_DIR/deploy/duckdns.env"
 [[ -f "$APP_DIR/application.yml" ]] && scp -q "$APP_DIR/application.yml" "$VPS_SSH:$VPS_APP_DIR/application.yml"
 [[ -f "$APP_DIR/application-prod.yml" ]] && scp -q "$APP_DIR/application-prod.yml" "$VPS_SSH:$VPS_APP_DIR/application-prod.yml"
-# failover script from repo path if present next to this script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 [[ -f "$SCRIPT_DIR/failover-to-vps.sh" ]] && scp -q "$SCRIPT_DIR/failover-to-vps.sh" "$VPS_SSH:$VPS_APP_DIR/deploy/failover-to-vps.sh"
 ssh "$VPS_SSH" "chmod 700 '$VPS_APP_DIR/deploy/predicts.env.odyssey' '$VPS_APP_DIR/deploy/duckdns.env' 2>/dev/null || true; chmod 755 '$VPS_APP_DIR/deploy/failover-to-vps.sh' 2>/dev/null || true"
@@ -73,4 +84,5 @@ ssh "$VPS_SSH" "systemctl is-active predicts 2>/dev/null || true" | grep -qx act
   ssh "$VPS_SSH" "systemctl stop predicts || true"
 } || true
 
-log "OK stamp=$STAMP → $VPS_SSH:$VPS_BACKUP_DIR"
+log "OK stamp=$STAMP → $VPS_SSH:$VPS_BACKUP_DIR size=${DUMP_SIZE}"
+log "END"
