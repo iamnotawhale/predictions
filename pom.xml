@@ -93,6 +93,15 @@
                     <exclude>static/miniapp/index.html</exclude>
                 </excludes>
             </resource>
+            <!-- Spring configs live at repo root (not src/main/resources) -->
+            <resource>
+                <directory>${basedir}</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>application.yml</include>
+                    <include>application-*.yml</include>
+                </includes>
+            </resource>
         </resources>
         <plugins>
             <plugin>
