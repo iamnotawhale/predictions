@@ -36,8 +36,8 @@ echo "=========================================="
 
 cd "$APP_DIR"
 
-log "[1/7] Git checkout v2-lite..."
-git checkout v2-lite
+log "[1/7] Git checkout master..."
+git checkout master
 
 log "[2/7] Git pull..."
 git pull
