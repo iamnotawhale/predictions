@@ -47,7 +47,6 @@ public class NotificationService {
     private final PredictionService predictionService;
     private final OddsService oddsService;
     private final ImageRenderer images;
-    private final ChartRenderer charts;
     private final ApiClient api;
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
@@ -62,7 +61,6 @@ public class NotificationService {
                                PredictionService predictionService,
                                OddsService oddsService,
                                ImageRenderer images,
-                               ChartRenderer charts,
                                ApiClient api,
                                PanicSender panicSender,
                                ObjectMapper objectMapper,
@@ -71,7 +69,6 @@ public class NotificationService {
         this.predictionService = predictionService;
         this.oddsService = oddsService;
         this.images = images;
-        this.charts = charts;
         this.api = api;
         this.panicSender = panicSender;
         this.objectMapper = objectMapper;
@@ -155,14 +152,6 @@ public class NotificationService {
         if (path != null) {
             api.sendPhoto(defaultChatId, "Результаты " + weekId + " тура", path, null);
         }
-        if (!usersPoints.isEmpty()) {
-            StringBuilder text = new StringBuilder("*Зачёт ").append(weekId).append(" тура*\n");
-            usersPoints.entrySet().stream()
-                    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                    .forEach(e -> text.append(e.getKey()).append(": ").append(e.getValue()).append("\n"));
-            api.sendMessage(defaultChatId, text.toString(), null);
-        }
-        sendTotalPointsChart();
     }
 
     public void sendLiveScoreUpdate(Match match, Integer prevHome, Integer prevAway) {
@@ -291,13 +280,6 @@ public class NotificationService {
         String homeCode = home != null ? home.getCode() : String.valueOf(match.getHomeTeamId());
         String awayCode = away != null ? away.getCode() : String.valueOf(match.getAwayTeamId());
         return "teams:" + homeCode + "-" + awayCode;
-    }
-
-    public void sendTotalPointsChart() {
-        String path = charts.createTotalPointsChartImage();
-        if (path != null) {
-            api.sendPhoto(defaultChatId, "График набора очков", path, null);
-        }
     }
 
     public void checkReminders() {
