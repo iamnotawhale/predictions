@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodic predictions backup to VPS (every 6h)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=6h
+AccuracySec=5min
+Persistent=true
+Unit=predictions-backup.service
+
+[Install]
+WantedBy=timers.target
