@@ -25,7 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import zhigalin.predictions.config.DeploymentInfoService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ChartSeries;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
@@ -114,6 +116,8 @@ public class MiniAppService {
     private final OddsService oddsService;
     private final ApiClient apiClient;
     private final ObjectMapper objectMapper;
+    private final DeploymentInfoService deploymentInfoService;
+    private final String adminChatId;
     private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
 
     public MiniAppService(
@@ -123,7 +127,9 @@ public class MiniAppService {
             HeadToHeadService headToHeadService,
             OddsService oddsService,
             ApiClient apiClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            DeploymentInfoService deploymentInfoService,
+            @Value("${chatId:}") String adminChatId
     ) {
         this.userService = userService;
         this.matchService = matchService;
@@ -132,6 +138,8 @@ public class MiniAppService {
         this.oddsService = oddsService;
         this.apiClient = apiClient;
         this.objectMapper = objectMapper;
+        this.deploymentInfoService = deploymentInfoService;
+        this.adminChatId = adminChatId == null ? "" : adminChatId.trim();
     }
 
     public User requireUser(String telegramId) {
@@ -145,12 +153,21 @@ public class MiniAppService {
     public ProfileResponse profile(String telegramId) {
         User user = requireUser(telegramId);
         int weekId = DaoUtil.currentWeekId;
+        String dnsHint = isAdmin(telegramId) ? deploymentInfoService.dnsHintForAdmin() : null;
         return new ProfileResponse(
                 user.getLogin(),
                 weekId,
                 DataInitService.SEASON,
-                "Тур " + weekId + " · сезон " + DataInitService.SEASON
+                "Тур " + weekId + " · сезон " + DataInitService.SEASON,
+                dnsHint
         );
+    }
+
+    private boolean isAdmin(String telegramId) {
+        if (adminChatId.isBlank() || "0".equals(adminChatId)) {
+            return false;
+        }
+        return adminChatId.equals(telegramId);
     }
 
     public List<WeekItem> weeks(String telegramId) {
