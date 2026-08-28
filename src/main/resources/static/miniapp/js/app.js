@@ -622,6 +622,12 @@
         const user = tg.initDataUnsafe?.user;
         const name = user ? (user.first_name + (user.last_name ? ' ' + user.last_name : '')) : profile.login;
         $('#user-greeting').textContent = name + ' · ' + (profile.weekLabel || ('тур ' + profile.currentWeekId));
+        const verEl = $('.miniapp-version');
+        if (verEl) {
+            const base = verEl.getAttribute('data-base') || verEl.textContent.trim();
+            verEl.setAttribute('data-base', base);
+            verEl.textContent = profile.dnsHint ? base + ' · ' + profile.dnsHint : base;
+        }
     }
 
     async function loadLeaderboard(weekId) {

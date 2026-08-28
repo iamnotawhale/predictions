@@ -11,7 +11,8 @@ public final class MiniAppDtos {
             String login,
             int currentWeekId,
             int season,
-            String weekLabel
+            String weekLabel,
+            String dnsHint
     ) {
     }
 
