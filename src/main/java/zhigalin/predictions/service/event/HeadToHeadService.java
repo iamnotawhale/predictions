@@ -1,9 +1,7 @@
 package zhigalin.predictions.service.event;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +16,7 @@ import zhigalin.predictions.repository.event.HeadToHeadDao;
 @Service
 public class HeadToHeadService {
     private static final Logger log = LoggerFactory.getLogger("server");
+    private static final int H2H_LIMIT = 7;
 
     private final HeadToHeadDao headToHeadDao;
     private final MatchService matchService;
@@ -56,11 +55,9 @@ public class HeadToHeadService {
 
     public int backfillFinishedSeasonMatches() {
         int processed = 0;
-        for (Match match : matchService.findAll()) {
-            if (match.getStatus() != null && "ft".equalsIgnoreCase(match.getStatus())) {
-                saveFromFinishedMatch(match);
-                processed++;
-            }
+        for (Match match : matchService.findFinishedMatches()) {
+            saveFromFinishedMatch(match);
+            processed++;
         }
         return processed;
     }
@@ -74,27 +71,14 @@ public class HeadToHeadService {
     public List<HeadToHead> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode) {
         return headToHeadDao.getH2hByTeamsCode(homeTeamCode, awayTeamCode).stream()
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
-                .limit(7)
+                .limit(H2H_LIMIT)
                 .toList();
     }
 
     public List<HeadToHead> findAllByMatch(Match match) {
         return headToHeadDao.getAllByTeamsIds(match.getHomeTeamId(), match.getAwayTeamId()).stream()
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
-                .limit(7)
+                .limit(H2H_LIMIT)
                 .toList();
-    }
-
-    public List<List<HeadToHead>> findAllByCurrentWeek() {
-        List<List<HeadToHead>> listOfHeadToHeads = new ArrayList<>();
-        List<Match> allByCurrentWeek = matchService.findAllByCurrentWeek();
-        for (Match match : allByCurrentWeek) {
-            listOfHeadToHeads.add(findAllByMatch(match));
-        }
-        return listOfHeadToHeads;
-    }
-
-    public Map<Integer, List<HeadToHead>> findAllByCurrentWeekNew() {
-        return headToHeadDao.findAllByCurrentWeek();
     }
 }

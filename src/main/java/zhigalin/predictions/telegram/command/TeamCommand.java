@@ -35,10 +35,11 @@ public class TeamCommand implements Command {
             sendBotMessageService.sendMessage(update.getMessage().getChatId().toString(), "Такой команды нет. Повтори запрос");
         } else {
             getLastFiveMatchesInfoByTeam(team, builder);
-            if (matchService.findAllByTodayDate().stream().anyMatch(match ->
+            List<Match> todayMatches = matchService.findAllByTodayDate();
+            if (todayMatches.stream().anyMatch(match ->
                     match.getHomeTeamId() == team.getPublicId() ||
                     match.getAwayTeamId() == team.getPublicId())) {
-                Match match = matchService.findAllByTodayDate().stream().filter(m ->
+                Match match = todayMatches.stream().filter(m ->
                         m.getHomeTeamId() == team.getPublicId() ||
                         m.getAwayTeamId() == team.getPublicId()).findFirst().get();
                 int anotherTeamId = team.getPublicId() != match.getHomeTeamId() ? match.getHomeTeamId() : match.getAwayTeamId();

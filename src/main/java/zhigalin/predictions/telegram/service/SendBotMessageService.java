@@ -3,6 +3,7 @@ package zhigalin.predictions.telegram.service;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -292,7 +293,8 @@ public class SendBotMessageService {
         Set<Integer> predictableMatchIds = new HashSet<>(predictableMatches);
         int matchNum = 1;
         List<InlineKeyboardButton> innerList = new ArrayList<>();
-        for (Match match : matches) {
+        List<Match> ordered = matches.stream().sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID).toList();
+        for (Match match : ordered) {
             if (matchNum > 1 && matchNum % 2 == 1) {
                 listOfKeyboardRows.add(innerList);
                 innerList = new ArrayList<>();
@@ -330,7 +332,13 @@ public class SendBotMessageService {
         List<List<InlineKeyboardButton>> listOfKeyboardRows = new ArrayList<>();
         int predictNum = 1;
         List<InlineKeyboardButton> innerList = new ArrayList<>();
-        for (MatchPrediction matchPrediction : matchPredictions) {
+        List<MatchPrediction> ordered = matchPredictions.stream()
+                .sorted(Comparator.comparing(
+                                (MatchPrediction mp) -> mp.match().getLocalDateTime(),
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparingInt(mp -> mp.match().getPublicId()))
+                .toList();
+        for (MatchPrediction matchPrediction : ordered) {
             if (predictNum > 1 && predictNum % 2 == 1) {
                 listOfKeyboardRows.add(innerList);
                 innerList = new ArrayList<>();
@@ -351,7 +359,7 @@ public class SendBotMessageService {
             );
             button.setCallbackData("/" + homeTeam + ":" + awayTeam);
             innerList.add(button);
-            if (predictNum == matchPredictions.size()) {
+            if (predictNum == ordered.size()) {
                 listOfKeyboardRows.add(innerList);
             }
             predictNum++;

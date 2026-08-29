@@ -1,16 +1,13 @@
 package zhigalin.predictions.telegram.command;
 
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.telegram.MatchMessageFormatter;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 public class TourNumCommand implements Command {
@@ -44,28 +41,11 @@ public class TourNumCommand implements Command {
         if (!tourMatches.isEmpty()) {
             builder.append("`").append(tourId).append(" ТУР").append("`").append("\n");
             for (Match match : tourMatches) {
-                Team homeTeam = DaoUtil.TEAMS.get(match.getHomeTeamId());
-                Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
-                builder.append("`").append(homeTeam.getCode()).append(" ");
-                if (Objects.equals(match.getStatus(), "ft")) {
-                    builder.append(match.getHomeTeamScore())
-                            .append(" - ")
-                            .append(match.getAwayTeamScore())
-                            .append(" ")
-                            .append(awayTeam.getCode());
-                } else if (Objects.equals(match.getStatus(), "ns") || Objects.equals(match.getStatus(), "pst")) {
-                    builder.append("- ")
-                            .append(awayTeam.getCode()).append(" ")
-                            .append("\uD83D\uDDD3 ")
-                            .append(match.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM HH:mm")));
-                } else {
-                    builder.append(match.getHomeTeamScore())
-                            .append(" - ")
-                            .append(match.getAwayTeamScore())
-                            .append(" ")
-                            .append(awayTeam.getCode())
-                            .append(" ")
-                            .append(match.getStatus());
+                int mark = builder.length();
+                builder.append("`");
+                if (!MatchMessageFormatter.appendMatchBody(builder, match, MatchMessageFormatter.Style.TOUR)) {
+                    builder.setLength(mark);
+                    continue;
                 }
                 builder.append("`").append("\n");
             }

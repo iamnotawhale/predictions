@@ -167,7 +167,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE CAST(local_date_time AS DATE) = :date
-                    ORDER BY local_date_time
+                    ORDER BY local_date_time, public_id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource("date", date);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
@@ -184,7 +184,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE local_date_time BETWEEN :from AND :to
-                    ORDER BY local_date_time
+                    ORDER BY local_date_time, public_id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             LocalDateTime now = LocalDateTime.now();
@@ -204,7 +204,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE week_id = :weekId
-                    ORDER BY local_date_time
+                    ORDER BY local_date_time, public_id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("weekId", weekId);
@@ -221,6 +221,7 @@ public class MatchDao {
             String sql = """
                     SELECT *
                     FROM match
+                    ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (Exception e) {
@@ -254,7 +255,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE home_team_id = :teamPublicId OR away_team_id = :teamPublicId
-                    ORDER BY local_date_time
+                    ORDER BY local_date_time, public_id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("teamPublicId", teamPublicId);
@@ -266,13 +267,103 @@ public class MatchDao {
         }
     }
 
+    public List<Match> findLastFinishedByTeamPublicId(int teamPublicId, int limit) {
+        try {
+            String sql = """
+                    SELECT *
+                    FROM match
+                    WHERE (home_team_id = :teamPublicId OR away_team_id = :teamPublicId)
+                      AND result IS NOT NULL
+                    ORDER BY local_date_time DESC, public_id DESC
+                    LIMIT :limit
+                    """;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("teamPublicId", teamPublicId);
+            parameters.addValue("limit", limit);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error finding last finished matches by team", e);
+            serverLogger.error(e.getMessage());
+            return List.of();
+        }
+    }
+
+    public List<Match> findNextByTeamPublicId(int teamPublicId, int limit) {
+        try {
+            String sql = """
+                    SELECT *
+                    FROM match
+                    WHERE (home_team_id = :teamPublicId OR away_team_id = :teamPublicId)
+                      AND local_date_time > :now
+                    ORDER BY local_date_time, public_id
+                    LIMIT :limit
+                    """;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("teamPublicId", teamPublicId);
+            parameters.addValue("now", LocalDateTime.now());
+            parameters.addValue("limit", limit);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error finding next matches by team", e);
+            serverLogger.error(e.getMessage());
+            return List.of();
+        }
+    }
+
+    public boolean hasPostponedMatches() {
+        try {
+            String sql = "SELECT EXISTS (SELECT 1 FROM match WHERE status = 'pst')";
+            Boolean exists = jdbcTemplate.queryForObject(sql, Boolean.class);
+            return Boolean.TRUE.equals(exists);
+        } catch (Exception e) {
+            panicSender.sendPanic("Error checking postponed matches", e);
+            serverLogger.error(e.getMessage());
+            return false;
+        }
+    }
+
+    public List<Match> findFinishedMatches() {
+        try {
+            String sql = """
+                    SELECT *
+                    FROM match
+                    WHERE status = 'ft'
+                    ORDER BY local_date_time, public_id
+                    """;
+            return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error finding finished matches", e);
+            serverLogger.error(e.getMessage());
+            return List.of();
+        }
+    }
+
+    public List<Match> findPastNonPostponedMatches() {
+        try {
+            String sql = """
+                    SELECT *
+                    FROM match
+                    WHERE status <> 'pst'
+                      AND local_date_time < :now
+                    ORDER BY local_date_time, public_id
+                    """;
+            MapSqlParameterSource parameters = new MapSqlParameterSource("now", LocalDateTime.now());
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error finding past non-postponed matches", e);
+            serverLogger.error(e.getMessage());
+            return List.of();
+        }
+    }
+
     public List<Match> findAllBetweenToDates(LocalDateTime from, LocalDateTime to) {
         try {
             String sql = """
                     SELECT *
                     FROM match
                     WHERE local_date_time > :from AND local_date_time < :to
-                    ORDER BY local_date_time
+                      AND status <> 'pst'
+                    ORDER BY local_date_time, public_id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("from", from);
@@ -312,7 +403,7 @@ public class MatchDao {
                     SELECT *
                     FROM match JOIN weeks w ON week_id = w.id
                     WHERE w.is_current is TRUE
-                    ORDER BY local_date_time
+                    ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (Exception e) {
@@ -479,7 +570,7 @@ public class MatchDao {
         List<Match> matches = new ArrayList<>();
 
         while (!notificationQueue.isEmpty()) {
-            serverLogger.info("Notification que not empty");
+            serverLogger.info("Notification queue not empty");
             String payload = notificationQueue.poll();
             if (!processedMatches.contains(payload)) {
                 processedMatches.add(payload);
@@ -527,7 +618,7 @@ public class MatchDao {
             params.addValue("publicId", publicId);
             namedParameterJdbcTemplate.update(sql, params);
         } catch (Exception e) {
-            panicSender.sendPanic("Error isAlreadyProcessed", e);
+            panicSender.sendPanic("Error updateLastProcessedAt", e);
             serverLogger.error(e.getMessage());
         }
     }
