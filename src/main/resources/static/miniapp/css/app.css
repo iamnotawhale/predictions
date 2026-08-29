@@ -1603,6 +1603,7 @@ html[data-switching] *::after {
 .btn-danger {
     width: 100%;
     padding: 12px;
+    margin: 0 0 14px;
     border: none;
     border-radius: 12px;
     background: rgba(232, 92, 74, 0.15);
