@@ -1,7 +1,7 @@
 package zhigalin.predictions.recommender.model;
 
 /**
- * Extended FootyStats metrics (season + form) stored as JSON in DB.
+ * Extended metrics (FootyStats + SoccerSTATS) stored as JSON in DB.
  */
 public record FootyStatsExtendedMetrics(
         Double formBttsOverall,
@@ -51,15 +51,24 @@ public record FootyStatsExtendedMetrics(
         Double htPpg,
         Double secondHalfPpg,
         Double winningAtHtPct,
-        Double losingAtHtPct
+        Double losingAtHtPct,
+        // SoccerSTATS (ss*) — game-state metrics not covered well by FootyStats
+        Double ssScoredFirstPct,
+        Double ssScoredFirstPpg,
+        Double ssConcededFirstPct,
+        Double ssConcededFirstPpg,
+        Double ssLeadPct,
+        Double ssLevelPct,
+        Double ssTrailPct,
+        Double ssEqualiserScoredPct,
+        Double ssEqualiserConcededPct,
+        Double ssOgsPct,
+        Double ssOgcPct,
+        Double ssAvgFirstGoalMin,
+        Double ssFavouritePpg
 ) {
     public static FootyStatsExtendedMetrics empty() {
-        return new FootyStatsExtendedMetrics(
-                null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null
-        );
+        return builder().build();
     }
 
     public FootyStatsExtendedMetrics merge(FootyStatsExtendedMetrics patch) {
@@ -114,7 +123,20 @@ public record FootyStatsExtendedMetrics(
                 coalesce(patch.htPpg, htPpg),
                 coalesce(patch.secondHalfPpg, secondHalfPpg),
                 coalesce(patch.winningAtHtPct, winningAtHtPct),
-                coalesce(patch.losingAtHtPct, losingAtHtPct)
+                coalesce(patch.losingAtHtPct, losingAtHtPct),
+                coalesce(patch.ssScoredFirstPct, ssScoredFirstPct),
+                coalesce(patch.ssScoredFirstPpg, ssScoredFirstPpg),
+                coalesce(patch.ssConcededFirstPct, ssConcededFirstPct),
+                coalesce(patch.ssConcededFirstPpg, ssConcededFirstPpg),
+                coalesce(patch.ssLeadPct, ssLeadPct),
+                coalesce(patch.ssLevelPct, ssLevelPct),
+                coalesce(patch.ssTrailPct, ssTrailPct),
+                coalesce(patch.ssEqualiserScoredPct, ssEqualiserScoredPct),
+                coalesce(patch.ssEqualiserConcededPct, ssEqualiserConcededPct),
+                coalesce(patch.ssOgsPct, ssOgsPct),
+                coalesce(patch.ssOgcPct, ssOgcPct),
+                coalesce(patch.ssAvgFirstGoalMin, ssAvgFirstGoalMin),
+                coalesce(patch.ssFavouritePpg, ssFavouritePpg)
         );
     }
 
@@ -171,6 +193,19 @@ public record FootyStatsExtendedMetrics(
         private Double secondHalfPpg;
         private Double winningAtHtPct;
         private Double losingAtHtPct;
+        private Double ssScoredFirstPct;
+        private Double ssScoredFirstPpg;
+        private Double ssConcededFirstPct;
+        private Double ssConcededFirstPpg;
+        private Double ssLeadPct;
+        private Double ssLevelPct;
+        private Double ssTrailPct;
+        private Double ssEqualiserScoredPct;
+        private Double ssEqualiserConcededPct;
+        private Double ssOgsPct;
+        private Double ssOgcPct;
+        private Double ssAvgFirstGoalMin;
+        private Double ssFavouritePpg;
 
         public Builder formBtts(Double overall, Double home, Double away) {
             formBttsOverall = overall;
@@ -312,6 +347,47 @@ public record FootyStatsExtendedMetrics(
             return this;
         }
 
+        public Builder ssScoredFirst(Double pct, Double ppg) {
+            ssScoredFirstPct = pct;
+            ssScoredFirstPpg = ppg;
+            return this;
+        }
+
+        public Builder ssConcededFirst(Double pct, Double ppg) {
+            ssConcededFirstPct = pct;
+            ssConcededFirstPpg = ppg;
+            return this;
+        }
+
+        public Builder ssLeadDurations(Double lead, Double level, Double trail) {
+            ssLeadPct = lead;
+            ssLevelPct = level;
+            ssTrailPct = trail;
+            return this;
+        }
+
+        public Builder ssEqualiserScoredPct(Double value) {
+            ssEqualiserScoredPct = value;
+            return this;
+        }
+
+        public Builder ssEqualiserConcededPct(Double value) {
+            ssEqualiserConcededPct = value;
+            return this;
+        }
+
+        public Builder ssFirstGoal(Double ogsPct, Double ogcPct, Double avgMin) {
+            ssOgsPct = ogsPct;
+            ssOgcPct = ogcPct;
+            ssAvgFirstGoalMin = avgMin;
+            return this;
+        }
+
+        public Builder ssFavouritePpg(Double value) {
+            ssFavouritePpg = value;
+            return this;
+        }
+
         public FootyStatsExtendedMetrics build() {
             return new FootyStatsExtendedMetrics(
                     formBttsOverall, formBttsHome, formBttsAway,
@@ -329,7 +405,13 @@ public record FootyStatsExtendedMetrics(
                     over25Overall, over25Home, over25Away,
                     under25Overall, under25Home, under25Away,
                     homePpg, awayPpg, htPpg, secondHalfPpg,
-                    winningAtHtPct, losingAtHtPct
+                    winningAtHtPct, losingAtHtPct,
+                    ssScoredFirstPct, ssScoredFirstPpg,
+                    ssConcededFirstPct, ssConcededFirstPpg,
+                    ssLeadPct, ssLevelPct, ssTrailPct,
+                    ssEqualiserScoredPct, ssEqualiserConcededPct,
+                    ssOgsPct, ssOgcPct, ssAvgFirstGoalMin,
+                    ssFavouritePpg
             );
         }
     }

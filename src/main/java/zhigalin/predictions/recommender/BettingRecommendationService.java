@@ -20,17 +20,20 @@ public class BettingRecommendationService {
     private static final Logger log = LoggerFactory.getLogger("server");
 
     private final FootyStatsScraperService scraperService;
+    private final SoccerStatsScraperService soccerStatsScraperService;
     private final FootyStatsStatsDao statsDao;
     private final MatchService matchService;
     private final OddsService oddsService;
 
     public BettingRecommendationService(
             FootyStatsScraperService scraperService,
+            SoccerStatsScraperService soccerStatsScraperService,
             FootyStatsStatsDao statsDao,
             MatchService matchService,
             OddsService oddsService
     ) {
         this.scraperService = scraperService;
+        this.soccerStatsScraperService = soccerStatsScraperService;
         this.statsDao = statsDao;
         this.matchService = matchService;
         this.oddsService = oddsService;
@@ -39,7 +42,14 @@ public class BettingRecommendationService {
     public int refreshForWeek(int weekId) {
         try {
             FootyStatsScraperService.ParsedSnapshot snapshot = scraperService.fetchSnapshot();
-            statsDao.replaceTeamStats(weekId, snapshot.teams());
+            List<FootyStatsTeamSnapshot> teams;
+            try {
+                teams = soccerStatsScraperService.enrich(snapshot.teams());
+            } catch (Exception e) {
+                log.warn("SoccerSTATS enrich skipped: {}", e.getMessage());
+                teams = snapshot.teams();
+            }
+            statsDao.replaceTeamStats(weekId, teams);
             statsDao.saveLeagueSnapshot(snapshot.leagueForWeek(weekId));
             statsDao.deleteRecommendationsForWeek(weekId);
 

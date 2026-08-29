@@ -112,6 +112,8 @@ public final class PoissonScoreModel {
         blendedHome = applyHomeAdvantage(blendedHome, homeExt.homeAdvantage());
         blendedHome = applyXptsNudge(blendedHome, homeExt.xPtsDelta());
         blendedAway = applyXptsNudge(blendedAway, awayExt.xPtsDelta());
+        blendedHome = applySoccerStatsLambdaNudge(blendedHome, homeExt, true, thinSample);
+        blendedAway = applySoccerStatsLambdaNudge(blendedAway, awayExt, false, thinSample);
 
         blendedHome = clampLambda(blendedHome);
         blendedAway = clampLambda(blendedAway);
@@ -123,6 +125,7 @@ public final class PoissonScoreModel {
             for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
                 double joint = pHome * poisson(awayGoals, blendedAway);
                 joint *= scoreWeight(homeGoals, awayGoals, homeExt, awayExt, thinSample);
+                joint *= soccerStatsScoreWeight(homeGoals, awayGoals, homeExt, awayExt, thinSample);
                 if (market != null) {
                     joint *= marketScoreWeight(homeGoals, awayGoals, market);
                 }
@@ -189,6 +192,7 @@ public final class PoissonScoreModel {
         }
         appendFormLines(lines, homeExt, awayExt);
         appendSeasonLines(lines, homeExt, awayExt, homeCode, awayCode);
+        appendSoccerStatsLines(lines, homeExt, awayExt, homeCode, awayCode);
         if (market != null) {
             lines.add(String.format(
                     Locale.US,
@@ -340,6 +344,139 @@ public final class PoissonScoreModel {
             return lambda * 1.05;
         }
         return lambda * (1.0 + Math.max(-0.12, Math.min(0.18, (homeAdvantage - 8.0) * 0.015)));
+    }
+
+    private static double applySoccerStatsLambdaNudge(
+            double lambda,
+            FootyStatsExtendedMetrics ext,
+            boolean homeSide,
+            double thinSample
+    ) {
+        double scale = 1.0 - 0.55 * thinSample;
+        double factor = 1.0;
+
+        Double scoredFirst = ext.ssScoredFirstPct() != null ? ext.ssScoredFirstPct() : ext.ssOgsPct();
+        if (scoredFirst != null) {
+            // Teams that open scoring more often tend to finish with a slightly higher λ.
+            factor *= 1.0 + ((scoredFirst / 100.0) - 0.45) * 0.06 * scale;
+        }
+        if (ext.ssLeadPct() != null) {
+            factor *= 1.0 + ((ext.ssLeadPct() / 100.0) - 0.35) * 0.05 * scale;
+        }
+        if (ext.ssFavouritePpg() != null && homeSide) {
+            // Strong favourites at home: small uplift.
+            factor *= 1.0 + ((ext.ssFavouritePpg() - 1.5) / 3.0) * 0.04 * scale;
+        }
+        if (ext.ssAvgFirstGoalMin() != null && ext.ssAvgFirstGoalMin() > 0 && ext.ssAvgFirstGoalMin() < 25) {
+            factor *= 1.0 + 0.02 * scale;
+        }
+        return lambda * Math.max(0.92, Math.min(1.08, factor));
+    }
+
+    private static double soccerStatsScoreWeight(
+            int homeGoals,
+            int awayGoals,
+            FootyStatsExtendedMetrics home,
+            FootyStatsExtendedMetrics away,
+            double thinSample
+    ) {
+        double weight = 1.0;
+        double scale = 1.0 - 0.60 * thinSample;
+        boolean homeWin = homeGoals > awayGoals;
+        boolean awayWin = awayGoals > homeGoals;
+        boolean draw = homeGoals == awayGoals;
+        int margin = Math.abs(homeGoals - awayGoals);
+
+        Double homeSf = home.ssScoredFirstPct() != null ? home.ssScoredFirstPct() : home.ssOgsPct();
+        Double awaySf = away.ssScoredFirstPct() != null ? away.ssScoredFirstPct() : away.ssOgsPct();
+        if (homeSf != null && homeWin) {
+            weight *= 1.0 + ((homeSf / 100.0) - 0.45) * 0.10 * scale;
+        }
+        if (awaySf != null && awayWin) {
+            weight *= 1.0 + ((awaySf / 100.0) - 0.45) * 0.10 * scale;
+        }
+
+        if (home.ssLeadPct() != null && homeWin) {
+            weight *= 1.0 + ((home.ssLeadPct() / 100.0) - 0.35) * 0.08 * scale;
+        }
+        if (away.ssLeadPct() != null && awayWin) {
+            weight *= 1.0 + ((away.ssLeadPct() / 100.0) - 0.35) * 0.08 * scale;
+        }
+        if (home.ssTrailPct() != null && awayWin) {
+            weight *= 1.0 + ((home.ssTrailPct() / 100.0) - 0.30) * 0.05 * scale;
+        }
+        if (away.ssTrailPct() != null && homeWin) {
+            weight *= 1.0 + ((away.ssTrailPct() / 100.0) - 0.30) * 0.05 * scale;
+        }
+
+        Double eqScored = avgNullable(home.ssEqualiserScoredPct(), away.ssEqualiserScoredPct());
+        Double eqConceded = avgNullable(home.ssEqualiserConcededPct(), away.ssEqualiserConcededPct());
+        if (draw && homeGoals > 0 && eqScored != null) {
+            weight *= 1.0 + ((eqScored / 100.0) - 0.25) * 0.10 * scale;
+        }
+        if (margin >= 2 && eqConceded != null) {
+            // High equaliser-conceded rate → large winning margins less sticky.
+            weight *= 1.0 - ((eqConceded / 100.0) - 0.25) * 0.08 * scale;
+        }
+        if (draw && eqConceded != null) {
+            weight *= 1.0 + ((eqConceded / 100.0) - 0.25) * 0.06 * scale;
+        }
+
+        Double sfPpg = avgNullable(home.ssScoredFirstPpg(), away.ssConcededFirstPpg());
+        if (homeWin && home.ssScoredFirstPpg() != null && home.ssScoredFirstPpg() >= 2.2) {
+            weight *= 1.0 + 0.04 * scale;
+        }
+        if (awayWin && away.ssScoredFirstPpg() != null && away.ssScoredFirstPpg() >= 2.2) {
+            weight *= 1.0 + 0.04 * scale;
+        }
+        if (sfPpg != null && homeGoals + awayGoals <= 1 && sfPpg >= 2.4) {
+            // Teams that convert first-goal situations into points still often keep matches low-ish.
+            weight *= 1.0 + 0.02 * scale;
+        }
+
+        return Math.max(0.20, weight);
+    }
+
+    private static void appendSoccerStatsLines(
+            List<String> lines,
+            FootyStatsExtendedMetrics home,
+            FootyStatsExtendedMetrics away,
+            String homeCode,
+            String awayCode
+    ) {
+        boolean any = home.ssScoredFirstPct() != null || home.ssLeadPct() != null
+                || home.ssEqualiserScoredPct() != null || home.ssOgsPct() != null
+                || away.ssScoredFirstPct() != null || away.ssLeadPct() != null;
+        if (!any) {
+            return;
+        }
+        lines.add(String.format(
+                Locale.US,
+                "SoccerSTATS: first-goal %s %.0f%% (PPG %.2f) / %s %.0f%% (PPG %.2f); lead %.0f%% / %.0f%%",
+                homeCode,
+                nz(home.ssScoredFirstPct(), home.ssOgsPct()),
+                nz(home.ssScoredFirstPpg()),
+                awayCode,
+                nz(away.ssScoredFirstPct(), away.ssOgsPct()),
+                nz(away.ssScoredFirstPpg()),
+                nz(home.ssLeadPct()),
+                nz(away.ssLeadPct())
+        ));
+        if (home.ssEqualiserScoredPct() != null || away.ssEqualiserConcededPct() != null
+                || home.ssFavouritePpg() != null) {
+            lines.add(String.format(
+                    Locale.US,
+                    "SoccerSTATS: equalisers scored/conceded %s %.0f%% / %.0f%%, %s %.0f%% / %.0f%%; fav PPG %.2f / %.2f",
+                    homeCode,
+                    nz(home.ssEqualiserScoredPct()),
+                    nz(home.ssEqualiserConcededPct()),
+                    awayCode,
+                    nz(away.ssEqualiserScoredPct()),
+                    nz(away.ssEqualiserConcededPct()),
+                    nz(home.ssFavouritePpg()),
+                    nz(away.ssFavouritePpg())
+            ));
+        }
     }
 
     private static double applyXptsNudge(double lambda, Double xPtsDelta) {

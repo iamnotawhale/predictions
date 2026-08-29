@@ -44,7 +44,7 @@
 - `src/main/java/zhigalin/predictions/miniapp` — REST API и auth для Telegram WebApp (`X-Telegram-Init-Data`).
 - `src/main/java/zhigalin/predictions/service` — бизнес-логика (матчи, прогнозы, уведомления, синхронизация).
 - `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты ESPN scoreboard, TTL 60с, сохранение в БД.
-- `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats → Poisson-модель → кэш в БД.
+- `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats + SoccerSTATS → Poisson-модель → кэш в БД.
 - `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary).
 - `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой.
 - `src/main/java/zhigalin/predictions/config` — конфигурация, в т.ч. **`MatchOddsSchemaMigration`**, **`BettingRecommenderSchemaMigration`**, **`DeploymentInfoService`** (DNS-hint только для admin).
@@ -110,7 +110,7 @@
 
 **Рекомендатор ставок (FootyStats cache):**
 - `users.betting_recommender_enabled` — per-user toggle (default `false`).
-- `footystats_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (BTTS, CS, FTS, draws, over/under, xPts, PPG, …).
+- `footystats_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (BTTS, CS, FTS, draws, over/under, xPts, PPG, SoccerSTATS first-goal/lead/equalisers, …).
 - `footystats_league_snapshot` — средние лиги home/away scored/conceded на тур.
 - `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_public_id`.
 - Миграция: `BettingRecommenderSchemaMigration` + DDL в `tablesInit.sql`.
@@ -243,7 +243,7 @@
 |--------|------|------------|
 | GET | `/profile` | Профиль, сезон, тур, `bettingRecommenderEnabled`, `admin`; для admin — ещё `dnsHint` |
 | POST | `/profile/betting-recommender` | Вкл/выкл рекомендатор `{ "enabled": true/false }` |
-| POST | `/admin/betting-recommender/refresh` | **Только `ADMIN_CHAT_ID`**: форс-пересчёт FootyStats + рекомендаций (`?weekId=` опционально, иначе текущий тур; ~20–30с) |
+| POST | `/admin/betting-recommender/refresh` | **Только `ADMIN_CHAT_ID`**: форс-пересчёт FootyStats + SoccerSTATS + рекомендаций (`?weekId=` опционально, иначе текущий тур; ~30–45с) |
 | GET | `/weeks` | Список туров |
 | GET | `/weeks/{weekId}/matches` | Матчи тура |
 | GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
@@ -260,15 +260,16 @@
 | POST/DELETE | `/predictions` | Сохранить / удалить прогноз |
 | POST | `/client-log` | Клиентские логи на сервер |
 
-## Рекомендатор ставок (FootyStats + Poisson)
+## Рекомендатор ставок (FootyStats + SoccerSTATS + Poisson)
 **Назначение:** опциональный per-user помощник — рекомендуемый счёт 0–5 с математическим объяснением в модалке прогноза.
 
 **Пакет `zhigalin.predictions.recommender`:**
 - `FootyStatsScraperService` — scrape публичных страниц Premier League на footystats.org (пауза ~1.2с между запросами).
-- `FootyStatsTableParser` / `FootyStatsTeamNameMapper` — разбор таблиц + маппинг имён → коды команд.
+- `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с).
+- `FootyStatsTableParser` / `FootyStatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц + маппинг имён → коды команд.
 - `FootyStatsStatsDao` — кэш в PostgreSQL (не долбить сайт на каждый матч).
 - `PoissonScoreModel` — λ + коррекции матрицы счёта.
-- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id`.
+- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id` (FootyStats snapshot → SoccerSTATS enrich → store).
 
 **Источники FootyStats (высокий + средний приоритет):**
 - `form-table` (секция last6): Scored/Conceded + BTTS/CS/AVG/Win% home-away
@@ -279,12 +280,21 @@
 - `home-away-league-table` (PPG), `half-time-table`, `2nd-half-table`, `winning-losing-half-time-table`
 - Коэффициенты букмекеров — из уже существующего `OddsService` (не FootyStats `/odds` / `/predictions` — Cloudflare)
 
+**Источники SoccerSTATS (доп. слой, без замены модели):**
+- `firstgoal.asp` — OGS/OGC %, средняя минута первого гола
+- `table.asp?tid=sc` — scored/conceded first % + PPG when first
+- `table.asp?tid=t` — lead / level / trail durations %
+- `table.asp?tid=x` / `tid=w` — equalisers scored / conceded %
+- `fstats.asp` — PPG as favourite
+- (relative form `tid=re` пока не парсим — разметка нестабильна)
+
 **Модель:**
 - База: атака×оборона со **shrinkage** к среднему лиги (1 матч не обнуляет λ).
 - Смешивание: статистика + xG/xGA (за матч) + **рынок 1X2 → λ** (при тонкой выборке вес рынка растёт).
-- Матрица Пуассона 0–5 с мягкими весами BTTS/CS/FTS/ничьи/Over-Under (проценты `/100`, early-season dampen).
+- Лёгкий nudge λ от SoccerSTATS (scored-first / lead / favourite PPG), dampen при thin sample.
+- Матрица Пуассона 0–5 с мягкими весами BTTS/CS/FTS/ничьи/Over-Under + SoccerSTATS (first-goal, lead, equalisers).
 - Floor λ ~0.7+, иначе при λ&lt;1 mode всегда 0:0.
-- В explanation: λ, формулы, xG/xGA, форма, сезон, xPts, букмекеры, итоговый %.
+- В explanation: λ, формулы, xG/xGA, форма, сезон, SoccerSTATS, xPts, букмекеры, итоговый %.
 
 **Когда пересчитывается:**
 1. Автоматически в `DataInitService` после завершения всех матчей тура (`weekService.updateCurrent()` → `refreshForWeek` следующего тура).

@@ -69,11 +69,12 @@
 
     function applyPhraseReplacements(text, compiled) {
         let out = text;
-        compiled.phraseReplacements.forEach((item) => {
-            out = out.replace(item.regex, item.ru);
-        });
+        // Assists first: ESPN sometimes glues ".Goal awarded..." right after the assist clause.
         compiled.assistReplacements.forEach((item) => {
             out = out.replace(item.regex, item.replacement);
+        });
+        compiled.phraseReplacements.forEach((item) => {
+            out = out.replace(item.regex, item.ru);
         });
         return out;
     }
