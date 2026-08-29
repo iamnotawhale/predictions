@@ -338,6 +338,29 @@
         });
     }
 
+    function applyPredictionToScoreModal(match, homeScore, awayScore) {
+        if (!match) return;
+        const hasPrediction = homeScore != null && awayScore != null;
+        match.hasPrediction = hasPrediction;
+        match.predictHome = hasPrediction ? homeScore : null;
+        match.predictAway = hasPrediction ? awayScore : null;
+        if (state.selectedMatch
+            && state.selectedMatch.homeCode === match.homeCode
+            && state.selectedMatch.awayCode === match.awayCode) {
+            state.selectedMatch.hasPrediction = match.hasPrediction;
+            state.selectedMatch.predictHome = match.predictHome;
+            state.selectedMatch.predictAway = match.predictAway;
+        }
+        $$('#score-modal .score-btn').forEach((btn) => {
+            const [h, a] = (btn.textContent || '').split(':').map((v) => parseInt(v, 10));
+            btn.classList.toggle('selected', hasPrediction && h === homeScore && a === awayScore);
+        });
+        const deleteBtn = $('#modal-delete');
+        if (deleteBtn) {
+            deleteBtn.classList.toggle('hidden', !hasPrediction);
+        }
+    }
+
     async function refreshAfterPredictionChange() {
         state.todayLoaded = false;
         const predictBlock = $('#predict-matches');
@@ -2776,14 +2799,14 @@
             }
             showToast(res.message || 'Прогноз сохранён', 'success');
             tg.HapticFeedback?.notificationOccurred('success');
-            closeScoreModal();
+            applyPredictionToScoreModal(match, homeScore, awayScore);
             await refreshAfterPredictionChange();
         } catch (e) {
             const verified = await verifyPredictionSaved(match, homeScore, awayScore);
             if (verified) {
                 showToast('Прогноз сохранён (подтверждено на сервере)', 'success');
                 tg.HapticFeedback?.notificationOccurred('success');
-                closeScoreModal();
+                applyPredictionToScoreModal(match, homeScore, awayScore);
                 await refreshAfterPredictionChange();
                 return;
             }
@@ -2804,19 +2827,8 @@
             );
             showToast(res.message, res.ok ? 'success' : 'error');
             if (res.ok) {
-                closeScoreModal();
-                state.todayLoaded = false;
-                const predictBlock = $('#predict-matches');
-                const myBlock = $('#my-predictions');
-                if (!predictBlock.classList.contains('hidden') && predictBlock.dataset.weekId) {
-                    await loadPredictMatches(parseInt(predictBlock.dataset.weekId, 10));
-                }
-                if (!myBlock.classList.contains('hidden') && myBlock.dataset.weekId) {
-                    await loadMyPredictions(parseInt(myBlock.dataset.weekId, 10));
-                }
-                if ($('#screen-today').classList.contains('active')) {
-                    await loadTodayMatches();
-                }
+                applyPredictionToScoreModal(m, null, null);
+                await refreshAfterPredictionChange();
             }
         } catch (e) {
             showToast(e.message || 'Не удалось удалить прогноз', 'error');
