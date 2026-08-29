@@ -26,7 +26,65 @@
         }
     }
 
-    const CHART_COLORS = ['#2ea6ff', '#5cd97a', '#e85c4a', '#f5c542', '#b07aff', '#ff8ec4'];
+    function resolveTelegramScheme() {
+        if (tg.colorScheme === 'light' || tg.colorScheme === 'dark') {
+            return tg.colorScheme;
+        }
+        try {
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        } catch (_) {
+            return 'dark';
+        }
+    }
+
+    function syncTelegramChrome(scheme) {
+        const header = scheme === 'light' ? '#ece8fd' : '#0b0910';
+        const bar = scheme === 'light' ? '#ffffff' : '#14111a';
+        try {
+            if (typeof tg.setHeaderColor === 'function') tg.setHeaderColor(header);
+            if (typeof tg.setBackgroundColor === 'function') tg.setBackgroundColor(header);
+            if (typeof tg.setBottomBarColor === 'function') tg.setBottomBarColor(bar);
+        } catch (_) { /* older clients */ }
+    }
+
+    function applyThemeFromTelegram(options = {}) {
+        const scheme = resolveTelegramScheme();
+        const root = document.documentElement;
+        if (!options.instant) {
+            root.setAttribute('data-switching', '');
+        }
+        root.setAttribute('data-theme', scheme);
+        syncTelegramChrome(scheme);
+        if (!options.instant) {
+            requestAnimationFrame(() => {
+                root.removeAttribute('data-switching');
+            });
+        }
+        if (state.chartLoaded && state.chartData) {
+            drawPointsChart(state.chartData);
+        }
+        return scheme;
+    }
+
+    function initThemeControls() {
+        applyThemeFromTelegram({ instant: true });
+        try {
+            if (typeof tg.onEvent === 'function') {
+                tg.onEvent('themeChanged', () => applyThemeFromTelegram({ instant: true }));
+            }
+        } catch (_) { /* no-op */ }
+    }
+
+    function cssVar(name, fallback) {
+        try {
+            const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            return value || fallback;
+        } catch (_) {
+            return fallback;
+        }
+    }
+
+    const CHART_COLORS = ['#9d7bf0', '#5cb87a', '#d4604a', '#e8a840', '#64d4e0', '#ff8ec4'];
     const TODAY_POLL_LIVE_MS = 10000;
     const TODAY_POLL_IDLE_MS = 60000;
     const LIVE_MODAL_POLL_MS = 10000;
@@ -839,7 +897,7 @@
         ctx.clearRect(0, 0, width, height);
 
         if (!data.series.length || !data.weeks.length) {
-            ctx.fillStyle = '#8b98a5';
+            ctx.fillStyle = cssVar('--hint', '#9a8fb0');
             ctx.font = '14px sans-serif';
             ctx.fillText('Нет данных', pad.left, height / 2);
             $('#chart-legend').innerHTML = '';
@@ -860,7 +918,7 @@
             });
         });
         if (!Number.isFinite(maxY) || !Number.isFinite(minY)) {
-            ctx.fillStyle = '#8b98a5';
+            ctx.fillStyle = cssVar('--hint', '#9a8fb0');
             ctx.font = '14px sans-serif';
             ctx.fillText('Нет данных', pad.left, height / 2);
             return;
@@ -886,13 +944,13 @@
             ctx.moveTo(pad.left, y);
             ctx.lineTo(pad.left + plotW, y);
             ctx.stroke();
-            ctx.fillStyle = '#8b98a5';
+            ctx.fillStyle = cssVar('--hint', '#9a8fb0');
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(String(tick), pad.left - 6, y + 3);
         }
 
-        ctx.fillStyle = '#8b98a5';
+        ctx.fillStyle = cssVar('--hint', '#9a8fb0');
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'center';
         data.weeks.forEach((w, i) => {
@@ -2941,6 +2999,7 @@
 
         try {
             bindEvents();
+            initThemeControls();
             if (isLocalDev && !tg.initData) {
                 $('#user-greeting').textContent = 'Локальный режим (dev)';
                 document.getElementById('app-title').textContent = 'EPL Predictions [dev]';
@@ -2956,9 +3015,6 @@
                 loadWeeksGrid('#my-weeks', showMyWeek)
             ]);
             startTodayPolling();
-            if (tg.themeParams) {
-                document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color);
-            }
             reportClientLog('INFO', 'init.success', 'miniapp ready');
         } catch (e) {
             showToast(e.message, 'error');

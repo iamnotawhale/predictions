@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EPL Predictions</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        (function () {
+            try {
+                var tg = window.Telegram && window.Telegram.WebApp;
+                var scheme = (tg && (tg.colorScheme === 'light' || tg.colorScheme === 'dark'))
+                    ? tg.colorScheme
+                    : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+                document.documentElement.setAttribute('data-theme', scheme);
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/app.css?v=@git.commit.id.abbrev@">
 </head>
 <body>
