@@ -74,6 +74,7 @@ class PoissonScoreModelExplanationTest {
                 neu,
                 homeExt,
                 awayExt,
+                null,
                 new MarketOutcome(0.44, 0.25, 0.30),
                 2.15,
                 3.75,

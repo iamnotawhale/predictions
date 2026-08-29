@@ -414,6 +414,7 @@ html, body {
 .standings-table td {
     padding: 8px 4px;
     text-align: left;
+    vertical-align: middle;
 }
 
 .standings-table th {
@@ -441,11 +442,16 @@ html, body {
     background: rgba(46, 166, 255, 0.05);
 }
 
+/* Flex must be on inner wrappers — display:flex on <td> breaks table layout in Telegram WebView. */
 .standings-place {
-    display: flex;
+    white-space: nowrap;
+    width: 1%;
+}
+
+.standings-place-inner {
+    display: inline-flex;
     align-items: center;
     gap: 5px;
-    min-width: 2.2em;
 }
 
 .standings-place-num {
@@ -476,17 +482,19 @@ html, body {
 }
 
 .club-cell {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
 .standings-live-pill {
     flex-shrink: 0;
     margin-left: 2px;
-    padding: 2px 7px;
+    padding: 2px 6px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;

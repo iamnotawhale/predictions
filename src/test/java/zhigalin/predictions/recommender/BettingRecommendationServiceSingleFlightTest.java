@@ -27,6 +27,7 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
 import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
 import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.util.DaoUtil;
@@ -44,6 +45,8 @@ class BettingRecommendationServiceSingleFlightTest {
     private MatchService matchService;
     @Mock
     private OddsService oddsService;
+    @Mock
+    private HeadToHeadService headToHeadService;
 
     @InjectMocks
     private BettingRecommendationService service;
@@ -79,6 +82,7 @@ class BettingRecommendationServiceSingleFlightTest {
                 Match.builder().publicId(10).weekId(1).homeTeamId(1).awayTeamId(2).status("ns").build()
         ));
         when(oddsService.getOdd(anyInt())).thenReturn(null);
+        when(headToHeadService.findForRecommender(anyInt(), anyInt())).thenReturn(List.of());
 
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
