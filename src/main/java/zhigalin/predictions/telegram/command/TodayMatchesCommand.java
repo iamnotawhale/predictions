@@ -1,15 +1,13 @@
 package zhigalin.predictions.telegram.command;
 
 import java.util.List;
-import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.telegram.MatchMessageFormatter;
 import zhigalin.predictions.telegram.service.SendBotMessageService;
-import zhigalin.predictions.util.DaoUtil;
 
 @RequiredArgsConstructor
 public class TodayMatchesCommand implements Command {
@@ -27,28 +25,15 @@ public class TodayMatchesCommand implements Command {
         StringBuilder builder = new StringBuilder();
         if (!matches.isEmpty()) {
             for (Match match : matches) {
+                int mark = builder.length();
                 builder.append("`");
                 if (match.getWeekId() != tour) {
                     builder.append(match.getWeekId()).append(" тур").append("\n");
                     tour = match.getWeekId();
                 }
-                Team homeTeam = DaoUtil.team(match.getHomeTeamId());
-                Team awayTeam = DaoUtil.team(match.getAwayTeamId());
-                if (homeTeam == null || awayTeam == null) {
+                if (!MatchMessageFormatter.appendMatchBody(builder, match, MatchMessageFormatter.Style.TODAY)) {
+                    builder.setLength(mark);
                     continue;
-                }
-                builder.append(homeTeam.getCode()).append(" ");
-                if (!Objects.equals(match.getStatus(), "ns") && !Objects.equals(match.getStatus(), "pst")) {
-                    builder.append(match.getHomeTeamScore()).append(" - ")
-                            .append(match.getAwayTeamScore()).append(" ")
-                            .append(awayTeam.getCode()).append(" ")
-                            .append(match.getStatus()).append(" ");
-                } else if (Objects.equals(match.getStatus(), "pst")) {
-                    builder.append("- ").append(awayTeam.getCode())
-                            .append(" ⏰ ").append(match.getStatus());
-                } else {
-                    builder.append("- ").append(awayTeam.getCode())
-                            .append(" ⏱ ").append(match.getLocalDateTime().toLocalTime());
                 }
                 builder.append("`").append("\n");
             }
@@ -64,6 +49,5 @@ public class TodayMatchesCommand implements Command {
         } else {
             sendBotMessageService.sendMessage(chatId, "Сегодня матчей нет");
         }
-
     }
 }

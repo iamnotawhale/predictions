@@ -29,33 +29,37 @@ public class FootyStatsStatsDao {
 
     public void replaceTeamStats(int weekId, List<FootyStatsTeamSnapshot> teams) {
         jdbcTemplate.update("DELETE FROM footystats_team_stats WHERE week_id = ?", weekId);
-        for (FootyStatsTeamSnapshot team : teams) {
-            String extendedJson = serializeExtended(team.extendedOrEmpty());
-            jdbcTemplate.update("""
-                            INSERT INTO footystats_team_stats (
-                                week_id, team_code,
-                                scored_overall, scored_home, scored_away,
-                                conceded_overall, conceded_home, conceded_away,
-                                xg_overall, xg_home, xg_away,
-                                xga_overall, xgd_overall, extended_json, fetched_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                    weekId,
-                    team.teamCode(),
-                    team.scoredOverall(),
-                    team.scoredHome(),
-                    team.scoredAway(),
-                    team.concededOverall(),
-                    team.concededHome(),
-                    team.concededAway(),
-                    team.xgOverall(),
-                    team.xgHome(),
-                    team.xgAway(),
-                    team.xgaOverall(),
-                    team.xgdOverall(),
-                    extendedJson,
-                    Timestamp.from(team.fetchedAt()));
+        if (teams == null || teams.isEmpty()) {
+            return;
         }
+        jdbcTemplate.batchUpdate("""
+                        INSERT INTO footystats_team_stats (
+                            week_id, team_code,
+                            scored_overall, scored_home, scored_away,
+                            conceded_overall, conceded_home, conceded_away,
+                            xg_overall, xg_home, xg_away,
+                            xga_overall, xgd_overall, extended_json, fetched_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                teams,
+                teams.size(),
+                (ps, team) -> {
+                    ps.setInt(1, weekId);
+                    ps.setString(2, team.teamCode());
+                    ps.setDouble(3, team.scoredOverall());
+                    ps.setDouble(4, team.scoredHome());
+                    ps.setDouble(5, team.scoredAway());
+                    ps.setDouble(6, team.concededOverall());
+                    ps.setDouble(7, team.concededHome());
+                    ps.setDouble(8, team.concededAway());
+                    setNullableDouble(ps, 9, team.xgOverall());
+                    setNullableDouble(ps, 10, team.xgHome());
+                    setNullableDouble(ps, 11, team.xgAway());
+                    setNullableDouble(ps, 12, team.xgaOverall());
+                    setNullableDouble(ps, 13, team.xgdOverall());
+                    ps.setString(14, serializeExtended(team.extendedOrEmpty()));
+                    ps.setTimestamp(15, Timestamp.from(team.fetchedAt()));
+                });
     }
 
     private String serializeExtended(FootyStatsExtendedMetrics extended) {
@@ -125,13 +129,14 @@ public class FootyStatsStatsDao {
     }
 
     public void saveRecommendation(MatchRecommendationSnapshot recommendation) {
-        String explanationJson;
-        try {
-            explanationJson = objectMapper.writeValueAsString(recommendation.explanationLines());
-        } catch (Exception e) {
-            explanationJson = "[]";
+        saveRecommendations(List.of(recommendation));
+    }
+
+    public void saveRecommendations(List<MatchRecommendationSnapshot> recommendations) {
+        if (recommendations == null || recommendations.isEmpty()) {
+            return;
         }
-        jdbcTemplate.update("""
+        jdbcTemplate.batchUpdate("""
                         INSERT INTO match_recommendation (
                             match_public_id, week_id,
                             recommended_home, recommended_away,
@@ -148,15 +153,25 @@ public class FootyStatsStatsDao {
                             explanation_json = EXCLUDED.explanation_json,
                             computed_at = EXCLUDED.computed_at
                         """,
-                recommendation.matchPublicId(),
-                recommendation.weekId(),
-                recommendation.recommendedHome(),
-                recommendation.recommendedAway(),
-                recommendation.expectedHomeGoals(),
-                recommendation.expectedAwayGoals(),
-                recommendation.scoreProbability(),
-                explanationJson,
-                Timestamp.from(recommendation.computedAt()));
+                recommendations,
+                recommendations.size(),
+                (ps, recommendation) -> {
+                    String explanationJson;
+                    try {
+                        explanationJson = objectMapper.writeValueAsString(recommendation.explanationLines());
+                    } catch (Exception e) {
+                        explanationJson = "[]";
+                    }
+                    ps.setInt(1, recommendation.matchPublicId());
+                    ps.setInt(2, recommendation.weekId());
+                    ps.setInt(3, recommendation.recommendedHome());
+                    ps.setInt(4, recommendation.recommendedAway());
+                    ps.setDouble(5, recommendation.expectedHomeGoals());
+                    ps.setDouble(6, recommendation.expectedAwayGoals());
+                    ps.setDouble(7, recommendation.scoreProbability());
+                    ps.setString(8, explanationJson);
+                    ps.setTimestamp(9, Timestamp.from(recommendation.computedAt()));
+                });
     }
 
     public Optional<MatchRecommendationSnapshot> findRecommendation(int matchPublicId) {
@@ -242,5 +257,13 @@ public class FootyStatsStatsDao {
     private static Double getNullableDouble(ResultSet rs, String column) throws SQLException {
         double value = rs.getDouble(column);
         return rs.wasNull() ? null : value;
+    }
+
+    private static void setNullableDouble(java.sql.PreparedStatement ps, int index, Double value) throws SQLException {
+        if (value == null) {
+            ps.setNull(index, java.sql.Types.DOUBLE);
+        } else {
+            ps.setDouble(index, value);
+        }
     }
 }

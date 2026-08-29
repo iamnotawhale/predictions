@@ -1,11 +1,13 @@
 package zhigalin.predictions.service.predict;
 
-import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,14 +50,6 @@ public class PredictionService {
 
     public List<MatchPrediction> findAllByWeekId(int weekId) {
         return predictionDao.findAllByWeekId(weekId);
-    }
-
-    public List<MatchPrediction> findAllByUserId(int userId) {
-        return predictionDao.findAllByUserId(userId);
-    }
-
-    public List<MatchPrediction> findAllByUserIdAndWeekId(int userId, int weekId) {
-        return findAllByWeekId(weekId).stream().filter(prediction -> prediction.prediction().getUserId() == userId).toList();
     }
 
     public void deleteById(int userId, int matchPublicId) {
@@ -123,31 +117,50 @@ public class PredictionService {
         return predictionDao.findAllByMatchIds(List.of(publicId));
     }
 
+    public Map<Integer, Prediction> predictionsByMatchForUser(String telegramId, Collection<Integer> matchIds) {
+        if (matchIds == null || matchIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Integer> ids = matchIds instanceof List<Integer> list ? list : List.copyOf(matchIds);
+        return predictionDao.findAllByMatchIdsAndTelegramId(ids, telegramId).stream()
+                .collect(Collectors.toMap(Prediction::getMatchPublicId, p -> p, (a, b) -> a));
+    }
+
     public List<Prediction> getAllByMatches(List<Match> matches) {
         return predictionDao.getAllByMatches(matches);
     }
 
     private void updatePredictions(Match match, List<User> users) {
+        List<Prediction> predictions = getByMatchPublicId(match.getPublicId());
+        Map<Integer, Prediction> byUser = predictions.stream()
+                .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
+        List<PredictionDao.PointsUpdate> updates = new ArrayList<>();
         for (User user : users) {
-            updatePoints(match.getPublicId(), user.getId());
+            Prediction prediction = byUser.get(user.getId());
+            int points = computePoints(
+                    match.getHomeTeamScore(),
+                    match.getAwayTeamScore(),
+                    prediction != null ? prediction.getHomeTeamScore() : null,
+                    prediction != null ? prediction.getAwayTeamScore() : null
+            );
+            updates.add(new PredictionDao.PointsUpdate(match.getPublicId(), user.getId(), points));
         }
+        predictionDao.updatePointsBatch(updates);
     }
 
     public void updateUnpredictable() {
-        List<Match> allMatches = matchService.findAll().stream()
-                .filter(match -> !match.getStatus().equals("pst") && match.getLocalDateTime().isBefore(LocalDateTime.now()))
-                .toList();
+        List<Match> allMatches = matchService.findPastNonPostponedMatches();
         List<User> users = userService.findAll();
 
         getAllByMatches(allMatches).stream()
                 .collect(Collectors.groupingBy(Prediction::getMatchPublicId))
                 .forEach((matchPublicId, predictions) -> {
                             if (!predictions.isEmpty()) {
+                                Set<Integer> predictedUserIds = predictions.stream()
+                                        .map(Prediction::getUserId)
+                                        .collect(Collectors.toCollection(HashSet::new));
                                 List<User> usersWithNoPredicts = users.stream()
-                                        .filter(user -> !predictions.stream()
-                                                .map(Prediction::getUserId)
-                                                .toList()
-                                                .contains(user.getId()))
+                                        .filter(user -> !predictedUserIds.contains(user.getId()))
                                         .toList();
                                 for (User user : usersWithNoPredicts) {
                                     save(
@@ -166,9 +179,7 @@ public class PredictionService {
     }
 
     public void recalculateFinishedMatchPoints() {
-        var finished = matchService.findAll().stream()
-                .filter(m -> Objects.equals(m.getStatus(), "ft"))
-                .toList();
+        var finished = matchService.findFinishedMatches();
         for (Match match : finished) {
             updateByMatch(match);
         }
@@ -180,11 +191,11 @@ public class PredictionService {
         if (match != null) {
             List<Prediction> predictions = getByMatchPublicId(match.getPublicId());
             if (!predictions.isEmpty() && predictions.size() < 4) {
+                Set<Integer> predictedUserIds = predictions.stream()
+                        .map(Prediction::getUserId)
+                        .collect(Collectors.toCollection(HashSet::new));
                 List<User> usersWithNoPredicts = users.stream()
-                        .filter(user -> !predictions.stream()
-                                .map(Prediction::getUserId)
-                                .toList()
-                                .contains(user.getId()))
+                        .filter(user -> !predictedUserIds.contains(user.getId()))
                         .toList();
                 for (User user : usersWithNoPredicts) {
                     save(Prediction.builder()
@@ -210,10 +221,6 @@ public class PredictionService {
         return predictionDao.getAllPointsByWeekId(weekId).stream()
                 .sorted(Comparator.comparingInt(Points::getValue).reversed())
                 .collect(Collectors.toMap(Points::getLogin, Points::getValue, (e1, e2) -> e1, LinkedHashMap::new));
-    }
-
-    public List<MatchPrediction> getPredictionsByUserAndWeek(int userId, int weekId) {
-        return predictionDao.getPredictionsByUserAndWeek(userId, weekId);
     }
 
     public List<MatchPrediction> getAllWeeklyPredictionsByUserTelegramId(int weekId, String telegramId) {

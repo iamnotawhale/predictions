@@ -163,18 +163,44 @@ public class PredictionDao {
     }
 
     public List<Prediction> findAllByMatchIds(List<Integer> matchIds) {
+        if (matchIds == null || matchIds.isEmpty()) {
+            return List.of();
+        }
         try {
             String sql = """
                     SELECT * FROM predict
                     JOIN match m ON match_id = m.public_id
                     WHERE match_id IN (:matchIds)
-                    ORDER BY m.local_date_time DESC, m.home_team_id
+                    ORDER BY m.local_date_time, m.public_id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("matchIds", matchIds);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by match ids", e);
+            serverLogger.error(e.getMessage());
+            return List.of();
+        }
+    }
+
+    public List<Prediction> findAllByMatchIdsAndTelegramId(List<Integer> matchIds, String telegramId) {
+        if (matchIds == null || matchIds.isEmpty()) {
+            return List.of();
+        }
+        try {
+            String sql = """
+                    SELECT p.*
+                    FROM predict p
+                    JOIN users u ON p.user_id = u.id
+                    WHERE u.telegram_id = :telegramId
+                      AND p.match_id IN (:matchIds)
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("telegramId", telegramId);
+            params.addValue("matchIds", matchIds);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error finding predictions by match ids and telegram id", e);
             serverLogger.error(e.getMessage());
             return List.of();
         }
@@ -218,6 +244,31 @@ public class PredictionDao {
         }
     }
 
+    public void updatePointsBatch(List<PointsUpdate> updates) {
+        if (updates == null || updates.isEmpty()) {
+            return;
+        }
+        try {
+            String sql = """
+                    UPDATE predict SET
+                    points = :points WHERE match_id = :matchId AND user_id = :userId
+                    """;
+            MapSqlParameterSource[] batch = updates.stream()
+                    .map(u -> new MapSqlParameterSource()
+                            .addValue("points", u.points())
+                            .addValue("matchId", u.matchId())
+                            .addValue("userId", u.userId()))
+                    .toArray(MapSqlParameterSource[]::new);
+            namedParameterJdbcTemplate.batchUpdate(sql, batch);
+        } catch (Exception e) {
+            panicSender.sendPanic("Error batch updating prediction points", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
+    public record PointsUpdate(int matchId, int userId, int points) {
+    }
+
     public List<Prediction> getAllByMatches(List<Match> matches) {
         try {
             String sql = """
@@ -243,7 +294,7 @@ public class PredictionDao {
                     FROM match m
                     JOIN predict p ON m.public_id = p.match_id
                     WHERE m.week_id = :weekId
-                    ORDER BY m.local_date_time DESC, p.user_id
+                    ORDER BY m.local_date_time, m.public_id, p.user_id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("weekId", weekId);
@@ -265,7 +316,7 @@ public class PredictionDao {
                     JOIN predict p ON m.public_id = p.match_id
                     JOIN users u ON p.user_id = u.id
                     WHERE m.week_id = :weekId AND u.telegram_id = :telegramId
-                    ORDER BY m.local_date_time DESC, p.user_id
+                    ORDER BY m.local_date_time, m.public_id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("weekId", weekId);

@@ -3,8 +3,6 @@ package zhigalin.predictions.service.event;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,45 +43,50 @@ public class MatchService {
     }
 
     public List<Match> findAllByTodayDate() {
-        return matchDao.findAllTodayMatches();
+        return sorted(matchDao.findAllTodayMatches());
     }
 
     public List<Match> findAllByDate(LocalDate date) {
-        return matchDao.findAllMatchesByDate(date);
+        return sorted(matchDao.findAllMatchesByDate(date));
     }
 
     public List<Match> findAllNearest(int minutes) {
-        return matchDao.findAllMatchesInTheNextMinutes(minutes);
+        return sorted(matchDao.findAllMatchesInTheNextMinutes(minutes));
     }
 
     public List<Match> findAllByUpcomingDays(int days) {
-        return matchDao.findAllMatchesInTheNextMinutes(days * 24 * 60);
+        return sorted(matchDao.findAllMatchesInTheNextMinutes(days * 24 * 60));
     }
 
     public List<Match> findAllByWeekId(int weekId) {
-        return matchDao.findAllByWeekIdOrderByLocalDateTime(weekId);
+        return sorted(matchDao.findAllByWeekIdOrderByLocalDateTime(weekId));
     }
 
     public List<Match> findAllByCurrentWeek() {
-        return matchDao.findAllByCurrentWeek();
+        return sorted(matchDao.findAllByCurrentWeek());
     }
 
     public List<Match> findAll() {
-        return matchDao.findAll();
+        return sorted(matchDao.findAll());
     }
 
     public Match findByTeamCodes(String homeTeamCode, String awayTeamCode) {
-        Collection<Team> teams = DaoUtil.TEAMS.values();
-        Integer homeId = teams.stream()
-                .filter(t -> t.getCode().equals(homeTeamCode))
-                .map(Team::getPublicId)
-                .findFirst()
-                .orElseThrow();
-        Integer awayId = teams.stream()
-                .filter(t -> t.getCode().equals(awayTeamCode))
-                .map(Team::getPublicId)
-                .findFirst()
-                .orElseThrow();
+        Integer homeId = null;
+        Integer awayId = null;
+        for (Team team : DaoUtil.TEAMS.values()) {
+            if (homeId == null && team.getCode().equals(homeTeamCode)) {
+                homeId = team.getPublicId();
+            }
+            if (awayId == null && team.getCode().equals(awayTeamCode)) {
+                awayId = team.getPublicId();
+            }
+            if (homeId != null && awayId != null) {
+                break;
+            }
+        }
+        if (homeId == null || awayId == null) {
+            throw new IllegalArgumentException("Unknown team code(s): " + homeTeamCode + "/" + awayTeamCode);
+        }
         return matchDao.findMatchByTeamsPublicId(homeId, awayId);
     }
 
@@ -91,12 +94,32 @@ public class MatchService {
         return matchDao.findMatchByTeamsPublicId(home, away);
     }
 
+    public List<Match> findAllByTeamPublicId(int teamPublicId) {
+        return sorted(matchDao.findAllByTeamPublicId(teamPublicId));
+    }
+
     public List<Match> findLast5MatchesByTeamId(int teamPublicId) {
-        return matchDao.findAllByTeamPublicId(teamPublicId).stream()
-                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
-                .filter(m -> m.getResult() != null)
-                .limit(6)
-                .toList();
+        return findLastFinishedByTeamId(teamPublicId, 5);
+    }
+
+    public List<Match> findLastFinishedByTeamId(int teamPublicId, int limit) {
+        return matchDao.findLastFinishedByTeamPublicId(teamPublicId, limit);
+    }
+
+    public List<Match> findNextByTeamId(int teamPublicId, int limit) {
+        return matchDao.findNextByTeamPublicId(teamPublicId, limit);
+    }
+
+    public boolean hasPostponedMatches() {
+        return matchDao.hasPostponedMatches();
+    }
+
+    public List<Match> findFinishedMatches() {
+        return sorted(matchDao.findFinishedMatches());
+    }
+
+    public List<Match> findPastNonPostponedMatches() {
+        return sorted(matchDao.findPastNonPostponedMatches());
     }
 
     public List<String> getLast5MatchesResultByTeamId(int teamPublicId) {
@@ -127,9 +150,7 @@ public class MatchService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime from = now.minusMinutes(140);
         LocalDateTime to = now.plusMinutes(20);
-        return matchDao.findAllBetweenToDates(from, to).stream()
-                .filter(match -> !match.getStatus().equals("pst"))
-                .toList();
+        return sorted(matchDao.findAllBetweenToDates(from, to));
     }
 
     public List<Integer> predictableMatchesByUserTelegramIdAndWeekId(String telegramId, int weekId) {
@@ -149,7 +170,14 @@ public class MatchService {
     }
 
     public List<Match> processBatch() {
-        return matchDao.processBatch();
+        return sorted(matchDao.processBatch());
+    }
+
+    private static List<Match> sorted(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return matches == null ? List.of() : matches;
+        }
+        return matches.stream().sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID).toList();
     }
 }
 

@@ -6,8 +6,6 @@ import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import kong.unirest.HttpResponse;
-import kong.unirest.Unirest;
 import java.io.InputStream;
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -66,6 +64,7 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
@@ -83,7 +82,6 @@ public class MiniAppService {
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final String SPORTS_RU_TEAM_RSS = "https://www.sports.ru/stat/export/rss/taglenta.xml?id=";
-    private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
     private static final Map<String, TeamKitColors> TEAM_PITCH_COLORS = loadTeamPitchColors();
     private static final long TEAM_NEWS_CACHE_MS = 120_000L;
     private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
@@ -226,11 +224,15 @@ public class MiniAppService {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
         oddsService.ensureFresh(matches);
-        Set<Integer> withPrediction = new HashSet<>(
-                matchService.predictableMatchesByUserTelegramIdAndWeekId(telegramId, weekId)
+        Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
+                telegramId,
+                matches.stream().map(Match::getPublicId).toList()
         );
         return matches.stream()
-                .map(match -> toMatchItem(match, telegramId, withPrediction.contains(match.getPublicId())))
+                .map(match -> {
+                    Prediction prediction = predictions.get(match.getPublicId());
+                    return toMatchItem(match, telegramId, prediction != null, prediction);
+                })
                 .toList();
     }
 
@@ -403,12 +405,15 @@ public class MiniAppService {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByTodayDate();
         oddsService.ensureFresh(matches);
-        Set<Integer> withPrediction = new HashSet<>(
-                matchService.predictableTodayMatchesByUserTelegramIdAndWeekId(telegramId)
+        Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
+                telegramId,
+                matches.stream().map(Match::getPublicId).toList()
         );
         List<MatchItem> items = matches.stream()
-                .map(match -> toMatchItem(match, telegramId, withPrediction.contains(match.getPublicId())))
-                .sorted(todayMatchOrder())
+                .map(match -> {
+                    Prediction prediction = predictions.get(match.getPublicId());
+                    return toMatchItem(match, telegramId, prediction != null, prediction);
+                })
                 .toList();
         boolean hasLive = items.stream().anyMatch(m -> isLiveStatus(m.status()));
         return new TodayMatchesResponse(items, hasLive);
@@ -462,14 +467,17 @@ public class MiniAppService {
     public WeekReviewResponse weekReview(String telegramId, int weekId) {
         requireUser(telegramId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
+        Map<Integer, Prediction> predictions = predictionService.getAllWeeklyPredictionsByUserTelegramId(weekId, telegramId)
+                .stream()
+                .collect(Collectors.toMap(
+                        mp -> mp.match().getPublicId(),
+                        MatchPrediction::prediction,
+                        (a, b) -> a
+                ));
         List<WeekReviewItem> items = new ArrayList<>();
         int total = 0;
         for (Match match : matches) {
-            Prediction prediction = predictionService.getByUserTelegramIdAndTeams(
-                    telegramId,
-                    teamCode(match.getHomeTeamId()),
-                    teamCode(match.getAwayTeamId())
-            );
+            Prediction prediction = predictions.get(match.getPublicId());
             boolean hasPrediction = prediction != null
                     && prediction.getHomeTeamScore() != null
                     && prediction.getAwayTeamScore() != null;
@@ -578,23 +586,11 @@ public class MiniAppService {
                 .findFirst()
                 .orElseThrow(() -> new MiniAppException(404, "Команда не найдена"));
 
-        LocalDateTime now = LocalDateTime.now();
-        List<Match> allMatches = matchService.findAll().stream()
-                .filter(match -> match.getHomeTeamId() == team.getPublicId() || match.getAwayTeamId() == team.getPublicId())
-                .sorted(Comparator.comparing(Match::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
-
-        List<TeamMatchItem> lastMatches = allMatches.stream()
-                .filter(match -> match.getLocalDateTime() != null)
-                .filter(match -> match.getLocalDateTime().isBefore(now) || match.getResult() != null)
-                .sorted(Comparator.comparing(Match::getLocalDateTime).reversed())
-                .limit(5)
+        List<TeamMatchItem> lastMatches = matchService.findLastFinishedByTeamId(team.getPublicId(), 5).stream()
                 .map(this::toTeamMatchItem)
                 .toList();
 
-        List<TeamMatchItem> upcomingMatches = allMatches.stream()
-                .filter(match -> match.getLocalDateTime() != null && match.getLocalDateTime().isAfter(now))
-                .limit(5)
+        List<TeamMatchItem> upcomingMatches = matchService.findNextByTeamId(team.getPublicId(), 5).stream()
                 .map(this::toTeamMatchItem)
                 .toList();
 
@@ -605,8 +601,6 @@ public class MiniAppService {
         requireUser(telegramId);
         List<HeadToHead> items = headToHeadService.findAllByTwoTeamsCode(homeCode.toUpperCase(), awayCode.toUpperCase());
         return items.stream()
-                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
-                .limit(10)
                 .map(h -> new H2hItem(
                         h.getLeagueName(),
                         h.getLocalDateTime() != null ? h.getLocalDateTime().format(KICKOFF) : "",
@@ -649,17 +643,6 @@ public class MiniAppService {
         }
         predictionService.deleteByUserTelegramIdAndTeams(telegramId, home, away);
         return new ActionResponse(true, "Прогноз удалён");
-    }
-
-    private MatchItem toMatchItem(Match match, String telegramId, boolean hasPrediction) {
-        Prediction prediction = hasPrediction
-                ? predictionService.getByUserTelegramIdAndTeams(
-                        telegramId,
-                        teamCode(match.getHomeTeamId()),
-                        teamCode(match.getAwayTeamId())
-                )
-                : null;
-        return toMatchItem(match, telegramId, hasPrediction, prediction);
     }
 
     private MatchItem toMatchItem(Match match, String telegramId, boolean hasPrediction, Prediction prediction) {
@@ -713,13 +696,6 @@ public class MiniAppService {
         return Set.of("ns", "pst", "tbd").contains(status.toLowerCase());
     }
 
-    private static Comparator<MatchItem> todayMatchOrder() {
-        return Comparator
-                .comparing((MatchItem m) -> !isLiveStatus(m.status()))
-                .thenComparing(MatchItem::hasPrediction)
-                .thenComparing(MatchItem::kickoff, Comparator.nullsLast(String::compareTo));
-    }
-
     private static boolean isLiveStatus(String status) {
         if (status == null || status.isBlank()) {
             return false;
@@ -741,11 +717,18 @@ public class MiniAppService {
         for (User user : DaoUtil.USERS.values()) {
             weekProvisional.put(user.getLogin(), 0);
         }
+        Map<Integer, Map<Integer, Prediction>> predictionsByMatch = predictionService.findAllByWeekId(weekId).stream()
+                .collect(Collectors.groupingBy(
+                        mp -> mp.match().getPublicId(),
+                        Collectors.toMap(
+                                mp -> mp.prediction().getUserId(),
+                                MatchPrediction::prediction,
+                                (left, right) -> left
+                        )
+                ));
         List<Match> weekMatches = matchService.findAllByWeekId(weekId);
         for (Match match : weekMatches) {
-            List<Prediction> preds = predictionService.getByMatchPublicId(match.getPublicId());
-            Map<Integer, Prediction> byUser = preds.stream()
-                    .collect(Collectors.toMap(Prediction::getUserId, p -> p, (left, right) -> left));
+            Map<Integer, Prediction> byUser = predictionsByMatch.getOrDefault(match.getPublicId(), Map.of());
             boolean finished = isFinishedStatus(match.getStatus());
             boolean liveLike = isLiveStatus(match.getStatus())
                                || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
@@ -991,10 +974,7 @@ public class MiniAppService {
             return null;
         }
         try {
-            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
-                    .queryString("event", match.getEspnId())
-                    .asString();
-            return objectMapper.readTree(response.getBody());
+            return apiClient.fetchEspnSummary(match.getEspnId());
         } catch (Exception e) {
             log.warn("MiniApp summary fetch failed: matchId={}, espnId={}, error={}",
                     match.getPublicId(), match.getEspnId(), e.getMessage());
@@ -1250,12 +1230,7 @@ public class MiniAppService {
     }
 
     private List<FormItem> buildRecentForm(int teamId, int limit) {
-        return matchService.findAll().stream()
-                .filter(match -> match.getHomeTeamId() == teamId || match.getAwayTeamId() == teamId)
-                .filter(match -> match.getHomeTeamScore() != null && match.getAwayTeamScore() != null)
-                .filter(match -> isFinishedStatus(match.getStatus()))
-                .sorted(Comparator.comparing(Match::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .limit(limit)
+        return matchService.findLastFinishedByTeamId(teamId, limit).stream()
                 .map(match -> toFormItem(match, teamId))
                 .toList();
     }
