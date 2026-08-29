@@ -1805,7 +1805,7 @@ html[data-switching] *::after {
 
 .chart-legend li {
     font-size: 12px;
-    color: var(--hint);
+    color: var(--text);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1822,12 +1822,14 @@ html[data-switching] *::after {
 }
 
 .chart-legend li.active {
-    color: #e9eef3;
+    color: var(--text);
     opacity: 1;
+    font-weight: 600;
 }
 
 .chart-legend li.muted {
-    opacity: 0.45;
+    color: var(--hint);
+    opacity: 0.55;
 }
 
 .chart-tooltip {
