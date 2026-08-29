@@ -44,9 +44,10 @@
 - `src/main/java/zhigalin/predictions/miniapp` — REST API и auth для Telegram WebApp (`X-Telegram-Init-Data`).
 - `src/main/java/zhigalin/predictions/service` — бизнес-логика (матчи, прогнозы, уведомления, синхронизация).
 - `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты ESPN scoreboard, TTL 60с, сохранение в БД.
+- `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats → Poisson-модель → кэш в БД.
 - `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary).
 - `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой.
-- `src/main/java/zhigalin/predictions/config` — конфигурация, в т.ч. **`MatchOddsSchemaMigration`** (миграция колонок odds при старте).
+- `src/main/java/zhigalin/predictions/config` — конфигурация, в т.ч. **`MatchOddsSchemaMigration`**, **`BettingRecommenderSchemaMigration`**, **`DeploymentInfoService`** (DNS-hint только для admin).
 - `src/main/resources/static/miniapp` — клиентская часть Mini App (`index.html`, `js/app.js`, `css/app.css`, `js/live-event-ru.js`).
 - `scripts` — локальный запуск, dev HTTPS, утилиты.
 - `deploy` — конфиги и сценарии деплоя/прод запуска (секреты — только `*.env`, в git только `*.example`).
@@ -85,7 +86,7 @@
 | `${BOT_TOKEN:}` | `bot.token` | `local.env` / `predicts.env` |
 | `${BOT_CHAT_ID:}` | `bot.chatId` (чат/группа бота) | `local.env` / `predicts.env` |
 | `${BOT_WEBAPP_URL:}` | `bot.webAppUrl` (кнопка Mini App) | `local.env` / `predicts.env` / `local-https.env` |
-| `${ADMIN_CHAT_ID:}` | `chatId` (panic + admin-команды) | `local.env` / `predicts.env` |
+| `${ADMIN_CHAT_ID:}` | `chatId` (panic + admin-эндпоинты miniapp) | `local.env` / `predicts.env` |
 | `${API_FOOTBALL_TOKEN:}` | `api.football.token` | `local.env` / `predicts.env` |
 | `${MINIAPP_DEV_TELEGRAM_ID:}` | `miniapp.dev-telegram-id` (только local) | `local.env` |
 | `${SEASON:2026}` | `season` | опционально env |
@@ -106,6 +107,13 @@
 - `live_score_message_id` — id Telegram-сообщения live-счёта (переживает рестарт).
 - `odd_home`, `odd_draw`, `odd_away` — коэффициенты 1/X/2 (`NUMERIC(6,2)`), заполняются `OddsService`, читаются в miniapp и разборе тура.
 - Миграция колонок odds: `MatchOddsSchemaMigration` + `ALTER` в `tablesInit.sql`; `OddsService` зависит от неё через `@DependsOn`.
+
+**Рекомендатор ставок (FootyStats cache):**
+- `users.betting_recommender_enabled` — per-user toggle (default `false`).
+- `footystats_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (BTTS, CS, FTS, draws, over/under, xPts, PPG, …).
+- `footystats_league_snapshot` — средние лиги home/away scored/conceded на тур.
+- `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_public_id`.
+- Миграция: `BettingRecommenderSchemaMigration` + DDL в `tablesInit.sql`.
 
 **Дедуп уведомлений:**
 - `notification_weekly_results_sent` (по `week_id`)
@@ -233,13 +241,15 @@
 
 | Method | Path | Назначение |
 |--------|------|------------|
-| GET | `/profile` | Профиль, сезон, тур |
+| GET | `/profile` | Профиль, сезон, тур, `bettingRecommenderEnabled`; для admin — ещё `dnsHint` |
+| POST | `/profile/betting-recommender` | Вкл/выкл рекомендатор `{ "enabled": true/false }` |
+| POST | `/admin/betting-recommender/refresh` | **Только `ADMIN_CHAT_ID`**: форс-пересчёт FootyStats + рекомендаций (`?weekId=` опционально, иначе текущий тур; ~20–30с) |
 | GET | `/weeks` | Список туров |
 | GET | `/weeks/{weekId}/matches` | Матчи тура |
 | GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
 | GET | `/weeks/{weekId}/review` | **Разбор тура** |
 | GET | `/match/{homeCode}/{awayCode}` | Матч + odds + canPredict |
-| GET | `/match/.../insights` | Форма команд + новости Sports.ru |
+| GET | `/match/.../insights` | Форма + новости + `recommendation` (если toggle включён) |
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |
@@ -250,15 +260,49 @@
 | POST/DELETE | `/predictions` | Сохранить / удалить прогноз |
 | POST | `/client-log` | Клиентские логи на сервер |
 
+## Рекомендатор ставок (FootyStats + Poisson)
+**Назначение:** опциональный per-user помощник — рекомендуемый счёт 0–5 с математическим объяснением в модалке прогноза.
+
+**Пакет `zhigalin.predictions.recommender`:**
+- `FootyStatsScraperService` — scrape публичных страниц Premier League на footystats.org (пауза ~1.2с между запросами).
+- `FootyStatsTableParser` / `FootyStatsTeamNameMapper` — разбор таблиц + маппинг имён → коды команд.
+- `FootyStatsStatsDao` — кэш в PostgreSQL (не долбить сайт на каждый матч).
+- `PoissonScoreModel` — λ + коррекции матрицы счёта.
+- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id`.
+
+**Источники FootyStats (высокий + средний приоритет):**
+- `form-table` (секция last6): Scored/Conceded + BTTS/CS/AVG/Win% home-away
+- `xg`, `xpts`, `home-advantage-table`
+- `btts`, `failed-to-score-table`, `clean-sheets-table`, `draws`
+- `average-total-goals-table`, `goals-scored-table`, `goals-conceded-table`
+- `over-25-goals-table`, `under-x-tables`
+- `home-away-league-table` (PPG), `half-time-table`, `2nd-half-table`, `winning-losing-half-time-table`
+- Коэффициенты букмекеров — из уже существующего `OddsService` (не FootyStats `/odds` / `/predictions` — Cloudflare)
+
+**Модель:**
+- База: `λ_home = (scored_home × conceded_away) / league_avg_home`, аналогично для away.
+- Смешивание λ: формула + xG + xGA соперника + форма/сезон + PPG + xPts Δ + home advantage.
+- Матрица Пуассона 0–5 с весами BTTS/CS/FTS/ничьи/Over-Under/таймы.
+- В explanation: λ, формулы, xG/xGA, форма, сезон, xPts, букмекеры, итоговый %.
+
+**Когда пересчитывается:**
+1. Автоматически в `DataInitService` после завершения всех матчей тура (`weekService.updateCurrent()` → `refreshForWeek` следующего тура).
+2. Лениво: при включении toggle / первом insights, если для текущего тура ещё нет строк в `match_recommendation`.
+3. Вручную (admin): `POST /api/miniapp/admin/betting-recommender/refresh`.
+
+**UI:**
+- Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
+- В `#score-modal` блок `#modal-recommendation-section` (между odds и сеткой счёта): рекомендованный счёт + раскрываемое объяснение.
+
 ## Mini App: экраны и UX
 **4 экрана (нижняя навигация):**
-- **Главная** (`screen-stats`): live-карточка, зачёт (Общий / Текущий тур), график очков, таблица АПЛ, версия miniapp.
+- **Главная** (`screen-stats`): live-карточка, зачёт (Общий / Текущий тур), график очков, таблица АПЛ, версия miniapp; в шапке ползунок **AI** (рекомендатор).
 - **Сегодня** (`screen-today`): матчи дня, счёт/старт, бейджи прогнозов.
 - **Прогноз** (`screen-predict`): выбор тура → список матчей → модалка прогноза.
 - **Мои** (`screen-my`): прогнозы тура + **Разбор тура**.
 
 **Модалки:**
-- `#score-modal` — прогноз, odds 1/X/2, H2H, форма, новости Sports.ru.
+- `#score-modal` — прогноз, odds 1/X/2, блок рекомендации (если AI вкл.), H2H, форма, новости Sports.ru.
 - `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
 - `#team-modal`, `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
 
@@ -269,7 +313,8 @@
 - **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с.
 - overlay-уведомления о голах; offline-баннер при ошибках сети/API.
 - `Cache-Control: no-store, must-revalidate` для `/miniapp/**` (фикс залипания WebView).
-- header показывает сезон/тур (`profile.weekLabel`).
+- header показывает сезон/тур (`profile.weekLabel`); справа — toggle рекомендатора.
+- для admin в `ver.` рядом может быть `dnsHint` (`DeploymentInfoService`, публичный DNS lookup hostname → IP).
 - `Crowd Meter` удален из UI; backend-эндпоинт остаётся.
 - `Live Points Race` удалён; live-динамика встроена в зачёт (`provisionalPoints/liveDelta/liveActive`).
 - live-подсчёт очков в leaderboard учитывает `-1` и пользователей без прогноза на live/finished матчах.

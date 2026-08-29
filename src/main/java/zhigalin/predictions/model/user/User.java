@@ -13,4 +13,5 @@ public class User {
     private String password;
     private String telegramId;
     private String role;
+    private boolean bettingRecommenderEnabled;
 }
