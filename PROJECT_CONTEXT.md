@@ -241,7 +241,7 @@
 
 | Method | Path | Назначение |
 |--------|------|------------|
-| GET | `/profile` | Профиль, сезон, тур, `bettingRecommenderEnabled`; для admin — ещё `dnsHint` |
+| GET | `/profile` | Профиль, сезон, тур, `bettingRecommenderEnabled`, `admin`; для admin — ещё `dnsHint` |
 | POST | `/profile/betting-recommender` | Вкл/выкл рекомендатор `{ "enabled": true/false }` |
 | POST | `/admin/betting-recommender/refresh` | **Только `ADMIN_CHAT_ID`**: форс-пересчёт FootyStats + рекомендаций (`?weekId=` опционально, иначе текущий тур; ~20–30с) |
 | GET | `/weeks` | Список туров |
@@ -293,6 +293,7 @@
 
 **UI:**
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
+- Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
 - В `#score-modal` блок `#modal-recommendation-section` (между odds и сеткой счёта): рекомендованный счёт + раскрываемое объяснение.
 
 ## Mini App: экраны и UX

@@ -624,6 +624,7 @@
         const name = user ? (user.first_name + (user.last_name ? ' ' + user.last_name : '')) : profile.login;
         $('#user-greeting').textContent = name + ' · ' + (profile.weekLabel || ('тур ' + profile.currentWeekId));
         syncRecommenderToggle(profile.bettingRecommenderEnabled);
+        syncRecommenderRefreshButton(!!profile.admin);
         const verEl = $('.miniapp-version');
         if (verEl) {
             const base = verEl.getAttribute('data-base') || verEl.textContent.trim();
@@ -638,12 +639,43 @@
         toggle.checked = !!enabled;
     }
 
+    function syncRecommenderRefreshButton(isAdmin) {
+        const btn = $('#betting-recommender-refresh');
+        if (!btn) return;
+        btn.classList.toggle('hidden', !isAdmin);
+    }
+
     function clearInsightsCache() {
         Object.keys(state.apiCache).forEach((key) => {
             if (key.startsWith('/match/') && key.endsWith('/insights')) {
                 delete state.apiCache[key];
             }
         });
+    }
+
+    async function refreshBettingRecommendations() {
+        const btn = $('#betting-recommender-refresh');
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('is-loading');
+        }
+        showToast('Обновляю рекомендации…');
+        try {
+            const res = await api('/admin/betting-recommender/refresh', { method: 'POST' });
+            clearInsightsCache();
+            showToast(res.message || 'Рекомендации обновлены', 'success');
+            if (state.selectedMatch && !$('#score-modal').classList.contains('hidden')) {
+                loadScoreModalInsights(state.selectedMatch, true).catch(() => {});
+            }
+        } catch (e) {
+            showToast(e.message || 'Не удалось обновить рекомендации', 'error');
+            throw e;
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('is-loading');
+            }
+        }
     }
 
     async function setBettingRecommender(enabled) {
@@ -2765,6 +2797,12 @@
         if (recommenderToggle) {
             recommenderToggle.addEventListener('change', () => {
                 setBettingRecommender(recommenderToggle.checked).catch(() => {});
+            });
+        }
+        const recommenderRefresh = $('#betting-recommender-refresh');
+        if (recommenderRefresh) {
+            recommenderRefresh.addEventListener('click', () => {
+                refreshBettingRecommendations().catch(() => {});
             });
         }
         const recommendationToggle = $('#modal-recommendation-toggle');

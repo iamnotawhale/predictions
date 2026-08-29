@@ -16,11 +16,17 @@
             <h1 id="app-title">EPL Predictions</h1>
             <p id="user-greeting">Загрузка…</p>
         </div>
-        <label class="recommender-toggle" id="betting-recommender-wrap" title="Рекомендатор ставок на основе статистики FootyStats">
-            <span class="recommender-toggle-label">AI</span>
-            <input type="checkbox" id="betting-recommender-toggle" aria-label="Рекомендатор ставок">
-            <span class="recommender-switch" aria-hidden="true"></span>
-        </label>
+        <div class="header-recommender">
+            <label class="recommender-toggle" id="betting-recommender-wrap" title="Рекомендатор ставок на основе статистики FootyStats">
+                <span class="recommender-toggle-label">AI</span>
+                <input type="checkbox" id="betting-recommender-toggle" aria-label="Рекомендатор ставок">
+                <span class="recommender-switch" aria-hidden="true"></span>
+            </label>
+            <button type="button" id="betting-recommender-refresh" class="recommender-refresh-btn hidden"
+                    title="Обновить рекомендации FootyStats" aria-label="Обновить рекомендации">
+                <span class="recommender-refresh-icon" aria-hidden="true">&#8635;</span>
+            </button>
+        </div>
     </header>
 
     <main id="screen-stats" class="screen active">
