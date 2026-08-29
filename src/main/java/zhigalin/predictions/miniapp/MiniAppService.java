@@ -587,7 +587,7 @@ public class MiniAppService {
             String liveScore = null;
             String liveResult = null;
             if (liveMatch != null) {
-                liveScore = liveMatch.getHomeTeamScore() + "-" + liveMatch.getAwayTeamScore();
+                liveScore = liveScoreForTeam(liveMatch, standing.getTeamId());
                 liveResult = liveResultForTeam(liveMatch, standing.getTeamId());
             }
             items.add(new StandingItem(
@@ -608,6 +608,15 @@ public class MiniAppService {
             ));
         }
         return items;
+    }
+
+    static String liveScoreForTeam(Match match, int teamId) {
+        int home = match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore();
+        int away = match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore();
+        boolean isHome = match.getHomeTeamId() == teamId;
+        int mine = isHome ? home : away;
+        int theirs = isHome ? away : home;
+        return mine + "-" + theirs;
     }
 
     static String liveResultForTeam(Match match, int teamId) {
