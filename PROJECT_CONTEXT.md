@@ -341,7 +341,7 @@
 - `GET /team/{code}/matches`: last/next 5 через SQL LIMIT (`findLastFinishedByTeamId` / `findNextByTeamId`).
 - H2H: лимит `HeadToHeadService.H2H_LIMIT = 7` (и Telegram, и miniapp).
 - **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с; в poll leaderboard обновляется только при live или смене счёта; на главной при live также обновляется таблица АПЛ.
-- Таблица АПЛ (`GET /standings`): места/очки с учётом live-счёта; `placeDelta` относительно finished-only таблицы; у live-команд — `liveScore` + `liveResult` (W/D/L) → стрелка места и цветной score-pill (как в 365Scores).
+- Таблица АПЛ (`GET /standings`): места/очки с учётом live-счёта; `placeDelta` относительно finished-only таблицы; у live-команд — `liveScore` (голы **своей** команды первыми) + `liveResult` (W/D/L) → стрелка места и цветной score-pill (как в 365Scores).
 - overlay-уведомления о голах; offline-баннер при ошибках сети/API.
 - `Cache-Control: no-store, must-revalidate` для `/miniapp/**` (фикс залипания WebView).
 - header показывает сезон/тур (`profile.weekLabel`); справа — toggle рекомендатора.
