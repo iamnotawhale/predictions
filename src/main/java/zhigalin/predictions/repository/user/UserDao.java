@@ -47,6 +47,14 @@ public class UserDao {
         }
     }
 
+    public void updateBettingRecommenderEnabled(String telegramId, boolean enabled) {
+        jdbcTemplate.update(
+                "UPDATE users SET betting_recommender_enabled = ? WHERE telegram_id = ?",
+                enabled,
+                telegramId
+        );
+    }
+
     private static final class UserMapper implements RowMapper<User> {
         @Override
         public User mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -56,6 +64,7 @@ public class UserDao {
                     .role(rs.getString("role"))
                     .password(rs.getString("password"))
                     .telegramId(rs.getString("telegram_id"))
+                    .bettingRecommenderEnabled(rs.getBoolean("betting_recommender_enabled"))
                     .build();
         }
     }

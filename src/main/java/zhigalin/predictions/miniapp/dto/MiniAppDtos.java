@@ -12,7 +12,8 @@ public final class MiniAppDtos {
             int currentWeekId,
             int season,
             String weekLabel,
-            String dnsHint
+            String dnsHint,
+            boolean bettingRecommenderEnabled
     ) {
     }
 
@@ -120,8 +121,23 @@ public final class MiniAppDtos {
     public record MatchInsightsResponse(
             List<FormItem> homeForm,
             List<FormItem> awayForm,
-            List<MatchNewsItem> news
+            List<MatchNewsItem> news,
+            MatchRecommendationResponse recommendation
     ) {
+    }
+
+    public record MatchRecommendationResponse(
+            int recommendedHome,
+            int recommendedAway,
+            double expectedHomeGoals,
+            double expectedAwayGoals,
+            double scoreProbability,
+            List<String> explanationLines,
+            String summary
+    ) {
+    }
+
+    public record BettingRecommenderRequest(boolean enabled) {
     }
 
     public record LineupPlayerItem(

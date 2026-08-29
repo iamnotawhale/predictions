@@ -28,6 +28,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.config.DeploymentInfoService;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchRecommendationResponse;
+import zhigalin.predictions.recommender.BettingRecommendationService;
+import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ChartSeries;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
@@ -117,6 +120,7 @@ public class MiniAppService {
     private final ApiClient apiClient;
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
+    private final BettingRecommendationService bettingRecommendationService;
     private final String adminChatId;
     private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
 
@@ -129,6 +133,7 @@ public class MiniAppService {
             ApiClient apiClient,
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
+            BettingRecommendationService bettingRecommendationService,
             @Value("${chatId:}") String adminChatId
     ) {
         this.userService = userService;
@@ -139,6 +144,7 @@ public class MiniAppService {
         this.apiClient = apiClient;
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
+        this.bettingRecommendationService = bettingRecommendationService;
         this.adminChatId = adminChatId == null ? "" : adminChatId.trim();
     }
 
@@ -159,8 +165,42 @@ public class MiniAppService {
                 weekId,
                 DataInitService.SEASON,
                 "Тур " + weekId + " · сезон " + DataInitService.SEASON,
-                dnsHint
+                dnsHint,
+                user.isBettingRecommenderEnabled()
         );
+    }
+
+    public ActionResponse setBettingRecommender(String telegramId, boolean enabled) {
+        requireUser(telegramId);
+        userService.updateBettingRecommenderEnabled(telegramId, enabled);
+        if (enabled) {
+            bettingRecommendationService.ensureCurrentWeekRecommendations();
+        }
+        return new ActionResponse(true, enabled ? "Рекомендатор включён" : "Рекомендатор выключен");
+    }
+
+    public ActionResponse refreshBettingRecommendations(String telegramId, Integer weekId) {
+        requireAdmin(telegramId);
+        int targetWeek = weekId != null ? weekId : DaoUtil.currentWeekId;
+        if (targetWeek <= 0) {
+            throw new MiniAppException(400, "Не задан тур для пересчёта рекомендаций.");
+        }
+        try {
+            int stored = bettingRecommendationService.refreshForWeek(targetWeek);
+            return new ActionResponse(
+                    true,
+                    "Рекомендации обновлены для тура " + targetWeek + " (" + stored + " матчей)"
+            );
+        } catch (IllegalStateException e) {
+            throw new MiniAppException(502, e.getMessage());
+        }
+    }
+
+    private void requireAdmin(String telegramId) {
+        requireUser(telegramId);
+        if (!isAdmin(telegramId)) {
+            throw new MiniAppException(403, "Доступ только для администратора.");
+        }
     }
 
     private boolean isAdmin(String telegramId) {
@@ -213,15 +253,34 @@ public class MiniAppService {
     }
 
     public MatchInsightsResponse matchInsights(String telegramId, String homeCode, String awayCode) {
-        requireUser(telegramId);
+        User user = requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match == null) {
-            return new MatchInsightsResponse(List.of(), List.of(), List.of());
+            return new MatchInsightsResponse(List.of(), List.of(), List.of(), null);
         }
         List<FormItem> homeForm = buildRecentForm(match.getHomeTeamId(), 5);
         List<FormItem> awayForm = buildRecentForm(match.getAwayTeamId(), 5);
         List<MatchNewsItem> news = loadMatchNews(match, 4);
-        return new MatchInsightsResponse(homeForm, awayForm, news);
+        MatchRecommendationResponse recommendation = null;
+        if (user.isBettingRecommenderEnabled()) {
+            bettingRecommendationService.ensureCurrentWeekRecommendations();
+            recommendation = bettingRecommendationService.recommendationForMatch(match.getPublicId())
+                    .map(this::toRecommendationResponse)
+                    .orElse(null);
+        }
+        return new MatchInsightsResponse(homeForm, awayForm, news, recommendation);
+    }
+
+    private MatchRecommendationResponse toRecommendationResponse(MatchRecommendationSnapshot snapshot) {
+        return new MatchRecommendationResponse(
+                snapshot.recommendedHome(),
+                snapshot.recommendedAway(),
+                snapshot.expectedHomeGoals(),
+                snapshot.expectedAwayGoals(),
+                snapshot.scoreProbability(),
+                snapshot.explanationLines(),
+                snapshot.summary()
+        );
     }
 
     public LiveMatchDetailsResponse liveMatchDetails(String telegramId, String homeCode, String awayCode) {

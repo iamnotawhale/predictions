@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.BettingRecommenderRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
@@ -58,6 +59,26 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
     ) {
         return miniAppService.profile(requireTelegramId(initData));
+    }
+
+    @PostMapping(
+            value = "/profile/betting-recommender",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ActionResponse setBettingRecommender(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestBody BettingRecommenderRequest request
+    ) {
+        return miniAppService.setBettingRecommender(requireTelegramId(initData), request.enabled());
+    }
+
+    @PostMapping(value = "/admin/betting-recommender/refresh", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ActionResponse refreshBettingRecommendations(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(required = false) Integer weekId
+    ) {
+        return miniAppService.refreshBettingRecommendations(requireTelegramId(initData), weekId);
     }
 
     @GetMapping("/weeks")

@@ -67,7 +67,8 @@
         awayFormation: null,
         formationSide: 'home',
         liveEventRuCompiled: null,
-        apiCache: {}
+        apiCache: {},
+        recommendationDetailsOpen: false
     };
 
     const $ = (sel) => document.querySelector(sel);
@@ -622,11 +623,52 @@
         const user = tg.initDataUnsafe?.user;
         const name = user ? (user.first_name + (user.last_name ? ' ' + user.last_name : '')) : profile.login;
         $('#user-greeting').textContent = name + ' · ' + (profile.weekLabel || ('тур ' + profile.currentWeekId));
+        syncRecommenderToggle(profile.bettingRecommenderEnabled);
         const verEl = $('.miniapp-version');
         if (verEl) {
             const base = verEl.getAttribute('data-base') || verEl.textContent.trim();
             verEl.setAttribute('data-base', base);
             verEl.textContent = profile.dnsHint ? base + ' · ' + profile.dnsHint : base;
+        }
+    }
+
+    function syncRecommenderToggle(enabled) {
+        const toggle = $('#betting-recommender-toggle');
+        if (!toggle) return;
+        toggle.checked = !!enabled;
+    }
+
+    function clearInsightsCache() {
+        Object.keys(state.apiCache).forEach((key) => {
+            if (key.startsWith('/match/') && key.endsWith('/insights')) {
+                delete state.apiCache[key];
+            }
+        });
+    }
+
+    async function setBettingRecommender(enabled) {
+        const toggle = $('#betting-recommender-toggle');
+        if (toggle) toggle.disabled = true;
+        try {
+            const res = await api('/profile/betting-recommender', {
+                method: 'POST',
+                body: JSON.stringify({ enabled })
+            });
+            if (state.profile) {
+                state.profile.bettingRecommenderEnabled = enabled;
+            }
+            clearInsightsCache();
+            if (res && res.message) {
+                showToast(res.message);
+            }
+            if (state.selectedMatch && !$('#score-modal').classList.contains('hidden')) {
+                loadScoreModalInsights(state.selectedMatch, true).catch(() => {});
+            }
+        } catch (e) {
+            syncRecommenderToggle(state.profile && state.profile.bettingRecommenderEnabled);
+            throw e;
+        } finally {
+            if (toggle) toggle.disabled = false;
         }
     }
 
@@ -1021,10 +1063,12 @@
         closeLiveMatchModal(false);
         stopLiveMatchModalPolling();
         state.selectedMatch = match;
+        state.recommendationDetailsOpen = false;
         renderH2hList('#modal-h2h-content', []);
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
         renderModalNews([]);
+        renderModalRecommendation(null);
         $('#score-grid').classList.remove('hidden');
         $('#modal-h2h-section').classList.remove('hidden');
         $('#modal-news-section').classList.remove('hidden');
@@ -2343,16 +2387,18 @@
         }
     }
 
-    async function loadScoreModalInsights(match) {
+    async function loadScoreModalInsights(match, forceFresh) {
         const modalMatchId = match.publicId;
+        const path = '/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/insights';
         try {
-            const insights = await apiCached('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/insights');
+            const insights = forceFresh ? await api(path) : await apiCached(path);
             if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
                 return;
             }
             renderTeamFormDots('#modal-home-form', match.homeCode, insights.homeForm || []);
             renderTeamFormDots('#modal-away-form', match.awayCode, insights.awayForm || []);
             renderModalNews(insights.news || []);
+            renderModalRecommendation(insights.recommendation || null);
         } catch (_) {
             if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
                 return;
@@ -2360,7 +2406,56 @@
             renderTeamFormDots('#modal-home-form', match.homeCode, []);
             renderTeamFormDots('#modal-away-form', match.awayCode, []);
             renderModalNews([]);
+            renderModalRecommendation(null);
         }
+    }
+
+    function renderModalRecommendation(recommendation) {
+        const section = $('#modal-recommendation-section');
+        const details = $('#modal-recommendation-details');
+        const summaryEl = $('#modal-recommendation-summary');
+        const scoreEl = $('#modal-recommendation-score');
+        const linesEl = $('#modal-recommendation-lines');
+        if (!section || !details || !summaryEl || !scoreEl || !linesEl) return;
+
+        const enabled = state.profile && state.profile.bettingRecommenderEnabled;
+        if (!enabled || !recommendation) {
+            section.classList.add('hidden');
+            details.classList.add('hidden');
+            state.recommendationDetailsOpen = false;
+            return;
+        }
+
+        section.classList.remove('hidden');
+        const score = recommendation.recommendedHome + ':' + recommendation.recommendedAway;
+        scoreEl.textContent = score;
+        summaryEl.textContent = recommendation.summary
+            || ('Ожидаемые голы ' + recommendation.expectedHomeGoals.toFixed(2)
+                + ' : ' + recommendation.expectedAwayGoals.toFixed(2));
+
+        linesEl.innerHTML = '';
+        const lines = recommendation.explanationLines || [];
+        lines.forEach((line) => {
+            const li = document.createElement('li');
+            li.textContent = line;
+            linesEl.appendChild(li);
+        });
+
+        if (!state.recommendationDetailsOpen) {
+            details.classList.add('hidden');
+        } else if (lines.length) {
+            details.classList.remove('hidden');
+        } else {
+            details.classList.add('hidden');
+        }
+    }
+
+    function toggleRecommendationDetails() {
+        const details = $('#modal-recommendation-details');
+        const linesEl = $('#modal-recommendation-lines');
+        if (!details || !linesEl || !linesEl.children.length) return;
+        state.recommendationDetailsOpen = !state.recommendationDetailsOpen;
+        details.classList.toggle('hidden', !state.recommendationDetailsOpen);
     }
 
     function renderTeamFormDots(containerSelector, teamCode, items) {
@@ -2666,6 +2761,16 @@
         });
 
         $('#modal-close').addEventListener('click', closeScoreModal);
+        const recommenderToggle = $('#betting-recommender-toggle');
+        if (recommenderToggle) {
+            recommenderToggle.addEventListener('change', () => {
+                setBettingRecommender(recommenderToggle.checked).catch(() => {});
+            });
+        }
+        const recommendationToggle = $('#modal-recommendation-toggle');
+        if (recommendationToggle) {
+            recommendationToggle.addEventListener('click', toggleRecommendationDetails);
+        }
         $('#live-modal-close').addEventListener('click', closeLiveMatchModal);
         $('#modal-delete').addEventListener('click', deletePrediction);
         $('#team-modal-close').addEventListener('click', closeTeamModal);

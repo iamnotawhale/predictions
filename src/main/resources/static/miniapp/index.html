@@ -16,6 +16,11 @@
             <h1 id="app-title">EPL Predictions</h1>
             <p id="user-greeting">Загрузка…</p>
         </div>
+        <label class="recommender-toggle" id="betting-recommender-wrap" title="Рекомендатор ставок на основе статистики FootyStats">
+            <span class="recommender-toggle-label">AI</span>
+            <input type="checkbox" id="betting-recommender-toggle" aria-label="Рекомендатор ставок">
+            <span class="recommender-switch" aria-hidden="true"></span>
+        </label>
     </header>
 
     <main id="screen-stats" class="screen active">
@@ -137,6 +142,18 @@
                 <span class="odds-chip"><span id="odd-away">—</span></span>
             </div>
         </div>
+        <section id="modal-recommendation-section" class="modal-recommendation hidden">
+            <button type="button" id="modal-recommendation-toggle" class="modal-recommendation-head">
+                <div class="modal-recommendation-title-wrap">
+                    <h4>Рекомендация</h4>
+                    <p id="modal-recommendation-summary" class="modal-recommendation-summary"></p>
+                </div>
+                <span id="modal-recommendation-score" class="modal-recommendation-score">—</span>
+            </button>
+            <div id="modal-recommendation-details" class="modal-recommendation-details hidden">
+                <ul id="modal-recommendation-lines" class="modal-recommendation-lines"></ul>
+            </div>
+        </section>
         <div id="score-grid" class="score-grid"></div>
         <section id="modal-h2h-section" class="modal-h2h">
             <h4>История встреч</h4>

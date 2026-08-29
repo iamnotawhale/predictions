@@ -42,6 +42,7 @@ import zhigalin.predictions.model.v2.Competitor;
 import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
+import zhigalin.predictions.recommender.BettingRecommendationService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.WeekService;
@@ -63,6 +64,7 @@ public class DataInitService {
     private final NotificationService notificationService;
     private final PanicSender panicSender;
     private final ApiClient apiClient;
+    private final BettingRecommendationService bettingRecommendationService;
 
     public static final int SEASON = 2026;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
@@ -79,7 +81,8 @@ public class DataInitService {
 
     public DataInitService(TeamService teamService, WeekService weekService, MatchService matchService,
                            HeadToHeadService headToHeadService, NotificationService notificationService,
-                           PanicSender panicSender, ApiClient apiClient
+                           PanicSender panicSender, ApiClient apiClient,
+                           BettingRecommendationService bettingRecommendationService
     ) {
         this.teamService = teamService;
         this.weekService = weekService;
@@ -88,6 +91,7 @@ public class DataInitService {
         this.notificationService = notificationService;
         this.panicSender = panicSender;
         this.apiClient = apiClient;
+        this.bettingRecommendationService = bettingRecommendationService;
     }
 
     @Scheduled(fixedDelay = 5_000, initialDelay = 10_000)
@@ -131,6 +135,7 @@ public class DataInitService {
                                || Objects.equals(m.getStatus(), "pst"))) {
             notificationService.sendWeeklyResults();
             weekService.updateCurrent();
+            refreshBettingRecommendationsForCurrentWeek();
         }
 
         boolean hasOnlineMatches = !matchService.findOnlineMatches().isEmpty();
@@ -254,6 +259,18 @@ public class DataInitService {
                 || normalized.endsWith(" ht");
     }
 
+    private void refreshBettingRecommendationsForCurrentWeek() {
+        var currentWeek = weekService.findCurrentWeek();
+        if (currentWeek != null) {
+            DaoUtil.currentWeekId = currentWeek.getId();
+            try {
+                bettingRecommendationService.refreshForWeek(currentWeek.getId());
+            } catch (Exception e) {
+                serverLogger.warn("Betting recommender refresh after week rollover failed: {}", e.getMessage());
+            }
+        }
+    }
+
     private String realTeamCode(String teamCode) {
         return switch (teamCode) {
             case "AVL" -> "AST";
@@ -293,6 +310,7 @@ public class DataInitService {
                                || Objects.equals(m.getStatus(), "pst"))) {
             notificationService.sendWeeklyResults();
             weekService.updateCurrent();
+            refreshBettingRecommendationsForCurrentWeek();
         }
         if (!matchService.findOnlineMatches().isEmpty()) {
             serverLogger.info("Matches to update found");

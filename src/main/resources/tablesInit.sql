@@ -87,5 +87,51 @@ create table if not exists notification_reminder_sent
     primary key (user_id, match_public_id, reminder_minutes)
 );
 
+alter table users
+    add column if not exists betting_recommender_enabled boolean default false;
+
+create table if not exists footystats_team_stats
+(
+    week_id integer not null,
+    team_code varchar(8) not null,
+    scored_overall numeric(6, 2),
+    scored_home numeric(6, 2),
+    scored_away numeric(6, 2),
+    conceded_overall numeric(6, 2),
+    conceded_home numeric(6, 2),
+    conceded_away numeric(6, 2),
+    xg_overall numeric(6, 2),
+    xg_home numeric(6, 2),
+    xg_away numeric(6, 2),
+    xga_overall numeric(6, 2),
+    xgd_overall numeric(6, 2),
+    extended_json text,
+    fetched_at timestamp not null,
+    primary key (week_id, team_code)
+);
+
+create table if not exists footystats_league_snapshot
+(
+    week_id integer primary key,
+    avg_home_scored numeric(6, 2),
+    avg_away_scored numeric(6, 2),
+    avg_home_conceded numeric(6, 2),
+    avg_away_conceded numeric(6, 2),
+    fetched_at timestamp not null
+);
+
+create table if not exists match_recommendation
+(
+    match_public_id integer primary key,
+    week_id integer not null,
+    recommended_home integer not null,
+    recommended_away integer not null,
+    expected_home_goals numeric(6, 3) not null,
+    expected_away_goals numeric(6, 3) not null,
+    score_probability numeric(8, 6),
+    explanation_json text not null,
+    computed_at timestamp not null
+);
+
 
 

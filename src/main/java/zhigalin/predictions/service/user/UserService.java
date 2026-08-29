@@ -22,4 +22,8 @@ public class UserService {
     public User findByTelegramId(String telegramId) {
         return userDao.findByTelegramId(telegramId);
     }
+
+    public void updateBettingRecommenderEnabled(String telegramId, boolean enabled) {
+        userDao.updateBettingRecommenderEnabled(telegramId, enabled);
+    }
 }
