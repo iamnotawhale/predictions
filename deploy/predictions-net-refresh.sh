@@ -12,5 +12,5 @@ fi
 [[ -n "$IP" ]] || exit 0
 
 curl -sf "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}" >/dev/null || true
-upnpc -a 192.168.1.38 8443 8443 TCP >/dev/null 2>&1 || true
+upnpc -a 192.168.1.38 443 443 TCP >/dev/null 2>&1 || true
 upnpc -a 192.168.1.38 22 2222 TCP >/dev/null 2>&1 || true
