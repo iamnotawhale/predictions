@@ -1123,11 +1123,11 @@
                 tr.classList.add('is-live');
             }
             const delta = Number(r.placeDelta || 0);
-            let deltaHtml = '<span class="standings-delta flat" aria-hidden="true"></span>';
+            let deltaHtml = '<span class="standings-delta-slot"><span class="standings-delta flat" aria-hidden="true"></span></span>';
             if (delta > 0) {
-                deltaHtml = '<span class="standings-delta up" title="+' + delta + '" aria-label="поднялись на ' + delta + '"></span>';
+                deltaHtml = '<span class="standings-delta-slot"><span class="standings-delta up" title="+' + delta + '" aria-label="поднялись на ' + delta + '"></span></span>';
             } else if (delta < 0) {
-                deltaHtml = '<span class="standings-delta down" title="' + delta + '" aria-label="опустились на ' + Math.abs(delta) + '"></span>';
+                deltaHtml = '<span class="standings-delta-slot"><span class="standings-delta down" title="' + delta + '" aria-label="опустились на ' + Math.abs(delta) + '"></span></span>';
             }
             let livePill = '';
             if (r.liveScore) {
@@ -1139,7 +1139,7 @@
             tr.innerHTML =
                 '<td class="standings-place"><span class="standings-place-inner">' + deltaHtml
                 + '<span class="standings-place-num">' + r.place + '</span></span></td>' +
-                '<td><span class="club-cell">' +
+                '<td class="standings-club"><span class="club-cell">' +
                 '<img class="club-logo" src="' + (r.logo || '') + '" alt="' + (r.code || '') + '" onerror="this.style.visibility=\'hidden\'">' +
                 '<strong>' + r.code + '</strong>' +
                 livePill +
