@@ -49,6 +49,18 @@ public final class PoissonScoreModel {
             FootyStatsTeamSnapshot away,
             FootyStatsLeagueSnapshot league
     ) {
+        return recommend(oddHome, oddDraw, oddAway, home, away, league, null);
+    }
+
+    public static Result recommend(
+            Double oddHome,
+            Double oddDraw,
+            Double oddAway,
+            FootyStatsTeamSnapshot home,
+            FootyStatsTeamSnapshot away,
+            FootyStatsLeagueSnapshot league,
+            H2hStats h2h
+    ) {
         String homeCode = home.teamCode();
         String awayCode = away.teamCode();
         FootyStatsExtendedMetrics homeExt = home.extendedOrEmpty();
@@ -118,6 +130,8 @@ public final class PoissonScoreModel {
         blendedAway = applyXptsNudge(blendedAway, awayExt.xPtsDelta());
         blendedHome = applySoccerStatsLambdaNudge(blendedHome, homeExt, true, thinSample);
         blendedAway = applySoccerStatsLambdaNudge(blendedAway, awayExt, false, thinSample);
+        blendedHome = applyH2hLambda(blendedHome, h2h, true);
+        blendedAway = applyH2hLambda(blendedAway, h2h, false);
 
         blendedHome = clampLambda(blendedHome);
         blendedAway = clampLambda(blendedAway);
@@ -128,11 +142,12 @@ public final class PoissonScoreModel {
             double pHome = poisson(homeGoals, blendedHome);
             for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
                 double joint = pHome * poisson(awayGoals, blendedAway);
-                joint *= scoreWeight(homeGoals, awayGoals, homeExt, awayExt, thinSample);
+                joint *= scoreWeight(homeGoals, awayGoals, home, away, homeExt, awayExt, thinSample);
                 joint *= soccerStatsScoreWeight(homeGoals, awayGoals, homeExt, awayExt, thinSample);
                 if (market != null) {
                     joint *= marketScoreWeight(homeGoals, awayGoals, market);
                 }
+                joint *= h2hScoreWeight(homeGoals, awayGoals, h2h);
                 matrix[homeGoals][awayGoals] = joint;
                 total += joint;
             }
@@ -173,6 +188,7 @@ public final class PoissonScoreModel {
                 away,
                 homeExt,
                 awayExt,
+                h2h,
                 market,
                 oddHome,
                 oddDraw,
@@ -219,6 +235,7 @@ public final class PoissonScoreModel {
             FootyStatsTeamSnapshot away,
             FootyStatsExtendedMetrics homeExt,
             FootyStatsExtendedMetrics awayExt,
+            H2hStats h2h,
             MarketOutcome market,
             Double oddHome,
             Double oddDraw,
@@ -264,6 +281,7 @@ public final class PoissonScoreModel {
         appendFormLines(lines, home, away, homeExt, awayExt);
         appendSeasonLines(lines, home, away, homeExt, awayExt, homeCode, awayCode);
         appendSoccerStatsLines(lines, homeExt, awayExt, homeCode, awayCode);
+        appendH2hLines(lines, h2h, homeCode);
         if (market != null) {
             lines.add(String.format(
                     Locale.US,
@@ -481,6 +499,74 @@ public final class PoissonScoreModel {
         return lambda * Math.max(0.92, Math.min(1.08, factor));
     }
 
+    static double applyH2hLambda(double lambda, H2hStats h2h, boolean homeSide) {
+        if (h2h == null || h2h.overallGames() < 2) {
+            return lambda;
+        }
+        double overallAvg = homeSide ? h2h.avgGoalsCurrentHomeOverall() : h2h.avgGoalsCurrentAwayOverall();
+        double venueAvg = homeSide ? h2h.avgGoalsCurrentHomeAtVenue() : h2h.avgGoalsCurrentAwayAtVenue();
+        double target;
+        if (h2h.venueGames() >= 2) {
+            target = 0.55 * venueAvg + 0.45 * overallAvg;
+        } else if (h2h.venueGames() == 1) {
+            target = 0.30 * venueAvg + 0.70 * overallAvg;
+        } else {
+            target = overallAvg;
+        }
+        double weight = 0.10 * Math.min(1.0, h2h.overallGames() / 6.0)
+                + 0.10 * Math.min(1.0, h2h.venueGames() / 4.0);
+        weight = Math.min(0.22, weight);
+        return lambda * (1.0 - weight) + target * weight;
+    }
+
+    static double h2hScoreWeight(int homeGoals, int awayGoals, H2hStats h2h) {
+        if (h2h == null || h2h.overallGames() < 2) {
+            return 1.0;
+        }
+        double outcomeProb;
+        if (homeGoals > awayGoals) {
+            outcomeProb = h2h.blendedHomeWinRate();
+        } else if (homeGoals < awayGoals) {
+            outcomeProb = h2h.blendedAwayWinRate();
+        } else {
+            outcomeProb = h2h.blendedDrawRate();
+        }
+        double strength = 0.08 * Math.min(1.0, h2h.overallGames() / 6.0)
+                + 0.07 * Math.min(1.0, h2h.venueGames() / 4.0);
+        return 0.92 + outcomeProb * (0.16 + strength);
+    }
+
+    private static void appendH2hLines(List<String> lines, H2hStats h2h, String homeCode) {
+        if (h2h == null || h2h.overallGames() <= 0) {
+            return;
+        }
+        lines.add(String.format(
+                Locale.ROOT,
+                "Личные встречи (%d): хозяева %d побед, %d ничьих, гости %d; ср. голы %.1f:%.1f",
+                h2h.overallGames(),
+                h2h.currentHomeWinsOverall(),
+                h2h.drawsOverall(),
+                h2h.currentAwayWinsOverall(),
+                h2h.avgGoalsCurrentHomeOverall(),
+                h2h.avgGoalsCurrentAwayOverall()
+        ));
+        if (h2h.venueGames() > 0) {
+            lines.add(String.format(
+                    Locale.ROOT,
+                    "Дома у %s против этого соперника (%d): %d-%d-%d; ср. голы %.1f:%.1f",
+                    homeCode,
+                    h2h.venueGames(),
+                    h2h.currentHomeWinsAtVenue(),
+                    h2h.drawsAtVenue(),
+                    h2h.currentAwayWinsAtVenue(),
+                    h2h.avgGoalsCurrentHomeAtVenue(),
+                    h2h.avgGoalsCurrentAwayAtVenue()
+            ));
+        } else {
+            lines.add("Дома у " + homeCode + " против этого соперника ещё не играли в выборке");
+        }
+    }
+
     private static double soccerStatsScoreWeight(
             int homeGoals,
             int awayGoals,
@@ -612,53 +698,83 @@ public final class PoissonScoreModel {
     private static double scoreWeight(
             int homeGoals,
             int awayGoals,
+            FootyStatsTeamSnapshot homeSnap,
+            FootyStatsTeamSnapshot awaySnap,
             FootyStatsExtendedMetrics home,
             FootyStatsExtendedMetrics away,
             double thinSample
     ) {
         double weight = 1.0;
+        // Early-season 0% BTTS/CS/Over from 0–1 venue matches otherwise collapses every tip to 1:0.
+        if (thinSample >= 0.55) {
+            return weight;
+        }
         int total = homeGoals + awayGoals;
-        // Early season CS/FTS from 1 match are noisy — dampen
         double sampleScale = 1.0 - 0.65 * thinSample;
+        boolean homeVenue = hasVenueSample(homeSnap.scoredHome(), homeSnap.concededHome());
+        boolean awayVenue = hasVenueSample(awaySnap.scoredAway(), awaySnap.concededAway());
 
-        if (homeGoals == 0) {
+        if (homeGoals == 0 && homeVenue) {
             weight *= 1.0 + (cleanSheetBoost(home.formCsHome(), home.seasonCsHome()) - 1.0) * sampleScale;
+        }
+        if (homeGoals == 0 && awayVenue) {
             weight *= 1.0 + (failedToScoreBoost(away.ftsAway()) - 1.0) * sampleScale;
         }
-        if (awayGoals == 0) {
+        if (awayGoals == 0 && awayVenue) {
             weight *= 1.0 + (cleanSheetBoost(away.formCsAway(), away.seasonCsAway()) - 1.0) * sampleScale;
+        }
+        if (awayGoals == 0 && homeVenue) {
             weight *= 1.0 + (failedToScoreBoost(home.ftsHome()) - 1.0) * sampleScale;
         }
 
         Double btts = avgNullable(
-                home.formBttsHome(),
-                home.seasonBttsHome(),
-                away.formBttsAway(),
-                away.seasonBttsAway()
+                homeVenue ? home.formBttsHome() : null,
+                homeVenue ? home.seasonBttsHome() : null,
+                awayVenue ? away.formBttsAway() : null,
+                awayVenue ? away.seasonBttsAway() : null
         );
         if (btts != null) {
             double ratio = btts / 100.0;
+            double factor;
             if (homeGoals > 0 && awayGoals > 0) {
-                weight *= 0.90 + ratio * 0.20;
+                factor = 0.90 + ratio * 0.20;
             } else if (homeGoals == 0 || awayGoals == 0) {
-                weight *= 1.10 - ratio * 0.18;
+                factor = 1.10 - ratio * 0.18;
+            } else {
+                factor = 1.0;
             }
+            weight *= 1.0 + (factor - 1.0) * sampleScale;
         }
 
         if (homeGoals == awayGoals && homeGoals > 0) {
-            Double draw = avgNullable(home.drawPctHome(), away.drawPctAway(), home.drawPctOverall());
+            Double draw = avgNullable(
+                    homeVenue ? home.drawPctHome() : null,
+                    awayVenue ? away.drawPctAway() : null,
+                    home.drawPctOverall()
+            );
             if (draw != null) {
-                weight *= 0.92 + (draw / 100.0) * 0.16;
+                double factor = 0.92 + (draw / 100.0) * 0.16;
+                weight *= 1.0 + (factor - 1.0) * sampleScale;
             }
         }
 
-        Double over25 = avgNullable(home.over25Home(), away.over25Away(), home.over25Overall());
-        Double under25 = avgNullable(home.under25Home(), away.under25Away(), home.under25Overall());
+        Double over25 = avgNullable(
+                homeVenue ? home.over25Home() : null,
+                awayVenue ? away.over25Away() : null,
+                homeVenue || awayVenue ? home.over25Overall() : null
+        );
+        Double under25 = avgNullable(
+                homeVenue ? home.under25Home() : null,
+                awayVenue ? away.under25Away() : null,
+                homeVenue || awayVenue ? home.under25Overall() : null
+        );
         if (total >= 3 && over25 != null) {
-            weight *= 0.90 + (over25 / 100.0) * 0.20;
+            double factor = 0.90 + (over25 / 100.0) * 0.20;
+            weight *= 1.0 + (factor - 1.0) * sampleScale;
         }
         if (total <= 1 && under25 != null) {
-            weight *= 0.90 + (under25 / 100.0) * 0.18;
+            double factor = 0.90 + (under25 / 100.0) * 0.18;
+            weight *= 1.0 + (factor - 1.0) * sampleScale;
         }
 
         return Math.max(0.15, weight);

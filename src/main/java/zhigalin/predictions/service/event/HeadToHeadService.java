@@ -81,4 +81,13 @@ public class HeadToHeadService {
                 .limit(H2H_LIMIT)
                 .toList();
     }
+
+    /** Broader H2H sample for the recommender (UI still uses {@link #H2H_LIMIT}). */
+    public List<HeadToHead> findForRecommender(int homeTeamId, int awayTeamId) {
+        return headToHeadDao.getAllByTeamsIds(homeTeamId, awayTeamId).stream()
+                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
+                .limit(20)
+                .toList();
+    }
 }
+

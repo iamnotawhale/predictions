@@ -17,6 +17,7 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
 import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
+import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.util.DaoUtil;
@@ -31,6 +32,7 @@ public class BettingRecommendationService {
     private final FootyStatsStatsDao statsDao;
     private final MatchService matchService;
     private final OddsService oddsService;
+    private final HeadToHeadService headToHeadService;
     private final ConcurrentHashMap<Integer, CompletableFuture<Integer>> refreshInFlight = new ConcurrentHashMap<>();
 
     public BettingRecommendationService(
@@ -38,13 +40,15 @@ public class BettingRecommendationService {
             SoccerStatsScraperService soccerStatsScraperService,
             FootyStatsStatsDao statsDao,
             MatchService matchService,
-            OddsService oddsService
+            OddsService oddsService,
+            HeadToHeadService headToHeadService
     ) {
         this.scraperService = scraperService;
         this.soccerStatsScraperService = soccerStatsScraperService;
         this.statsDao = statsDao;
         this.matchService = matchService;
         this.oddsService = oddsService;
+        this.headToHeadService = headToHeadService;
     }
 
     public int refreshForWeek(int weekId) {
@@ -163,13 +167,20 @@ public class BettingRecommendationService {
             oddAway = odd.away();
         }
 
+        H2hStats h2h = H2hStats.from(
+                headToHeadService.findForRecommender(match.getHomeTeamId(), match.getAwayTeamId()),
+                match.getHomeTeamId(),
+                match.getAwayTeamId()
+        );
+
         PoissonScoreModel.Result result = PoissonScoreModel.recommend(
                 oddHome,
                 oddDraw,
                 oddAway,
                 home,
                 away,
-                league
+                league,
+                h2h
         );
 
         return Optional.of(new MatchRecommendationSnapshot(

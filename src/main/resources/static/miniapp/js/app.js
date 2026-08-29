@@ -1056,12 +1056,13 @@
                     + '</span>';
             }
             tr.innerHTML =
-                '<td class="standings-place">' + deltaHtml + '<span class="standings-place-num">' + r.place + '</span></td>' +
-                '<td class="club-cell">' +
+                '<td class="standings-place"><span class="standings-place-inner">' + deltaHtml
+                + '<span class="standings-place-num">' + r.place + '</span></span></td>' +
+                '<td><span class="club-cell">' +
                 '<img class="club-logo" src="' + (r.logo || '') + '" alt="' + (r.code || '') + '" onerror="this.style.visibility=\'hidden\'">' +
                 '<strong>' + r.code + '</strong>' +
                 livePill +
-                '</td>' +
+                '</span></td>' +
                 '<td>' + r.played + '</td>' +
                 '<td>' + r.won + '</td>' +
                 '<td>' + r.drawn + '</td>' +
