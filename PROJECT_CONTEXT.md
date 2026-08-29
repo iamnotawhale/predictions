@@ -22,8 +22,8 @@
 Механизмы запуска:
 - локально bot+miniapp: ./scripts/run-local.sh
 - локально только бот: ./scripts/run-bot-only.sh
-- сборка jar: mvn package -DskipTests
-- деплой на прод: ./deploy/upload-jar.sh (читает deploy/deploy.env) или GitHub Actions (push в master по path-filter / workflow_dispatch)
+- сборка jar: `mvn package -DskipTests` (или с тестами: `./mvnw test` / `./mvnw package`)
+- деплой на прод: ./deploy/upload-jar.sh (читает deploy/deploy.env) или GitHub Actions (push в master по path-filter / workflow_dispatch; можно `--ref <branch>`)
 - прод: systemd unit predicts (+ caddy / net-refresh — см. deploy/)
 - cold-standby: бэкап с домашнего сервера на VPS + оркестратор на VPS (failover/failback) — см. раздел «Отказоустойчивость»
 
@@ -43,11 +43,14 @@
 - `src/main/java/zhigalin/predictions/telegram` — команды и обработка апдейтов Telegram-бота.
 - `src/main/java/zhigalin/predictions/miniapp` — REST API и auth для Telegram WebApp (`X-Telegram-Init-Data`).
 - `src/main/java/zhigalin/predictions/service` — бизнес-логика (матчи, прогнозы, уведомления, синхронизация).
-- `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты ESPN scoreboard, TTL 60с, сохранение в БД.
-- `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats + SoccerSTATS → Poisson-модель → кэш в БД.
-- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary).
-- `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой.
-- `src/main/java/zhigalin/predictions/config` — конфигурация, в т.ч. **`MatchOddsSchemaMigration`**, **`BettingRecommenderSchemaMigration`**, **`DeploymentInfoService`** (DNS-hint только для admin).
+- `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты через общий `EspnScoreboardClient`, TTL 60с (`ensureFresh`), сохранение в БД.
+- `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats + SoccerSTATS → Poisson-модель → кэш в БД; single-flight refresh, batch writes.
+- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — общий fetch/parse ESPN scoreboard для Odds + DataInit.
+- `src/main/java/zhigalin/predictions/telegram/MatchMessageFormatter` — единый формат строк матча для `/today`, `/tour`, upcoming.
+- `src/main/java/zhigalin/predictions/util/TelegramMarkdownV2` — escape caption для Unirest `sendPhoto`.
+- `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой (узкие выборки матчей/прогнозов, batch `updatePoints`).
+- `src/main/java/zhigalin/predictions/config` — конфигурация, в т.ч. **`MatchOddsSchemaMigration`**, **`BettingRecommenderSchemaMigration`**, **`DeploymentInfoService`**, **`RecommenderWarmupOnStartup`** (`@Async` ensure рекомендаций текущего тура; `predictions.startup.warm-recommender`, default true).
+- `src/test/java` — юнит-тесты (scoring, ordering, formatters, updateByMatch batch, recommender single-flight); запуск: `./mvnw test`.
 - `src/main/resources/static/miniapp` — клиентская часть Mini App (`index.html`, `js/app.js`, `css/app.css`, `js/live-event-ru.js`).
 - `scripts` — локальный запуск, dev HTTPS, утилиты.
 - `deploy` — конфиги и сценарии деплоя/прод запуска (секреты — только `*.env`, в git только `*.example`).
@@ -224,16 +227,22 @@
 ## Надёжность и бот
 - `StartupNotifier`: при `ApplicationReady` шлёт в `ADMIN_CHAT_ID` хост, commit/branch, время старта (MSK), profile, port, java/os, pid, webAppUrl. Нужны `chatId` и `git.properties` (maven `git-commit-id` → `generateGitPropertiesFile=true`).
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
-- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч) с автором гола и ассистом (если есть) из ESPN `summary.commentary`; при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
+- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); early-exit через `hasPostponedMatches()` (SQL `EXISTS`) + `findOnlineMatches` (окно дат без `pst`); scoreboard — только через `EspnScoreboardClient`; при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч) с автором гола и ассистом (если есть) из ESPN `summary.commentary` (`ApiClient.fetchEspnSummary`, TTL 8с); при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
+- Season-prep (ручной вызов из `start` при подготовке сезона, **не удалять**): `teamsInitFromApiFootball`, `matchInitFromApiFootball`, `headToHeadInitFromApiFootball`; запасной live-path `matchUpdateFromApiFootball`; daily `matchDateTimeStatusUpdate` / `syncMatchTimesFromApi`.
+- `DataInitService.newsInit()` (бот `/news`): TTL-кэш league RSS ~120с.
 - `DataInitService` нормализует live-статус из ESPN scoreboard: halftime определяется по `status.type.detail/shortDetail/description` и сохраняется как `ht` (а не как `45'+...`), завершение — как `ft`.
 - `DataInitService` сохраняет `espn_id` в `match` уже на стадии `pre` (не только `in`), чтобы можно было заранее использовать ESPN summary по конкретному событию.
 - live-обновления счёта в Telegram редактируют одно сообщение на матч: ключ состояния строится с приоритетом `espnId` (fallback: `publicId`/пара команд), чтобы избежать дублей при разных источниках id.
 - `message_id` live-сообщения хранится в БД (`match.live_score_message_id`), поэтому после рестарта приложения обновления продолжают редактировать старое сообщение, а не создавать новое.
 - дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей.
-- Напоминания без прогноза: за 60/40/20 минут до kickoff.
-- `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM).
+- Напоминания без прогноза: за 60/40/20 минут до kickoff; одна картинка на (матч, окно); `Set` predicted user ids; матч из notification без повторного `findByPublicId`.
+- **Порядок списков матчей:** всегда `Match.BY_KICKOFF_THEN_PUBLIC_ID` (kickoff ASC, затем `publicId`); DAO/MatchService/Telegram keyboards/miniapp сортируют одинаково.
+- `MatchService`: team-scoped `findLastFinishedByTeamId` / `findNextByTeamId` (SQL LIMIT); `findFinishedMatches` / `findPastNonPostponedMatches` для points/H2H backfill.
+- `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` (exact=4, diff=2, outcome=1, else −1).
+- `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM); для odds в NOTIFICATION — `ensureFresh`, не сырой `oddsInit2`.
 - Сводка тура в общий чат: только картинка результатов тура; защита от повторной отправки на тот же `weekId`.
 - `/start` и меню: кнопка «Открыть Mini App» первой.
+- Telegram-команды матчей (`TodayMatchesCommand`, `TourNumCommand`, `UpcomingCommand`) форматируют строки через `MatchMessageFormatter`.
 - `MiniAppMenuConfigurer` всегда инициализируется на старте; URL берется из `bot.webAppUrl` (с пустым default), чтобы системная кнопка меню Telegram гарантированно обновлялась после деплоя.
 
 ## Mini App API (`MiniAppController`, base `/api/miniapp`)
@@ -267,9 +276,10 @@
 - `FootyStatsScraperService` — scrape публичных страниц Premier League на footystats.org (пауза ~1.2с между запросами).
 - `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с).
 - `FootyStatsTableParser` / `FootyStatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц + маппинг имён → коды команд.
-- `FootyStatsStatsDao` — кэш в PostgreSQL (не долбить сайт на каждый матч).
+- `FootyStatsStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
 - `PoissonScoreModel` — λ + коррекции матрицы счёта.
-- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id` (FootyStats snapshot → SoccerSTATS enrich → store).
+- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id` (FootyStats snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId` (параллельные refresh ждут один scrape); HTTP ensure по-прежнему ждёт результат (не empty+async).
+- `RecommenderWarmupOnStartup` — `@Async` на `ApplicationReady`: если у текущего тура нет recommendations — `ensureCurrentWeekRecommendations` в фоне.
 
 **Источники FootyStats (высокий + средний приоритет):**
 - `form-table` (секция last6): Scored/Conceded + BTTS/CS/AVG/Win% home-away
@@ -298,8 +308,9 @@
 
 **Когда пересчитывается:**
 1. Автоматически в `DataInitService` после завершения всех матчей тура (`weekService.updateCurrent()` → `refreshForWeek` следующего тура).
-2. Лениво: при включении toggle / первом insights, если для текущего тура ещё нет строк в `match_recommendation`.
-3. Вручную (admin): `POST /api/miniapp/admin/betting-recommender/refresh`.
+2. На старте приложения: `RecommenderWarmupOnStartup` (если кэш тура пуст).
+3. Лениво: при включении toggle / первом insights, если для текущего тура ещё нет строк в `match_recommendation` (ждёт in-flight scrape).
+4. Вручную (admin): `POST /api/miniapp/admin/betting-recommender/refresh`.
 
 **UI:**
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
@@ -321,15 +332,19 @@
 **Файлы:** `static/miniapp/js/app.js`, `index.html`, `css/app.css`.
 
 ### Общее поведение
-- «Сегодня»: текущий счёт / время старта, таймер до `kickoff+5м`, приоритет матчей без прогноза.
-- **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с.
+- Списки матчей (тур/сегодня/мои/клавиатуры бота): порядок kickoff → `publicId` (без приоритета live/predicted).
+- «Сегодня»: текущий счёт / время старта, таймер до `kickoff+5м`.
+- MiniApp списки: bulk-load прогнозов пользователя (`predictionsByMatchForUser` / weekly map), без N+1 per match.
+- `GET /team/{code}/matches`: last/next 5 через SQL LIMIT (`findLastFinishedByTeamId` / `findNextByTeamId`).
+- H2H: лимит `HeadToHeadService.H2H_LIMIT = 7` (и Telegram, и miniapp).
+- **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с; в poll leaderboard обновляется только при live или смене счёта.
 - overlay-уведомления о голах; offline-баннер при ошибках сети/API.
 - `Cache-Control: no-store, must-revalidate` для `/miniapp/**` (фикс залипания WebView).
 - header показывает сезон/тур (`profile.weekLabel`); справа — toggle рекомендатора.
 - для admin в `ver.` рядом может быть `dnsHint` (`DeploymentInfoService`, публичный DNS lookup hostname → IP).
 - `Crowd Meter` удален из UI; backend-эндпоинт остаётся.
 - `Live Points Race` удалён; live-динамика встроена в зачёт (`provisionalPoints/liveDelta/liveActive`).
-- live-подсчёт очков в leaderboard учитывает `-1` и пользователей без прогноза на live/finished матчах.
+- live-подсчёт очков в leaderboard учитывает `-1` и пользователей без прогноза на live/finished матчах (provisional через один `findAllByWeekId`, не N×`getByMatchPublicId`).
 - график очков: целочисленная сетка Y.
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
 
@@ -339,7 +354,7 @@
 - После deploy проверяй подпись `ver. …` на главном экране — она должна совпадать с коммитом сборки и с commit в Telegram startup-алерте.
 
 ### Коэффициенты (odds)
-- `OddsService.ensureFresh(...)` — ESPN scoreboard, TTL 60с.
+- `OddsService.ensureFresh(...)` — ESPN scoreboard через `EspnScoreboardClient`, TTL 60с.
 - Odds сохраняются в БД (`match.odd_home/draw/away`) для переиспользования в miniapp и разборе тура.
 - В модалке прогноза показываются odds из API матча.
 
@@ -377,9 +392,10 @@
 - Live-модалка polling `/live-details` каждые 10с.
 
 ### Прочее
+- `ApiClient.fetchEspnSummary(espnId)` — in-memory TTL **8с**; используют lineups/goals/miniapp live-details; ошибки не кэшируются.
 - `ApiClient.getLineups(matchPublicId)` — in-memory кэш до завершения матча; очистка в `DataInitService` и `NotificationService.sendFullTime`.
 - Remind-уведомления: ESPN rosters (`starter=true`) → fallback API-Football.
-- Новости в miniapp: Sports.ru RSS по тегам команд (`MiniAppService.loadMatchNews`).
+- Новости в miniapp: Sports.ru RSS по тегам команд (`MiniAppService.loadMatchNews`, кэш ~120с); бот `/news` — `DataInitService.newsInit` с отдельным TTL.
 
 ## Генерация изображений уведомлений
 - В `ImageRenderer` fallback цветов команд по `teamId`, если нет записи в `team_colors.json`.
