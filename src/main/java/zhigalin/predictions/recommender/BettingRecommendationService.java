@@ -99,8 +99,6 @@ public class BettingRecommendationService {
 
         FootyStatsTeamSnapshot home = homeStats.get();
         FootyStatsTeamSnapshot away = awayStats.get();
-        double lambdaHome = safeDivide(home.scoredHome() * away.concededAway(), league.avgHomeScored());
-        double lambdaAway = safeDivide(away.scoredAway() * home.concededHome(), league.avgAwayScored());
 
         Double oddHome = null;
         Double oddDraw = null;
@@ -113,8 +111,6 @@ public class BettingRecommendationService {
         }
 
         PoissonScoreModel.Result result = PoissonScoreModel.recommend(
-                lambdaHome,
-                lambdaAway,
                 oddHome,
                 oddDraw,
                 oddAway,
@@ -135,12 +131,5 @@ public class BettingRecommendationService {
                 result.summary(),
                 Instant.now()
         ));
-    }
-
-    private static double safeDivide(double numerator, double denominator) {
-        if (denominator <= 0) {
-            return numerator;
-        }
-        return numerator / denominator;
     }
 }
