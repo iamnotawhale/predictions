@@ -556,13 +556,42 @@ public class MiniAppService {
 
     public List<StandingItem> standings(String telegramId) {
         requireUser(telegramId);
-        List<Standing> standings = matchService.getStandings();
+        List<Standing> liveTable = matchService.getStandings();
+        Map<Integer, Integer> basePlaceByTeam = new LinkedHashMap<>();
+        int basePlace = 1;
+        for (Standing standing : matchService.getStandingsFinishedOnly()) {
+            basePlaceByTeam.put(standing.getTeamId(), basePlace++);
+        }
+
+        Map<Integer, Match> liveMatchByTeam = new LinkedHashMap<>();
+        for (Match match : matchService.findOnlineMatches()) {
+            if (!isLiveStatus(match.getStatus())) {
+                continue;
+            }
+            if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
+                continue;
+            }
+            liveMatchByTeam.put(match.getHomeTeamId(), match);
+            liveMatchByTeam.put(match.getAwayTeamId(), match);
+        }
+        boolean hasLive = !liveMatchByTeam.isEmpty();
+
         List<StandingItem> items = new ArrayList<>();
         int place = 1;
-        for (Standing standing : standings) {
+        for (Standing standing : liveTable) {
             Team team = DaoUtil.TEAMS.get(standing.getTeamId());
+            int currentPlace = place++;
+            int previousPlace = basePlaceByTeam.getOrDefault(standing.getTeamId(), currentPlace);
+            int placeDelta = hasLive ? previousPlace - currentPlace : 0;
+            Match liveMatch = liveMatchByTeam.get(standing.getTeamId());
+            String liveScore = null;
+            String liveResult = null;
+            if (liveMatch != null) {
+                liveScore = liveMatch.getHomeTeamScore() + "-" + liveMatch.getAwayTeamScore();
+                liveResult = liveResultForTeam(liveMatch, standing.getTeamId());
+            }
             items.add(new StandingItem(
-                    place++,
+                    currentPlace,
                     team.getCode(),
                     team.getName(),
                     teamLogoPath(standing.getTeamId()),
@@ -572,10 +601,28 @@ public class MiniAppService {
                     standing.getLost(),
                     standing.getGoalsFor(),
                     standing.getGoalsAgainst(),
-                    standing.getPoints()
+                    standing.getPoints(),
+                    placeDelta,
+                    liveScore,
+                    liveResult
             ));
         }
         return items;
+    }
+
+    static String liveResultForTeam(Match match, int teamId) {
+        int home = match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore();
+        int away = match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore();
+        boolean isHome = match.getHomeTeamId() == teamId;
+        int mine = isHome ? home : away;
+        int theirs = isHome ? away : home;
+        if (mine > theirs) {
+            return "W";
+        }
+        if (mine < theirs) {
+            return "L";
+        }
+        return "D";
     }
 
     public TeamMatchesResponse teamMatches(String telegramId, String teamCode) {

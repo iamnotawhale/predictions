@@ -146,6 +146,10 @@ public class MatchService {
         return standings;
     }
 
+    public List<Standing> getStandingsFinishedOnly() {
+        return matchDao.getStandingsFinishedOnly();
+    }
+
     public List<Match> findOnlineMatches() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime from = now.minusMinutes(140);

@@ -65,7 +65,10 @@ public final class MiniAppDtos {
             int lost,
             int goalsFor,
             int goalsAgainst,
-            int points
+            int points,
+            int placeDelta,
+            String liveScore,
+            String liveResult
     ) {
     }
 

@@ -437,10 +437,75 @@ html, body {
     white-space: nowrap;
 }
 
+.standings-table tr.is-live td {
+    background: rgba(46, 166, 255, 0.05);
+}
+
+.standings-place {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 2.2em;
+}
+
+.standings-place-num {
+    font-variant-numeric: tabular-nums;
+    min-width: 1.1em;
+}
+
+.standings-delta {
+    flex-shrink: 0;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+}
+
+.standings-delta.up {
+    border-bottom: 6px solid var(--success);
+}
+
+.standings-delta.down {
+    border-top: 6px solid var(--danger);
+}
+
+.standings-delta.flat {
+    width: 8px;
+    height: 6px;
+    border: none;
+}
+
 .club-cell {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.standings-live-pill {
+    flex-shrink: 0;
+    margin-left: 2px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+}
+
+.standings-live-pill.win {
+    background: rgba(92, 217, 122, 0.2);
+    color: #8ef0a6;
+}
+
+.standings-live-pill.draw {
+    background: rgba(255, 196, 77, 0.2);
+    color: #ffd36a;
+}
+
+.standings-live-pill.lose {
+    background: rgba(232, 92, 74, 0.22);
+    color: #ff9a8c;
 }
 
 .club-logo {
