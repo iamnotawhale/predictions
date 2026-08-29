@@ -292,8 +292,9 @@
         }
         if ($('#screen-today').classList.contains('active')) {
             await loadTodayMatches();
+        } else {
+            await refreshLeaderboardByMode();
         }
-        await refreshLeaderboardByMode();
         await loadWeeksGrid('#predict-weeks', showPredictWeek);
         await loadWeeksGrid('#my-weeks', showMyWeek);
     }
@@ -361,6 +362,27 @@
         return '<span class="badge">' + (m.status || 'ожидание') + '</span>';
     }
 
+    function parseKickoffLabel(label) {
+        const m = /^(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/.exec(String(label || '').trim());
+        if (!m) return Number.MAX_SAFE_INTEGER;
+        // month*1e6 + day*1e4 + hour*100 + minute — enough for same-season lists
+        return Number(m[2]) * 1e6 + Number(m[1]) * 1e4 + Number(m[3]) * 100 + Number(m[4]);
+    }
+
+    function sortMatchesByKickoff(matches) {
+        return (matches || []).slice().sort((a, b) => {
+            const sa = a.kickoffSecondsLeft;
+            const sb = b.kickoffSecondsLeft;
+            if (typeof sa === 'number' && typeof sb === 'number' && sa !== sb) {
+                return sa - sb;
+            }
+            const pa = parseKickoffLabel(a.kickoff);
+            const pb = parseKickoffLabel(b.kickoff);
+            if (pa !== pb) return pa - pb;
+            return (Number(a.publicId) || 0) - (Number(b.publicId) || 0);
+        });
+    }
+
     function renderMatchItem(m, onClick) {
         const li = document.createElement('li');
         li.className = 'list-item';
@@ -424,12 +446,13 @@
     function renderTodayMatchesList(matches) {
         const list = $('#today-match-list');
         list.innerHTML = '';
-        if (!matches.length) {
+        const ordered = sortMatchesByKickoff(matches);
+        if (!ordered.length) {
             list.innerHTML = '<li class="empty-state">Сегодня матчей нет</li>';
             return;
         }
         let lastWeek = null;
-        matches.forEach(m => {
+        ordered.forEach(m => {
             if (m.weekId !== lastWeek) {
                 lastWeek = m.weekId;
                 const label = document.createElement('li');
@@ -589,6 +612,7 @@
 
     function processTodayScoreUpdates(matches, previousScoresByMatchId) {
         const nextScores = {};
+        let scoresChanged = false;
         matches.forEach((m) => {
             const hasScore = m.homeScore != null && m.awayScore != null && !isNotStartedStatus(m.status);
             if (!hasScore) return;
@@ -604,16 +628,19 @@
             if (prev == null) {
                 if (score !== '0:0') {
                     enqueueScoreNotification(m, '0:0', 'both');
+                    scoresChanged = true;
                 }
                 return;
             }
 
             if (prev !== score) {
                 enqueueScoreNotification(m, prev, detectGoalHighlightTeam(prev, score) || 'both');
+                scoresChanged = true;
             }
         });
         state.todayScoresByMatchId = nextScores;
         state.todaySnapshotInitialized = true;
+        return scoresChanged;
     }
 
     async function loadProfile() {
@@ -746,13 +773,15 @@
         const data = await api('/today');
         state.todayHasLive = hasLiveOrSoonMatches(data.matches) || !!data.hasLive;
         const previousScores = { ...state.todayScoresByMatchId };
-        processTodayScoreUpdates(data.matches, previousScores);
+        const scoresChanged = processTodayScoreUpdates(data.matches, previousScores);
         renderHomeLiveModule(data.matches);
         if ($('#screen-today').classList.contains('active')) {
             renderTodayMatchesList(data.matches);
             state.todayLoaded = true;
         }
-        await refreshLeaderboardByMode();
+        if (scoresChanged || state.todayHasLive) {
+            await refreshLeaderboardByMode();
+        }
         if ($('#screen-stats').classList.contains('active')) {
             await Promise.all([
                 loadStandings(true),
@@ -1044,11 +1073,12 @@
         $('#predict-week-title').textContent = weekId + ' тур';
         const list = $('#predict-match-list');
         list.innerHTML = '';
-        if (!matches.length) {
+        const ordered = sortMatchesByKickoff(matches);
+        if (!ordered.length) {
             list.innerHTML = '<li class="empty-state">Матчей нет</li>';
             return;
         }
-        matches.forEach(m => list.appendChild(renderMatchItem(m, openScoreModal)));
+        ordered.forEach(m => list.appendChild(renderMatchItem(m, openScoreModal)));
     }
 
     async function loadMyPredictions(weekId) {

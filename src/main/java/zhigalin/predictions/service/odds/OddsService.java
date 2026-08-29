@@ -6,10 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import kong.unirest.HttpResponse;
-import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.DependsOn;
@@ -23,6 +20,7 @@ import zhigalin.predictions.model.v2.OddV2;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.repository.event.MatchDao;
+import zhigalin.predictions.service.api.EspnScoreboardClient;
 import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.util.TeamCodeMapper;
 
@@ -34,17 +32,17 @@ public class OddsService {
     private static final long REFRESH_INTERVAL_MS = 60_000L;
 
     private final PanicSender panicSender;
-    private final ObjectMapper mapper;
     private final MatchDao matchDao;
+    private final EspnScoreboardClient espnScoreboardClient;
     private volatile long lastRefreshAtMs = 0L;
 
     /** In-memory cache; persisted odds are loaded from DB on startup and after fetch. */
     private final Map<Integer, Odd> oddsCache = new HashMap<>();
 
-    public OddsService(PanicSender panicSender, ObjectMapper objectMapper, MatchDao matchDao) {
+    public OddsService(PanicSender panicSender, MatchDao matchDao, EspnScoreboardClient espnScoreboardClient) {
         this.panicSender = panicSender;
-        this.mapper = objectMapper;
         this.matchDao = matchDao;
+        this.espnScoreboardClient = espnScoreboardClient;
     }
 
     @PostConstruct
@@ -72,10 +70,10 @@ public class OddsService {
 
     public void oddsInit2(List<Match> matches) {
         try {
-            HttpResponse<String> response = Unirest.get("https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard")
-                    .asString();
-
-            Scoreboard scoreboard = mapper.readValue(response.getBody(), Scoreboard.class);
+            Scoreboard scoreboard = espnScoreboardClient.fetchScoreboard();
+            if (scoreboard == null || scoreboard.getEvents() == null) {
+                return;
+            }
             List<Event> events = scoreboard.getEvents();
 
             for (Event event : events) {

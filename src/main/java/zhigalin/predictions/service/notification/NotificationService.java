@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -89,8 +90,13 @@ public class NotificationService {
         oddsService.oddsInit2(matches);
 
         List<MatchRecord> list = matches.stream()
-                .map(m -> new MatchRecord(m.getHomeTeamId(), m.getAwayTeamId(), m.getWeekId(), m.getLocalDateTime()))
-                .sorted(Comparator.comparingInt(MatchRecord::weekId).thenComparing(MatchRecord::localDateTime))
+                .map(m -> new MatchRecord(
+                        m.getHomeTeamId(),
+                        m.getAwayTeamId(),
+                        m.getWeekId(),
+                        m.getLocalDateTime(),
+                        m.getPublicId()
+                ))
                 .toList();
 
         String path = images.createTodayMatchesImage(list);
@@ -286,7 +292,7 @@ public class NotificationService {
         LocalDateTime now = LocalDateTime.now();
         int horizonMinutes = REMINDER_MINUTES_BEFORE[0] + 1;
         List<Match> upcoming = matchService.findAllNearest(horizonMinutes).stream()
-                .filter(m -> Objects.equals(m.getStatus(), "ns") && !Objects.equals(m.getStatus(), "pst"))
+                .filter(m -> Objects.equals(m.getStatus(), "ns"))
                 .toList();
 
         for (Match match : upcoming) {
@@ -303,15 +309,27 @@ public class NotificationService {
                 if (lineups.isEmpty()) {
                     lineups = api.getLineups(match.getPublicId());
                 }
-                List<Prediction> matchPredicts = predictionService.getByMatchPublicId(match.getPublicId());
+                Set<Integer> predictedUserIds = predictionService.getByMatchPublicId(match.getPublicId()).stream()
+                        .map(Prediction::getUserId)
+                        .collect(Collectors.toSet());
+                String imagePath = null;
                 for (User user : DaoUtil.USERS.values()) {
-                    boolean hasPredict = matchPredicts.stream()
-                            .anyMatch(p -> p.getUserId() == user.getId());
-                    if (hasPredict) {
+                    if (predictedUserIds.contains(user.getId())) {
                         continue;
                     }
                     if (!notificationDedupDao.tryMarkReminderSent(user.getId(), match.getPublicId(), reminderMinutes)) {
                         continue;
+                    }
+                    if (imagePath == null) {
+                        String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
+                        imagePath = images.createImage(
+                                match.getPublicId(),
+                                match.getHomeTeamId(),
+                                match.getAwayTeamId(),
+                                matchTime,
+                                NotificationImageMode.NOTIFICATION,
+                                null
+                        );
                     }
                     Notification notification = Notification.builder()
                             .user(user)
@@ -320,7 +338,7 @@ public class NotificationService {
                             .build();
                     log.info("Predict reminder: {} min before match, user={}, match={}",
                             reminderMinutes, user.getId(), match.getPublicId());
-                    sendNotification(notification);
+                    sendNotification(notification, imagePath);
                 }
             }
         }
@@ -331,10 +349,10 @@ public class NotificationService {
         return minutesLeft <= reminderMinutes && minutesLeft > reminderMinutes - 2;
     }
 
-    private void sendNotification(Notification notification) {
+    private void sendNotification(Notification notification, String imagePath) {
         log.info("Send notification");
         try {
-            Match match = matchService.findByPublicId(notification.getMatch().getPublicId());
+            Match match = notification.getMatch();
             long minutesLeft = Duration.between(LocalDateTime.now(), match.getLocalDateTime()).toMinutes();
             String chatId = notification.getUser().getTelegramId();
 
@@ -361,7 +379,6 @@ public class NotificationService {
                         .keyboard(Collections.singleton(List.of(button)))
                         .build();
 
-                String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
                 StringBuilder caption = new StringBuilder()
                         .append("Не проставлен прогноз на матч").append("\n")
                         .append("Осталось ").append(minutesLeft)
@@ -404,18 +421,9 @@ public class NotificationService {
                     }
                 }
 
-                String path = images.createImage(
-                        match.getPublicId(),
-                        match.getHomeTeamId(),
-                        match.getAwayTeamId(),
-                        matchTime,
-                        NotificationImageMode.NOTIFICATION,
-                        null
-                );
-
                 String replyMarkupJson = objectMapper.writeValueAsString(markup);
-                if (path != null) {
-                    api.sendPhoto(chatId, caption.toString(), path, replyMarkupJson);
+                if (imagePath != null) {
+                    api.sendPhoto(chatId, caption.toString(), imagePath, replyMarkupJson);
                 }
             }
         } catch (Exception e) {

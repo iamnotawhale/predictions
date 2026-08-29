@@ -274,7 +274,7 @@ public class ImageRenderer {
                     font = loadFont(false).deriveFont(30f * ((float) picSize / 40));
                     g2d.setFont(font);
                     g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
-                    String info = "last 6";
+                    String info = "last 5";
                     Rectangle2D bounds = g2d.getFontMetrics().getStringBounds(info, g2d);
                     int infoY2 = (int) ((double) HEIGHT / 2 + 130 - bounds.getHeight() / 2 - bounds.getY()) + (picSize * 2 + 10) / 2;
                     g2d.drawString(info, (WIDTH - g2d.getFontMetrics().stringWidth(info)) / 2, infoY2);
@@ -284,7 +284,10 @@ public class ImageRenderer {
                     g2d.setFont(font);
 
                     if (odd == null) {
-                        oddsService.oddsInit2(List.of(matchService.findByTeamIds(homeTeamId, awayTeamId)));
+                        Match matchForOdds = matchService.findByTeamIds(homeTeamId, awayTeamId);
+                        if (matchForOdds != null) {
+                            oddsService.ensureFresh(List.of(matchForOdds));
+                        }
                         odd = oddsService.getOdd(matchPublicId);
                     }
 
