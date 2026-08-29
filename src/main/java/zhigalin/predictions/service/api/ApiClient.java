@@ -25,6 +25,7 @@ import zhigalin.predictions.model.event.Player;
 import zhigalin.predictions.model.input.Response;
 import zhigalin.predictions.model.input.ResponseTeam;
 import zhigalin.predictions.model.input.Root;
+import zhigalin.predictions.util.TelegramMarkdownV2;
 
 @Service
 public class ApiClient {
@@ -39,6 +40,7 @@ public class ApiClient {
 
     private final ObjectMapper mapper;
     private final ConcurrentHashMap<Integer, Map<Integer, List<Lineup>>> lineupsCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CachedEspnSummary> espnSummaryCache = new ConcurrentHashMap<>();
 
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
@@ -46,11 +48,10 @@ public class ApiClient {
     private static final String BASE_URL = "https://v3.football.api-sports.io/fixtures/";
     private static final String LINEUPS = "lineups";
     private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
+    private static final long ESPN_SUMMARY_TTL_MS = 8_000L;
 
     private static final Pattern GOAL_SCORER = Pattern.compile("^Goal!\\s*.+?\\.\\s*(.+?)\\s+\\([^)]+\\)");
     private static final Pattern GOAL_ASSIST = Pattern.compile("Assisted by\\s+(.+?)(?:\\s+with\\s+.+?)?\\.");
-
-    private static final List<String> escaped = List.of("_", "*", "[", "]", "(", ")", "~", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!");
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
@@ -102,11 +103,7 @@ public class ApiClient {
 
     public void sendPhoto(String chatId, String caption, String filePath, String replyMarkupJson) {
         try {
-            for (String s : escaped) {
-                if (caption.contains(s)) {
-                    caption = caption.replace(s, "\\" + s);
-                }
-            }
+            caption = TelegramMarkdownV2.escape(caption);
 
             File file = new File(filePath);
             MultipartBody body = Unirest.post(urlPhoto)
@@ -189,10 +186,11 @@ public class ApiClient {
             return Map.of();
         }
         try {
-            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
-                    .queryString("event", espnEventId)
-                    .asString();
-            JsonNode rosters = mapper.readTree(response.getBody()).path("rosters");
+            JsonNode root = fetchEspnSummary(espnEventId);
+            if (root == null) {
+                return Map.of();
+            }
+            JsonNode rosters = root.path("rosters");
             if (!rosters.isArray() || rosters.isEmpty()) {
                 return Map.of();
             }
@@ -239,15 +237,51 @@ public class ApiClient {
         lineupsCache.remove(publicId);
     }
 
-    public LatestGoalInfo findLatestGoalInfo(String espnEventId) {
+    /**
+     * Fetches ESPN match summary JSON with a short in-memory TTL.
+     * Failed/empty responses are not cached so retries are not stuck.
+     */
+    public JsonNode fetchEspnSummary(String espnEventId) {
         if (espnEventId == null || espnEventId.isBlank()) {
             return null;
+        }
+        long now = System.currentTimeMillis();
+        CachedEspnSummary cached = espnSummaryCache.get(espnEventId);
+        if (cached != null && now - cached.fetchedAtMs() < ESPN_SUMMARY_TTL_MS) {
+            return cached.root();
         }
         try {
             HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
                     .queryString("event", espnEventId)
                     .asString();
-            JsonNode commentary = mapper.readTree(response.getBody()).path("commentary");
+            if (response.getStatus() != 200 || response.getBody() == null || response.getBody().isBlank()) {
+                espnSummaryCache.remove(espnEventId);
+                return null;
+            }
+            JsonNode root = mapper.readTree(response.getBody());
+            if (root == null || root.isMissingNode() || root.isNull()) {
+                espnSummaryCache.remove(espnEventId);
+                return null;
+            }
+            espnSummaryCache.put(espnEventId, new CachedEspnSummary(root, now));
+            return root;
+        } catch (Exception e) {
+            espnSummaryCache.remove(espnEventId);
+            log.warn("ESPN summary fetch failed: espnEventId={}, error={}", espnEventId, e.getMessage());
+            return null;
+        }
+    }
+
+    public LatestGoalInfo findLatestGoalInfo(String espnEventId) {
+        if (espnEventId == null || espnEventId.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = fetchEspnSummary(espnEventId);
+            if (root == null) {
+                return null;
+            }
+            JsonNode commentary = root.path("commentary");
             if (!commentary.isArray() || commentary.isEmpty()) {
                 return null;
             }
@@ -292,6 +326,9 @@ public class ApiClient {
             assist = assistMatcher.group(1).trim();
         }
         return new LatestGoalInfo(scorer, assist);
+    }
+
+    private record CachedEspnSummary(JsonNode root, long fetchedAtMs) {
     }
 
     private record GoalCommentaryEntry(double timeValue, long sequence, LatestGoalInfo info) {

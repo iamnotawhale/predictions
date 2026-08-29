@@ -1,8 +1,15 @@
 package zhigalin.predictions.recommender;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,6 +31,7 @@ public class BettingRecommendationService {
     private final FootyStatsStatsDao statsDao;
     private final MatchService matchService;
     private final OddsService oddsService;
+    private final ConcurrentHashMap<Integer, CompletableFuture<Integer>> refreshInFlight = new ConcurrentHashMap<>();
 
     public BettingRecommendationService(
             FootyStatsScraperService scraperService,
@@ -40,6 +48,42 @@ public class BettingRecommendationService {
     }
 
     public int refreshForWeek(int weekId) {
+        CompletableFuture<Integer> created = new CompletableFuture<>();
+        CompletableFuture<Integer> existing = refreshInFlight.putIfAbsent(weekId, created);
+        if (existing != null) {
+            return joinRefresh(existing, weekId);
+        }
+        try {
+            int stored = doRefreshForWeek(weekId);
+            created.complete(stored);
+            return stored;
+        } catch (Exception e) {
+            created.completeExceptionally(e);
+            throw unwrapRefreshFailure(e, weekId);
+        } finally {
+            refreshInFlight.remove(weekId, created);
+        }
+    }
+
+    private int joinRefresh(CompletableFuture<Integer> future, int weekId) {
+        try {
+            return future.join();
+        } catch (CompletionException e) {
+            throw unwrapRefreshFailure(e.getCause() != null ? e.getCause() : e, weekId);
+        }
+    }
+
+    private static IllegalStateException unwrapRefreshFailure(Throwable cause, int weekId) {
+        if (cause instanceof IllegalStateException ise) {
+            return ise;
+        }
+        return new IllegalStateException(
+                "Не удалось обновить рекомендации для тура " + weekId + ": " + cause.getMessage(),
+                cause
+        );
+    }
+
+    private int doRefreshForWeek(int weekId) {
         try {
             FootyStatsScraperService.ParsedSnapshot snapshot = scraperService.fetchSnapshot();
             List<FootyStatsTeamSnapshot> teams;
@@ -60,16 +104,17 @@ public class BettingRecommendationService {
                 log.warn("Betting recommender: no league snapshot for week {}", weekId);
                 return 0;
             }
-            int stored = 0;
+            Map<String, FootyStatsTeamSnapshot> statsByCode = statsDao.findTeamStats(weekId).stream()
+                    .collect(Collectors.toMap(FootyStatsTeamSnapshot::teamCode, Function.identity(), (a, b) -> a));
+            List<MatchRecommendationSnapshot> toStore = new ArrayList<>();
             for (Match match : matches) {
-                Optional<MatchRecommendationSnapshot> recommendation = computeAndStore(match, weekId, league.get());
-                if (recommendation.isPresent()) {
-                    statsDao.saveRecommendation(recommendation.get());
-                    stored++;
-                }
+                Optional<MatchRecommendationSnapshot> recommendation =
+                        computeAndStore(match, weekId, league.get(), statsByCode);
+                recommendation.ifPresent(toStore::add);
             }
-            log.info("Betting recommender refreshed for week {} ({} / {} matches)", weekId, stored, matches.size());
-            return stored;
+            statsDao.saveRecommendations(toStore);
+            log.info("Betting recommender refreshed for week {} ({} / {} matches)", weekId, toStore.size(), matches.size());
+            return toStore.size();
         } catch (Exception e) {
             log.warn("Betting recommender refresh failed for week {}: {}", weekId, e.getMessage());
             throw new IllegalStateException("Не удалось обновить рекомендации для тура " + weekId + ": " + e.getMessage(), e);
@@ -97,18 +142,16 @@ public class BettingRecommendationService {
     private Optional<MatchRecommendationSnapshot> computeAndStore(
             Match match,
             int weekId,
-            FootyStatsLeagueSnapshot league
+            FootyStatsLeagueSnapshot league,
+            Map<String, FootyStatsTeamSnapshot> statsByCode
     ) {
         String homeCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
         String awayCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-        Optional<FootyStatsTeamSnapshot> homeStats = statsDao.findTeamStats(weekId, homeCode);
-        Optional<FootyStatsTeamSnapshot> awayStats = statsDao.findTeamStats(weekId, awayCode);
-        if (homeStats.isEmpty() || awayStats.isEmpty()) {
+        FootyStatsTeamSnapshot home = statsByCode.get(homeCode);
+        FootyStatsTeamSnapshot away = statsByCode.get(awayCode);
+        if (home == null || away == null) {
             return Optional.empty();
         }
-
-        FootyStatsTeamSnapshot home = homeStats.get();
-        FootyStatsTeamSnapshot away = awayStats.get();
 
         Double oddHome = null;
         Double oddDraw = null;

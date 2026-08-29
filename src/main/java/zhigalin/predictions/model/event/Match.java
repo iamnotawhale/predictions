@@ -1,6 +1,7 @@
 package zhigalin.predictions.model.event;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -15,6 +16,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Match {
+
+    /** Canonical list order: kickoff ascending, then publicId. */
+    public static final Comparator<Match> BY_KICKOFF_THEN_PUBLIC_ID = Comparator
+            .comparing(Match::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparingInt(Match::getPublicId);
 
     @JsonProperty("public_id")
     private int publicId;
