@@ -27,7 +27,7 @@ AUTO_FAILOVER="${AUTO_FAILOVER:-true}"
 AUTO_FAILBACK="${AUTO_FAILBACK:-true}"
 ODYSSEY_SSH_USER="${ODYSSEY_SSH_USER:-nikita}"
 ODYSSEY_SSH_PORT="${ODYSSEY_SSH_PORT:-2222}"
-ODYSSEY_HTTPS_PORT="${ODYSSEY_HTTPS_PORT:-8443}"
+ODYSSEY_HTTPS_PORT="${ODYSSEY_HTTPS_PORT:-443}"
 ODYSSEY_PUBLIC_IP="${ODYSSEY_PUBLIC_IP:-${PUBLIC_IP:-}}"
 DOMAIN="${DUCKDNS_FULL:-predicts.duckdns.org}"
 
@@ -54,6 +54,15 @@ write_state() { printf '%s\n' "$1" > "$STATE_FILE"; }
 read_count() { local f="$1"; [[ -f "$f" ]] && cat "$f" || echo 0; }
 write_count() { printf '%s\n' "$2" > "$1"; }
 
+https_origin() {
+  local port="${1:-$ODYSSEY_HTTPS_PORT}"
+  if [[ "$port" == "443" ]]; then
+    echo "https://${DOMAIN}"
+  else
+    echo "https://${DOMAIN}:${port}"
+  fi
+}
+
 probe_odyssey() {
   local ip="$ODYSSEY_PUBLIC_IP"
   [[ -n "$ip" ]] || { log "Odyssey probe: no ODYSSEY_PUBLIC_IP"; return 1; }
@@ -66,10 +75,12 @@ probe_odyssey() {
     return 0
   fi
 
-  # 2) внешний HTTPS на домашнем IP:8443 (без зависимости от DuckDNS)
+  # 2) внешний HTTPS на домашнем IP (без зависимости от DuckDNS)
+  local origin
+  origin="$(https_origin)"
   if curl -skf --connect-timeout 8 --max-time 12 \
       --resolve "${DOMAIN}:${ODYSSEY_HTTPS_PORT}:${ip}" \
-      "https://${DOMAIN}:${ODYSSEY_HTTPS_PORT}/miniapp/" -o /dev/null; then
+      "${origin}/miniapp/" -o /dev/null; then
     log "Odyssey OK via HTTPS ${ip}:${ODYSSEY_HTTPS_PORT}"
     return 0
   fi
@@ -118,7 +129,7 @@ do_failback() {
     write_state odyssey
     write_count "$FAIL_COUNT_FILE" 0
     write_count "$OK_COUNT_FILE" 0
-    tg "✅ Failback на Odyssey успешен. Mini App: https://${DOMAIN}:${ODYSSEY_HTTPS_PORT}/miniapp/"
+    tg "✅ Failback на Odyssey успешен. Mini App: $(https_origin)/miniapp/"
     return 0
   fi
   tg "❌ Failback на Odyssey ПРОВАЛИЛСЯ — прод мог остаться на VPS"

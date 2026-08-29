@@ -1,6 +1,8 @@
-# Прод: домен из PUBLIC_DOMAIN (см. deploy/predicts.env).
-# Caddy сам получает Let's Encrypt-сертификат.
-{$PUBLIC_DOMAIN} {
+# Прод на Odyssey: стандартный HTTPS :443 (мобильные операторы часто режут :8443).
+# Сертификаты: /etc/caddy/certs/predicts.duckdns.org.{crt,key}
+# Домен из PUBLIC_DOMAIN / BOT_WEBAPP_URL в deploy/predicts.env.
+predicts.duckdns.org {
+	tls /etc/caddy/certs/predicts.duckdns.org.crt /etc/caddy/certs/predicts.duckdns.org.key
 	reverse_proxy 127.0.0.1:{$APP_PORT:8080}
 	encode gzip
 }

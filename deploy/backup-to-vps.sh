@@ -90,7 +90,7 @@ ENDPOINT_LOCAL="/tmp/odyssey-endpoint-${STAMP}.env"
   fi
   HOME_IP="${PUBLIC_IP:-$(curl -4 -fsS --max-time 5 ifconfig.me || true)}"
   echo "ODYSSEY_PUBLIC_IP=${HOME_IP}"
-  echo "ODYSSEY_HTTPS_PORT=${HTTPS_PORT:-8443}"
+  echo "ODYSSEY_HTTPS_PORT=${HTTPS_PORT:-443}"
   echo "DUCKDNS_FULL=${DUCKDNS_FULL:-predicts.duckdns.org}"
   echo "UPDATED_AT=$(date -Iseconds)"
 } > "$ENDPOINT_LOCAL"
