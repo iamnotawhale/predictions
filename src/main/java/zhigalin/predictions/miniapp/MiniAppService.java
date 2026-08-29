@@ -159,14 +159,16 @@ public class MiniAppService {
     public ProfileResponse profile(String telegramId) {
         User user = requireUser(telegramId);
         int weekId = DaoUtil.currentWeekId;
-        String dnsHint = isAdmin(telegramId) ? deploymentInfoService.dnsHintForAdmin() : null;
+        boolean admin = isAdmin(telegramId);
+        String dnsHint = admin ? deploymentInfoService.dnsHintForAdmin() : null;
         return new ProfileResponse(
                 user.getLogin(),
                 weekId,
                 DataInitService.SEASON,
                 "Тур " + weekId + " · сезон " + DataInitService.SEASON,
                 dnsHint,
-                user.isBettingRecommenderEnabled()
+                user.isBettingRecommenderEnabled(),
+                admin
         );
     }
 

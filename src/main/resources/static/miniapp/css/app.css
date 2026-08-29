@@ -46,6 +46,13 @@ html, body {
     min-width: 0;
 }
 
+.header-recommender {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
 .recommender-toggle {
     display: flex;
     align-items: center;
@@ -54,6 +61,48 @@ html, body {
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+}
+
+.recommender-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--secondary);
+    color: var(--hint);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.recommender-refresh-btn:active {
+    background: rgba(46, 166, 255, 0.16);
+    border-color: rgba(46, 166, 255, 0.45);
+    color: var(--accent);
+}
+
+.recommender-refresh-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.recommender-refresh-icon {
+    display: inline-block;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.recommender-refresh-btn.is-loading .recommender-refresh-icon {
+    animation: recommender-spin 0.9s linear infinite;
+}
+
+@keyframes recommender-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .recommender-toggle-label {

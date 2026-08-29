@@ -13,7 +13,8 @@ public final class MiniAppDtos {
             int season,
             String weekLabel,
             String dnsHint,
-            boolean bettingRecommenderEnabled
+            boolean bettingRecommenderEnabled,
+            boolean admin
     ) {
     }
 
