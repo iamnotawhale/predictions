@@ -25,6 +25,9 @@ public final class PoissonScoreModel {
     ) {
     }
 
+    public record MarketOutcome(double homeWin, double draw, double awayWin) {
+    }
+
     public static Result recommend(
             double lambdaHomeFormula,
             double lambdaAwayFormula,
@@ -39,6 +42,7 @@ public final class PoissonScoreModel {
         String awayCode = away.teamCode();
         FootyStatsExtendedMetrics homeExt = home.extendedOrEmpty();
         FootyStatsExtendedMetrics awayExt = away.extendedOrEmpty();
+        MarketOutcome market = marketOutcome(oddHome, oddDraw, oddAway);
 
         double blendedHome = buildLambda(
                 lambdaHomeFormula,
@@ -50,7 +54,8 @@ public final class PoissonScoreModel {
                 homeExt.homePpg(),
                 homeExt.xPtsDelta(),
                 homeExt.homeAdvantage(),
-                true
+                true,
+                market
         );
         double blendedAway = buildLambda(
                 lambdaAwayFormula,
@@ -62,7 +67,8 @@ public final class PoissonScoreModel {
                 awayExt.awayPpg(),
                 awayExt.xPtsDelta(),
                 null,
-                false
+                false,
+                market
         );
 
         double[][] matrix = new double[MAX_GOALS + 1][MAX_GOALS + 1];
@@ -72,6 +78,9 @@ public final class PoissonScoreModel {
             for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
                 double joint = pHome * poisson(awayGoals, blendedAway);
                 joint *= scoreWeight(homeGoals, awayGoals, homeExt, awayExt);
+                if (market != null) {
+                    joint *= marketScoreWeight(homeGoals, awayGoals, market);
+                }
                 matrix[homeGoals][awayGoals] = joint;
                 total += joint;
             }
@@ -123,10 +132,13 @@ public final class PoissonScoreModel {
         appendFormLines(lines, homeExt, awayExt);
         appendSeasonLines(lines, homeExt, awayExt, homeCode, awayCode);
         appendXptsLines(lines, homeExt, awayExt, homeCode, awayCode);
-        if (oddHome != null && oddDraw != null && oddAway != null) {
+        if (market != null) {
             lines.add(String.format(
                     Locale.US,
-                    "Коэффициенты букмекеров: 1=%.2f, X=%.2f, 2=%.2f",
+                    "Букмекеры (норм.): 1=%.0f%%, X=%.0f%%, 2=%.0f%% (коэф. %.2f / %.2f / %.2f)",
+                    market.homeWin() * 100,
+                    market.draw() * 100,
+                    market.awayWin() * 100,
                     oddHome,
                     oddDraw,
                     oddAway
@@ -134,7 +146,7 @@ public final class PoissonScoreModel {
         }
         lines.add(String.format(
                 Locale.US,
-                "Наиболее вероятный счёт (Пуассон + коррекции BTTS/CS/ничьих/тотала): %d:%d (%.1f%%)",
+                "Наиболее вероятный счёт (Пуассон + FootyStats + рынок): %d:%d (%.1f%%)",
                 bestHome,
                 bestAway,
                 bestProb * 100
@@ -152,6 +164,33 @@ public final class PoissonScoreModel {
         );
     }
 
+    static MarketOutcome marketOutcome(Double oddHome, Double oddDraw, Double oddAway) {
+        if (oddHome == null || oddDraw == null || oddAway == null
+            || oddHome <= 1.0 || oddDraw <= 1.0 || oddAway <= 1.0) {
+            return null;
+        }
+        double invHome = 1.0 / oddHome;
+        double invDraw = 1.0 / oddDraw;
+        double invAway = 1.0 / oddAway;
+        double sum = invHome + invDraw + invAway;
+        if (sum <= 0) {
+            return null;
+        }
+        return new MarketOutcome(invHome / sum, invDraw / sum, invAway / sum);
+    }
+
+    private static double marketScoreWeight(int homeGoals, int awayGoals, MarketOutcome market) {
+        double outcomeProb;
+        if (homeGoals > awayGoals) {
+            outcomeProb = market.homeWin();
+        } else if (homeGoals < awayGoals) {
+            outcomeProb = market.awayWin();
+        } else {
+            outcomeProb = market.draw();
+        }
+        return 0.82 + outcomeProb * 0.36;
+    }
+
     private static double buildLambda(
             double formulaLambda,
             Double teamXg,
@@ -162,7 +201,8 @@ public final class PoissonScoreModel {
             Double ppg,
             Double xPtsDelta,
             Double homeAdvantage,
-            boolean isHome
+            boolean isHome,
+            MarketOutcome market
     ) {
         double lambda = formulaLambda * 0.40;
         if (teamXg != null && teamXg > 0) {
@@ -189,6 +229,10 @@ public final class PoissonScoreModel {
         if (isHome && homeAdvantage != null) {
             lambda *= 1.0 + Math.max(-0.15, Math.min(0.25, (homeAdvantage - 8.0) * 0.02));
         }
+        if (market != null) {
+            double marketBoost = isHome ? market.homeWin() : market.awayWin();
+            lambda *= 0.88 + marketBoost * 0.24;
+        }
         return clampLambda(lambda);
     }
 
@@ -202,50 +246,76 @@ public final class PoissonScoreModel {
         int total = homeGoals + awayGoals;
 
         if (homeGoals == 0) {
-            weight *= 0.75 + pct(home.formCsHome(), home.seasonCsHome()) * 0.5;
-            weight *= 0.80 + pct(away.ftsAway()) * 0.45;
+            weight *= cleanSheetBoost(home.formCsHome(), home.seasonCsHome());
+            weight *= failedToScoreBoost(away.ftsAway());
         }
         if (awayGoals == 0) {
-            weight *= 0.75 + pct(away.formCsAway(), away.seasonCsAway()) * 0.5;
-            weight *= 0.80 + pct(home.ftsHome()) * 0.45;
+            weight *= cleanSheetBoost(away.formCsAway(), away.seasonCsAway());
+            weight *= failedToScoreBoost(home.ftsHome());
         }
 
-        double btts = avg(
+        Double btts = avgNullable(
                 home.formBttsHome(),
                 home.seasonBttsHome(),
                 away.formBttsAway(),
                 away.seasonBttsAway()
         );
-        if (homeGoals > 0 && awayGoals > 0) {
-            weight *= 0.65 + btts * 0.7;
-        } else if (homeGoals == 0 || awayGoals == 0) {
-            weight *= 1.35 - btts * 0.55;
+        if (btts != null) {
+            double ratio = btts / 100.0;
+            if (homeGoals > 0 && awayGoals > 0) {
+                weight *= 0.88 + ratio * 0.24;
+            } else if (homeGoals == 0 || awayGoals == 0) {
+                weight *= 1.12 - ratio * 0.22;
+            }
         }
 
         if (homeGoals == awayGoals && homeGoals > 0) {
-            double draw = avg(home.drawPctHome(), away.drawPctAway(), home.drawPctOverall());
-            weight *= 0.75 + draw * 0.65;
+            Double draw = avgNullable(home.drawPctHome(), away.drawPctAway(), home.drawPctOverall());
+            if (draw != null) {
+                weight *= 0.90 + (draw / 100.0) * 0.20;
+            }
         }
 
-        double over25 = avg(home.over25Home(), away.over25Away(), home.over25Overall());
-        double under25 = avg(home.under25Home(), away.under25Away(), home.under25Overall());
-        if (total >= 3) {
-            weight *= 0.70 + over25 * 0.65;
+        Double over25 = avgNullable(home.over25Home(), away.over25Away(), home.over25Overall());
+        Double under25 = avgNullable(home.under25Home(), away.under25Away(), home.under25Overall());
+        if (total >= 3 && over25 != null) {
+            weight *= 0.88 + (over25 / 100.0) * 0.24;
         }
         if (total <= 2) {
-            double underSignal = under25 > 0 ? under25 : (100 - over25);
-            weight *= 0.70 + underSignal * 0.65;
-        }
-
-        double htBias = avg(home.htPpg(), away.htPpg());
-        if (htBias > 0 && total <= 1) {
-            weight *= 1.05;
-        }
-        if (avg(home.secondHalfPpg(), away.secondHalfPpg()) > htBias && total >= 3) {
-            weight *= 1.04;
+            double underSignal = under25 != null ? under25 : over25 != null ? (100.0 - over25) : Double.NaN;
+            if (!Double.isNaN(underSignal)) {
+                weight *= 0.88 + (underSignal / 100.0) * 0.24;
+            }
         }
 
         return Math.max(0.05, weight);
+    }
+
+    private static double cleanSheetBoost(Double... values) {
+        Double pct = avgNullable(values);
+        if (pct == null) {
+            return 1.0;
+        }
+        return 0.94 + (pct / 100.0) * 0.12;
+    }
+
+    private static double failedToScoreBoost(Double ftsPct) {
+        if (ftsPct == null) {
+            return 1.0;
+        }
+        return 0.94 + (ftsPct / 100.0) * 0.12;
+    }
+
+    private static Double avgNullable(Double... values) {
+        double sum = 0;
+        int count = 0;
+        for (Double value : values) {
+            if (value != null) {
+                sum += value;
+                count++;
+            }
+        }
+        return count == 0 ? null : sum / count;
     }
 
     private static void appendIfPresent(
@@ -336,22 +406,6 @@ public final class PoissonScoreModel {
                     nz(away.awayPpg())
             ));
         }
-    }
-
-    private static double pct(Double... values) {
-        return avg(values) / 100.0;
-    }
-
-    private static double avg(Double... values) {
-        double sum = 0;
-        int count = 0;
-        for (Double value : values) {
-            if (value != null) {
-                sum += value;
-                count++;
-            }
-        }
-        return count == 0 ? 50.0 : sum / count;
     }
 
     private static double nz(Double value) {
