@@ -128,10 +128,9 @@ final class FootyStatsTableParser {
             start = 3;
         }
         for (int i = start; i < cells.size(); i++) {
-            String text = cells.get(i).text().trim();
-            if (!text.isBlank()) {
-                values.add(text);
-            }
+            // Keep blanks so Home/Away column indices stay aligned (FootyStats leaves
+            // unplayed venue columns empty early in the season).
+            values.add(cells.get(i).text().trim());
         }
         return values;
     }

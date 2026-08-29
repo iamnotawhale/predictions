@@ -1038,11 +1038,29 @@
         rows.forEach(r => {
             const tr = document.createElement('tr');
             tr.style.cursor = 'pointer';
+            if (r.liveScore) {
+                tr.classList.add('is-live');
+            }
+            const delta = Number(r.placeDelta || 0);
+            let deltaHtml = '<span class="standings-delta flat" aria-hidden="true"></span>';
+            if (delta > 0) {
+                deltaHtml = '<span class="standings-delta up" title="+' + delta + '" aria-label="поднялись на ' + delta + '"></span>';
+            } else if (delta < 0) {
+                deltaHtml = '<span class="standings-delta down" title="' + delta + '" aria-label="опустились на ' + Math.abs(delta) + '"></span>';
+            }
+            let livePill = '';
+            if (r.liveScore) {
+                const resultClass = r.liveResult === 'W' ? 'win' : (r.liveResult === 'L' ? 'lose' : 'draw');
+                livePill = '<span class="standings-live-pill ' + resultClass + '">'
+                    + escapeHtml(String(r.liveScore).replace('-', '–'))
+                    + '</span>';
+            }
             tr.innerHTML =
-                '<td>' + r.place + '</td>' +
+                '<td class="standings-place">' + deltaHtml + '<span class="standings-place-num">' + r.place + '</span></td>' +
                 '<td class="club-cell">' +
                 '<img class="club-logo" src="' + (r.logo || '') + '" alt="' + (r.code || '') + '" onerror="this.style.visibility=\'hidden\'">' +
                 '<strong>' + r.code + '</strong>' +
+                livePill +
                 '</td>' +
                 '<td>' + r.played + '</td>' +
                 '<td>' + r.won + '</td>' +
@@ -2492,8 +2510,10 @@
         const score = recommendation.recommendedHome + ':' + recommendation.recommendedAway;
         scoreEl.textContent = score;
         summaryEl.textContent = recommendation.summary
-            || ('Ожидаемые голы ' + recommendation.expectedHomeGoals.toFixed(2)
-                + ' : ' + recommendation.expectedAwayGoals.toFixed(2));
+            || ('Ожидаемые голы ' + Number(recommendation.expectedHomeGoals).toFixed(1)
+                + ' : ' + Number(recommendation.expectedAwayGoals).toFixed(1)
+                + ' · шанс счёта '
+                + Math.round(Number(recommendation.scoreProbability || 0) * 100) + '%');
 
         linesEl.innerHTML = '';
         const lines = recommendation.explanationLines || [];

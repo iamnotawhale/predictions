@@ -59,22 +59,26 @@ public final class PoissonScoreModel {
         double leagueAway = positiveOr(league.avgAwayScored(), DEFAULT_AWAY_AVG);
 
         double homeAttack = attackStrength(
-                home.scoredHome(), home.scoredOverall(),
+                home.scoredHome(), home.concededHome(),
+                home.scoredOverall(),
                 homeExt.seasonScoredHome(), homeExt.seasonScoredPerMatch(),
                 leagueHome
         );
         double awayDefense = defenseStrength(
-                away.concededAway(), away.concededOverall(),
+                away.concededAway(), away.scoredAway(),
+                away.concededOverall(),
                 awayExt.seasonConcededAway(), awayExt.seasonConcededPerMatch(),
                 leagueHome
         );
         double awayAttack = attackStrength(
-                away.scoredAway(), away.scoredOverall(),
+                away.scoredAway(), away.concededAway(),
+                away.scoredOverall(),
                 awayExt.seasonScoredAway(), awayExt.seasonScoredPerMatch(),
                 leagueAway
         );
         double homeDefense = defenseStrength(
-                home.concededHome(), home.concededOverall(),
+                home.concededHome(), home.scoredHome(),
+                home.concededOverall(),
                 homeExt.seasonConcededHome(), homeExt.seasonConcededPerMatch(),
                 leagueAway
         );
@@ -151,69 +155,40 @@ public final class PoissonScoreModel {
             }
         }
 
-        List<String> lines = new ArrayList<>();
-        lines.add(String.format(
-                Locale.US,
-                "Модель: λ(%s) = %.2f, λ(%s) = %.2f",
+        List<String> lines = buildHumanExplanation(
                 homeCode,
-                blendedHome,
                 awayCode,
-                blendedAway
-        ));
-        lines.add(String.format(
-                Locale.US,
-                "Силы: атака дома %.2f × оборона гостей %.2f → %.2f; атака гостей %.2f × оборона хозяев %.2f → %.2f",
+                blendedHome,
+                blendedAway,
                 homeAttack,
                 awayDefense,
-                formulaHome,
                 awayAttack,
                 homeDefense,
-                formulaAway
-        ));
-        lines.add(String.format(
-                Locale.US,
-                "Смешивание: статистика %.0f%%, xG %.0f%%, рынок %.0f%%%s",
-                statsWeight / weightSum * 100,
-                xgWeight / weightSum * 100,
-                marketWeight / weightSum * 100,
-                thinSample > 0.4 ? " (мало матчей — усилен рынок/лига)" : ""
-        ));
-        if (homeXgPerMatch != null || awayXgPerMatch != null) {
-            lines.add(String.format(
-                    Locale.US,
-                    "xG/xGA за матч: %s %s / %s, %s %s / %s",
-                    homeCode,
-                    fmt(homeXgPerMatch),
-                    fmt(homeXgaPerMatch),
-                    awayCode,
-                    fmt(awayXgPerMatch),
-                    fmt(awayXgaPerMatch)
-            ));
-        }
-        appendFormLines(lines, homeExt, awayExt);
-        appendSeasonLines(lines, homeExt, awayExt, homeCode, awayCode);
-        appendSoccerStatsLines(lines, homeExt, awayExt, homeCode, awayCode);
-        if (market != null) {
-            lines.add(String.format(
-                    Locale.US,
-                    "Букмекеры: 1=%.0f%% X=%.0f%% 2=%.0f%% → λ рынка %.2f : %.2f (коэф. %.2f / %.2f / %.2f)",
-                    market.homeWin() * 100,
-                    market.draw() * 100,
-                    market.awayWin() * 100,
-                    marketLambdas.home(),
-                    marketLambdas.away(),
-                    oddHome,
-                    oddDraw,
-                    oddAway
-            ));
-        }
-        lines.add(String.format(
-                Locale.US,
-                "Рекомендуемый счёт: %d:%d (%.1f%%)",
+                thinSample,
+                homeXgPerMatch,
+                homeXgaPerMatch,
+                awayXgPerMatch,
+                awayXgaPerMatch,
+                home,
+                away,
+                homeExt,
+                awayExt,
+                market,
+                oddHome,
+                oddDraw,
+                oddAway,
                 bestHome,
                 bestAway,
+                bestProb
+        );
+
+        String summary = String.format(
+                Locale.US,
+                "Ожидаемые голы %.1f : %.1f · шанс счёта %.0f%%",
+                blendedHome,
+                blendedAway,
                 bestProb * 100
-        ));
+        );
 
         return new Result(
                 bestHome,
@@ -222,8 +197,127 @@ public final class PoissonScoreModel {
                 blendedAway,
                 bestProb,
                 lines,
-                bestHome + ":" + bestAway
+                summary
         );
+    }
+
+    static List<String> buildHumanExplanation(
+            String homeCode,
+            String awayCode,
+            double blendedHome,
+            double blendedAway,
+            double homeAttack,
+            double awayDefense,
+            double awayAttack,
+            double homeDefense,
+            double thinSample,
+            Double homeXgPerMatch,
+            Double homeXgaPerMatch,
+            Double awayXgPerMatch,
+            Double awayXgaPerMatch,
+            FootyStatsTeamSnapshot home,
+            FootyStatsTeamSnapshot away,
+            FootyStatsExtendedMetrics homeExt,
+            FootyStatsExtendedMetrics awayExt,
+            MarketOutcome market,
+            Double oddHome,
+            Double oddDraw,
+            Double oddAway,
+            int bestHome,
+            int bestAway,
+            double bestProb
+    ) {
+        List<String> lines = new ArrayList<>();
+        lines.add(String.format(
+                Locale.US,
+                "Ожидаемые голы: %s примерно %.1f, %s примерно %.1f",
+                homeCode,
+                blendedHome,
+                awayCode,
+                blendedAway
+        ));
+        lines.add(String.format(
+                Locale.ROOT,
+                "%s дома: атака %s, оборона %s. %s в гостях: атака %s, оборона %s",
+                homeCode,
+                attackLabel(homeAttack),
+                defenseLabel(homeDefense),
+                awayCode,
+                attackLabel(awayAttack),
+                defenseLabel(awayDefense)
+        ));
+        if (thinSample > 0.4) {
+            lines.add("Мало сыгранных матчей — сильнее учтены коэффициенты букмекеров и средние по лиге");
+        }
+        if (homeXgPerMatch != null || awayXgPerMatch != null) {
+            lines.add(String.format(
+                    Locale.US,
+                    "По xG: %s создают %s и пропускают %s за матч; %s — %s / %s",
+                    homeCode,
+                    fmt(homeXgPerMatch),
+                    fmt(homeXgaPerMatch),
+                    awayCode,
+                    fmt(awayXgPerMatch),
+                    fmt(awayXgaPerMatch)
+            ));
+        }
+        appendFormLines(lines, home, away, homeExt, awayExt);
+        appendSeasonLines(lines, home, away, homeExt, awayExt, homeCode, awayCode);
+        appendSoccerStatsLines(lines, homeExt, awayExt, homeCode, awayCode);
+        if (market != null) {
+            lines.add(String.format(
+                    Locale.US,
+                    "Букмекеры: победа хозяев %.0f%%, ничья %.0f%%, гости %.0f%% (коэф. %.2f / %.2f / %.2f)",
+                    market.homeWin() * 100,
+                    market.draw() * 100,
+                    market.awayWin() * 100,
+                    oddHome,
+                    oddDraw,
+                    oddAway
+            ));
+        }
+        lines.add(String.format(
+                Locale.US,
+                "Самый вероятный счёт — %d:%d (около %.0f%%)",
+                bestHome,
+                bestAway,
+                bestProb * 100
+        ));
+        return lines;
+    }
+
+    /** Relative attack vs league average (~1.0). */
+    static String attackLabel(double strength) {
+        if (strength >= 1.25) {
+            return "сильная";
+        }
+        if (strength >= 1.08) {
+            return "выше средней";
+        }
+        if (strength <= 0.75) {
+            return "слабая";
+        }
+        if (strength <= 0.92) {
+            return "ниже средней";
+        }
+        return "средняя";
+    }
+
+    /** Higher value = more goals conceded relative to league. */
+    static String defenseLabel(double strength) {
+        if (strength >= 1.25) {
+            return "дырявая";
+        }
+        if (strength >= 1.08) {
+            return "мягкая";
+        }
+        if (strength <= 0.75) {
+            return "жёсткая";
+        }
+        if (strength <= 0.92) {
+            return "плотная";
+        }
+        return "средняя";
     }
 
     static MarketOutcome marketOutcome(Double oddHome, Double oddDraw, Double oddAway) {
@@ -260,25 +354,39 @@ public final class PoissonScoreModel {
     }
 
     private static double attackStrength(
-            double venueForm,
+            double venueScored,
+            double venueConceded,
             double overallForm,
             Double seasonVenue,
             Double seasonOverall,
             double leagueAvg
     ) {
-        double observed = firstPositive(venueForm, overallForm, nz(seasonVenue), nz(seasonOverall), leagueAvg);
+        if (!hasVenueSample(venueScored, venueConceded)) {
+            // No home/away matches yet — do not borrow goals from the other venue.
+            return 1.0;
+        }
+        double observed = firstPositive(venueScored, nz(seasonVenue), overallForm, nz(seasonOverall), leagueAvg);
         return shrink(observed, leagueAvg);
     }
 
     private static double defenseStrength(
-            double venueForm,
+            double venueConceded,
+            double venueScored,
             double overallForm,
             Double seasonVenue,
             Double seasonOverall,
             double leagueAvg
     ) {
-        double observed = firstPositive(venueForm, overallForm, nz(seasonVenue), nz(seasonOverall), leagueAvg);
+        if (!hasVenueSample(venueScored, venueConceded)) {
+            return 1.0;
+        }
+        double observed = firstPositive(venueConceded, nz(seasonVenue), overallForm, nz(seasonOverall), leagueAvg);
         return shrink(observed, leagueAvg);
+    }
+
+    /** True when the team has at least one goal event in that venue (played there). */
+    static boolean hasVenueSample(double venueScored, double venueConceded) {
+        return venueScored + venueConceded > 0.01;
     }
 
     /** Strength relative to league; shrink toward 1.0 so one match cannot zero the rate. */
@@ -452,13 +560,11 @@ public final class PoissonScoreModel {
         }
         lines.add(String.format(
                 Locale.US,
-                "SoccerSTATS: first-goal %s %.0f%% (PPG %.2f) / %s %.0f%% (PPG %.2f); lead %.0f%% / %.0f%%",
+                "Часто открывают счёт: %s %.0f%%, %s %.0f%%; ведут в матче %.0f%% / %.0f%%",
                 homeCode,
                 nz(home.ssScoredFirstPct(), home.ssOgsPct()),
-                nz(home.ssScoredFirstPpg()),
                 awayCode,
                 nz(away.ssScoredFirstPct(), away.ssOgsPct()),
-                nz(away.ssScoredFirstPpg()),
                 nz(home.ssLeadPct()),
                 nz(away.ssLeadPct())
         ));
@@ -466,15 +572,13 @@ public final class PoissonScoreModel {
                 || home.ssFavouritePpg() != null) {
             lines.add(String.format(
                     Locale.US,
-                    "SoccerSTATS: equalisers scored/conceded %s %.0f%% / %.0f%%, %s %.0f%% / %.0f%%; fav PPG %.2f / %.2f",
+                    "Отыгрыши: %s забивают/пропускают %.0f%% / %.0f%%, %s — %.0f%% / %.0f%%",
                     homeCode,
                     nz(home.ssEqualiserScoredPct()),
                     nz(home.ssEqualiserConcededPct()),
                     awayCode,
                     nz(away.ssEqualiserScoredPct()),
-                    nz(away.ssEqualiserConcededPct()),
-                    nz(home.ssFavouritePpg()),
-                    nz(away.ssFavouritePpg())
+                    nz(away.ssEqualiserConcededPct())
             ));
         }
     }
@@ -587,38 +691,84 @@ public final class PoissonScoreModel {
         return count == 0 ? null : sum / count;
     }
 
-    private static void appendFormLines(List<String> lines, FootyStatsExtendedMetrics home, FootyStatsExtendedMetrics away) {
-        if (home.formBttsHome() != null || away.formBttsAway() != null) {
-            lines.add(String.format(
-                    Locale.US,
-                    "Форма: BTTS дома %.0f%% / в гостях %.0f%%; CS %.0f%% / %.0f%%",
-                    nz(home.formBttsHome()),
-                    nz(away.formBttsAway()),
-                    nz(home.formCsHome()),
-                    nz(away.formCsAway())
-            ));
+    private static void appendFormLines(
+            List<String> lines,
+            FootyStatsTeamSnapshot home,
+            FootyStatsTeamSnapshot away,
+            FootyStatsExtendedMetrics homeExt,
+            FootyStatsExtendedMetrics awayExt
+    ) {
+        if (homeExt.formBttsHome() == null && awayExt.formBttsAway() == null) {
+            return;
         }
+        String homeBtts = hasVenueSample(home.scoredHome(), home.concededHome())
+                ? String.format(Locale.US, "%.0f%%", nz(homeExt.formBttsHome()))
+                : "нет матчей";
+        String awayBtts = hasVenueSample(away.scoredAway(), away.concededAway())
+                ? String.format(Locale.US, "%.0f%%", nz(awayExt.formBttsAway()))
+                : "нет матчей";
+        String homeCs = hasVenueSample(home.scoredHome(), home.concededHome())
+                ? String.format(Locale.US, "%.0f%%", nz(homeExt.formCsHome()))
+                : "—";
+        String awayCs = hasVenueSample(away.scoredAway(), away.concededAway())
+                ? String.format(Locale.US, "%.0f%%", nz(awayExt.formCsAway()))
+                : "—";
+        lines.add("Форма: оба забьют дома " + homeBtts + ", в гостях — " + awayBtts
+                + "; сухие " + homeCs + " / " + awayCs);
     }
 
     private static void appendSeasonLines(
             List<String> lines,
-            FootyStatsExtendedMetrics home,
-            FootyStatsExtendedMetrics away,
+            FootyStatsTeamSnapshot home,
+            FootyStatsTeamSnapshot away,
+            FootyStatsExtendedMetrics homeExt,
+            FootyStatsExtendedMetrics awayExt,
             String homeCode,
             String awayCode
     ) {
-        if (home.seasonScoredHome() != null || away.seasonScoredAway() != null || home.over25Home() != null) {
-            lines.add(String.format(
-                    Locale.US,
-                    "Сезон голы: %s дом %.2f, %s выезд %.2f; Over2.5 %.0f%% / %.0f%%",
-                    homeCode,
-                    nz(home.seasonScoredHome(), home.seasonScoredPerMatch()),
-                    awayCode,
-                    nz(away.seasonScoredAway(), away.seasonScoredPerMatch()),
-                    nz(home.over25Home()),
-                    nz(away.over25Away())
-            ));
+        if (homeExt.seasonScoredHome() == null && awayExt.seasonScoredAway() == null
+                && homeExt.over25Home() == null
+                && !hasVenueSample(home.scoredHome(), home.concededHome())
+                && !hasVenueSample(away.scoredAway(), away.concededAway())) {
+            return;
         }
+        lines.add(String.format(
+                Locale.ROOT,
+                "Сезон: %s, %s%s",
+                venueScoredPhrase(homeCode, "дома", home.scoredHome(), home.concededHome(), homeExt.seasonScoredHome()),
+                venueScoredPhrase(awayCode, "в гостях", away.scoredAway(), away.concededAway(), awayExt.seasonScoredAway()),
+                over25Phrase(home, away, homeExt, awayExt)
+        ));
+    }
+
+    static String venueScoredPhrase(
+            String code,
+            String place,
+            double formScored,
+            double formConceded,
+            Double seasonVenue
+    ) {
+        if (!hasVenueSample(formScored, formConceded)) {
+            return code + " " + place + " ещё не играли";
+        }
+        double rate = seasonVenue != null ? seasonVenue : formScored;
+        return String.format(Locale.US, "%s %s забивает %.1f", code, place, rate);
+    }
+
+    private static String over25Phrase(
+            FootyStatsTeamSnapshot home,
+            FootyStatsTeamSnapshot away,
+            FootyStatsExtendedMetrics homeExt,
+            FootyStatsExtendedMetrics awayExt
+    ) {
+        boolean homeOk = hasVenueSample(home.scoredHome(), home.concededHome()) && homeExt.over25Home() != null;
+        boolean awayOk = hasVenueSample(away.scoredAway(), away.concededAway()) && awayExt.over25Away() != null;
+        if (!homeOk && !awayOk) {
+            return "";
+        }
+        String homePart = homeOk ? String.format(Locale.US, "%.0f%%", homeExt.over25Home()) : "—";
+        String awayPart = awayOk ? String.format(Locale.US, "%.0f%%", awayExt.over25Away()) : "—";
+        return "; тотал больше 2.5 — " + homePart + " / " + awayPart;
     }
 
     private static double firstPositive(double... values) {

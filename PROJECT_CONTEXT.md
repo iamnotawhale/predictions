@@ -227,7 +227,7 @@
 ## Надёжность и бот
 - `StartupNotifier`: при `ApplicationReady` шлёт в `ADMIN_CHAT_ID` хост, commit/branch, время старта (MSK), profile, port, java/os, pid, webAppUrl. Нужны `chatId` и `git.properties` (maven `git-commit-id` → `generateGitPropertiesFile=true`).
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
-- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); early-exit через `hasPostponedMatches()` (SQL `EXISTS`) + `findOnlineMatches` (окно дат без `pst`); scoreboard — только через `EspnScoreboardClient`; при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч) с автором гола и ассистом (если есть) из ESPN `summary.commentary` (`ApiClient.fetchEspnSummary`, TTL 8с); при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
+- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); early-exit через `hasPostponedMatches()` (SQL `EXISTS`) + `findOnlineMatches` (окно дат без `pst`); scoreboard — только через `EspnScoreboardClient`; при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч) с автором гола и ассистом (если есть) из ESPN `summary.commentary` (`ApiClient.parseGoalCommentary`: имя ассиста без ESPN-нарратива `with…` / `following…`; summary TTL 8с); при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
 - Season-prep (ручной вызов из `start` при подготовке сезона, **не удалять**): `teamsInitFromApiFootball`, `matchInitFromApiFootball`, `headToHeadInitFromApiFootball`; запасной live-path `matchUpdateFromApiFootball`; daily `matchDateTimeStatusUpdate` / `syncMatchTimesFromApi`.
 - `DataInitService.newsInit()` (бот `/news`): TTL-кэш league RSS ~120с.
 - `DataInitService` нормализует live-статус из ESPN scoreboard: halftime определяется по `status.type.detail/shortDetail/description` и сохраняется как `ht` (а не как `45'+...`), завершение — как `ft`.
@@ -299,12 +299,12 @@
 - (relative form `tid=re` пока не парсим — разметка нестабильна)
 
 **Модель:**
-- База: атака×оборона со **shrinkage** к среднему лиги (1 матч не обнуляет λ).
+- База: атака×оборона со **shrinkage** к среднему лиги (1 матч не обнуляет λ); если у команды ещё не было матчей на этом поле (home/away), сила = 1.0 — **не** подставляем голы с другого поля.
 - Смешивание: статистика + xG/xGA (за матч) + **рынок 1X2 → λ** (при тонкой выборке вес рынка растёт).
 - Лёгкий nudge λ от SoccerSTATS (scored-first / lead / favourite PPG), dampen при thin sample.
 - Матрица Пуассона 0–5 с мягкими весами BTTS/CS/FTS/ничьи/Over-Under + SoccerSTATS (first-goal, lead, equalisers).
 - Floor λ ~0.7+, иначе при λ&lt;1 mode всегда 0:0.
-- В explanation: λ, формулы, xG/xGA, форма, сезон, SoccerSTATS, xPts, букмекеры, итоговый %.
+- В explanation: ожидаемые голы, сила атаки/обороны словами, xG, форма, сезон, SoccerSTATS, букмекеры (%), самый вероятный счёт; без сырых λ/формул. Venue без матчей — «ещё не играли», а не overall под видом выезда. Парсер FootyStats сохраняет пустые ячейки Home/Away (раньше сдвиг колонок давал ложный away GF).
 
 **Когда пересчитывается:**
 1. Автоматически в `DataInitService` после завершения всех матчей тура (`weekService.updateCurrent()` → `refreshForWeek` следующего тура).
@@ -337,7 +337,8 @@
 - MiniApp списки: bulk-load прогнозов пользователя (`predictionsByMatchForUser` / weekly map), без N+1 per match.
 - `GET /team/{code}/matches`: last/next 5 через SQL LIMIT (`findLastFinishedByTeamId` / `findNextByTeamId`).
 - H2H: лимит `HeadToHeadService.H2H_LIMIT = 7` (и Telegram, и miniapp).
-- **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с; в poll leaderboard обновляется только при live или смене счёта.
+- **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с; в poll leaderboard обновляется только при live или смене счёта; на главной при live также обновляется таблица АПЛ.
+- Таблица АПЛ (`GET /standings`): места/очки с учётом live-счёта; `placeDelta` относительно finished-only таблицы; у live-команд — `liveScore` + `liveResult` (W/D/L) → стрелка места и цветной score-pill (как в 365Scores).
 - overlay-уведомления о голах; offline-баннер при ошибках сети/API.
 - `Cache-Control: no-store, must-revalidate` для `/miniapp/**` (фикс залипания WebView).
 - header показывает сезон/тур (`profile.weekLabel`); справа — toggle рекомендатора.

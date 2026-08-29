@@ -51,7 +51,9 @@ public class ApiClient {
     private static final long ESPN_SUMMARY_TTL_MS = 8_000L;
 
     private static final Pattern GOAL_SCORER = Pattern.compile("^Goal!\\s*.+?\\.\\s*(.+?)\\s+\\([^)]+\\)");
-    private static final Pattern GOAL_ASSIST = Pattern.compile("Assisted by\\s+(.+?)(?:\\s+with\\s+.+?)?\\.");
+    /** Name only; strip ESPN narrative after "with …" / "following …". */
+    private static final Pattern GOAL_ASSIST =
+            Pattern.compile("Assisted by\\s+(.+?)(?:\\s+(?:with|following)\\b.+?)?\\.");
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
@@ -314,7 +316,7 @@ public class ApiClient {
         }
     }
 
-    private LatestGoalInfo parseGoalCommentary(String text) {
+    LatestGoalInfo parseGoalCommentary(String text) {
         Matcher scorerMatcher = GOAL_SCORER.matcher(text);
         if (!scorerMatcher.find()) {
             return null;

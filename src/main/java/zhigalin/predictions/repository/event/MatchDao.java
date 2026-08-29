@@ -414,6 +414,15 @@ public class MatchDao {
     }
 
     public List<Standing> getStandings() {
+        return queryStandings("m.status NOT IN ('ns', 'pst')");
+    }
+
+    /** Standings from finished matches only — baseline for live position deltas. */
+    public List<Standing> getStandingsFinishedOnly() {
+        return queryStandings("m.status IN ('ft', 'aet', 'pen', 'awrd', 'wo')");
+    }
+
+    private List<Standing> queryStandings(String matchStatusFilter) {
         try {
             String sql = """
                     WITH MatchResults AS (
@@ -423,7 +432,7 @@ public class MatchDao {
                             m.home_team_score AS team_score,
                             m.away_team_score AS opponent_score
                         FROM match m
-                        WHERE m.status NOT IN ('ns', 'pst')
+                        WHERE %s
                         UNION ALL
                         SELECT
                             m.away_team_id AS team_id,
@@ -431,7 +440,7 @@ public class MatchDao {
                             m.away_team_score AS team_score,
                             m.home_team_score AS opponent_score
                         FROM match m
-                        WHERE m.status NOT IN ('ns', 'pst')
+                        WHERE %s
                     )
                     SELECT
                         team_id,
@@ -452,7 +461,7 @@ public class MatchDao {
                     FROM (SELECT DISTINCT home_team_id AS team_id FROM match UNION SELECT DISTINCT away_team_id AS team_id FROM match) AS all_teams
                     WHERE team_id NOT IN (SELECT DISTINCT team_id FROM MatchResults)
                     ORDER BY points DESC, gd DESC, gf DESC, team_id
-                    """;
+                    """.formatted(matchStatusFilter, matchStatusFilter);
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new StandingMapper()));
         } catch (Exception e) {
             panicSender.sendPanic("Error get standings", e);
