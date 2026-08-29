@@ -1,9 +1,9 @@
 {
   "meta": {
-    "version": 3,
+    "version": 4,
     "locale": "ru",
     "source": "ESPN summary commentary (EPL)",
-    "updatedAt": "2026-08-23"
+    "updatedAt": "2026-08-29"
   },
   "eventTypeLabels": {
     "goal": "ГОЛ",
@@ -26,12 +26,15 @@
     "halftime": "ПЕРЕРЫВ",
     "kickoff": "НАЧАЛО",
     "start-2nd-half": "2-Й ТАЙМ",
+    "penalty": "ПЕНАЛЬТИ",
+    "var": "VAR",
     "comment": "СОБЫТИЕ"
   },
   "exactMatches": [
     { "en": "First Half begins.", "ru": "Начался первый тайм." },
     { "en": "Delay over. They are ready to continue.", "ru": "Пауза завершена. Игра продолжается." },
-    { "en": "Lineups are announced and players are warming up.", "ru": "Составы объявлены, команды разминаются." }
+    { "en": "Lineups are announced and players are warming up.", "ru": "Составы объявлены, команды разминаются." },
+    { "en": "Goal awarded following VAR Review.", "ru": "Гол засчитан после проверки VAR." }
   ],
   "phraseTemplates": [
     {
@@ -50,6 +53,11 @@
       "ruTemplate": "Перерыв. {homeTeam} {homeScore}:{awayTeam} {awayScore}."
     },
     {
+      "id": "fulltime",
+      "enPattern": "Second Half ends, {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
+      "ruTemplate": "Матч завершён. {homeTeam} {homeScore}:{awayTeam} {awayScore}."
+    },
+    {
       "id": "woodwork_right",
       "enPattern": "{player} ({team}) hits the right post with {tail}",
       "ruTemplate": "{player} ({team}) попадает в правую штангу. {tailRu}",
@@ -59,6 +67,12 @@
       "id": "woodwork_left",
       "enPattern": "{player} ({team}) hits the left post with {tail}",
       "ruTemplate": "{player} ({team}) попадает в левую штангу. {tailRu}",
+      "narrativeFrom": "tail"
+    },
+    {
+      "id": "woodwork_bar",
+      "enPattern": "{player} ({team}) hits the bar with {tail}",
+      "ruTemplate": "{player} ({team}) попадает в перекладину. {tailRu}",
       "narrativeFrom": "tail"
     },
     {
@@ -132,9 +146,39 @@
       "ruTemplate": "Пауза в матче из-за травмы: {player} ({team})."
     },
     {
+      "id": "delay_team",
+      "enPattern": "Delay in match ({team}).",
+      "ruTemplate": "Пауза в матче ({team})."
+    },
+    {
       "id": "own_goal",
       "enPattern": "Own Goal by {player}, {team}. {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
       "ruTemplate": "Автогол: {player} ({team}). {homeTeam} {homeScore}:{awayTeam} {awayScore}."
+    },
+    {
+      "id": "penalty_drawn",
+      "enPattern": "Penalty {team}. {player} draws a foul in the penalty area.",
+      "ruTemplate": "Пенальти в пользу {team}. {player} заработал фол в штрафной."
+    },
+    {
+      "id": "penalty_conceded",
+      "enPattern": "Penalty conceded by {player} ({team}) after a foul in the penalty area.",
+      "ruTemplate": "Пенальти: фол в штрафной — {player} ({team})."
+    },
+    {
+      "id": "var_goal_awarded",
+      "enPattern": "VAR Decision: Goal {homeTeam} {homeScore}-{awayScore} {awayTeam} ({player}).",
+      "ruTemplate": "VAR: гол засчитан — {homeTeam} {homeScore}:{awayScore} {awayTeam} ({player})."
+    },
+    {
+      "id": "var_no_goal",
+      "enPattern": "VAR Decision: No Goal {homeTeam} {homeScore}-{awayScore} {awayTeam}.",
+      "ruTemplate": "VAR: гол не засчитан — {homeTeam} {homeScore}:{awayScore} {awayTeam}."
+    },
+    {
+      "id": "var_goal_overturned",
+      "enPattern": "GOAL OVERTURNED BY VAR: {player} ({team}) scores but the goal is ruled out after a VAR review.",
+      "ruTemplate": "VAR: гол отменён — {player} ({team}) забил, но гол не засчитан после проверки."
     },
     {
       "id": "var_card_upgraded",
@@ -179,6 +223,7 @@
     },
     { "en": "with a cross following a set piece situation", "ru": "навес после стандарта" },
     { "en": "with a cross following a corner", "ru": "навес после углового" },
+    { "en": "with a headed pass following a corner", "ru": "скидка головой после углового" },
     { "en": "misses to the right following a set piece situation", "ru": "мимо справа после стандарта" },
     { "en": "misses to the left following a set piece situation", "ru": "мимо слева после стандарта" },
     { "en": "is saved in the top centre of the goal by", "ru": "парирует в верхнем центре ворот:" },
@@ -196,18 +241,27 @@
     { "en": "is close, but misses to the right", "ru": "близко, но мимо справа" },
     { "en": "is close, but misses the top left corner", "ru": "близко, но мимо левого верхнего угла" },
     { "en": "is close, but misses the top right corner", "ru": "близко, но мимо правого верхнего угла" },
-    { "en": "is just a bit too high", "ru": "чуть выше ворот" },
-    { "en": "is high and wide to the right", "ru": "выше и правее ворот" },
-    { "en": "is high and wide to the left", "ru": "выше и левее ворот" },
-    { "en": "following a fast break", "ru": "после быстрого контратаки" },
+    { "en": "converts the penalty with a", "ru": "реализует пенальти —" },
+    { "en": "converts the penalty", "ru": "реализует пенальти" },
+    { "en": "to the high centre of the goal", "ru": "в верхний центр ворот" },
+    { "en": "with an attempt from the centre of the box", "ru": "ударом из центра штрафной" },
+    { "en": "with an attempt from the left side of the box", "ru": "ударом с левого края штрафной" },
+    { "en": "with an attempt from the right side of the box", "ru": "ударом с правого края штрафной" },
+    { "en": "with an attempt from", "ru": "ударом с" },
+    { "en": "with an attempt", "ru": "ударом" },
+    { "en": "a right footed shot", "ru": "удар правой ногой" },
+    { "en": "a left footed shot", "ru": "удар левой ногой" },
+    { "en": "with a right footed shot", "ru": "ударом правой ногой" },
+    { "en": "with a left footed shot", "ru": "ударом левой ногой" },
+    { "en": "from a direct free kick", "ru": "с прямого штрафного" },
+    { "en": "Goal awarded following VAR Review.", "ru": "Гол засчитан после проверки VAR." },
+    { "en": "Goal awarded following VAR Review", "ru": "Гол засчитан после проверки VAR" },
+    { "en": "following a fast break", "ru": "после быстрой контратаки" },
     { "en": "following a set piece situation", "ru": "после стандарта" },
+    { "en": "following a corner", "ru": "после углового" },
     { "en": "from the six yard box", "ru": "из вратарской" },
     { "en": "from outside the box", "ru": "из-за пределов штрафной" },
     { "en": "from very close range", "ru": "с очень близкой дистанции" },
-    { "en": "with a right footed shot", "ru": "ударом правой ногой" },
-    { "en": "with a left footed shot", "ru": "ударом левой ногой" },
-    { "en": "a right footed shot", "ru": "удар правой ногой" },
-    { "en": "a left footed shot", "ru": "удар левой ногой" },
     { "en": "with a header", "ru": "ударом головой" },
     { "en": "to the top left corner", "ru": "в верхний левый угол" },
     { "en": "to the top right corner", "ru": "в верхний правый угол" },
@@ -219,6 +273,9 @@
     { "en": "right footed shot", "ru": "удар правой ногой" },
     { "en": "left footed shot", "ru": "удар левой ногой" },
     { "en": "header from", "ru": "удар головой с" },
+    { "en": "is just a bit too high", "ru": "чуть выше ворот" },
+    { "en": "is high and wide to the right", "ru": "выше и правее ворот" },
+    { "en": "is high and wide to the left", "ru": "выше и левее ворот" },
     { "en": "is too high", "ru": "выше ворот" },
     { "en": "misses to the right", "ru": "мимо справа" },
     { "en": "misses to the left", "ru": "мимо слева" },
@@ -235,6 +292,18 @@
     {
       "pattern": "\\.\\s*Assisted by (.+?) with a cross following a corner\\.\\s*$",
       "replacement": ". Ассист: $1 (навес после углового)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a headed pass following a corner\\.\\s*$",
+      "replacement": ". Ассист: $1 (скидка головой после углового)."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a through ball\\.Goal awarded following VAR Review\\.?\\s*$",
+      "replacement": ". Ассист: $1 (проникающая передача). Гол засчитан после проверки VAR."
+    },
+    {
+      "pattern": "\\.\\s*Assisted by (.+?) with a through ball following a fast break\\.\\s*$",
+      "replacement": ". Ассист: $1 (проникающая передача после быстрой контратаки)."
     },
     {
       "pattern": "\\.\\s*Assisted by (.+?) with a through ball\\.\\s*$",
@@ -258,7 +327,11 @@
     },
     {
       "pattern": "\\.\\s*Assisted by (.+?) following a fast break\\.\\s*$",
-      "replacement": ". Ассист: $1 (после быстрого контратаки)."
+      "replacement": ". Ассист: $1 (после быстрой контратаки)."
+    },
+    {
+      "pattern": "\\.Goal awarded following VAR Review\\.?\\s*$",
+      "replacement": ". Гол засчитан после проверки VAR."
     },
     {
       "pattern": "\\.\\s*Assisted by (.+?)\\.\\s*$",
@@ -268,6 +341,7 @@
   "notes": [
     "Имена игроков и команд не переводятся.",
     "Miniapp загружает этот файл и применяет шаблоны через js/live-event-ru.js.",
-    "phraseReplacements сортируются по длине en (длинные первыми) при загрузке."
+    "phraseReplacements сортируются по длине en (длинные первыми) при загрузке.",
+    "Обновлено 2026-08-29 по live Liverpool–Nottm Forest и недавним матчам тура (пенальти, VAR, перекладина, following a corner)."
   ]
 }
