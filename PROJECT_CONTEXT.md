@@ -332,6 +332,8 @@
 
 **Файлы:** `static/miniapp/js/app.js`, `index.html`, `css/app.css`.
 
+**Визуальный стиль:** architect-вайб (сетка/aurora, Manrope + Unbounded) с фиолетовым акцентом АПЛ (`#9d7bf0`). Светлая/тёмная палитра следует `Telegram.WebApp.colorScheme` (событие `themeChanged`); без ручного переключателя. Chrome Telegram синхронизируется с текущей схемой.
+
 ### Общее поведение
 - Списки матчей (тур/сегодня/мои/клавиатуры бота): порядок kickoff → `publicId` (без приоритета live/predicted).
 - «Сегодня»: текущий счёт / время старта, таймер до `kickoff+5м`.
