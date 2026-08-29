@@ -94,7 +94,8 @@ html, body {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
-    transform: scaleX(-1);
+    /* scaleX(-1) зеркалит стрелки в по-часовой; rotate снаружи — иначе спин визуально идёт против часовой */
+    transform: rotate(0deg) scaleX(-1);
     transform-origin: 50% 50%;
 }
 
@@ -103,8 +104,8 @@ html, body {
 }
 
 @keyframes recommender-spin {
-    from { transform: scaleX(-1) rotate(0deg); }
-    to { transform: scaleX(-1) rotate(360deg); }
+    from { transform: rotate(0deg) scaleX(-1); }
+    to { transform: rotate(360deg) scaleX(-1); }
 }
 
 .recommender-toggle-label {
