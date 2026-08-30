@@ -275,7 +275,7 @@
 **Назначение:** опциональный per-user помощник — рекомендуемый счёт 0–5 с математическим объяснением в модалке прогноза.
 
 **Пакет `zhigalin.predictions.recommender`:**
-- `FootyStatsScraperService` — scrape публичных страниц Premier League на footystats.org (пауза ~1.2с между запросами).
+- `FootyStatsScraperService` — scrape публичных страниц Premier League на footystats.org (пауза ~1.8с между запросами; retry 403/429/502/503 с backoff, fallback Jsoup).
 - `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с).
 - `FootyStatsTableParser` / `FootyStatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц + маппинг имён → коды команд.
 - `FootyStatsStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
