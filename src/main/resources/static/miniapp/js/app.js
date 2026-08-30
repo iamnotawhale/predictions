@@ -1490,9 +1490,10 @@
         '4-3-3': [[11, 9, 7], [8, 10, 4], [3, 6, 5, 2], [1]],
         '4-4-2': [[11, 9], [8, 10, 6, 7], [3, 5, 4, 2], [1]],
         '4-1-4-1': [[9], [11, 8, 10, 7], [4], [3, 6, 5, 2], [1]],
-        '3-5-2': [[11, 9], [8, 10, 6], [3, 5, 4], [1]],
-        '3-4-3': [[11, 9, 7], [8, 10], [3, 5, 4], [1]],
-        '3-4-2-1': [[9], [11, 7], [8, 10], [3, 5, 4], [1]],
+        '3-5-2': [[11, 9], [8, 10, 6], [2, 7, 3], [4, 5, 6], [1]],
+        '3-4-3': [[11, 9, 7], [8, 10], [2, 3], [4, 5, 6], [1]],
+        // ESPN 3-4-2-1: wide mids 2/3, CBs 4/5/6, AMs 10/11, striker 9 (not 3/5/4 + 11/7)
+        '3-4-2-1': [[9], [10, 11], [2, 7, 8, 3], [4, 5, 6], [1]],
         '5-3-2': [[11, 9], [8, 10, 6], [3, 5, 4, 2, 7], [1]],
         '5-4-1': [[9], [11, 8, 10, 7], [3, 5, 4, 2, 6], [1]],
         '4-5-1': [[9], [11, 8, 10, 6, 7], [3, 5, 4, 2], [1]],
@@ -1524,13 +1525,18 @@
             .filter((row) => row.length);
     }
 
+    function countFormationSlots(rows) {
+        return (rows || []).reduce((n, row) => n + row.length, 0);
+    }
+
     function buildFormationRows(formation) {
         if (!formation || !formation.starters || !formation.starters.length) return [];
         const byPlace = formationPlaceSlots(formation);
         if (!byPlace.size) return [];
         const key = inferFormationKey(formation);
         const rows = rowsFromPlaceMap(byPlace, FORMATION_PLACE_ROWS[key]);
-        if (rows.length) return rows;
+        const starterCount = formation.starters.length;
+        if (rows.length && countFormationSlots(rows) >= starterCount) return rows;
         return fallbackFormationRows(formation, byPlace);
     }
 
