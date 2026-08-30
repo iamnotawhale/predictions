@@ -1,5 +1,6 @@
 package zhigalin.predictions.recommender;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kong.unirest.HttpResponse;
@@ -26,7 +28,10 @@ public class FootyStatsScraperService {
     private static final Logger log = LoggerFactory.getLogger("server");
     private static final String BASE = "https://footystats.org/england/premier-league";
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-    private static final long FETCH_PAUSE_MS = 1_200L;
+    private static final long FETCH_PAUSE_MS = 1_800L;
+    private static final int MAX_FETCH_ATTEMPTS = 4;
+    private static final Set<Integer> RETRY_HTTP_STATUSES = Set.of(403, 429, 502, 503);
+    private static final int MIN_FORM_TABLE_TEAMS = 15;
 
     private static final Pattern TEAM_NAME_PATTERN = Pattern.compile("<a href='/clubs/[^']+'>([^<]+?)<div");
     private static final Pattern SCORED_PATTERN = Pattern.compile(
@@ -51,6 +56,11 @@ public class FootyStatsScraperService {
     public ParsedSnapshot fetchSnapshot() {
         Instant fetchedAt = Instant.now();
         Map<String, FootyStatsTeamSnapshot> teams = parseFormTable(fetchHtml(BASE + "/form-table"), fetchedAt);
+        if (teams.size() < MIN_FORM_TABLE_TEAMS) {
+            throw new IllegalStateException(
+                    "FootyStats form-table parsed only " + teams.size() + " teams (expected >= " + MIN_FORM_TABLE_TEAMS + ")"
+            );
+        }
         mergeTable(teams, fetchDocument(BASE + "/xg"), this::mergeXg);
         mergeTable(teams, fetchDocument(BASE + "/xpts"), this::mergeXpts);
         mergeTable(teams, fetchDocument(BASE + "/home-advantage-table"), this::mergeHomeAdvantage);
@@ -90,16 +100,85 @@ public class FootyStatsScraperService {
     }
 
     private String fetchHtml(String url) {
+        IllegalStateException lastError = null;
+        for (int attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt++) {
+            try {
+                String body = fetchHtmlOnce(url);
+                pause();
+                return body;
+            } catch (IllegalStateException e) {
+                lastError = e;
+                Integer status = httpStatusFromMessage(e.getMessage());
+                if (status == null || !RETRY_HTTP_STATUSES.contains(status) || attempt == MAX_FETCH_ATTEMPTS) {
+                    break;
+                }
+                log.warn("FootyStats {} blocked (HTTP {}), retry {}/{}", url, status, attempt, MAX_FETCH_ATTEMPTS);
+                retryPause(attempt);
+            }
+        }
+        try {
+            String body = fetchHtmlJsoup(url);
+            pause();
+            log.info("FootyStats Jsoup fallback succeeded for {}", url);
+            return body;
+        } catch (IOException e) {
+            log.warn("FootyStats Jsoup fallback failed for {}: {}", url, e.getMessage());
+        }
+        throw lastError != null
+                ? lastError
+                : new IllegalStateException("FootyStats request failed for " + url);
+    }
+
+    private String fetchHtmlOnce(String url) {
         HttpResponse<String> response = Unirest.get(url)
                 .header("User-Agent", USER_AGENT)
                 .connectTimeout(12_000)
                 .socketTimeout(25_000)
                 .asString();
-        if (!response.isSuccess() || response.getBody() == null || response.getBody().isBlank()) {
-            throw new IllegalStateException("FootyStats request failed for " + url + ": " + response.getStatus());
+        int status = response.getStatus();
+        String body = response.getBody();
+        if (!response.isSuccess() || body == null || body.isBlank()) {
+            throw new IllegalStateException("FootyStats request failed for " + url + ": " + status);
         }
-        pause();
-        return response.getBody();
+        return body;
+    }
+
+    private String fetchHtmlJsoup(String url) throws IOException {
+        return Jsoup.connect(url)
+                .userAgent(USER_AGENT)
+                .timeout(25_000)
+                .ignoreContentType(true)
+                .followRedirects(true)
+                .execute()
+                .body();
+    }
+
+    static boolean shouldRetryHttpStatus(int status) {
+        return RETRY_HTTP_STATUSES.contains(status);
+    }
+
+    static Integer httpStatusFromMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return null;
+        }
+        int colon = message.lastIndexOf(':');
+        if (colon < 0 || colon >= message.length() - 1) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(message.substring(colon + 1).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private void retryPause(int attempt) {
+        long backoffMs = FETCH_PAUSE_MS * (1L << Math.min(attempt, 3));
+        try {
+            Thread.sleep(backoffMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private Document fetchDocument(String url) {
