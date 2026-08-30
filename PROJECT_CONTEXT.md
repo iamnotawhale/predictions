@@ -127,7 +127,7 @@
 - Публичный URL Mini App и SSH/доступ — только в локальных env / SSH config оператора, не в репозитории.
 - Typical units на primary: `predicts`, `caddy`, `predictions-net-refresh.timer` (DynDNS + UPnP), `predictions-backup.timer` (cold-standby на VPS), опционально `disable-wifi`.
 - Сертификат primary: Let's Encrypt через DNS-01 (acme.sh + DuckDNS); файлы сертификатов на сервере вне git.
-- С домашней Wi‑Fi сети нужен split-DNS / hairpin на роутере (локальная A-запись публичного hostname → LAN IP сервера), иначе Mini App с телефона в той же Wi‑Fi может не открыться.
+- С домашней Wi‑Fi нужен **split-DNS на Keenetic** (`ip host predicts.duckdns.org 192.168.1.38` + `system configuration save`). Keenetic не делает hairpin на проброшенный 443 из LAN — без локальной A-записи miniapp с Wi‑Fi не откроется, хотя с LTE порт 443 с WAN доступен. Инструкция: `deploy/keenetic-split-dns.md`, проверка: `./deploy/check-miniapp-dns.sh`. Для `onchess.online` запись уже обычно есть — добавьте такую же для `predicts.duckdns.org`.
 - `application.yml` / `application-prod.yml` упаковываются в jar (Maven resources из корня репо) — на сервере рядом с jar дублировать не обязательно, но не мешает.
 - Ветка продакшен-кода: **`master`** (бывший `v2-lite` влит и удалён).
 
@@ -212,6 +212,8 @@
 | `failover-to-vps.sh` | Аварийный старт прода на VPS |
 | `failback-to-odyssey.sh` | Возврат прода на primary |
 | `backup.env.example` / `orchestrator.env.example` | Шаблоны конфигов (реальные `*.env` в gitignore) |
+| `keenetic-split-dns.md` | Split-DNS на Keenetic для miniapp из домашней Wi‑Fi |
+| `check-miniapp-dns.sh` | Проверка DNS + HTTP miniapp с клиента |
 
 ### Скрипты (`scripts/`)
 | Скрипт | Назначение |
