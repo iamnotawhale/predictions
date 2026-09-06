@@ -28,9 +28,10 @@ import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
+import zhigalin.predictions.recommender.BettingRecommendationService;
 import zhigalin.predictions.repository.notification.NotificationDedupDao;
 import zhigalin.predictions.service.api.ApiClient;
-import zhigalin.predictions.service.api.ApiClient.LatestGoalInfo;
+import zhigalin.predictions.service.api.ApiClient.GoalScorer;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
@@ -51,6 +52,7 @@ public class NotificationService {
     private final ApiClient api;
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
+    private final BettingRecommendationService bettingRecommendationService;
 
     private static final int[] REMINDER_MINUTES_BEFORE = {60, 40, 20};
 
@@ -65,7 +67,8 @@ public class NotificationService {
                                ApiClient api,
                                PanicSender panicSender,
                                ObjectMapper objectMapper,
-                               NotificationDedupDao notificationDedupDao) {
+                               NotificationDedupDao notificationDedupDao,
+                               BettingRecommendationService bettingRecommendationService) {
         this.matchService = matchService;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
@@ -74,6 +77,7 @@ public class NotificationService {
         this.panicSender = panicSender;
         this.objectMapper = objectMapper;
         this.notificationDedupDao = notificationDedupDao;
+        this.bettingRecommendationService = bettingRecommendationService;
     }
 
     public boolean sendTodayMatchNotification() {
@@ -116,6 +120,10 @@ public class NotificationService {
         Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
 
         predictionService.updateByMatch(match);
+        bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
+        String aiKickoffScore = bettingRecommendationService.kickoffScore(match.getPublicId())
+                .map(score -> score[0] + ":" + score[1])
+                .orElse(null);
 
         String center = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
         List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
@@ -136,7 +144,8 @@ public class NotificationService {
                 match.getAwayTeamId(),
                 center,
                 NotificationImageMode.RESULT,
-                results
+                results,
+                aiKickoffScore
         );
 
         if (path != null) {
@@ -208,13 +217,17 @@ public class NotificationService {
                 .append(" → ")
                 .append(next);
 
-        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
-            LatestGoalInfo goal = api.findLatestGoalInfo(match.getEspnId());
-            if (goal != null && goal.scorer() != null && !goal.scorer().isBlank()) {
-                text.append("\nГол: ").append(goal.scorer());
-                if (goal.assist() != null && !goal.assist().isBlank()) {
-                    text.append("\nАссист: ").append(goal.assist());
-                }
+        int expectedTotal = (match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore())
+                + (match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore());
+        if (expectedTotal > 0 && match.getEspnId() != null && !match.getEspnId().isBlank()) {
+            List<GoalScorer> scorers = api.listGoalScorers(match.getEspnId(), expectedTotal);
+            if (!scorers.isEmpty()) {
+                text.append("\nГолы: ");
+                text.append(scorers.stream()
+                        .map(s -> s.minute() == null || s.minute().isBlank()
+                                ? s.scorer()
+                                : s.scorer() + " " + s.minute())
+                        .collect(Collectors.joining(", ")));
             }
         }
         return text.toString();

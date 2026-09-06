@@ -275,45 +275,86 @@ public class ApiClient {
     }
 
     public LatestGoalInfo findLatestGoalInfo(String espnEventId) {
-        if (espnEventId == null || espnEventId.isBlank()) {
+        List<GoalScorer> scorers = listGoalScorers(espnEventId, Integer.MAX_VALUE);
+        if (scorers.isEmpty()) {
             return null;
+        }
+        GoalScorer last = scorers.getLast();
+        return new LatestGoalInfo(last.scorer(), null);
+    }
+
+    /**
+     * Standing goal scorers from ESPN commentary (no assists).
+     * If commentary has more Goal! lines than {@code expectedTotal} (VAR overturn),
+     * keeps the earliest {@code expectedTotal} goals.
+     */
+    public List<GoalScorer> listGoalScorers(String espnEventId, int expectedTotal) {
+        if (espnEventId == null || espnEventId.isBlank() || expectedTotal <= 0) {
+            return List.of();
         }
         try {
             JsonNode root = fetchEspnSummary(espnEventId);
             if (root == null) {
-                return null;
+                return List.of();
             }
-            JsonNode commentary = root.path("commentary");
-            if (!commentary.isArray() || commentary.isEmpty()) {
-                return null;
-            }
-            List<GoalCommentaryEntry> goals = new ArrayList<>();
-            for (int i = 0; i < commentary.size(); i++) {
-                JsonNode item = commentary.get(i);
-                String text = item.path("text").asText("").trim();
-                if (!text.startsWith("Goal!")) {
-                    continue;
-                }
-                LatestGoalInfo parsed = parseGoalCommentary(text);
-                if (parsed == null || parsed.scorer() == null || parsed.scorer().isBlank()) {
-                    continue;
-                }
-                double timeValue = item.path("time").path("value").asDouble(-1d);
-                long sequence = item.path("sequence").asLong(i);
-                goals.add(new GoalCommentaryEntry(timeValue, sequence, parsed));
-            }
-            if (goals.isEmpty()) {
-                return null;
-            }
-            goals.sort(Comparator
-                    .comparingDouble(GoalCommentaryEntry::timeValue)
-                    .thenComparingLong(GoalCommentaryEntry::sequence)
-                    .reversed());
-            return goals.getFirst().info();
+            return extractGoalScorers(root, expectedTotal);
         } catch (Exception e) {
-            log.warn("ESPN latest goal lookup failed: espnEventId={}, error={}", espnEventId, e.getMessage());
+            log.warn("ESPN goal scorers lookup failed: espnEventId={}, error={}", espnEventId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    List<GoalScorer> extractGoalScorers(JsonNode root, int expectedTotal) {
+        JsonNode commentary = root.path("commentary");
+        if (!commentary.isArray() || commentary.isEmpty() || expectedTotal <= 0) {
+            return List.of();
+        }
+        List<GoalCommentaryEntry> goals = new ArrayList<>();
+        for (int i = 0; i < commentary.size(); i++) {
+            JsonNode item = commentary.get(i);
+            String text = item.path("text").asText("").trim();
+            if (!text.startsWith("Goal!")) {
+                continue;
+            }
+            LatestGoalInfo parsed = parseGoalCommentary(text);
+            if (parsed == null || parsed.scorer() == null || parsed.scorer().isBlank()) {
+                continue;
+            }
+            double timeValue = item.path("time").path("value").asDouble(-1d);
+            long sequence = item.path("sequence").asLong(i);
+            String minute = formatGoalMinute(item.path("time"));
+            goals.add(new GoalCommentaryEntry(timeValue, sequence, parsed, minute));
+        }
+        if (goals.isEmpty()) {
+            return List.of();
+        }
+        goals.sort(Comparator
+                .comparingDouble(GoalCommentaryEntry::timeValue)
+                .thenComparingLong(GoalCommentaryEntry::sequence));
+        int limit = Math.min(expectedTotal, goals.size());
+        List<GoalScorer> result = new ArrayList<>(limit);
+        for (int i = 0; i < limit; i++) {
+            GoalCommentaryEntry entry = goals.get(i);
+            result.add(new GoalScorer(entry.info().scorer(), entry.minute()));
+        }
+        return result;
+    }
+
+    private static String formatGoalMinute(JsonNode timeNode) {
+        if (timeNode == null || timeNode.isMissingNode()) {
             return null;
         }
+        String display = timeNode.path("displayValue").asText("").trim();
+        if (!display.isBlank()) {
+            return display.endsWith("'") ? display : display + "'";
+        }
+        if (timeNode.has("value") && !timeNode.path("value").isNull()) {
+            int value = timeNode.path("value").asInt(-1);
+            if (value >= 0) {
+                return value + "'";
+            }
+        }
+        return null;
     }
 
     LatestGoalInfo parseGoalCommentary(String text) {
@@ -333,9 +374,12 @@ public class ApiClient {
     private record CachedEspnSummary(JsonNode root, long fetchedAtMs) {
     }
 
-    private record GoalCommentaryEntry(double timeValue, long sequence, LatestGoalInfo info) {
+    private record GoalCommentaryEntry(double timeValue, long sequence, LatestGoalInfo info, String minute) {
     }
 
     public record LatestGoalInfo(String scorer, String assist) {
+    }
+
+    public record GoalScorer(String scorer, String minute) {
     }
 }

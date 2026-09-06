@@ -1208,10 +1208,13 @@
                     ? ((item.predictHome ?? '-') + ':' + (item.predictAway ?? '-'))
                     : '—';
                 const pts = item.points == null ? '—' : String(item.points);
+                const ai = (item.recommendedHome != null && item.recommendedAway != null)
+                    ? (' · AI ' + item.recommendedHome + ':' + item.recommendedAway)
+                    : '';
                 li.innerHTML =
                     '<div class="list-item-main">' +
                     '<div class="list-item-title">' + item.homeCode + ' — ' + item.awayCode + '</div>' +
-                    '<div class="list-item-sub">факт ' + actual + ' · прогноз ' + pred + '</div>' +
+                    '<div class="list-item-sub">факт ' + actual + ' · прогноз ' + pred + ai + '</div>' +
                     '</div>' +
                     '<span class="pts">' + pts + '</span>';
                 list.appendChild(li);

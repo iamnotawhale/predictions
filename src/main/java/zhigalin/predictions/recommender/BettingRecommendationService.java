@@ -99,7 +99,8 @@ public class BettingRecommendationService {
             }
             statsDao.replaceTeamStats(weekId, teams);
             statsDao.saveLeagueSnapshot(snapshot.leagueForWeek(weekId));
-            statsDao.deleteRecommendationsForWeek(weekId);
+            statsDao.deleteUnfrozenRecommendationsForWeek(weekId);
+            java.util.Set<Integer> frozenIds = statsDao.findFrozenMatchPublicIds(weekId);
 
             List<Match> matches = matchService.findAllByWeekId(weekId);
             oddsService.ensureFresh(matches);
@@ -112,13 +113,22 @@ public class BettingRecommendationService {
                     .collect(Collectors.toMap(FootyStatsTeamSnapshot::teamCode, Function.identity(), (a, b) -> a));
             List<MatchRecommendationSnapshot> toStore = new ArrayList<>();
             for (Match match : matches) {
+                if (frozenIds.contains(match.getPublicId())) {
+                    continue;
+                }
                 Optional<MatchRecommendationSnapshot> recommendation =
                         computeAndStore(match, weekId, league.get(), statsByCode);
                 recommendation.ifPresent(toStore::add);
             }
             statsDao.saveRecommendations(toStore);
-            log.info("Betting recommender refreshed for week {} ({} / {} matches)", weekId, toStore.size(), matches.size());
-            return toStore.size();
+            log.info(
+                    "Betting recommender refreshed for week {} ({} recomputed, {} frozen / {} matches)",
+                    weekId,
+                    toStore.size(),
+                    frozenIds.size(),
+                    matches.size()
+            );
+            return toStore.size() + frozenIds.size();
         } catch (Exception e) {
             log.warn("Betting recommender refresh failed for week {}: {}", weekId, e.getMessage());
             throw new IllegalStateException("Не удалось обновить рекомендации для тура " + weekId + ": " + e.getMessage(), e);
@@ -141,6 +151,29 @@ public class BettingRecommendationService {
 
     public Optional<MatchRecommendationSnapshot> recommendationForMatch(int matchPublicId) {
         return statsDao.findRecommendation(matchPublicId);
+    }
+
+    /** Freeze live recommendation into kickoff_* once (no-op if already frozen or missing). */
+    public boolean freezeAtKickoffIfNeeded(int matchPublicId) {
+        try {
+            boolean frozen = statsDao.freezeAtKickoff(matchPublicId);
+            if (frozen) {
+                log.info("Betting recommender kickoff freeze for match {}", matchPublicId);
+            }
+            return frozen;
+        } catch (Exception e) {
+            log.warn("Betting recommender kickoff freeze failed for match {}: {}", matchPublicId, e.getMessage());
+            return false;
+        }
+    }
+
+    public Map<Integer, int[]> kickoffScoresByMatchIds(java.util.Collection<Integer> matchPublicIds) {
+        return statsDao.findKickoffScoresByMatchIds(matchPublicIds);
+    }
+
+    public Optional<int[]> kickoffScore(int matchPublicId) {
+        Map<Integer, int[]> map = statsDao.findKickoffScoresByMatchIds(List.of(matchPublicId));
+        return Optional.ofNullable(map.get(matchPublicId));
     }
 
     private Optional<MatchRecommendationSnapshot> computeAndStore(

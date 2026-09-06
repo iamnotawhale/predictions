@@ -197,7 +197,19 @@ public class ImageRenderer {
                               String centerInfo,
                               NotificationImageMode mode,
                               List<Result> results) {
-        return withRenderGate(() -> createImageUnlocked(matchPublicId, homeTeamId, awayTeamId, centerInfo, mode, results));
+        return createImage(matchPublicId, homeTeamId, awayTeamId, centerInfo, mode, results, null);
+    }
+
+    public String createImage(Integer matchPublicId,
+                              Integer homeTeamId,
+                              Integer awayTeamId,
+                              String centerInfo,
+                              NotificationImageMode mode,
+                              List<Result> results,
+                              String aiKickoffScore) {
+        return withRenderGate(() -> createImageUnlocked(
+                matchPublicId, homeTeamId, awayTeamId, centerInfo, mode, results, aiKickoffScore
+        ));
     }
 
     private String createImageUnlocked(Integer matchPublicId,
@@ -205,7 +217,8 @@ public class ImageRenderer {
                                        Integer awayTeamId,
                                        String centerInfo,
                                        NotificationImageMode mode,
-                                       List<Result> results) {
+                                       List<Result> results,
+                                       String aiKickoffScore) {
         try {
             BufferedImage image = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
             Graphics2D g2d = image.createGraphics();
@@ -351,6 +364,15 @@ public class ImageRenderer {
                     g2d.drawString(message, msgX, msgY);
                 }
                 case RESULT -> {
+                    if (aiKickoffScore != null && !aiKickoffScore.isBlank()) {
+                        Font aiFont = loadFont(false).deriveFont(28f);
+                        g2d.setFont(aiFont);
+                        g2d.setColor(new Color(255, 255, 255, 180));
+                        String aiLabel = "AI " + aiKickoffScore;
+                        int aiX = (WIDTH - g2d.getFontMetrics().stringWidth(aiLabel)) / 2;
+                        g2d.drawString(aiLabel, aiX, middleY + 120);
+                        g2d.setColor(Color.WHITE);
+                    }
                     BufferedImage resultImage = new BufferedImage(WIDTH / 2, HEIGHT / 6, BufferedImage.TYPE_INT_ARGB);
                     Graphics2D rG = resultImage.createGraphics();
 

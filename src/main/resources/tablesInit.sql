@@ -130,7 +130,10 @@ create table if not exists match_recommendation
     expected_away_goals numeric(6, 3) not null,
     score_probability numeric(8, 6),
     explanation_json text not null,
-    computed_at timestamp not null
+    computed_at timestamp not null,
+    kickoff_home integer,
+    kickoff_away integer,
+    kickoff_frozen_at timestamp
 );
 
 
