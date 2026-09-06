@@ -322,6 +322,28 @@
 - На **«Мои» / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
 - Картинка FT (`ImageRenderer` RESULT): строка `AI h:a` под финальным счётом, если freeze есть.
 
+### Калибровка рекомендатора
+Отчёт (read-only) на проде:
+
+```bash
+psql … -f deploy/recommender-calibration-report.sql
+```
+
+Считает exact / outcome / goal-diff / MAE / bias λ vs факт; разрезы по туру, форме совета (home/draw/away tip), доля ничьих и «низких» счетов; список misses и матчей без tip.
+
+**Крутить по одной–двум константам** в `PoissonScoreModel` после ≥40–60 FT с tip (лучше по `kickoff_*`):
+
+| Симптом в отчёте | Куда смотреть | Что менять |
+|------------------|---------------|------------|
+| `bias_total_goals_fact_minus_lambda` ≪ 0 (λ завышает тотал) | `clampLambda` floor 0.7; веса blend | чуть сильнее shrinkage `SHRINK_K`, или ↓ `statsWeight` / ↑ market при thin |
+| bias ≫ 0 (λ занижает тотал) | то же | ↓ `SHRINK_K` или ↑ attack path / ослабить floor-эффект |
+| `tip_draw_pct` ≪ `fact_draw_pct` | `scoreWeight` draws | усилить вес ничьих в матрице |
+| слишком много 1:0 / 0:1 | CS/FTS в `scoreWeight` | ослабить clean-sheet / FTS boost (уже почти off при thinSample≥0.55) |
+| outcome плохой при «толстой» форме | `statsWeight`/`marketWeight` | больше рынка или меньше stats |
+| нет tip у матча | mapper кодов | имена FootyStats → коды `teams` (был баг City `MAC` vs `MCI`) |
+
+Не калибровать на live `recommended_*` после kickoff — для пользователей важен freeze.
+
 ## Mini App: экраны и UX
 **4 экрана (нижняя навигация):**
 - **Главная** (`screen-stats`): live-карточка, зачёт (Общий / Текущий тур), график очков, таблица АПЛ, версия miniapp; в шапке ползунок **AI** (рекомендатор).
