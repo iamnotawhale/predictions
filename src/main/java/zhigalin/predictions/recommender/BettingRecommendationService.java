@@ -193,11 +193,17 @@ public class BettingRecommendationService {
         Double oddHome = null;
         Double oddDraw = null;
         Double oddAway = null;
+        Double matchOverUnder = null;
+        Double homeTeamTotal = null;
+        Double awayTeamTotal = null;
         OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
         if (odd != null) {
             oddHome = odd.home();
             oddDraw = odd.draw();
             oddAway = odd.away();
+            matchOverUnder = odd.overUnder();
+            homeTeamTotal = odd.homeTeamTotal();
+            awayTeamTotal = odd.awayTeamTotal();
         }
 
         H2hStats h2h = H2hStats.from(
@@ -213,7 +219,10 @@ public class BettingRecommendationService {
                 home,
                 away,
                 league,
-                h2h
+                h2h,
+                matchOverUnder,
+                homeTeamTotal,
+                awayTeamTotal
         );
 
         return Optional.of(new MatchRecommendationSnapshot(

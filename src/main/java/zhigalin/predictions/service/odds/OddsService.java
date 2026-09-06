@@ -2,9 +2,13 @@ package zhigalin.predictions.service.odds;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -15,12 +19,14 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.MatchOdds;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.v2.Competition;
+import zhigalin.predictions.model.v2.Competitor;
 import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.OddV2;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.repository.event.MatchDao;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
+import zhigalin.predictions.service.api.EspnTeamTotalsClient;
 import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.util.TeamCodeMapper;
 
@@ -34,15 +40,22 @@ public class OddsService {
     private final PanicSender panicSender;
     private final MatchDao matchDao;
     private final EspnScoreboardClient espnScoreboardClient;
+    private final EspnTeamTotalsClient espnTeamTotalsClient;
     private volatile long lastRefreshAtMs = 0L;
 
     /** In-memory cache; persisted odds are loaded from DB on startup and after fetch. */
     private final Map<Integer, Odd> oddsCache = new HashMap<>();
 
-    public OddsService(PanicSender panicSender, MatchDao matchDao, EspnScoreboardClient espnScoreboardClient) {
+    public OddsService(
+            PanicSender panicSender,
+            MatchDao matchDao,
+            EspnScoreboardClient espnScoreboardClient,
+            EspnTeamTotalsClient espnTeamTotalsClient
+    ) {
         this.panicSender = panicSender;
         this.matchDao = matchDao;
         this.espnScoreboardClient = espnScoreboardClient;
+        this.espnTeamTotalsClient = espnTeamTotalsClient;
     }
 
     @PostConstruct
@@ -69,47 +82,134 @@ public class OddsService {
     }
 
     public void oddsInit2(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return;
+        }
         try {
-            Scoreboard scoreboard = espnScoreboardClient.fetchScoreboard();
+            LocalDate from = null;
+            LocalDate to = null;
+            for (Match match : matches) {
+                if (match.getLocalDateTime() == null) {
+                    continue;
+                }
+                LocalDate day = match.getLocalDateTime().toLocalDate();
+                if (from == null || day.isBefore(from)) {
+                    from = day;
+                }
+                if (to == null || day.isAfter(to)) {
+                    to = day;
+                }
+            }
+            Scoreboard scoreboard = (from != null)
+                    ? espnScoreboardClient.fetchScoreboard(from, to)
+                    : espnScoreboardClient.fetchScoreboard();
             if (scoreboard == null || scoreboard.getEvents() == null) {
                 return;
             }
-            List<Event> events = scoreboard.getEvents();
+            ingestScoreboard(scoreboard, matches);
+        } catch (Exception e) {
+            String message = "Failed to retrieve odds";
+            panicSender.sendPanic(message, e);
+        }
+    }
 
-            for (Event event : events) {
-                String state = event.getStatus().getType().getState();
-                if (state.equals("pre")) {
-                    String[] teams = event.getShortName().split(" @ ");
+    private void ingestScoreboard(Scoreboard scoreboard, List<Match> matches) {
+        List<Event> events = scoreboard.getEvents();
+        Set<Integer> updated = new HashSet<>();
 
-                    String home = TeamCodeMapper.toInternalCode(teams[1]);
-                    String away = TeamCodeMapper.toInternalCode(teams[0]);
+        for (Event event : events) {
+            if (event.getStatus() == null || event.getStatus().getType() == null) {
+                continue;
+            }
+            String state = event.getStatus().getType().getState();
+            if (!"pre".equals(state)) {
+                continue;
+            }
+            if (event.getShortName() == null || !event.getShortName().contains(" @ ")) {
+                continue;
+            }
+            String[] teams = event.getShortName().split(" @ ");
+            if (teams.length != 2) {
+                continue;
+            }
 
-                    Match match = matches.stream()
-                            .filter(m -> {
-                                Team homeTeam = DaoUtil.TEAMS.get(m.getHomeTeamId());
-                                Team awayTeam = DaoUtil.TEAMS.get(m.getAwayTeamId());
-                                return homeTeam.getCode().equalsIgnoreCase(home) &&
-                                       awayTeam.getCode().equalsIgnoreCase(away);
-                            })
-                            .findFirst()
-                            .orElse(null);
+            String home = TeamCodeMapper.toInternalCode(teams[1]);
+            String away = TeamCodeMapper.toInternalCode(teams[0]);
 
-                    if (match != null) {
-                        Competition competition = event.getCompetitions().getFirst();
-                        if (competition.getOdds() != null && !competition.getOdds().isEmpty()) {
-                            OddV2 oddV2 = competition.getOdds().getFirst();
-                            Odd odd = extractOdd(oddV2);
-                            if (odd != null) {
-                                storeOdd(match.getPublicId(), odd);
-                                log.info("Odds loaded for {}-{}: {} / {} / {}", home, away, odd.home(), odd.draw(), odd.away());
-                            }
+            Match match = matches.stream()
+                    .filter(m -> {
+                        Team homeTeam = DaoUtil.TEAMS.get(m.getHomeTeamId());
+                        Team awayTeam = DaoUtil.TEAMS.get(m.getAwayTeamId());
+                        return homeTeam != null && awayTeam != null
+                               && homeTeam.getCode().equalsIgnoreCase(home)
+                               && awayTeam.getCode().equalsIgnoreCase(away);
+                    })
+                    .findFirst()
+                    .orElse(null);
+
+            if (match == null) {
+                continue;
+            }
+            if (event.getCompetitions() == null || event.getCompetitions().isEmpty()) {
+                continue;
+            }
+            Competition competition = event.getCompetitions().getFirst();
+            if (competition.getOdds() == null || competition.getOdds().isEmpty()) {
+                continue;
+            }
+            OddV2 oddV2 = competition.getOdds().getFirst();
+            Odd base = extractOdd(oddV2);
+            if (base == null) {
+                continue;
+            }
+
+            Double overUnder = oddV2.getOverUnder();
+            Odd prev = oddsCache.get(match.getPublicId());
+            Double homeTeamTotal = prev != null ? prev.homeTeamTotal() : null;
+            Double awayTeamTotal = prev != null ? prev.awayTeamTotal() : null;
+            // Team totals come from paginated propBets — fetch once until both lines exist.
+            if ((homeTeamTotal == null || awayTeamTotal == null)
+                && event.getId() != null) {
+                String homeEspnTeamId = competitorTeamId(competition, "home");
+                String awayEspnTeamId = competitorTeamId(competition, "away");
+                if (homeEspnTeamId != null && awayEspnTeamId != null) {
+                    EspnTeamTotalsClient.TeamTotals teamTotals =
+                            espnTeamTotalsClient.fetchMainLines(event.getId(), homeEspnTeamId, awayEspnTeamId);
+                    if (teamTotals != null) {
+                        if (teamTotals.homeLine() != null) {
+                            homeTeamTotal = teamTotals.homeLine();
+                        }
+                        if (teamTotals.awayLine() != null) {
+                            awayTeamTotal = teamTotals.awayLine();
                         }
                     }
                 }
             }
-        } catch (Exception e) {
-            String message = "Failed to retrieve odds";
-            panicSender.sendPanic(message, e);
+
+            Odd odd = new Odd(
+                    base.home(),
+                    base.draw(),
+                    base.away(),
+                    overUnder,
+                    homeTeamTotal,
+                    awayTeamTotal
+            );
+            storeOdd(match.getPublicId(), odd);
+            updated.add(match.getPublicId());
+            log.info(
+                    "Odds loaded for {}-{}: {} / {} / {} · OU {} · team totals {}/{}",
+                    home,
+                    away,
+                    odd.home(),
+                    odd.draw(),
+                    odd.away(),
+                    odd.overUnder(),
+                    odd.homeTeamTotal(),
+                    odd.awayTeamTotal()
+            );
+        }
+        if (!updated.isEmpty()) {
+            log.info("Odds refresh stored {} match(es)", updated.size());
         }
     }
 
@@ -131,11 +231,26 @@ public class OddsService {
 
     private void storeOdd(int publicId, Odd odd) {
         oddsCache.put(publicId, odd);
-        matchDao.saveOdds(publicId, odd.home(), odd.draw(), odd.away());
+        matchDao.saveOdds(
+                publicId,
+                odd.home(),
+                odd.draw(),
+                odd.away(),
+                odd.overUnder(),
+                odd.homeTeamTotal(),
+                odd.awayTeamTotal()
+        );
     }
 
     private static Odd toOdd(MatchOdds stored) {
-        return new Odd(stored.home(), stored.draw(), stored.away());
+        return new Odd(
+                stored.home(),
+                stored.draw(),
+                stored.away(),
+                stored.overUnder(),
+                stored.homeTeamTotal(),
+                stored.awayTeamTotal()
+        );
     }
 
     private Odd extractOdd(OddV2 oddV2) {
@@ -153,7 +268,8 @@ public class OddsService {
         }
 
         if (oddV2.getHomeTeamOdds() != null && oddV2.getDrawOdds() != null && oddV2.getAwayTeamOdds() != null
-            && oddV2.getHomeTeamOdds().getValue() != null && oddV2.getDrawOdds().getValue() != null && oddV2.getAwayTeamOdds().getValue() != null) {
+            && oddV2.getHomeTeamOdds().getValue() != null && oddV2.getDrawOdds().getValue() != null
+            && oddV2.getAwayTeamOdds().getValue() != null) {
             return new Odd(
                     round(oddV2.getHomeTeamOdds().getValue()),
                     round(oddV2.getDrawOdds().getValue()),
@@ -162,6 +278,19 @@ public class OddsService {
         }
 
         return null;
+    }
+
+    private static String competitorTeamId(Competition competition, String homeAway) {
+        if (competition.getCompetitors() == null) {
+            return null;
+        }
+        return competition.getCompetitors().stream()
+                .filter(c -> homeAway.equalsIgnoreCase(c.getHomeAway()))
+                .map(Competitor::getId)
+                .filter(Objects::nonNull)
+                .map(id -> id.contains("/") ? id.substring(id.lastIndexOf('/') + 1) : id)
+                .findFirst()
+                .orElse(null);
     }
 
     static Double americanToDecimal(String americanOdds) {
@@ -178,7 +307,17 @@ public class OddsService {
         }
     }
 
-    public record Odd(double home, double draw, double away) {
+    public record Odd(
+            double home,
+            double draw,
+            double away,
+            Double overUnder,
+            Double homeTeamTotal,
+            Double awayTeamTotal
+    ) {
+        public Odd(double home, double draw, double away) {
+            this(home, draw, away, null, null, null);
+        }
     }
 
     public static double round(double value) {

@@ -49,7 +49,7 @@ public final class PoissonScoreModel {
             FootyStatsTeamSnapshot away,
             FootyStatsLeagueSnapshot league
     ) {
-        return recommend(oddHome, oddDraw, oddAway, home, away, league, null);
+        return recommend(oddHome, oddDraw, oddAway, home, away, league, null, null, null, null);
     }
 
     public static Result recommend(
@@ -60,6 +60,21 @@ public final class PoissonScoreModel {
             FootyStatsTeamSnapshot away,
             FootyStatsLeagueSnapshot league,
             H2hStats h2h
+    ) {
+        return recommend(oddHome, oddDraw, oddAway, home, away, league, h2h, null, null, null);
+    }
+
+    public static Result recommend(
+            Double oddHome,
+            Double oddDraw,
+            Double oddAway,
+            FootyStatsTeamSnapshot home,
+            FootyStatsTeamSnapshot away,
+            FootyStatsLeagueSnapshot league,
+            H2hStats h2h,
+            Double matchOverUnder,
+            Double homeTeamTotal,
+            Double awayTeamTotal
     ) {
         String homeCode = home.teamCode();
         String awayCode = away.teamCode();
@@ -133,6 +148,12 @@ public final class PoissonScoreModel {
         blendedHome = applyH2hLambda(blendedHome, h2h, true);
         blendedAway = applyH2hLambda(blendedAway, h2h, false);
 
+        double[] withMatchTotal = applyMatchTotalNudge(blendedHome, blendedAway, matchOverUnder);
+        blendedHome = withMatchTotal[0];
+        blendedAway = withMatchTotal[1];
+        blendedHome = applyTeamTotalNudge(blendedHome, homeTeamTotal);
+        blendedAway = applyTeamTotalNudge(blendedAway, awayTeamTotal);
+
         blendedHome = clampLambda(blendedHome);
         blendedAway = clampLambda(blendedAway);
 
@@ -193,6 +214,9 @@ public final class PoissonScoreModel {
                 oddHome,
                 oddDraw,
                 oddAway,
+                matchOverUnder,
+                homeTeamTotal,
+                awayTeamTotal,
                 bestHome,
                 bestAway,
                 bestProb
@@ -240,6 +264,9 @@ public final class PoissonScoreModel {
             Double oddHome,
             Double oddDraw,
             Double oddAway,
+            Double matchOverUnder,
+            Double homeTeamTotal,
+            Double awayTeamTotal,
             int bestHome,
             int bestAway,
             double bestProb
@@ -264,7 +291,11 @@ public final class PoissonScoreModel {
                 defenseLabel(awayDefense)
         ));
         if (thinSample > 0.4) {
-            lines.add("Мало сыгранных матчей — сильнее учтены коэффициенты букмекеров и средние по лиге");
+            if (market != null) {
+                lines.add("Мало сыгранных матчей — сильнее учтены коэффициенты букмекеров и средние по лиге");
+            } else {
+                lines.add("Мало сыгранных матчей — сильнее учтены средние по лиге (коэффициенты букмекеров ещё недоступны)");
+            }
         }
         if (homeXgPerMatch != null || awayXgPerMatch != null) {
             lines.add(String.format(
@@ -292,6 +323,19 @@ public final class PoissonScoreModel {
                     oddHome,
                     oddDraw,
                     oddAway
+            ));
+        }
+        if (matchOverUnder != null && matchOverUnder > 0) {
+            lines.add(String.format(Locale.US, "Тотал матча у букмекеров: %.1f", matchOverUnder));
+        }
+        if (homeTeamTotal != null || awayTeamTotal != null) {
+            lines.add(String.format(
+                    Locale.US,
+                    "Индивидуальный тотал: %s %s, %s %s",
+                    homeCode,
+                    homeTeamTotal != null ? String.format(Locale.US, "%.1f", homeTeamTotal) : "—",
+                    awayCode,
+                    awayTeamTotal != null ? String.format(Locale.US, "%.1f", awayTeamTotal) : "—"
             ));
         }
         lines.add(String.format(
@@ -497,6 +541,31 @@ public final class PoissonScoreModel {
             factor *= 1.0 + 0.02 * scale;
         }
         return lambda * Math.max(0.92, Math.min(1.08, factor));
+    }
+
+    /**
+     * Soft-pull λ sum toward the bookmaker match total line (e.g. 2.5).
+     * Returns {@code [home, away]}.
+     */
+    static double[] applyMatchTotalNudge(double homeLambda, double awayLambda, Double matchOverUnder) {
+        if (matchOverUnder == null || matchOverUnder <= 0) {
+            return new double[]{homeLambda, awayLambda};
+        }
+        double current = homeLambda + awayLambda;
+        if (current <= 0) {
+            return new double[]{homeLambda, awayLambda};
+        }
+        double blendedTotal = current * 0.70 + matchOverUnder * 0.30;
+        double scale = blendedTotal / current;
+        return new double[]{homeLambda * scale, awayLambda * scale};
+    }
+
+    /** Soft-pull a side λ toward that team's main total goals line. */
+    static double applyTeamTotalNudge(double lambda, Double teamTotalLine) {
+        if (teamTotalLine == null || teamTotalLine <= 0) {
+            return lambda;
+        }
+        return lambda * 0.75 + teamTotalLine * 0.25;
     }
 
     static double applyH2hLambda(double lambda, H2hStats h2h, boolean homeSide) {

@@ -11,6 +11,9 @@ public class OddV2 {
     private OddStatV2 awayTeamOdds;
     private OddStatV2 drawOdds;
     private Moneyline moneyline;
+    /** Match total goals line (e.g. 2.5). */
+    private Double overUnder;
+    private Total total;
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -31,5 +34,19 @@ public class OddV2 {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MoneylineOdds {
         private String odds;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Total {
+        private TotalSide over;
+        private TotalSide under;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TotalSide {
+        private MoneylineOdds open;
+        private MoneylineOdds close;
     }
 }

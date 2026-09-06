@@ -72,6 +72,15 @@ alter table match
 alter table match
     add column if not exists odd_away numeric(6, 2);
 
+alter table match
+    add column if not exists odd_over_under numeric(6, 2);
+
+alter table match
+    add column if not exists odd_home_team_total numeric(6, 2);
+
+alter table match
+    add column if not exists odd_away_team_total numeric(6, 2);
+
 create table if not exists notification_weekly_results_sent
 (
     week_id integer primary key,

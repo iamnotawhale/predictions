@@ -79,6 +79,9 @@ class PoissonScoreModelExplanationTest {
                 2.15,
                 3.75,
                 3.15,
+                null,
+                null,
+                null,
                 0,
                 1,
                 0.122
@@ -93,6 +96,45 @@ class PoissonScoreModelExplanationTest {
         assertFalse(joined.contains("NEW в гостях забивает 2"));
         assertTrue(joined.contains("Букмекеры"));
         assertTrue(joined.contains("Самый вероятный счёт — 0:1"));
+    }
+
+    @Test
+    void thinSampleWithoutMarketDoesNotClaimBookmakers() {
+        FootyStatsTeamSnapshot a = team("SUN", 0, 0, 0, 0, 0, 0);
+        FootyStatsTeamSnapshot b = team("ARS", 0, 0, 0, 0, 0, 0);
+        List<String> lines = PoissonScoreModel.buildHumanExplanation(
+                "SUN",
+                "ARS",
+                1.4,
+                1.4,
+                1.0,
+                1.0,
+                1.0,
+                1.0,
+                0.8,
+                null,
+                null,
+                null,
+                null,
+                a,
+                b,
+                FootyStatsExtendedMetrics.empty(),
+                FootyStatsExtendedMetrics.empty(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                1,
+                0.1
+        );
+        String joined = String.join("\n", lines);
+        assertTrue(joined.contains("ещё недоступны"));
+        assertFalse(joined.contains("Букмекеры:"));
     }
 
     @Test

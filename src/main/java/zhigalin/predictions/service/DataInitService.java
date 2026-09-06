@@ -50,6 +50,7 @@ import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
 import zhigalin.predictions.service.notification.NotificationService;
+import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
@@ -70,6 +71,7 @@ public class DataInitService {
     private final BettingRecommendationService bettingRecommendationService;
     private final EspnScoreboardClient espnScoreboardClient;
     private final PredictionService predictionService;
+    private final OddsService oddsService;
 
     public static final int SEASON = 2026;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
@@ -91,7 +93,8 @@ public class DataInitService {
                            PanicSender panicSender, ApiClient apiClient,
                            BettingRecommendationService bettingRecommendationService,
                            EspnScoreboardClient espnScoreboardClient,
-                           PredictionService predictionService
+                           PredictionService predictionService,
+                           OddsService oddsService
     ) {
         this.teamService = teamService;
         this.weekService = weekService;
@@ -103,6 +106,7 @@ public class DataInitService {
         this.bettingRecommendationService = bettingRecommendationService;
         this.espnScoreboardClient = espnScoreboardClient;
         this.predictionService = predictionService;
+        this.oddsService = oddsService;
     }
 
     @Scheduled(fixedDelay = 5_000, initialDelay = 10_000)
@@ -118,6 +122,12 @@ public class DataInitService {
         } catch (Exception e) {
             serverLogger.error("matchUpdateFromESPN error: {}", e.getMessage(), e);
             panicSender.sendPanic("matchUpdateFromESPN", e);
+        }
+        try {
+            refreshUpcomingOdds();
+        } catch (Exception e) {
+            serverLogger.error("refreshUpcomingOdds error: {}", e.getMessage(), e);
+            panicSender.sendPanic("refreshUpcomingOdds", e);
         }
         try {
             notificationService.checkReminders();
@@ -299,6 +309,17 @@ public class DataInitService {
                 serverLogger.warn("Betting recommender refresh after week rollover failed: {}", e.getMessage());
             }
         }
+    }
+
+    /** Pull 1X2 / match OU / team totals for ns fixtures as soon as ESPN lists them. */
+    private void refreshUpcomingOdds() {
+        List<Match> upcoming = matchService.findAllByCurrentWeek().stream()
+                .filter(m -> "ns".equals(m.getStatus()) || "pst".equals(m.getStatus()))
+                .toList();
+        if (upcoming.isEmpty()) {
+            return;
+        }
+        oddsService.ensureFresh(upcoming);
     }
 
     private String realTeamCode(String teamCode) {
