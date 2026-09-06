@@ -102,7 +102,7 @@ public class MiniAppService {
             Map.entry("IPS", 3779605),
             Map.entry("LEE", 2793103),
             Map.entry("LIV", 1046732),
-            Map.entry("MAC", 1328029),
+            Map.entry("MCI", 1328029),
             Map.entry("MUN", 1046599),
             Map.entry("NEW", 1062581),
             Map.entry("NOT", 3057313),

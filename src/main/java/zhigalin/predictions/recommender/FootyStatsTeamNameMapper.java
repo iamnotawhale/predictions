@@ -21,7 +21,7 @@ public final class FootyStatsTeamNameMapper {
             Map.entry("ipswich town fc", "IPS"),
             Map.entry("leeds united fc", "LEE"),
             Map.entry("liverpool fc", "LIV"),
-            Map.entry("manchester city fc", "MAC"),
+            Map.entry("manchester city fc", "MCI"),
             Map.entry("manchester united fc", "MUN"),
             Map.entry("newcastle united fc", "NEW"),
             Map.entry("nottingham forest fc", "NOT"),
