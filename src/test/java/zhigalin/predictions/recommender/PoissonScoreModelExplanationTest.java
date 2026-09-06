@@ -82,6 +82,9 @@ class PoissonScoreModelExplanationTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 0,
                 1,
                 0.122
@@ -120,14 +123,11 @@ class PoissonScoreModelExplanationTest {
                 b,
                 FootyStatsExtendedMetrics.empty(),
                 FootyStatsExtendedMetrics.empty(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
+                null, // h2h
+                null, // market
+                null, null, null, // 1X2
+                null, null, null, // total lines
+                null, null, null, // over probs
                 1,
                 1,
                 0.1
