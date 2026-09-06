@@ -50,6 +50,7 @@ import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
 import zhigalin.predictions.service.notification.NotificationService;
+import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.util.TeamCodeMapper;
@@ -68,6 +69,7 @@ public class DataInitService {
     private final ApiClient apiClient;
     private final BettingRecommendationService bettingRecommendationService;
     private final EspnScoreboardClient espnScoreboardClient;
+    private final PredictionService predictionService;
 
     public static final int SEASON = 2026;
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
@@ -88,7 +90,8 @@ public class DataInitService {
                            HeadToHeadService headToHeadService, NotificationService notificationService,
                            PanicSender panicSender, ApiClient apiClient,
                            BettingRecommendationService bettingRecommendationService,
-                           EspnScoreboardClient espnScoreboardClient
+                           EspnScoreboardClient espnScoreboardClient,
+                           PredictionService predictionService
     ) {
         this.teamService = teamService;
         this.weekService = weekService;
@@ -99,6 +102,7 @@ public class DataInitService {
         this.apiClient = apiClient;
         this.bettingRecommendationService = bettingRecommendationService;
         this.espnScoreboardClient = espnScoreboardClient;
+        this.predictionService = predictionService;
     }
 
     @Scheduled(fixedDelay = 5_000, initialDelay = 10_000)
@@ -227,10 +231,19 @@ public class DataInitService {
                 match.setHomeTeamScore(homeScore);
                 match.setAwayTeamScore(awayScore);
 
-                if (!status.equals(match.getStatus())) {
+                boolean becameFinished = !status.equals(match.getStatus());
+                if (becameFinished) {
                     match.setStatus(status);
                     match.setResult(findResult(homeScore, awayScore));
                     matchService.update(match);
+                    try {
+                        // Ensure points even if LISTEN→sendFullTime is missed (NULL points → UI shows 0).
+                        predictionService.updateByMatch(match);
+                    } catch (Exception e) {
+                        serverLogger.error("updateByMatch after ESPN post failed for {}-{}: {}",
+                                homeTeam, awayTeam, e.getMessage(), e);
+                        panicSender.sendPanic("updateByMatch after ESPN post", e);
+                    }
                 } else if (nextTotal != prevTotal) {
                     matchService.update(match);
                 }
