@@ -191,6 +191,16 @@ public final class PoissonScoreModel {
             }
         }
 
+        Double matchOverProb = matchOverUnder != null && matchOverUnder > 0
+                ? probabilityOverLine(matrix, matchOverUnder, TotalScope.MATCH)
+                : null;
+        Double homeOverProb = homeTeamTotal != null && homeTeamTotal > 0
+                ? probabilityOverLine(matrix, homeTeamTotal, TotalScope.HOME)
+                : null;
+        Double awayOverProb = awayTeamTotal != null && awayTeamTotal > 0
+                ? probabilityOverLine(matrix, awayTeamTotal, TotalScope.AWAY)
+                : null;
+
         List<String> lines = buildHumanExplanation(
                 homeCode,
                 awayCode,
@@ -217,6 +227,9 @@ public final class PoissonScoreModel {
                 matchOverUnder,
                 homeTeamTotal,
                 awayTeamTotal,
+                matchOverProb,
+                homeOverProb,
+                awayOverProb,
                 bestHome,
                 bestAway,
                 bestProb
@@ -267,6 +280,9 @@ public final class PoissonScoreModel {
             Double matchOverUnder,
             Double homeTeamTotal,
             Double awayTeamTotal,
+            Double matchOverProb,
+            Double homeOverProb,
+            Double awayOverProb,
             int bestHome,
             int bestAway,
             double bestProb
@@ -325,19 +341,17 @@ public final class PoissonScoreModel {
                     oddAway
             ));
         }
-        if (matchOverUnder != null && matchOverUnder > 0) {
-            lines.add(String.format(Locale.US, "Тотал матча у букмекеров: %.1f", matchOverUnder));
-        }
-        if (homeTeamTotal != null || awayTeamTotal != null) {
-            lines.add(String.format(
-                    Locale.US,
-                    "Индивидуальный тотал: %s %s, %s %s",
-                    homeCode,
-                    homeTeamTotal != null ? String.format(Locale.US, "%.1f", homeTeamTotal) : "—",
-                    awayCode,
-                    awayTeamTotal != null ? String.format(Locale.US, "%.1f", awayTeamTotal) : "—"
-            ));
-        }
+        appendTotalsLines(
+                lines,
+                homeCode,
+                awayCode,
+                matchOverUnder,
+                homeTeamTotal,
+                awayTeamTotal,
+                matchOverProb,
+                homeOverProb,
+                awayOverProb
+        );
         lines.add(String.format(
                 Locale.US,
                 "Самый вероятный счёт — %d:%d (около %.0f%%)",
@@ -346,6 +360,110 @@ public final class PoissonScoreModel {
                 bestProb * 100
         ));
         return lines;
+    }
+
+    enum TotalScope {
+        MATCH, HOME, AWAY
+    }
+
+    /** P(goals &gt; line) from a normalized score matrix. */
+    static double probabilityOverLine(double[][] matrix, double line, TotalScope scope) {
+        if (matrix == null || line <= 0 || scope == null) {
+            return 0;
+        }
+        double over = 0;
+        for (int homeGoals = 0; homeGoals < matrix.length; homeGoals++) {
+            for (int awayGoals = 0; awayGoals < matrix[homeGoals].length; awayGoals++) {
+                double goals = switch (scope) {
+                    case MATCH -> homeGoals + awayGoals;
+                    case HOME -> homeGoals;
+                    case AWAY -> awayGoals;
+                };
+                if (goals > line) {
+                    over += matrix[homeGoals][awayGoals];
+                }
+            }
+        }
+        return over;
+    }
+
+    static void appendTotalsLines(
+            List<String> lines,
+            String homeCode,
+            String awayCode,
+            Double matchOverUnder,
+            Double homeTeamTotal,
+            Double awayTeamTotal,
+            Double matchOverProb,
+            Double homeOverProb,
+            Double awayOverProb
+    ) {
+        if (matchOverUnder != null && matchOverUnder > 0 && matchOverProb != null) {
+            int overFrom = goalsNeededForOver(matchOverUnder);
+            String underRange = underGoalsRange(matchOverUnder);
+            double underProb = Math.max(0, 1.0 - matchOverProb);
+            lines.add(String.format(
+                    Locale.US,
+                    "Тотал матча — линия %.1f: больше (%s+) ~%.0f%%, меньше (%s) ~%.0f%%",
+                    matchOverUnder,
+                    overFrom,
+                    matchOverProb * 100,
+                    underRange,
+                    underProb * 100
+            ));
+        } else if (matchOverUnder != null && matchOverUnder > 0) {
+            lines.add(String.format(
+                    Locale.US,
+                    "Тотал матча у букмекеров — линия больше/меньше %.1f",
+                    matchOverUnder
+            ));
+        }
+
+        if (homeTeamTotal == null && awayTeamTotal == null) {
+            return;
+        }
+        String homePart = formatTeamTotalPart(homeCode, homeTeamTotal, homeOverProb);
+        String awayPart = formatTeamTotalPart(awayCode, awayTeamTotal, awayOverProb);
+        if (homePart == null && awayPart == null) {
+            return;
+        }
+        if (homePart != null && awayPart != null) {
+            lines.add("Индив. тотал: " + homePart + "; " + awayPart);
+        } else {
+            lines.add("Индив. тотал: " + (homePart != null ? homePart : awayPart));
+        }
+    }
+
+    static String formatTeamTotalPart(String code, Double line, Double overProb) {
+        if (code == null || line == null || line <= 0) {
+            return null;
+        }
+        int overFrom = goalsNeededForOver(line);
+        if (overProb != null) {
+            return String.format(
+                    Locale.US,
+                    "%s больше %.1f (%d+) ~%.0f%%",
+                    code,
+                    line,
+                    overFrom,
+                    overProb * 100
+            );
+        }
+        return String.format(Locale.US, "%s больше/меньше %.1f", code, line);
+    }
+
+    /** Smallest integer goal count that wins «over line» (e.g. 2.5 → 3). */
+    static int goalsNeededForOver(double line) {
+        return (int) Math.floor(line) + 1;
+    }
+
+    /** Human range for under, e.g. 2.5 → {@code 0–2}. */
+    static String underGoalsRange(double line) {
+        int maxUnder = (int) Math.floor(line);
+        if (maxUnder <= 0) {
+            return "0";
+        }
+        return "0–" + maxUnder;
     }
 
     /** Relative attack vs league average (~1.0). */
