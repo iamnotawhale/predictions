@@ -63,5 +63,17 @@ public class BettingRecommenderSchemaMigration {
                     computed_at TIMESTAMP NOT NULL
                 )
                 """);
+        jdbcTemplate.execute("""
+                ALTER TABLE match_recommendation
+                    ADD COLUMN IF NOT EXISTS kickoff_home INTEGER
+                """);
+        jdbcTemplate.execute("""
+                ALTER TABLE match_recommendation
+                    ADD COLUMN IF NOT EXISTS kickoff_away INTEGER
+                """);
+        jdbcTemplate.execute("""
+                ALTER TABLE match_recommendation
+                    ADD COLUMN IF NOT EXISTS kickoff_frozen_at TIMESTAMP
+                """);
     }
 }

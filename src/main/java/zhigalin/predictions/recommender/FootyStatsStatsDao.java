@@ -183,8 +183,77 @@ public class FootyStatsStatsDao {
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
     }
 
+    /**
+     * One-shot freeze: copy live recommended score into kickoff_* if not already frozen.
+     *
+     * @return true if this call performed the freeze
+     */
+    public boolean freezeAtKickoff(int matchPublicId) {
+        int updated = jdbcTemplate.update("""
+                        UPDATE match_recommendation
+                        SET kickoff_home = recommended_home,
+                            kickoff_away = recommended_away,
+                            kickoff_frozen_at = NOW()
+                        WHERE match_public_id = ?
+                          AND kickoff_frozen_at IS NULL
+                        """,
+                matchPublicId
+        );
+        return updated > 0;
+    }
+
+    public java.util.Set<Integer> findFrozenMatchPublicIds(int weekId) {
+        List<Integer> ids = jdbcTemplate.queryForList(
+                """
+                        SELECT match_public_id FROM match_recommendation
+                        WHERE week_id = ? AND kickoff_frozen_at IS NOT NULL
+                        """,
+                Integer.class,
+                weekId
+        );
+        return new java.util.HashSet<>(ids);
+    }
+
+    public java.util.Map<Integer, int[]> findKickoffScoresByMatchIds(java.util.Collection<Integer> matchPublicIds) {
+        java.util.Map<Integer, int[]> result = new java.util.HashMap<>();
+        if (matchPublicIds == null || matchPublicIds.isEmpty()) {
+            return result;
+        }
+        List<Integer> ids = matchPublicIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return result;
+        }
+        String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+        jdbcTemplate.query(
+                """
+                        SELECT match_public_id, kickoff_home, kickoff_away
+                        FROM match_recommendation
+                        WHERE kickoff_frozen_at IS NOT NULL
+                          AND kickoff_home IS NOT NULL
+                          AND kickoff_away IS NOT NULL
+                          AND match_public_id IN (%s)
+                        """.formatted(placeholders),
+                rs -> {
+                    result.put(
+                            rs.getInt("match_public_id"),
+                            new int[]{rs.getInt("kickoff_home"), rs.getInt("kickoff_away")}
+                    );
+                },
+                ids.toArray()
+        );
+        return result;
+    }
+
+    public void deleteUnfrozenRecommendationsForWeek(int weekId) {
+        jdbcTemplate.update(
+                "DELETE FROM match_recommendation WHERE week_id = ? AND kickoff_frozen_at IS NULL",
+                weekId
+        );
+    }
+
+    /** @deprecated use {@link #deleteUnfrozenRecommendationsForWeek(int)} */
     public void deleteRecommendationsForWeek(int weekId) {
-        jdbcTemplate.update("DELETE FROM match_recommendation WHERE week_id = ?", weekId);
+        deleteUnfrozenRecommendationsForWeek(weekId);
     }
 
     public boolean hasRecommendationsForWeek(int weekId) {
@@ -235,6 +304,9 @@ public class FootyStatsStatsDao {
             } catch (Exception e) {
                 lines = List.of();
             }
+            Timestamp frozenAt = rs.getTimestamp("kickoff_frozen_at");
+            Integer kickoffHome = getNullableInt(rs, "kickoff_home");
+            Integer kickoffAway = getNullableInt(rs, "kickoff_away");
             return new MatchRecommendationSnapshot(
                     rs.getInt("match_public_id"),
                     rs.getInt("week_id"),
@@ -245,13 +317,21 @@ public class FootyStatsStatsDao {
                     rs.getDouble("score_probability"),
                     lines,
                     buildSummary(rs.getInt("recommended_home"), rs.getInt("recommended_away")),
-                    rs.getTimestamp("computed_at").toInstant()
+                    rs.getTimestamp("computed_at").toInstant(),
+                    kickoffHome,
+                    kickoffAway,
+                    frozenAt != null ? frozenAt.toInstant() : null
             );
         };
     }
 
     private static String buildSummary(int home, int away) {
         return home + ":" + away;
+    }
+
+    private static Integer getNullableInt(ResultSet rs, String column) throws SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
     }
 
     private static Double getNullableDouble(ResultSet rs, String column) throws SQLException {

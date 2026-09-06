@@ -231,15 +231,19 @@ public class MiniAppService {
         return matches.stream()
                 .map(match -> {
                     Prediction prediction = predictions.get(match.getPublicId());
-                    return toMatchItem(match, telegramId, prediction != null, prediction);
+                    return toMatchItem(match, telegramId, prediction != null, prediction, null);
                 })
                 .toList();
     }
 
     public List<MatchItem> myPredictions(String telegramId, int weekId) {
         requireUser(telegramId);
-        return predictionService.getAllWeeklyPredictionsByUserTelegramId(weekId, telegramId).stream()
-                .map(mp -> toMatchItem(mp.match(), telegramId, true, mp.prediction()))
+        List<MatchPrediction> rows = predictionService.getAllWeeklyPredictionsByUserTelegramId(weekId, telegramId);
+        Map<Integer, int[]> kickoffs = bettingRecommendationService.kickoffScoresByMatchIds(
+                rows.stream().map(mp -> mp.match().getPublicId()).toList()
+        );
+        return rows.stream()
+                .map(mp -> toMatchItem(mp.match(), telegramId, true, mp.prediction(), kickoffs.get(mp.match().getPublicId())))
                 .toList();
     }
 
@@ -253,7 +257,10 @@ public class MiniAppService {
                 telegramId, homeCode.toUpperCase(), awayCode.toUpperCase()
         );
         boolean hasPrediction = prediction != null;
-        return toMatchItem(match, telegramId, hasPrediction, prediction);
+        int[] kickoff = match == null
+                ? null
+                : bettingRecommendationService.kickoffScore(match.getPublicId()).orElse(null);
+        return toMatchItem(match, telegramId, hasPrediction, prediction, kickoff);
     }
 
     public MatchInsightsResponse matchInsights(String telegramId, String homeCode, String awayCode) {
@@ -412,7 +419,7 @@ public class MiniAppService {
         List<MatchItem> items = matches.stream()
                 .map(match -> {
                     Prediction prediction = predictions.get(match.getPublicId());
-                    return toMatchItem(match, telegramId, prediction != null, prediction);
+                    return toMatchItem(match, telegramId, prediction != null, prediction, null);
                 })
                 .toList();
         boolean hasLive = items.stream().anyMatch(m -> isLiveStatus(m.status()));
@@ -474,6 +481,9 @@ public class MiniAppService {
                         MatchPrediction::prediction,
                         (a, b) -> a
                 ));
+        Map<Integer, int[]> kickoffs = bettingRecommendationService.kickoffScoresByMatchIds(
+                matches.stream().map(Match::getPublicId).toList()
+        );
         List<WeekReviewItem> items = new ArrayList<>();
         int total = 0;
         for (Match match : matches) {
@@ -485,6 +495,7 @@ public class MiniAppService {
             if (pts != null) {
                 total += pts;
             }
+            int[] kickoff = kickoffs.get(match.getPublicId());
             items.add(new WeekReviewItem(
                     match.getPublicId(),
                     teamCode(match.getHomeTeamId()),
@@ -495,7 +506,9 @@ public class MiniAppService {
                     hasPrediction ? prediction.getHomeTeamScore() : null,
                     hasPrediction ? prediction.getAwayTeamScore() : null,
                     pts,
-                    hasPrediction
+                    hasPrediction,
+                    kickoff != null ? kickoff[0] : null,
+                    kickoff != null ? kickoff[1] : null
             ));
         }
         return new WeekReviewResponse(weekId, total, items);
@@ -701,7 +714,7 @@ public class MiniAppService {
         return new ActionResponse(true, "Прогноз удалён");
     }
 
-    private MatchItem toMatchItem(Match match, String telegramId, boolean hasPrediction, Prediction prediction) {
+    private MatchItem toMatchItem(Match match, String telegramId, boolean hasPrediction, Prediction prediction, int[] kickoffScore) {
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
         OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
@@ -741,7 +754,9 @@ public class MiniAppService {
                 odd != null ? odd.away() : null,
                 until != null ? until.format(KICKOFF) : null,
                 predictSecondsLeft,
-                kickoffSecondsLeft
+                kickoffSecondsLeft,
+                kickoffScore != null ? kickoffScore[0] : null,
+                kickoffScore != null ? kickoffScore[1] : null
         );
     }
 

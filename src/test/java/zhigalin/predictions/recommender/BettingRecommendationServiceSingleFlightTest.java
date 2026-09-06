@@ -83,6 +83,7 @@ class BettingRecommendationServiceSingleFlightTest {
         ));
         when(oddsService.getOdd(anyInt())).thenReturn(null);
         when(headToHeadService.findForRecommender(anyInt(), anyInt())).thenReturn(List.of());
+        when(statsDao.findFrozenMatchPublicIds(1)).thenReturn(java.util.Set.of());
 
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {

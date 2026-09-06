@@ -206,7 +206,8 @@ public class DataInitService {
                 match.setResult(findResult(homeScore, awayScore));
 
                 matchService.update(match);
-                if (nextTotal > prevTotal) {
+                bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
+                if (nextTotal != prevTotal) {
                     notificationService.sendLiveScoreUpdate(match, prevHome, prevAway);
                 }
             } else if (state.equals("post")) {
@@ -219,6 +220,10 @@ public class DataInitService {
 
                 Integer homeScore = findScore(event, "home");
                 Integer awayScore = findScore(event, "away");
+                Integer prevHome = match.getHomeTeamScore();
+                Integer prevAway = match.getAwayTeamScore();
+                int prevTotal = (prevHome == null ? 0 : prevHome) + (prevAway == null ? 0 : prevAway);
+                int nextTotal = homeScore + awayScore;
                 match.setHomeTeamScore(homeScore);
                 match.setAwayTeamScore(awayScore);
 
@@ -226,6 +231,12 @@ public class DataInitService {
                     match.setStatus(status);
                     match.setResult(findResult(homeScore, awayScore));
                     matchService.update(match);
+                } else if (nextTotal != prevTotal) {
+                    matchService.update(match);
+                }
+                bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
+                if (nextTotal != prevTotal) {
+                    notificationService.sendLiveScoreUpdate(match, prevHome, prevAway);
                 }
                 headToHeadService.saveFromFinishedMatch(match);
             }

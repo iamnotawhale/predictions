@@ -115,7 +115,7 @@
 - `users.betting_recommender_enabled` — per-user toggle (default `false`).
 - `footystats_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (BTTS, CS, FTS, draws, over/under, xPts, PPG, SoccerSTATS first-goal/lead/equalisers, …).
 - `footystats_league_snapshot` — средние лиги home/away scored/conceded на тур.
-- `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_public_id`.
+- `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_public_id`; при kickoff копируется в `kickoff_home` / `kickoff_away` / `kickoff_frozen_at` (не перезаписывается refresh тура).
 - Миграция: `BettingRecommenderSchemaMigration` + DDL в `tablesInit.sql`.
 
 **Дедуп уведомлений:**
@@ -229,7 +229,7 @@
 ## Надёжность и бот
 - `StartupNotifier`: при `ApplicationReady` шлёт в `ADMIN_CHAT_ID` хост, commit/branch, время старта (MSK), profile, port, java/os, pid, webAppUrl. Нужны `chatId` и `git.properties` (maven `git-commit-id` → `generateGitPropertiesFile=true`).
 - `PanicSender`: дедуп одинаковых паник на 10 минут + root cause в тексте.
-- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); early-exit через `hasPostponedMatches()` (SQL `EXISTS`) + `findOnlineMatches` (окно дат без `pst`); scoreboard — только через `EspnScoreboardClient`; при голе в live шлёт `sendLiveScoreUpdate` в Telegram-чат (антиспам 60с/матч) с автором гола и ассистом (если есть) из ESPN `summary.commentary` (`ApiClient.parseGoalCommentary`: имя ассиста без ESPN-нарратива `with…` / `following…`; summary TTL 8с); при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
+- `DataInitService`: адаптивный sync (30с при live/ближайших матчах, иначе 120с); early-exit через `hasPostponedMatches()` (SQL `EXISTS`) + `findOnlineMatches` (окно дат без `pst`); scoreboard — только через `EspnScoreboardClient`; при **любом** изменении суммы голов в live/post шлёт `sendLiveScoreUpdate` в Telegram-чат (edit того же `live_score_message_id`) со списком авторов голов **без ассистов** (`ApiClient.listGoalScorers` / commentary `Goal!`; если Goal!-строк больше текущего total — берутся первые N по времени, типичный VAR); при входе в live и catch-up на FT — `BettingRecommendationService.freezeAtKickoffIfNeeded`; при переходе матча в `post/ft` очищает кэш составов через `ApiClient.evictLineups(publicId)`.
 - Season-prep (ручной вызов из `start` при подготовке сезона, **не удалять**): `teamsInitFromApiFootball`, `matchInitFromApiFootball`, `headToHeadInitFromApiFootball`; запасной live-path `matchUpdateFromApiFootball`; daily `matchDateTimeStatusUpdate` / `syncMatchTimesFromApi`.
 - `DataInitService.newsInit()` (бот `/news`): TTL-кэш league RSS ~120с.
 - `DataInitService` нормализует live-статус из ESPN scoreboard: halftime определяется по `status.type.detail/shortDetail/description` и сохраняется как `ht` (а не как `45'+...`), завершение — как `ft`.
@@ -280,7 +280,7 @@
 - `FootyStatsTableParser` / `FootyStatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц + маппинг имён → коды команд.
 - `FootyStatsStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
 - `PoissonScoreModel` — λ + коррекции матрицы счёта.
-- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id` (FootyStats snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId` (параллельные refresh ждут один scrape); HTTP ensure по-прежнему ждёт результат (не empty+async).
+- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id` (FootyStats snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId`; refresh **не трогает** матчи с `kickoff_frozen_at`; `freezeAtKickoffIfNeeded` копирует `recommended_*` → `kickoff_*` один раз; HTTP ensure по-прежнему ждёт результат (не empty+async).
 - `RecommenderWarmupOnStartup` — `@Async` на `ApplicationReady`: если у текущего тура нет recommendations — `ensureCurrentWeekRecommendations` в фоне.
 
 **Источники FootyStats (высокий + средний приоритет):**
@@ -318,7 +318,9 @@
 **UI:**
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
 - Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
-- В `#score-modal` блок `#modal-recommendation-section` (между odds и сеткой счёта): рекомендованный счёт + раскрываемое объяснение.
+- В `#score-modal` блок `#modal-recommendation-section` (между odds и сеткой счёта): **живой** рекомендованный счёт + explanation (только при включённом toggle).
+- На **«Мои» / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
+- Картинка FT (`ImageRenderer` RESULT): строка `AI h:a` под финальным счётом, если freeze есть.
 
 ## Mini App: экраны и UX
 **4 экрана (нижняя навигация):**
@@ -365,7 +367,7 @@
 - В модалке прогноза показываются odds из API матча.
 
 ### Разбор тура («Мои»)
-- `GET /weeks/{weekId}/review` → список матчей: факт, прогноз, очки; заголовок «Разбор тура · N очк.».
+- `GET /weeks/{weekId}/review` → список матчей: факт, прогноз, очки, kickoff AI-счёт (`recommendedHome/Away`); заголовок «Разбор тура · N очк.».
 - Очки суммируются по всем матчам тура (включая `-1`), логика как в leaderboard.
 
 ### Live-блок на главной и pre-start

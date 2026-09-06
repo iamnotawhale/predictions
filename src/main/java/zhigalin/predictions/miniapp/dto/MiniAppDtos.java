@@ -44,7 +44,9 @@ public final class MiniAppDtos {
             Double oddAway,
             String predictUntil,
             Long predictSecondsLeft,
-            Long kickoffSecondsLeft
+            Long kickoffSecondsLeft,
+            Integer recommendedHome,
+            Integer recommendedAway
     ) {
     }
 
@@ -282,7 +284,9 @@ public final class MiniAppDtos {
             Integer predictHome,
             Integer predictAway,
             Integer points,
-            boolean hasPrediction
+            boolean hasPrediction,
+            Integer recommendedHome,
+            Integer recommendedAway
     ) {
     }
 
