@@ -26,6 +26,9 @@ public class MatchOddsSchemaMigration {
             jdbcTemplate.execute("ALTER TABLE match ADD COLUMN IF NOT EXISTS odd_home NUMERIC(6, 2)");
             jdbcTemplate.execute("ALTER TABLE match ADD COLUMN IF NOT EXISTS odd_draw NUMERIC(6, 2)");
             jdbcTemplate.execute("ALTER TABLE match ADD COLUMN IF NOT EXISTS odd_away NUMERIC(6, 2)");
+            jdbcTemplate.execute("ALTER TABLE match ADD COLUMN IF NOT EXISTS odd_over_under NUMERIC(6, 2)");
+            jdbcTemplate.execute("ALTER TABLE match ADD COLUMN IF NOT EXISTS odd_home_team_total NUMERIC(6, 2)");
+            jdbcTemplate.execute("ALTER TABLE match ADD COLUMN IF NOT EXISTS odd_away_team_total NUMERIC(6, 2)");
             log.info("Match odds columns ensured");
         } catch (Exception e) {
             log.error("Failed to migrate match odds columns: {}", e.getMessage());

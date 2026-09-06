@@ -632,12 +632,23 @@ public class MatchDao {
         }
     }
 
-    public void saveOdds(int publicId, double home, double draw, double away) {
+    public void saveOdds(
+            int publicId,
+            double home,
+            double draw,
+            double away,
+            Double overUnder,
+            Double homeTeamTotal,
+            Double awayTeamTotal
+    ) {
         String sql = """
                 UPDATE match
                 SET odd_home = :home,
                     odd_draw = :draw,
-                    odd_away = :away
+                    odd_away = :away,
+                    odd_over_under = :overUnder,
+                    odd_home_team_total = :homeTeamTotal,
+                    odd_away_team_total = :awayTeamTotal
                 WHERE public_id = :publicId
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource();
@@ -645,6 +656,9 @@ public class MatchDao {
         params.addValue("home", home);
         params.addValue("draw", draw);
         params.addValue("away", away);
+        params.addValue("overUnder", overUnder);
+        params.addValue("homeTeamTotal", homeTeamTotal);
+        params.addValue("awayTeamTotal", awayTeamTotal);
         try {
             namedParameterJdbcTemplate.update(sql, params);
         } catch (Exception e) {
@@ -655,7 +669,8 @@ public class MatchDao {
 
     public MatchOdds findOdds(int publicId) {
         String sql = """
-                SELECT odd_home, odd_draw, odd_away
+                SELECT odd_home, odd_draw, odd_away,
+                       odd_over_under, odd_home_team_total, odd_away_team_total
                 FROM match
                 WHERE public_id = :publicId
                   AND odd_home IS NOT NULL
@@ -669,11 +684,7 @@ public class MatchDao {
                 if (!rs.next()) {
                     return null;
                 }
-                return new MatchOdds(
-                        rs.getDouble("odd_home"),
-                        rs.getDouble("odd_draw"),
-                        rs.getDouble("odd_away")
-                );
+                return mapOdds(rs);
             });
         } catch (Exception e) {
             panicSender.sendPanic("Error findOdds", e);
@@ -684,7 +695,8 @@ public class MatchDao {
 
     public java.util.Map<Integer, MatchOdds> findAllOdds() {
         String sql = """
-                SELECT public_id, odd_home, odd_draw, odd_away
+                SELECT public_id, odd_home, odd_draw, odd_away,
+                       odd_over_under, odd_home_team_total, odd_away_team_total
                 FROM match
                 WHERE odd_home IS NOT NULL
                   AND odd_draw IS NOT NULL
@@ -694,14 +706,7 @@ public class MatchDao {
             return namedParameterJdbcTemplate.query(sql, rs -> {
                 java.util.Map<Integer, MatchOdds> odds = new java.util.HashMap<>();
                 while (rs.next()) {
-                    odds.put(
-                            rs.getInt("public_id"),
-                            new MatchOdds(
-                                    rs.getDouble("odd_home"),
-                                    rs.getDouble("odd_draw"),
-                                    rs.getDouble("odd_away")
-                            )
-                    );
+                    odds.put(rs.getInt("public_id"), mapOdds(rs));
                 }
                 return odds;
             });
@@ -712,6 +717,16 @@ public class MatchDao {
         }
     }
 
+    private static MatchOdds mapOdds(ResultSet rs) throws SQLException {
+        return new MatchOdds(
+                rs.getDouble("odd_home"),
+                rs.getDouble("odd_draw"),
+                rs.getDouble("odd_away"),
+                (Double) rs.getObject("odd_over_under"),
+                (Double) rs.getObject("odd_home_team_total"),
+                (Double) rs.getObject("odd_away_team_total")
+        );
+    }
 
     private static final class MatchMapper implements RowMapper<Match> {
         @Override

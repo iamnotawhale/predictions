@@ -43,9 +43,9 @@
 - `src/main/java/zhigalin/predictions/telegram` — команды и обработка апдейтов Telegram-бота.
 - `src/main/java/zhigalin/predictions/miniapp` — REST API и auth для Telegram WebApp (`X-Telegram-Init-Data`).
 - `src/main/java/zhigalin/predictions/service` — бизнес-логика (матчи, прогнозы, уведомления, синхронизация).
-- `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты через общий `EspnScoreboardClient`, TTL 60с (`ensureFresh`), сохранение в БД.
+- `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты через общий `EspnScoreboardClient` **по диапазону дат матчей** (`dates=YYYYMMDD-YYYYMMDD`), TTL 60с (`ensureFresh`), сохранение в БД; матчевый тотал (`overUnder`) + индивидуальные тоталы команд (ESPN propBets `Team Total Goals` через `EspnTeamTotalsClient`).
 - `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats + SoccerSTATS → Poisson-модель → кэш в БД; single-flight refresh, batch writes.
-- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — общий fetch/parse ESPN scoreboard для Odds + DataInit.
+- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — общий fetch/parse ESPN scoreboard для Odds + DataInit (today или date range); **`EspnTeamTotalsClient`** — team total goals lines.
 - `src/main/java/zhigalin/predictions/telegram/MatchMessageFormatter` — единый формат строк матча для `/today`, `/tour`, upcoming.
 - `src/main/java/zhigalin/predictions/util/TelegramMarkdownV2` — escape caption для Unirest `sendPhoto`.
 - `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой (узкие выборки матчей/прогнозов, batch `updatePoints`).
@@ -109,6 +109,7 @@
 - `espn_id` — ESPN event id (заполняется уже на стадии `pre`).
 - `live_score_message_id` — id Telegram-сообщения live-счёта (переживает рестарт).
 - `odd_home`, `odd_draw`, `odd_away` — коэффициенты 1/X/2 (`NUMERIC(6,2)`), заполняются `OddsService`, читаются в miniapp и разборе тура.
+- `odd_over_under` — линия тотала матча (например 2.5); `odd_home_team_total` / `odd_away_team_total` — основная линия индивидуального тотала команды.
 - Миграция колонок odds: `MatchOddsSchemaMigration` + `ALTER` в `tablesInit.sql`; `OddsService` зависит от неё через `@DependsOn`.
 
 **Рекомендатор ставок (FootyStats cache):**
@@ -290,7 +291,7 @@
 - `average-total-goals-table`, `goals-scored-table`, `goals-conceded-table`
 - `over-25-goals-table`, `under-x-tables`
 - `home-away-league-table` (PPG), `half-time-table`, `2nd-half-table`, `winning-losing-half-time-table`
-- Коэффициенты букмекеров — из уже существующего `OddsService` (не FootyStats `/odds` / `/predictions` — Cloudflare)
+- Коэффициенты букмекеров — из уже существующего `OddsService` (не FootyStats `/odds` / `/predictions` — Cloudflare): 1X2 + match OU + team totals; Poisson мягко подтягивает λ к линиям тотала.
 
 **Источники SoccerSTATS (доп. слой, без замены модели):**
 - `firstgoal.asp` — OGS/OGC %, средняя минута первого гола
@@ -384,9 +385,11 @@ psql … -f deploy/recommender-calibration-report.sql
 - После deploy проверяй подпись `ver. …` на главном экране — она должна совпадать с коммитом сборки и с commit в Telegram startup-алерте.
 
 ### Коэффициенты (odds)
-- `OddsService.ensureFresh(...)` — ESPN scoreboard через `EspnScoreboardClient`, TTL 60с.
-- Odds сохраняются в БД (`match.odd_home/draw/away`) для переиспользования в miniapp и разборе тура.
-- В модалке прогноза показываются odds из API матча.
+- `OddsService.ensureFresh(...)` — ESPN scoreboard через `EspnScoreboardClient` **по датам kickoff матчей** (не только «сегодня»), TTL 60с.
+- `DataInitService` на каждом цикле дергает `ensureFresh` для `ns`/`pst` текущего тура — линии появляются ASAP, как только ESPN публикует.
+- Odds сохраняются в БД (`match.odd_home/draw/away`, `odd_over_under`, `odd_home_team_total` / `odd_away_team_total`) для miniapp, разбора тура и Poisson.
+- Индивидуальный тотал команды: ESPN DraftKings propBets `Team Total Goals` (основная линия — самая «ровная» пара котировок, обычно 1.5).
+- В модалке прогноза показываются 1X2 из API матча.
 
 ### Разбор тура («Мои»)
 - `GET /weeks/{weekId}/review` → список матчей: факт, прогноз, очки, kickoff AI-счёт (`recommendedHome/Away`); заголовок «Разбор тура · N очк.».
