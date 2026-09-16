@@ -15,6 +15,7 @@ class TeamCodeMapperTest {
         assertEquals("MCI", TeamCodeMapper.toInternalCode("MNC"));
         assertEquals("NOT", TeamCodeMapper.toInternalCode("NFO"));
         assertEquals("MUN", TeamCodeMapper.toInternalCode("MAN"));
+        assertEquals("BAY", TeamCodeMapper.toInternalCode("MUN"));
     }
 
     @Test

@@ -33,6 +33,7 @@ import zhigalin.predictions.util.TeamCodeMapper;
 public class BonusMatchSyncService {
 
     private static final Logger log = LoggerFactory.getLogger("server");
+    private static final long UEFA_WINDOW_MIN_INTERVAL_MS = 30 * 60 * 1000L;
 
     @Value("${bot.chatId}")
     private String defaultChatId;
@@ -42,6 +43,7 @@ public class BonusMatchSyncService {
     private final PredictionService predictionService;
     private final ApiClient apiClient;
     private final ImageRenderer imageRenderer;
+    private volatile long lastUefaWindowSyncMs;
 
     public BonusMatchSyncService(
             EspnScoreboardClient espnScoreboardClient,
@@ -62,18 +64,56 @@ public class BonusMatchSyncService {
                 .map(Team::getCode)
                 .map(String::toUpperCase)
                 .collect(Collectors.toSet());
+        java.time.LocalDate today = LocalDateTime.now(AppTimeZones.DISPLAY).toLocalDate();
+        java.time.LocalDate until = today.plusDays(45);
+        boolean scanUefaWindow = shouldScanUefaWindow();
         for (String league : EspnScoreboardClient.CUP_LEAGUES) {
             try {
-                Scoreboard board = espnScoreboardClient.fetchScoreboard(league);
-                if (board == null || board.getEvents() == null) {
-                    continue;
-                }
-                for (Event event : board.getEvents()) {
-                    ingest(league, event, eplCodes);
+                ingestScoreboard(league, espnScoreboardClient.fetchScoreboard(league), eplCodes);
+                if (scanUefaWindow && league.startsWith("uefa.")) {
+                    ingestUpcomingWindow(league, today, until, eplCodes);
                 }
             } catch (Exception e) {
                 log.warn("Cup sync failed for {}: {}", league, e.getMessage());
             }
+        }
+        if (scanUefaWindow) {
+            lastUefaWindowSyncMs = System.currentTimeMillis();
+        }
+    }
+
+    private boolean shouldScanUefaWindow() {
+        long last = lastUefaWindowSyncMs;
+        return last == 0L || System.currentTimeMillis() - last >= UEFA_WINDOW_MIN_INTERVAL_MS;
+    }
+
+    private void ingestUpcomingWindow(
+            String league,
+            java.time.LocalDate from,
+            java.time.LocalDate until,
+            Set<String> eplCodes
+    ) {
+        Scoreboard ranged = espnScoreboardClient.fetchScoreboard(league, from, until);
+        if (ranged != null && ranged.getEvents() != null && !ranged.getEvents().isEmpty()) {
+            ingestScoreboard(league, ranged, eplCodes);
+            return;
+        }
+        // Fallback: day-by-day for UEFA midweek windows (Tue/Wed) + today.
+        for (java.time.LocalDate d = from; !d.isAfter(until); d = d.plusDays(1)) {
+            int dow = d.getDayOfWeek().getValue(); // 1=Mon .. 7=Sun
+            if (d.equals(from) || dow == 2 || dow == 3) {
+                Scoreboard dayBoard = espnScoreboardClient.fetchScoreboard(league, d, d);
+                ingestScoreboard(league, dayBoard, eplCodes);
+            }
+        }
+    }
+
+    private void ingestScoreboard(String competition, Scoreboard board, Set<String> eplCodes) {
+        if (board == null || board.getEvents() == null) {
+            return;
+        }
+        for (Event event : board.getEvents()) {
+            ingest(competition, event, eplCodes);
         }
     }
 
