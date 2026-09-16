@@ -714,11 +714,13 @@ html[data-switching] *::after {
 }
 
 .back-link {
+    align-self: flex-start;
     background: none;
     border: none;
     color: var(--link);
     font-size: 14px;
     padding: 0 0 12px;
+    text-align: left;
     cursor: pointer;
 }
 
