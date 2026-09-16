@@ -306,4 +306,20 @@ public final class MiniAppDtos {
             List<WeekReviewItem> items
     ) {
     }
+
+    public record CupCompetitionItem(
+            String competition,
+            String label,
+            boolean hasPredictions,
+            int matchCount
+    ) {
+    }
+
+    public record CupReviewResponse(
+            String competition,
+            String label,
+            int totalPoints,
+            List<WeekReviewItem> items
+    ) {
+    }
 }

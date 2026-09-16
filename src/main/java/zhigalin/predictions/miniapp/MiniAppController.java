@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.BettingRecommenderRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupCompetitionItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupReviewResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
@@ -168,6 +170,29 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
     ) {
         return miniAppService.todayMatches(requireTelegramId(initData));
+    }
+
+    @GetMapping("/cups")
+    public List<CupCompetitionItem> cups(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
+    ) {
+        return miniAppService.cupCompetitions(requireTelegramId(initData));
+    }
+
+    @GetMapping("/cups/{competition}/matches")
+    public List<MatchItem> cupMatches(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String competition
+    ) {
+        return miniAppService.cupMatches(requireTelegramId(initData), competition);
+    }
+
+    @GetMapping("/cups/{competition}/review")
+    public CupReviewResponse cupReview(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String competition
+    ) {
+        return miniAppService.cupReview(requireTelegramId(initData), competition);
     }
 
     @GetMapping("/match/{matchId}/crowd")

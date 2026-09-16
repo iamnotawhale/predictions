@@ -101,7 +101,11 @@
         teamModalOpened: false,
         h2hModalOpened: false,
         predictWeekOpened: false,
+        predictCupsOpened: false,
+        predictCupCompetition: null,
         myWeekOpened: false,
+        myCupsOpened: false,
+        myCupCompetition: null,
         leaderboardMode: '',
         chartLoaded: false,
         chartData: null,
@@ -473,12 +477,45 @@
         });
     }
 
+    function competitionCssKey(code) {
+        if (code === 'eng.fa') return 'fa';
+        if (code === 'eng.league_cup') return 'carabao';
+        if (code === 'uefa.champions') return 'ucl';
+        if (code === 'uefa.europa') return 'uel';
+        if (code === 'uefa.europa.conf') return 'uecl';
+        return 'cup';
+    }
+
+    function competitionShort(code) {
+        if (!code) return 'Cup';
+        if (code === 'eng.fa') return 'FA';
+        if (code === 'eng.league_cup') return 'Carabao';
+        if (code === 'uefa.champions') return 'UCL';
+        if (code === 'uefa.europa') return 'UEL';
+        if (code === 'uefa.europa.conf') return 'UECL';
+        return code;
+    }
+
+    function competitionBadgeHtml(m, dim) {
+        if (!m || !m.cup) return '';
+        const key = competitionCssKey(m.competition);
+        const cls = 'badge badge-cup badge-cup-' + key + (dim ? ' dim' : '');
+        return '<span class="' + cls + '">' + escapeHtml(competitionShort(m.competition)) + '</span>';
+    }
+
     function renderMatchItem(m, onClick) {
         const li = document.createElement('li');
-        li.className = 'list-item' + (m.weekBonus ? ' list-item-week-bonus' : '') + (m.cup ? ' list-item-cup' : '');
+        let cls = 'list-item';
+        if (m.weekBonus) cls += ' list-item-week-bonus';
+        if (m.cup) {
+            cls += ' list-item-cup cup-' + competitionCssKey(m.competition);
+            if (m.hasPrediction) cls += ' cup-predicted';
+            else if (m.canPredict) cls += ' needs-predict';
+        }
+        li.className = cls;
         const badges = [];
         if (m.weekBonus) badges.push('<span class="badge badge-bonus">бонус ×</span>');
-        if (m.cup) badges.push('<span class="badge badge-cup">' + escapeHtml(competitionShort(m.competition)) + '</span>');
+        if (m.cup) badges.push(competitionBadgeHtml(m, !!m.hasPrediction));
         li.innerHTML =
             '<div class="list-item-main">' +
             '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
@@ -491,16 +528,6 @@
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
-    }
-
-    function competitionShort(code) {
-        if (!code) return 'Cup';
-        if (code === 'eng.fa') return 'FA';
-        if (code === 'eng.league_cup') return 'Carabao';
-        if (code === 'uefa.champions') return 'UCL';
-        if (code === 'uefa.europa') return 'UEL';
-        if (code === 'uefa.europa.conf') return 'UECL';
-        return code;
     }
 
     function escapeHtml(s) {
@@ -538,7 +565,22 @@
 
     function renderTodayMatchItem(m, onClick) {
         const li = document.createElement('li');
-        li.className = 'list-item' + (m.hasPrediction ? '' : ' needs-predict');
+        let cls = 'list-item';
+        if (m.cup) {
+            cls += ' list-item-cup cup-' + competitionCssKey(m.competition);
+            if (m.hasPrediction) cls += ' cup-predicted';
+            else if (m.canPredict) cls += ' needs-predict';
+        } else if (!m.hasPrediction) {
+            cls += ' needs-predict';
+        }
+        li.className = cls;
+        const badges = [];
+        if (m.cup) badges.push(competitionBadgeHtml(m, !!m.hasPrediction));
+        if (!m.hasPrediction && m.canPredict && !m.cup) {
+            badges.push('<span class="badge badge-warn">нет прогноза</span>');
+        } else if (!m.hasPrediction && m.canPredict && m.cup) {
+            badges.push('<span class="badge badge-warn badge-cup-' + competitionCssKey(m.competition) + '">нет прогноза</span>');
+        }
         li.innerHTML =
             '<div class="list-item-main">' +
             '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
@@ -547,10 +589,20 @@
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + todayScoreLabel(m) + '</div>' +
             todayStatusBadge(m) +
-            (!m.hasPrediction && m.canPredict ? '<span class="badge badge-warn">нет прогноза</span>' : '') +
+            badges.join('') +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
+    }
+
+    function todayGroupKey(m) {
+        if (m && m.cup) return 'cup:' + (m.competition || 'cup');
+        return 'week:' + (m.weekId != null ? m.weekId : '');
+    }
+
+    function todayGroupLabel(m) {
+        if (m && m.cup) return competitionShort(m.competition);
+        return (m.weekId != null ? m.weekId : '') + ' тур';
     }
 
     function renderTodayMatchesList(matches) {
@@ -561,13 +613,14 @@
             list.innerHTML = '<li class="empty-state">Сегодня матчей нет</li>';
             return;
         }
-        let lastWeek = null;
+        let lastGroup = null;
         ordered.forEach(m => {
-            if (m.weekId !== lastWeek) {
-                lastWeek = m.weekId;
+            const group = todayGroupKey(m);
+            if (group !== lastGroup) {
+                lastGroup = group;
                 const label = document.createElement('li');
                 label.className = 'week-label';
-                label.textContent = m.weekId + ' тур';
+                label.textContent = todayGroupLabel(m);
                 list.appendChild(label);
             }
             list.appendChild(renderTodayMatchItem(m, openScoreModal));
@@ -1195,6 +1248,20 @@
             btn.addEventListener('click', () => onSelect(w.id));
             container.appendChild(btn);
         });
+        try {
+            const cups = await api('/cups');
+            const anyPred = (cups || []).some(c => c.hasPredictions);
+            const cupBtn = document.createElement('button');
+            cupBtn.className = 'week-btn week-btn-cups' + (anyPred ? ' has-predictions' : '');
+            cupBtn.textContent = 'Кубки';
+            cupBtn.addEventListener('click', () => {
+                if (containerId === '#predict-weeks') showPredictCups(cups || []);
+                else showMyCups(cups || []);
+            });
+            container.appendChild(cupBtn);
+        } catch (_) {
+            /* cups optional if API unavailable */
+        }
     }
 
     async function loadPredictMatches(weekId) {
@@ -2585,7 +2652,9 @@
             && !state.teamModalOpened
             && !state.h2hModalOpened
             && !state.predictWeekOpened
-            && !state.myWeekOpened;
+            && !state.predictCupsOpened
+            && !state.myWeekOpened
+            && !state.myCupsOpened;
     }
 
     async function loadScoreModalH2h(match) {
@@ -2906,6 +2975,141 @@
         }
     }
 
+    function renderCupCompetitionsGrid(containerId, cups, onSelect) {
+        const container = $(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        if (!cups.length) {
+            container.innerHTML = '<div class="empty-state">Кубковых матчей пока нет</div>';
+            return;
+        }
+        cups.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'week-btn cup-comp-btn cup-' + competitionCssKey(c.competition)
+                + (c.hasPredictions ? ' has-predictions' : '');
+            btn.textContent = (c.label || competitionShort(c.competition))
+                + (c.matchCount != null ? (' · ' + c.matchCount) : '');
+            btn.addEventListener('click', () => onSelect(c));
+            container.appendChild(btn);
+        });
+    }
+
+    async function showPredictCups(preloaded) {
+        const cups = preloaded || await api('/cups');
+        $('#predict-weeks').classList.add('hidden');
+        $('#predict-matches').classList.add('hidden');
+        const grid = $('#predict-cups');
+        grid.classList.remove('hidden');
+        state.predictCupsOpened = true;
+        state.predictWeekOpened = false;
+        state.predictCupCompetition = null;
+        renderCupCompetitionsGrid('#predict-cups', cups, showPredictCupCompetition);
+        tg.BackButton.show();
+    }
+
+    async function showPredictCupCompetition(comp) {
+        state.predictCupCompetition = comp.competition;
+        $('#predict-cups').classList.add('hidden');
+        const block = $('#predict-matches');
+        block.classList.remove('hidden');
+        state.predictWeekOpened = true;
+        block.dataset.weekId = '';
+        block.dataset.competition = comp.competition;
+        $('#predict-week-title').textContent = comp.label || competitionShort(comp.competition);
+        const list = $('#predict-match-list');
+        list.innerHTML = '';
+        try {
+            const matches = await api('/cups/' + encodeURIComponent(comp.competition) + '/matches');
+            const ordered = sortMatchesByKickoff(matches || []);
+            if (!ordered.length) {
+                list.innerHTML = '<li class="empty-state">Матчей нет</li>';
+            } else {
+                ordered.forEach(m => list.appendChild(renderMatchItem(m, openScoreModal)));
+            }
+        } catch (e) {
+            list.innerHTML = '<li class="empty-state">' + escapeHtml(e.message || 'Ошибка') + '</li>';
+        }
+        tg.BackButton.show();
+    }
+
+    async function showMyCups(preloaded) {
+        const cups = preloaded || await api('/cups');
+        $('#my-weeks').classList.add('hidden');
+        $('#my-predictions').classList.add('hidden');
+        const grid = $('#my-cups');
+        grid.classList.remove('hidden');
+        state.myCupsOpened = true;
+        state.myWeekOpened = false;
+        state.myCupCompetition = null;
+        renderCupCompetitionsGrid('#my-cups', cups, showMyCupCompetition);
+        tg.BackButton.show();
+    }
+
+    async function showMyCupCompetition(comp) {
+        state.myCupCompetition = comp.competition;
+        $('#my-cups').classList.add('hidden');
+        const block = $('#my-predictions');
+        block.classList.remove('hidden');
+        state.myWeekOpened = true;
+        block.dataset.weekId = '';
+        block.dataset.competition = comp.competition;
+        const card = $('#my-review-card');
+        const list = $('#my-review-list');
+        const title = $('#my-review-title');
+        card.classList.remove('hidden');
+        title.textContent = (comp.label || competitionShort(comp.competition)) + ' · …';
+        list.innerHTML = '';
+        try {
+            const data = await api('/cups/' + encodeURIComponent(comp.competition) + '/review');
+            title.textContent = (data.label || competitionShort(comp.competition)) + ' · ' + data.totalPoints + ' очк.';
+            if (!data.items.length) {
+                list.innerHTML = '<li class="empty-state">Нет матчей</li>';
+            } else {
+                data.items.forEach((item) => {
+                    const li = document.createElement('li');
+                    li.className = 'list-item review-item';
+                    li.style.cursor = 'default';
+                    const actual = (item.homeScore ?? '-') + ':' + (item.awayScore ?? '-');
+                    const pred = item.hasPrediction
+                        ? ((item.predictHome ?? '-') + ':' + (item.predictAway ?? '-'))
+                        : '—';
+                    const pts = item.points == null ? '—' : String(item.points);
+                    li.innerHTML =
+                        '<div class="list-item-main">' +
+                        '<div class="list-item-title">' + item.homeCode + ' — ' + item.awayCode + '</div>' +
+                        '<div class="list-item-sub">факт ' + actual + ' · прогноз ' + pred + '</div>' +
+                        '</div>' +
+                        '<span class="pts">' + pts + '</span>';
+                    list.appendChild(li);
+                });
+            }
+        } catch (e) {
+            title.textContent = comp.label || competitionShort(comp.competition);
+            list.innerHTML = '<li class="empty-state">' + escapeHtml(e.message || 'Ошибка') + '</li>';
+        }
+        tg.BackButton.show();
+    }
+
+    function closePredictCupNav() {
+        $('#predict-matches').classList.add('hidden');
+        $('#predict-cups').classList.add('hidden');
+        $('#predict-weeks').classList.remove('hidden');
+        state.predictWeekOpened = false;
+        state.predictCupsOpened = false;
+        state.predictCupCompetition = null;
+    }
+
+    function closeMyCupNav() {
+        $('#my-predictions').classList.add('hidden');
+        $('#my-cups').classList.add('hidden');
+        $('#my-weeks').classList.remove('hidden');
+        const review = $('#my-review-card');
+        if (review) review.classList.add('hidden');
+        state.myWeekOpened = false;
+        state.myCupsOpened = false;
+        state.myCupCompetition = null;
+    }
+
     function showPredictWeek(weekId) {
         $('#predict-weeks').classList.add('hidden');
         const block = $('#predict-matches');
@@ -2950,6 +3154,19 @@
         });
 
         $('#predict-back-weeks').addEventListener('click', () => {
+            if (state.predictCupCompetition) {
+                $('#predict-matches').classList.add('hidden');
+                $('#predict-cups').classList.remove('hidden');
+                state.predictWeekOpened = false;
+                state.predictCupCompetition = null;
+                tg.BackButton.show();
+                return;
+            }
+            if (state.predictCupsOpened) {
+                closePredictCupNav();
+                tg.BackButton.hide();
+                return;
+            }
             $('#predict-matches').classList.add('hidden');
             $('#predict-weeks').classList.remove('hidden');
             state.predictWeekOpened = false;
@@ -2957,6 +3174,21 @@
         });
 
         $('#my-back-weeks').addEventListener('click', () => {
+            if (state.myCupCompetition) {
+                $('#my-predictions').classList.add('hidden');
+                $('#my-cups').classList.remove('hidden');
+                const review = $('#my-review-card');
+                if (review) review.classList.add('hidden');
+                state.myWeekOpened = false;
+                state.myCupCompetition = null;
+                tg.BackButton.show();
+                return;
+            }
+            if (state.myCupsOpened) {
+                closeMyCupNav();
+                tg.BackButton.hide();
+                return;
+            }
             $('#my-predictions').classList.add('hidden');
             $('#my-weeks').classList.remove('hidden');
             const review = $('#my-review-card');
@@ -3034,10 +3266,38 @@
                 closeScoreModal();
                 return;
             }
+            if (state.predictWeekOpened && state.predictCupCompetition) {
+                $('#predict-matches').classList.add('hidden');
+                $('#predict-cups').classList.remove('hidden');
+                state.predictWeekOpened = false;
+                state.predictCupCompetition = null;
+                tg.BackButton.show();
+                return;
+            }
+            if (state.predictCupsOpened) {
+                closePredictCupNav();
+                tg.BackButton.hide();
+                return;
+            }
             if (state.predictWeekOpened) {
                 $('#predict-matches').classList.add('hidden');
                 $('#predict-weeks').classList.remove('hidden');
                 state.predictWeekOpened = false;
+                tg.BackButton.hide();
+                return;
+            }
+            if (state.myWeekOpened && state.myCupCompetition) {
+                $('#my-predictions').classList.add('hidden');
+                $('#my-cups').classList.remove('hidden');
+                const review = $('#my-review-card');
+                if (review) review.classList.add('hidden');
+                state.myWeekOpened = false;
+                state.myCupCompetition = null;
+                tg.BackButton.show();
+                return;
+            }
+            if (state.myCupsOpened) {
+                closeMyCupNav();
                 tg.BackButton.hide();
                 return;
             }

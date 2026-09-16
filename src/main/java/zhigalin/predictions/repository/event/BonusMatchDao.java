@@ -160,6 +160,34 @@ public class BonusMatchDao {
         }
     }
 
+    public List<BonusMatch> findByCompetition(String competition) {
+        try {
+            String sql = """
+                    SELECT * FROM bonus_match
+                    WHERE competition = :competition
+                    ORDER BY local_date_time, public_id
+                    """;
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    sql, new MapSqlParameterSource("competition", competition), new BonusMatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error find bonus_match by competition", e);
+            return List.of();
+        }
+    }
+
+    public List<BonusMatch> findAllOrdered() {
+        try {
+            String sql = """
+                    SELECT * FROM bonus_match
+                    ORDER BY local_date_time, public_id
+                    """;
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    sql, new BonusMatchMapper()));
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
     public List<BonusMatch> findFinished() {
         try {
             String sql = """
