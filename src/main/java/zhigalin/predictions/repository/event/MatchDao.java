@@ -115,7 +115,8 @@ public class MatchDao {
                     result = :result,
                     local_date_time = :date,
                     status = :status,
-                    espn_id = :espnId
+                    espn_id = :espnId,
+                    finished_at = COALESCE(:finishedAt, finished_at)
                 WHERE public_id = :publicId
                 """;
 
@@ -130,6 +131,7 @@ public class MatchDao {
             parameters.addValue("publicId", match.getPublicId());
             parameters.addValue("date", match.getLocalDateTime());
             parameters.addValue("espnId", match.getEspnId());
+            parameters.addValue("finishedAt", match.getFinishedAt());
             batchParameters.add(parameters);
         }
 
@@ -743,6 +745,9 @@ public class MatchDao {
                     .espnId(rs.getString("espn_id"))
                     .liveScoreMessageId((Integer) rs.getObject("live_score_message_id"))
                     .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                    .finishedAt(rs.getTimestamp("finished_at") != null
+                            ? rs.getTimestamp("finished_at").toLocalDateTime()
+                            : null)
                     .build();
         }
     }

@@ -44,4 +44,10 @@ public class Match {
     private String espnId;
     @JsonProperty("live_score_message_id")
     private Integer liveScoreMessageId;
+    @JsonProperty("finished_at")
+    private LocalDateTime finishedAt;
+
+    public LocalDateTime sortTime() {
+        return finishedAt != null ? finishedAt : localDateTime;
+    }
 }

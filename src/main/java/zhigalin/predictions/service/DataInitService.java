@@ -43,8 +43,10 @@ import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.recommender.BettingRecommendationService;
+import zhigalin.predictions.service.event.BonusMatchSyncService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.api.ApiClient;
@@ -70,6 +72,8 @@ public class DataInitService {
     private final ApiClient apiClient;
     private final BettingRecommendationService bettingRecommendationService;
     private final EspnScoreboardClient espnScoreboardClient;
+    private final BonusMatchSyncService bonusMatchSyncService;
+    private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final PredictionService predictionService;
     private final OddsService oddsService;
 
@@ -94,7 +98,9 @@ public class DataInitService {
                            BettingRecommendationService bettingRecommendationService,
                            EspnScoreboardClient espnScoreboardClient,
                            PredictionService predictionService,
-                           OddsService oddsService
+                           OddsService oddsService,
+                           BonusMatchSyncService bonusMatchSyncService,
+                           UserWeekBonusMatchService userWeekBonusMatchService
     ) {
         this.teamService = teamService;
         this.weekService = weekService;
@@ -107,6 +113,8 @@ public class DataInitService {
         this.espnScoreboardClient = espnScoreboardClient;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
+        this.bonusMatchSyncService = bonusMatchSyncService;
+        this.userWeekBonusMatchService = userWeekBonusMatchService;
     }
 
     @Scheduled(fixedDelay = 5_000, initialDelay = 10_000)
@@ -128,6 +136,17 @@ public class DataInitService {
         } catch (Exception e) {
             serverLogger.error("refreshUpcomingOdds error: {}", e.getMessage(), e);
             panicSender.sendPanic("refreshUpcomingOdds", e);
+        }
+        try {
+            bonusMatchSyncService.syncTodayCups();
+        } catch (Exception e) {
+            serverLogger.error("syncTodayCups error: {}", e.getMessage(), e);
+            panicSender.sendPanic("syncTodayCups", e);
+        }
+        try {
+            userWeekBonusMatchService.ensureAssignedForWeek(DaoUtil.currentWeekId);
+        } catch (Exception e) {
+            serverLogger.warn("ensure week bonus matches: {}", e.getMessage());
         }
         try {
             notificationService.checkReminders();
@@ -245,6 +264,9 @@ public class DataInitService {
                 if (becameFinished) {
                     match.setStatus(status);
                     match.setResult(findResult(homeScore, awayScore));
+                    if (match.getFinishedAt() == null) {
+                        match.setFinishedAt(LocalDateTime.now());
+                    }
                     matchService.update(match);
                     try {
                         // Ensure points even if LISTEN→sendFullTime is missed (NULL points → UI shows 0).

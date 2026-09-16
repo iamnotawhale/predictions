@@ -46,7 +46,11 @@ public final class MiniAppDtos {
             Long predictSecondsLeft,
             Long kickoffSecondsLeft,
             Integer recommendedHome,
-            Integer recommendedAway
+            Integer recommendedAway,
+            boolean weekBonus,
+            boolean cup,
+            String competition,
+            Integer bonusMatchId
     ) {
     }
 
@@ -243,7 +247,13 @@ public final class MiniAppDtos {
     ) {
     }
 
-    public record PredictRequest(String homeCode, String awayCode, int homeScore, int awayScore) {
+    public record PredictRequest(
+            String homeCode,
+            String awayCode,
+            int homeScore,
+            int awayScore,
+            Integer bonusMatchId
+    ) {
     }
 
     public record ActionResponse(boolean ok, String message, Integer predictHome, Integer predictAway) {

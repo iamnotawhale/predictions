@@ -11,14 +11,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import zhigalin.predictions.model.event.BonusMatch;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Points;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.user.UserService;
 
 @Service
@@ -29,11 +33,24 @@ public class PredictionService {
     private final PredictionDao predictionDao;
     private final MatchService matchService;
     private final UserService userService;
+    private final FlooredPointsService flooredPointsService;
+    private final UserWeekBonusMatchService userWeekBonusMatchService;
+    private final BonusMatchDao bonusMatchDao;
 
-    public PredictionService(PredictionDao predictionDao, MatchService matchService, UserService userService) {
+    public PredictionService(
+            PredictionDao predictionDao,
+            MatchService matchService,
+            UserService userService,
+            FlooredPointsService flooredPointsService,
+            @Lazy UserWeekBonusMatchService userWeekBonusMatchService,
+            BonusMatchDao bonusMatchDao
+    ) {
         this.predictionDao = predictionDao;
         this.matchService = matchService;
         this.userService = userService;
+        this.flooredPointsService = flooredPointsService;
+        this.userWeekBonusMatchService = userWeekBonusMatchService;
+        this.bonusMatchDao = bonusMatchDao;
     }
 
     public void save(Prediction prediction) {
@@ -42,6 +59,10 @@ public class PredictionService {
 
     public void save(String telegramId, String homeTeam, String awayTeam, int homeScore, int awayScore) {
         predictionDao.save(telegramId, homeTeam, awayTeam, homeScore, awayScore);
+    }
+
+    public void saveBonus(String telegramId, int bonusMatchId, int homeScore, int awayScore) {
+        predictionDao.saveBonus(telegramId, bonusMatchId, homeScore, awayScore);
     }
 
     public Prediction findByMatchIdAndUserId(int matchId, int userId) {
@@ -60,13 +81,19 @@ public class PredictionService {
         predictionDao.deleteByUserTelegramIdAndTeams(telegramId, homeTeam, awayTeam);
     }
 
+    public void deleteBonusByUserTelegramId(String telegramId, int bonusMatchId) {
+        predictionDao.deleteBonusByUserTelegramId(telegramId, bonusMatchId);
+    }
+
     public void updatePoints(int matchId, int userId) {
         Prediction prediction = predictionDao.findByMatchIdAndUserId(matchId, userId);
         if (prediction == null) {
             return;
         }
         Match match = matchService.findByPublicId(prediction.getMatchPublicId());
+        ScoringMode mode = scoringModeForEpl(userId, match);
         int points = computePoints(
+                mode,
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
                 prediction.getHomeTeamScore(),
@@ -75,30 +102,75 @@ public class PredictionService {
         predictionDao.updatePoints(matchId, userId, points);
     }
 
-    /**
-     * Same scoring rules as persisted points: exact=4, goal diff=2, outcome=1, else=-1, incomplete=0/-1.
-     */
+    /** Backward-compatible EPL scoring. */
     public static int computePoints(Integer realHomeScore, Integer realAwayScore,
                                     Integer predictHomeScore, Integer predictAwayScore) {
+        return computePoints(ScoringMode.EPL, realHomeScore, realAwayScore, predictHomeScore, predictAwayScore);
+    }
+
+    public static int computePoints(
+            ScoringMode mode,
+            Integer realHomeScore,
+            Integer realAwayScore,
+            Integer predictHomeScore,
+            Integer predictAwayScore
+    ) {
+        ScoringMode m = mode != null ? mode : ScoringMode.EPL;
         if (predictHomeScore == null || predictAwayScore == null) {
-            return -1;
+            return switch (m) {
+                case EPL, EPL_WEEK_BONUS -> -1;
+                case CUP -> 0;
+            };
         }
         if (realHomeScore == null || realAwayScore == null) {
             return 0;
         }
-        if (realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore)) {
-            return 4;
-        }
-        if (realHomeScore - realAwayScore == predictHomeScore - predictAwayScore) {
-            return 2;
-        }
-        if (realHomeScore > realAwayScore && predictHomeScore > predictAwayScore) {
-            return 1;
-        }
-        if (realHomeScore < realAwayScore && predictHomeScore < predictAwayScore) {
-            return 1;
-        }
-        return -1;
+        boolean exact = realHomeScore.equals(predictHomeScore) && realAwayScore.equals(predictAwayScore);
+        boolean sameDiff = realHomeScore - realAwayScore == predictHomeScore - predictAwayScore;
+
+        return switch (m) {
+            case EPL -> {
+                if (exact) {
+                    yield 4;
+                }
+                if (sameDiff) {
+                    yield 2;
+                }
+                if (realHomeScore > realAwayScore && predictHomeScore > predictAwayScore) {
+                    yield 1;
+                }
+                if (realHomeScore < realAwayScore && predictHomeScore < predictAwayScore) {
+                    yield 1;
+                }
+                yield -1;
+            }
+            case EPL_WEEK_BONUS -> {
+                if (exact) {
+                    yield 5;
+                }
+                if (sameDiff) {
+                    yield 3;
+                }
+                if (realHomeScore > realAwayScore && predictHomeScore > predictAwayScore) {
+                    yield 2;
+                }
+                if (realHomeScore < realAwayScore && predictHomeScore < predictAwayScore) {
+                    yield 2;
+                }
+                yield 0;
+            }
+            case CUP -> {
+                if (exact) {
+                    yield 2;
+                }
+                if (sameDiff
+                    || (realHomeScore > realAwayScore && predictHomeScore > predictAwayScore)
+                    || (realHomeScore < realAwayScore && predictHomeScore < predictAwayScore)) {
+                    yield 1;
+                }
+                yield 0;
+            }
+        };
     }
 
     public boolean isExist(int userId, int matchId) {
@@ -117,6 +189,10 @@ public class PredictionService {
         return predictionDao.findAllByMatchIds(List.of(publicId));
     }
 
+    public List<Prediction> getByBonusMatchPublicId(int publicId) {
+        return predictionDao.findAllByBonusMatchId(publicId);
+    }
+
     public Map<Integer, Prediction> predictionsByMatchForUser(String telegramId, Collection<Integer> matchIds) {
         if (matchIds == null || matchIds.isEmpty()) {
             return Map.of();
@@ -126,8 +202,27 @@ public class PredictionService {
                 .collect(Collectors.toMap(Prediction::getMatchPublicId, p -> p, (a, b) -> a));
     }
 
+    public Map<Integer, Prediction> predictionsByBonusMatchForUser(String telegramId, Collection<Integer> bonusIds) {
+        if (bonusIds == null || bonusIds.isEmpty()) {
+            return Map.of();
+        }
+        return predictionDao.findAllByBonusMatchIdsAndTelegramId(List.copyOf(bonusIds), telegramId).stream()
+                .filter(p -> p.getBonusMatchId() != null)
+                .collect(Collectors.toMap(Prediction::getBonusMatchId, p -> p, (a, b) -> a));
+    }
+
     public List<Prediction> getAllByMatches(List<Match> matches) {
         return predictionDao.getAllByMatches(matches);
+    }
+
+    private ScoringMode scoringModeForEpl(int userId, Match match) {
+        if (match == null) {
+            return ScoringMode.EPL;
+        }
+        if (userWeekBonusMatchService.isWeekBonusMatch(userId, match.getWeekId(), match.getPublicId())) {
+            return ScoringMode.EPL_WEEK_BONUS;
+        }
+        return ScoringMode.EPL;
     }
 
     private void updatePredictions(Match match, List<User> users) {
@@ -137,7 +232,9 @@ public class PredictionService {
         List<PredictionDao.PointsUpdate> updates = new ArrayList<>();
         for (User user : users) {
             Prediction prediction = byUser.get(user.getId());
+            ScoringMode mode = scoringModeForEpl(user.getId(), match);
             int points = computePoints(
+                    mode,
                     match.getHomeTeamScore(),
                     match.getAwayTeamScore(),
                     prediction != null ? prediction.getHomeTeamScore() : null,
@@ -146,6 +243,46 @@ public class PredictionService {
             updates.add(new PredictionDao.PointsUpdate(match.getPublicId(), user.getId(), points));
         }
         predictionDao.updatePointsBatch(updates);
+    }
+
+    public void updateByBonusMatch(BonusMatch match) {
+        if (match == null) {
+            return;
+        }
+        List<User> users = userService.findAll();
+        List<Prediction> predictions = getByBonusMatchPublicId(match.getPublicId());
+        Map<Integer, Prediction> byUser = predictions.stream()
+                .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
+        if (!predictions.isEmpty() && predictions.size() < users.size()) {
+            for (User user : users) {
+                if (!byUser.containsKey(user.getId())) {
+                    save(Prediction.builder()
+                            .bonusMatchId(match.getPublicId())
+                            .matchPublicId(0)
+                            .points(0)
+                            .homeTeamScore(null)
+                            .awayTeamScore(null)
+                            .userId(user.getId())
+                            .build());
+                }
+            }
+            predictions = getByBonusMatchPublicId(match.getPublicId());
+            byUser = predictions.stream()
+                    .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
+        }
+        List<PredictionDao.BonusPointsUpdate> updates = new ArrayList<>();
+        for (User user : users) {
+            Prediction prediction = byUser.get(user.getId());
+            int points = computePoints(
+                    ScoringMode.CUP,
+                    match.getHomeTeamScore(),
+                    match.getAwayTeamScore(),
+                    prediction != null ? prediction.getHomeTeamScore() : null,
+                    prediction != null ? prediction.getAwayTeamScore() : null
+            );
+            updates.add(new PredictionDao.BonusPointsUpdate(match.getPublicId(), user.getId(), points));
+        }
+        predictionDao.updateBonusPointsBatch(updates);
     }
 
     public void updateUnpredictable() {
@@ -183,14 +320,18 @@ public class PredictionService {
         for (Match match : finished) {
             updateByMatch(match);
         }
-        log.info("Recalculated points for {} finished matches", finished.size());
+        for (BonusMatch bonus : bonusMatchDao.findFinished()) {
+            updateByBonusMatch(bonus);
+        }
+        log.info("Recalculated points for {} finished EPL + cup matches", finished.size());
     }
 
     public void updateByMatch(Match match) {
         List<User> users = userService.findAll();
         if (match != null) {
+            userWeekBonusMatchService.ensureAssignedForWeek(match.getWeekId());
             List<Prediction> predictions = getByMatchPublicId(match.getPublicId());
-            if (!predictions.isEmpty() && predictions.size() < 4) {
+            if (!predictions.isEmpty() && predictions.size() < users.size()) {
                 Set<Integer> predictedUserIds = predictions.stream()
                         .map(Prediction::getUserId)
                         .collect(Collectors.toCollection(HashSet::new));
@@ -198,9 +339,11 @@ public class PredictionService {
                         .filter(user -> !predictedUserIds.contains(user.getId()))
                         .toList();
                 for (User user : usersWithNoPredicts) {
+                    ScoringMode mode = scoringModeForEpl(user.getId(), match);
+                    int noBet = mode == ScoringMode.EPL_WEEK_BONUS ? -1 : -1;
                     save(Prediction.builder()
                             .matchPublicId(match.getPublicId())
-                            .points(-1)
+                            .points(noBet)
                             .homeTeamScore(null)
                             .awayTeamScore(null)
                             .userId(user.getId())
@@ -212,15 +355,17 @@ public class PredictionService {
     }
 
     public Map<String, Integer> getAllPointsByUsers() {
-        return predictionDao.getAllPointsByUsers().stream()
-                .sorted(Comparator.comparingInt(Points::getValue).reversed())
-                .collect(Collectors.toMap(Points::getLogin, Points::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+        return flooredPointsService.flooredSeasonTotals().entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
+                        .thenComparing(Map.Entry::getKey))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
     }
 
     public Map<String, Integer> getWeeklyUsersPoints(int weekId) {
-        return predictionDao.getAllPointsByWeekId(weekId).stream()
-                .sorted(Comparator.comparingInt(Points::getValue).reversed())
-                .collect(Collectors.toMap(Points::getLogin, Points::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+        return flooredPointsService.flooredWeekTotals(weekId).entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
+                        .thenComparing(Map.Entry::getKey))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
     }
 
     public List<MatchPrediction> getAllWeeklyPredictionsByUserTelegramId(int weekId, String telegramId) {
@@ -232,6 +377,6 @@ public class PredictionService {
     }
 
     public Map<String, Map<Integer, Integer>> getAllUsersCumulativePoints() {
-        return predictionDao.getAllUsersCumulativePoints();
+        return flooredPointsService.flooredCumulativeByWeek();
     }
 }
