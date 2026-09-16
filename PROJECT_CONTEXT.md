@@ -249,7 +249,7 @@
 - `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` с режимами **EPL** (4/2/1/−1), **EPL week-bonus** (5/3/2/0/−1), **CUP** (2/1/0/0).
 - **Скользящий пол очков:** сырые `predict.points` не затираются; зачёт сезона/тура = `running = max(0, running + points)` в порядке `coalesce(finished_at, local_date_time)` (`FlooredPointsService` / `PointEventDao`). Leaderboard и chart используют floored totals.
 - **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус ×».
-- **Кубковые бонус-матчи:** таблица `bonus_match` (FA / Carabao / UCL / UEL / UECL), sync через `BonusMatchSyncService` + ESPN multi-league scoreboard; в матче ≥1 клуб АПЛ; прогнозы в `predict.bonus_match_id`; live текстом / FT картинкой (`ImageRenderer.createCupResultImage`: цвет фона турнира, логотип сверху, логотипы команд ESPN, без AI); очки в общий зачёт.
+- **Кубковые бонус-матчи:** таблица `bonus_match` (FA / Carabao / UCL / UEL / UECL), sync через `BonusMatchSyncService` + ESPN multi-league scoreboard; в матче ≥1 клуб АПЛ; прогнозы в `predict.bonus_match_id`; live текстом / FT картинкой (`ImageRenderer.createCupResultImage`); очки в общий зачёт. Mini App: карточки Home/Today с цветами турнира; `GET /api/miniapp/cups` + matches/review; live Общий зачёт учитывает in-play cup provisional.
 - `match.finished_at` проставляется при переходе в `ft` (для порядка пола).
 - `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM); для odds в NOTIFICATION — `ensureFresh`, не сырой `oddsInit2`; cup FT — `createCupResultImage` (цвета/логотипы турниров в `static/img/leagues/`, remote team logos cache).
 - Сводка тура в общий чат: только картинка результатов тура; защита от повторной отправки на тот же `weekId`.
@@ -331,6 +331,7 @@
 - В `#score-modal` блок `#modal-recommendation-section` (между odds и сеткой счёта): **живой** рекомендованный счёт + explanation (только при включённом toggle).
 - На **«Мои» / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
 - Картинка FT (`ImageRenderer` RESULT): строка `AI h:a` под финальным счётом, если freeze есть. Cup FT — без AI, логотип турнира сверху, фон цвета кубка.
+- Mini App кубки: цвета FA/Carabao/UCL/UEL/UECL на карточках (ярко без прогноза / тускло с прогнозом); категория «Кубки» на Прогноз/Мои; live Общий зачёт += provisional cup.
 
 ### Калибровка рекомендатора
 Отчёт (read-only) на проде:

@@ -31,6 +31,8 @@ import zhigalin.predictions.recommender.BettingRecommendationService;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ChartSeries;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupCompetitionItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupReviewResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdMeterResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdScoreBucket;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
@@ -79,6 +81,7 @@ import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
 public class MiniAppService {
@@ -403,6 +406,7 @@ public class MiniAppService {
             Map<String, Integer> seasonPoints = new LinkedHashMap<>(predictionService.getAllPointsByUsers());
             Map<String, Integer> weekStored = predictionService.getWeeklyUsersPoints(currentWeekId);
             Map<String, Integer> weekProvisional = computeCurrentWeekProvisionalPoints(currentWeekId);
+            Map<String, Integer> cupLive = computeLiveCupProvisionalPoints();
             Map<String, Integer> seasonProvisional = new LinkedHashMap<>();
 
             for (User user : DaoUtil.USERS.values()) {
@@ -410,7 +414,8 @@ public class MiniAppService {
                 int base = seasonPoints.getOrDefault(login, 0);
                 int storedWeek = weekStored.getOrDefault(login, 0);
                 int provisionalWeek = weekProvisional.getOrDefault(login, 0);
-                int liveDelta = provisionalWeek - storedWeek;
+                int cupPts = cupLive.getOrDefault(login, 0);
+                int liveDelta = provisionalWeek - storedWeek + cupPts;
                 if (liveDelta != 0) {
                     liveActive = true;
                 }
@@ -914,6 +919,167 @@ public class MiniAppService {
 
     private static int percent(int part, int total) {
         return total == 0 ? 0 : (int) Math.round(part * 100.0 / total);
+    }
+
+    /**
+     * Provisional cup points for in-play (non-FT) bonus matches — added to live Общий зачёт.
+     * Finished cup FT points are already in floored season totals.
+     */
+    private Map<String, Integer> computeLiveCupProvisionalPoints() {
+        Map<String, Integer> sums = new LinkedHashMap<>();
+        for (User user : DaoUtil.USERS.values()) {
+            sums.put(user.getLogin(), 0);
+        }
+        List<BonusMatch> liveCups = bonusMatchDao.findOnline();
+        for (BonusMatch match : liveCups) {
+            if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
+                continue;
+            }
+            Map<Integer, Prediction> byUser = predictionService.getByBonusMatchPublicId(match.getPublicId()).stream()
+                    .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
+            for (User user : DaoUtil.USERS.values()) {
+                Prediction p = byUser.get(user.getId());
+                int pts = PredictionService.computePoints(
+                        ScoringMode.CUP,
+                        match.getHomeTeamScore(),
+                        match.getAwayTeamScore(),
+                        p != null ? p.getHomeTeamScore() : null,
+                        p != null ? p.getAwayTeamScore() : null
+                );
+                sums.merge(user.getLogin(), pts, Integer::sum);
+            }
+        }
+        return sums;
+    }
+
+    private static final List<String> CUP_COMPETITION_ORDER = List.of(
+            "eng.fa", "eng.league_cup", "uefa.champions", "uefa.europa", "uefa.europa.conf"
+    );
+
+    public List<CupCompetitionItem> cupCompetitions(String telegramId) {
+        requireUser(telegramId);
+        List<BonusMatch> all = bonusMatchDao.findAllOrdered();
+        Map<String, List<BonusMatch>> byComp = new LinkedHashMap<>();
+        for (String c : CUP_COMPETITION_ORDER) {
+            byComp.put(c, new ArrayList<>());
+        }
+        for (BonusMatch m : all) {
+            if (m.getCompetition() == null) {
+                continue;
+            }
+            byComp.computeIfAbsent(m.getCompetition(), k -> new ArrayList<>()).add(m);
+        }
+        List<Integer> ids = all.stream().map(BonusMatch::getPublicId).toList();
+        Map<Integer, Prediction> myPreds = predictionService.predictionsByBonusMatchForUser(telegramId, ids);
+        List<CupCompetitionItem> items = new ArrayList<>();
+        for (Map.Entry<String, List<BonusMatch>> e : byComp.entrySet()) {
+            if (e.getValue().isEmpty()) {
+                continue;
+            }
+            boolean has = e.getValue().stream().anyMatch(m -> {
+                Prediction p = myPreds.get(m.getPublicId());
+                return p != null && p.getHomeTeamScore() != null && p.getAwayTeamScore() != null;
+            });
+            items.add(new CupCompetitionItem(
+                    e.getKey(),
+                    competitionLabel(e.getKey()),
+                    has,
+                    e.getValue().size()
+            ));
+        }
+        return items;
+    }
+
+    public List<MatchItem> cupMatches(String telegramId, String competition) {
+        requireUser(telegramId);
+        List<BonusMatch> matches = bonusMatchDao.findByCompetition(competition);
+        List<Integer> ids = matches.stream().map(BonusMatch::getPublicId).toList();
+        Map<Integer, Prediction> preds = predictionService.predictionsByBonusMatchForUser(telegramId, ids);
+        return matches.stream()
+                .sorted(BonusMatch.BY_KICKOFF_THEN_PUBLIC_ID)
+                .map(m -> toBonusMatchItem(m, preds.get(m.getPublicId())))
+                .toList();
+    }
+
+    public CupReviewResponse cupReview(String telegramId, String competition) {
+        requireUser(telegramId);
+        List<BonusMatch> matches = bonusMatchDao.findByCompetition(competition);
+        List<Integer> ids = matches.stream().map(BonusMatch::getPublicId).toList();
+        Map<Integer, Prediction> preds = predictionService.predictionsByBonusMatchForUser(telegramId, ids);
+        List<WeekReviewItem> items = new ArrayList<>();
+        int total = 0;
+        for (BonusMatch match : matches.stream().sorted(BonusMatch.BY_KICKOFF_THEN_PUBLIC_ID).toList()) {
+            Prediction prediction = preds.get(match.getPublicId());
+            boolean hasPrediction = prediction != null
+                    && prediction.getHomeTeamScore() != null
+                    && prediction.getAwayTeamScore() != null;
+            Integer pts = resolveCupReviewPoints(match, prediction);
+            if (pts != null) {
+                total += pts;
+            }
+            String home = match.getHomeEspnCode() != null
+                    ? TeamCodeMapper.toInternalCode(match.getHomeEspnCode()) : "?";
+            String away = match.getAwayEspnCode() != null
+                    ? TeamCodeMapper.toInternalCode(match.getAwayEspnCode()) : "?";
+            if (match.getHomeTeamId() != null && DaoUtil.TEAMS.get(match.getHomeTeamId()) != null) {
+                home = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
+            }
+            if (match.getAwayTeamId() != null && DaoUtil.TEAMS.get(match.getAwayTeamId()) != null) {
+                away = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+            }
+            items.add(new WeekReviewItem(
+                    match.getPublicId(),
+                    home,
+                    away,
+                    match.getStatus(),
+                    match.getHomeTeamScore(),
+                    match.getAwayTeamScore(),
+                    hasPrediction ? prediction.getHomeTeamScore() : null,
+                    hasPrediction ? prediction.getAwayTeamScore() : null,
+                    pts,
+                    hasPrediction,
+                    null,
+                    null
+            ));
+        }
+        return new CupReviewResponse(competition, competitionLabel(competition), total, items);
+    }
+
+    private Integer resolveCupReviewPoints(BonusMatch match, Prediction prediction) {
+        boolean finished = isFinishedStatus(match.getStatus());
+        boolean liveLike = isLiveStatus(match.getStatus())
+                           || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
+                               && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
+        if (!finished && !liveLike) {
+            return null;
+        }
+        if (finished && prediction != null && prediction.getPoints() != null) {
+            return prediction.getPoints();
+        }
+        if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
+            return null;
+        }
+        return PredictionService.computePoints(
+                ScoringMode.CUP,
+                match.getHomeTeamScore(),
+                match.getAwayTeamScore(),
+                prediction != null ? prediction.getHomeTeamScore() : null,
+                prediction != null ? prediction.getAwayTeamScore() : null
+        );
+    }
+
+    private static String competitionLabel(String competition) {
+        if (competition == null) {
+            return "Cup";
+        }
+        return switch (competition) {
+            case "eng.fa" -> "FA Cup";
+            case "eng.league_cup" -> "Carabao Cup";
+            case "uefa.champions" -> "UCL";
+            case "uefa.europa" -> "UEL";
+            case "uefa.europa.conf" -> "UECL";
+            default -> competition;
+        };
     }
 
     private Map<String, Integer> computeCurrentWeekProvisionalPoints(int weekId) {
