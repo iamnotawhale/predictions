@@ -724,10 +724,21 @@ public class MatchDao {
                 rs.getDouble("odd_home"),
                 rs.getDouble("odd_draw"),
                 rs.getDouble("odd_away"),
-                (Double) rs.getObject("odd_over_under"),
-                (Double) rs.getObject("odd_home_team_total"),
-                (Double) rs.getObject("odd_away_team_total")
+                nullableDouble(rs, "odd_over_under"),
+                nullableDouble(rs, "odd_home_team_total"),
+                nullableDouble(rs, "odd_away_team_total")
         );
+    }
+
+    private static Double nullableDouble(ResultSet rs, String column) throws SQLException {
+        Object value = rs.getObject(column);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        return null;
     }
 
     private static final class MatchMapper implements RowMapper<Match> {
