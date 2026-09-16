@@ -8,8 +8,14 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -28,11 +34,13 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.TeamCodeMapper;
 
 import static zhigalin.predictions.service.odds.OddsService.Odd;
 import static zhigalin.predictions.util.ColorComparator.similarTo;
@@ -47,6 +55,25 @@ public class ImageRenderer {
     public static final int HEIGHT = 1024;
     public static final Color BACKGROUND_COLOR = new Color(55, 0, 60);
 
+    private static final Map<String, Color> CUP_BACKGROUND = Map.of(
+            "eng.fa", new Color(110, 22, 52),
+            "eng.league_cup", new Color(8, 95, 62),
+            "uefa.champions", new Color(16, 36, 100),
+            "uefa.europa", new Color(130, 52, 10),
+            "uefa.europa.conf", new Color(5, 100, 92)
+    );
+
+    /** Classpath logos under static/img/leagues (light variants for dark cup backgrounds). */
+    private static final Map<String, String> CUP_LOGO_RESOURCE = Map.of(
+            "eng.fa", "static/img/leagues/fa.png",
+            "eng.league_cup", "static/img/leagues/lc.png",
+            "uefa.champions", "static/img/leagues/ucl-light.png",
+            "uefa.europa", "static/img/leagues/uel.png",
+            "uefa.europa.conf", "static/img/leagues/uecl.png"
+    );
+
+    private static final int CUP_LOGO_HEIGHT = 220;
+
     private final MatchService matchService;
     private final HeadToHeadService headToHeadService;
     private final ObjectMapper objectMapper;
@@ -54,8 +81,14 @@ public class ImageRenderer {
 
     private final Map<String, TeamColor> teamColors = new HashMap<>();
     private final Map<Integer, BufferedImage> teamLogoCache = new ConcurrentHashMap<>();
+    private final Map<String, BufferedImage> remoteLogoCache = new ConcurrentHashMap<>();
+    private final Map<String, BufferedImage> competitionLogoCache = new ConcurrentHashMap<>();
     private final Map<String, Font> fontCache = new ConcurrentHashMap<>();
     private final OddsService oddsService;
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(8))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
     private volatile BufferedImage plLogo;
     private final Semaphore renderGate = new Semaphore(1);
 
@@ -496,7 +529,144 @@ public class ImageRenderer {
         }
     }
 
+    /**
+     * Cup FT result card: competition-colored background (no PL watermark), large tournament logo
+     * centered at top, ESPN/classpath team logos, predict grid. No AI line.
+     */
+    public String createCupResultImage(String competition,
+                                       Integer homeTeamId,
+                                       Integer awayTeamId,
+                                       String homeEspnCode,
+                                       String awayEspnCode,
+                                       String homeLogoUrl,
+                                       String awayLogoUrl,
+                                       String centerInfo,
+                                       List<Result> results) {
+        return withRenderGate(() -> createCupResultImageUnlocked(
+                competition, homeTeamId, awayTeamId, homeEspnCode, awayEspnCode,
+                homeLogoUrl, awayLogoUrl, centerInfo, results
+        ));
+    }
+
+    private String createCupResultImageUnlocked(String competition,
+                                                Integer homeTeamId,
+                                                Integer awayTeamId,
+                                                String homeEspnCode,
+                                                String awayEspnCode,
+                                                String homeLogoUrl,
+                                                String awayLogoUrl,
+                                                String centerInfo,
+                                                List<Result> results) {
+        try {
+            Color bg = CUP_BACKGROUND.getOrDefault(competition, BACKGROUND_COLOR);
+            BufferedImage image = generateWithBackground(WIDTH, HEIGHT, bg, false);
+            Graphics2D g2d = image.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+
+            BufferedImage competitionLogo = scaleToHeight(loadCompetitionLogo(competition), CUP_LOGO_HEIGHT);
+            int logoX = (WIDTH - competitionLogo.getWidth()) / 2;
+            g2d.drawImage(competitionLogo, logoX, 24, null);
+
+            BufferedImage matchBlock = new BufferedImage((int) (WIDTH * 0.90), 200, BufferedImage.TYPE_INT_ARGB);
+            int h = matchBlock.getHeight();
+            int w = matchBlock.getWidth();
+
+            BufferedImage homePic = scaleImage(resolveCupTeamLogo(homeTeamId, homeLogoUrl), h);
+            BufferedImage awayPic = scaleImage(resolveCupTeamLogo(awayTeamId, awayLogoUrl), h);
+
+            Color homeColor = resolveCupTeamColor(homeTeamId, homeEspnCode, true);
+            Color awayColor = resolveCupTeamColor(awayTeamId, awayEspnCode, false);
+            if (similarTo(homeColor, awayColor)) {
+                awayColor = resolveCupTeamColor(awayTeamId, awayEspnCode, true);
+            }
+
+            Graphics2D bG = matchBlock.createGraphics();
+            BufferedImage fill = generateWithGradient(w - h, (int) (h * 0.6), homeColor, awayColor);
+            bG.drawImage(fill, (w - fill.getWidth()) / 2, (h - fill.getHeight()) / 2, null);
+
+            bG.setPaint(new Color(255, 255, 255, 50));
+            bG.fillRect(w / 2 - 100, (h - fill.getHeight()) / 2, 200, fill.getHeight());
+
+            bG.drawImage(homePic, null, 0, 0);
+            bG.drawImage(awayPic, null, w - h, 0);
+
+            bG.setColor(Color.WHITE);
+            Font font = loadFont(false).deriveFont(60f);
+            bG.setFont(font);
+
+            String score = centerInfo == null ? "-:-" : centerInfo;
+            Rectangle2D centerBounds = bG.getFontMetrics().getStringBounds(score, bG);
+            int infoX = (w - bG.getFontMetrics().stringWidth(score)) / 2;
+            int infoY = (int) ((double) h / 2 - centerBounds.getHeight() / 2 - centerBounds.getY());
+            bG.drawString(score, infoX, infoY);
+
+            font = loadFont(true).deriveFont(80f);
+            bG.setFont(font);
+
+            String homeCode = displayTeamCode(homeTeamId, homeEspnCode);
+            Rectangle2D hb = bG.getFontMetrics().getStringBounds(homeCode, bG);
+            int homeX = w / 2 - 120 - bG.getFontMetrics().stringWidth(homeCode);
+            int homeY = (int) ((double) h / 2 - hb.getHeight() / 2 - hb.getY());
+            bG.drawString(homeCode, homeX, homeY);
+
+            String awayCode = displayTeamCode(awayTeamId, awayEspnCode);
+            Rectangle2D ab = bG.getFontMetrics().getStringBounds(awayCode, bG);
+            int awayX = w / 2 + 120;
+            int awayY = (int) ((double) h / 2 - ab.getHeight() / 2 - ab.getY());
+            bG.drawString(awayCode, awayX, awayY);
+
+            bG.dispose();
+            g2d.drawImage(matchBlock, (WIDTH - w) / 2, (HEIGHT - h) / 2, null);
+
+            int middleY = image.getHeight() / 2;
+            BufferedImage resultImage = new BufferedImage(WIDTH / 2, HEIGHT / 6, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D rG = resultImage.createGraphics();
+
+            int bw = resultImage.getWidth(), bh = resultImage.getHeight();
+            int midY = bh / 2, midX = bw / 2;
+            int offY = (int) (bh * 0.1), offX = (int) (bw * 0.05);
+
+            rG.setColor(new Color(255, 255, 255, 30));
+            rG.fillRoundRect(0, 0, bw, bh, 20, 20);
+
+            rG.setColor(Color.WHITE);
+            Font f = loadFont(false).deriveFont(32f);
+            rG.setFont(f);
+
+            for (int i = 0; i < Math.min(4, results != null ? results.size() : 0); i++) {
+                String line = results.get(i).login() + " " + results.get(i).predict() + " [" + results.get(i).point() + "]";
+                int w0 = rG.getFontMetrics().stringWidth(line);
+                if (i == 0) {
+                    rG.drawString(line, midX - w0 - offX, midY - offY * 2);
+                } else if (i == 1) {
+                    rG.drawString(line, midX + offX, midY - offY * 2);
+                } else if (i == 2) {
+                    rG.drawString(line, midX - w0 - offX, midY + offY * 3);
+                } else {
+                    rG.drawString(line, midX + offX, midY + offY * 3);
+                }
+            }
+            rG.dispose();
+            g2d.drawImage(resultImage, (WIDTH - resultImage.getWidth()) / 2, middleY + 130, null);
+
+            g2d.dispose();
+            File temp = File.createTempFile("cup-result", ".png");
+            ImageIO.write(image, "png", temp);
+            return temp.getAbsolutePath();
+        } catch (Exception e) {
+            String message = "Error creating cup result image";
+            panicSender.sendPanic(message, e);
+            log.error("{}: {}", message, e.getMessage());
+            return null;
+        }
+    }
+
     public BufferedImage generateWithBackground(int width, int height, Color color) throws Exception {
+        return generateWithBackground(width, height, color, true);
+    }
+
+    public BufferedImage generateWithBackground(int width, int height, Color color, boolean withPlWatermark) throws Exception {
         int stripeWidth = 20;
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = image.createGraphics();
@@ -522,16 +692,17 @@ public class ImageRenderer {
 
         g2d.drawImage(stripe, (image.getWidth() - sWidth) / 2, (image.getHeight() - sHeight) / 2, null);
 
-        BufferedImage logo = loadPlLogo();
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.04f));
-        g2d.drawImage(logo, -400, -150, null);
+        if (withPlWatermark) {
+            BufferedImage logo = loadPlLogo();
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.04f));
+            g2d.drawImage(logo, -400, -150, null);
+        }
 
         g2d.dispose();
         return image;
     }
 
     public BufferedImage generateWithGradient(int width, int height, int homeTeamId, int awayTeamId) {
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         TeamColor homePalette = resolveTeamColor(homeTeamId);
         TeamColor awayPalette = resolveTeamColor(awayTeamId);
         Color home = homePalette.home();
@@ -539,6 +710,11 @@ public class ImageRenderer {
         if (similarTo(home, away)) {
             away = awayPalette.third();
         }
+        return generateWithGradient(width, height, home, away);
+    }
+
+    public BufferedImage generateWithGradient(int width, int height, Color home, Color away) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = image.createGraphics();
         GradientPaint gradient = new GradientPaint(0, 0, home, width, 0, away);
         g2d.setPaint(gradient);
@@ -725,6 +901,116 @@ public class ImageRenderer {
                 renderGate.release();
             }
         }
+    }
+
+    private static String displayTeamCode(Integer teamId, String espnCode) {
+        if (teamId != null) {
+            Team team = DaoUtil.TEAMS.get(teamId);
+            if (team != null && team.getCode() != null && !team.getCode().isBlank()) {
+                return team.getCode();
+            }
+        }
+        if (espnCode != null && !espnCode.isBlank()) {
+            return TeamCodeMapper.toInternalCode(espnCode);
+        }
+        return "?";
+    }
+
+    private Color resolveCupTeamColor(Integer teamId, String espnCode, boolean homeSide) {
+        if (teamId != null) {
+            TeamColor palette = resolveTeamColor(teamId);
+            return homeSide ? palette.home() : palette.away();
+        }
+        String seed = espnCode != null ? espnCode : "UNK";
+        int hueBase = Math.floorMod(seed.hashCode() * 37, 360);
+        float sat = homeSide ? 0.70f : 0.60f;
+        float bri = homeSide ? 0.85f : 0.80f;
+        return Color.getHSBColor(hueBase / 360f, sat, bri);
+    }
+
+    private BufferedImage resolveCupTeamLogo(Integer teamId, String logoUrl) {
+        if (teamId != null) {
+            try {
+                return loadTeamLogo(teamId);
+            } catch (Exception e) {
+                log.warn("Cup team logo by id={} failed: {}", teamId, e.getMessage());
+            }
+        }
+        BufferedImage remote = loadRemoteLogo(logoUrl);
+        if (remote != null) {
+            return remote;
+        }
+        BufferedImage stub = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = stub.createGraphics();
+        g.setPaint(Color.DARK_GRAY);
+        g.fillRect(0, 0, 64, 64);
+        g.dispose();
+        return stub;
+    }
+
+    private BufferedImage loadCompetitionLogo(String competition) {
+        return competitionLogoCache.computeIfAbsent(competition == null ? "" : competition, key -> {
+            String resource = CUP_LOGO_RESOURCE.get(key);
+            if (resource != null) {
+                try {
+                    ClassPathResource cpr = new ClassPathResource(resource);
+                    if (cpr.exists()) {
+                        return ImageIO.read(cpr.getInputStream());
+                    }
+                } catch (Exception e) {
+                    log.warn("Competition logo classpath load failed for {}: {}", key, e.getMessage());
+                }
+            }
+            return createLogoPlaceholder(220);
+        });
+    }
+
+    private BufferedImage loadRemoteLogo(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        return remoteLogoCache.computeIfAbsent(url, key -> {
+            try {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(key))
+                        .timeout(Duration.ofSeconds(10))
+                        .header("User-Agent", "predictions-bot/1.0")
+                        .GET()
+                        .build();
+                HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                if (response.statusCode() >= 200 && response.statusCode() < 300 && response.body() != null) {
+                    BufferedImage img = ImageIO.read(new ByteArrayInputStream(response.body()));
+                    if (img != null) {
+                        return img;
+                    }
+                }
+                log.warn("Remote logo HTTP {} for {}", response.statusCode(), key);
+            } catch (Exception e) {
+                log.warn("Remote logo load failed for {}: {}", key, e.getMessage());
+            }
+            // concurrent map disallows null values
+            BufferedImage stub = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = stub.createGraphics();
+            g.setPaint(Color.DARK_GRAY);
+            g.fillRect(0, 0, 64, 64);
+            g.dispose();
+            return stub;
+        });
+    }
+
+    private static BufferedImage scaleToHeight(BufferedImage image, int height) {
+        if (image == null) {
+            return createLogoPlaceholder(height);
+        }
+        double ratio = (double) height / image.getHeight();
+        int drawW = Math.max(1, (int) Math.round(image.getWidth() * ratio));
+        int drawH = height;
+        BufferedImage scaled = new BufferedImage(drawW, drawH, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = scaled.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.drawImage(image, 0, 0, drawW, drawH, null);
+        g2d.dispose();
+        return scaled;
     }
 
     private BufferedImage loadTeamLogo(int teamId) throws Exception {

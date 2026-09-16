@@ -3,6 +3,7 @@ package zhigalin.predictions.service.event;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,6 +22,8 @@ import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
+import zhigalin.predictions.service.notification.ImageRenderer;
+import zhigalin.predictions.service.notification.Result;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
@@ -38,17 +41,20 @@ public class BonusMatchSyncService {
     private final BonusMatchDao bonusMatchDao;
     private final PredictionService predictionService;
     private final ApiClient apiClient;
+    private final ImageRenderer imageRenderer;
 
     public BonusMatchSyncService(
             EspnScoreboardClient espnScoreboardClient,
             BonusMatchDao bonusMatchDao,
             PredictionService predictionService,
-            ApiClient apiClient
+            ApiClient apiClient,
+            ImageRenderer imageRenderer
     ) {
         this.espnScoreboardClient = espnScoreboardClient;
         this.bonusMatchDao = bonusMatchDao;
         this.predictionService = predictionService;
         this.apiClient = apiClient;
+        this.imageRenderer = imageRenderer;
     }
 
     public void syncTodayCups() {
@@ -181,26 +187,50 @@ public class BonusMatchSyncService {
     private void sendFullTime(BonusMatch match) {
         String home = match.getHomeEspnCode() != null ? match.getHomeEspnCode() : "?";
         String away = match.getAwayEspnCode() != null ? match.getAwayEspnCode() : "?";
-        StringBuilder sb = new StringBuilder();
-        sb.append("Бонус-матч окончен: ").append(home).append(" ")
-                .append(nz(match.getHomeTeamScore())).append(":").append(nz(match.getAwayTeamScore()))
-                .append(" ").append(away)
-                .append(" (").append(competitionLabel(match.getCompetition())).append(")\n");
+        String center = nz(match.getHomeTeamScore()) + ":" + nz(match.getAwayTeamScore());
         List<Prediction> predictions = predictionService.getByBonusMatchPublicId(match.getPublicId());
-        predictions.stream()
-                .sorted(Comparator.comparingInt((Prediction p) -> p.getPoints() == null ? 0 : p.getPoints()).reversed())
-                .forEach(p -> {
+        List<Result> results = predictions.stream()
+                .map(p -> {
                     User user = DaoUtil.USERS.get(p.getUserId());
-                    if (user == null) {
-                        return;
+                    if (user == null || user.getLogin() == null) {
+                        return null;
                     }
-                    String pred = (p.getHomeTeamScore() != null ? p.getHomeTeamScore() : "-")
-                                  + ":"
-                                  + (p.getAwayTeamScore() != null ? p.getAwayTeamScore() : "-");
-                    sb.append(user.getLogin()).append(" ").append(pred)
-                            .append(" → ").append(p.getPoints() == null ? 0 : p.getPoints()).append("\n");
-                });
-        apiClient.sendMessage(defaultChatId, sb.toString(), null);
+                    String login = user.getLogin();
+                    String shortLogin = login.length() >= 3 ? login.substring(0, 3) : login;
+                    String predict = (p.getHomeTeamScore() != null ? p.getHomeTeamScore() : "")
+                                     + ":"
+                                     + (p.getAwayTeamScore() != null ? p.getAwayTeamScore() : "");
+                    int points = p.getPoints() == null ? 0 : p.getPoints();
+                    return new Result(shortLogin, predict, points);
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
+                .toList();
+
+        String path = imageRenderer.createCupResultImage(
+                match.getCompetition(),
+                match.getHomeTeamId(),
+                match.getAwayTeamId(),
+                match.getHomeEspnCode(),
+                match.getAwayEspnCode(),
+                match.getHomeLogoUrl(),
+                match.getAwayLogoUrl(),
+                center,
+                results
+        );
+
+        String caption = "Бонус-матч окончен: " + home + " " + center + " " + away
+                         + " (" + competitionLabel(match.getCompetition()) + ")";
+        if (path != null) {
+            apiClient.sendPhoto(defaultChatId, caption, path, null);
+        } else {
+            StringBuilder sb = new StringBuilder(caption).append('\n');
+            for (Result r : results) {
+                sb.append(r.login()).append(' ').append(r.predict())
+                        .append(" → ").append(r.point()).append('\n');
+            }
+            apiClient.sendMessage(defaultChatId, sb.toString(), null);
+        }
         bonusMatchDao.updateLiveScoreMessageId(match.getPublicId(), null);
     }
 
