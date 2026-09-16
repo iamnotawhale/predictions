@@ -585,9 +585,6 @@ html[data-switching] *::after {
 }
 
 .week-btn-cups {
-    grid-column: 1 / -1;
-    /* Full-row width ≈ 4 tour cells; keep the same height as one tour button (aspect 1.1). */
-    aspect-ratio: 4.4;
     background: linear-gradient(135deg, rgba(100, 149, 237, 0.18), rgba(100, 149, 237, 0.06));
     border-color: rgba(100, 149, 237, 0.4);
     color: #c5d8ff;
@@ -704,6 +701,7 @@ html[data-switching] *::after {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
+    container-type: inline-size;
 }
 
 .week-btn {
@@ -725,6 +723,13 @@ html[data-switching] *::after {
 
 .week-btn:active {
     transform: scale(0.97);
+}
+
+/* Full row above tours; height matches one tour cell (override .week-btn aspect-ratio). */
+.week-btn.week-btn-cups {
+    grid-column: 1 / -1;
+    aspect-ratio: auto;
+    height: calc((100cqi - 3 * 8px) / 4 / 1.1);
 }
 
 .back-link {
