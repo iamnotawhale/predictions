@@ -1070,8 +1070,7 @@ public class MiniAppService {
 
     public CupReviewResponse cupReview(String telegramId, String competition) {
         requireUser(telegramId);
-        List<BonusMatch> matches = bonusMatchDao.findByCompetitionForReview(
-                competition, java.time.LocalDate.now(AppTimeZones.DISPLAY));
+        List<BonusMatch> matches = bonusMatchDao.findByCompetition(competition);
         List<Integer> ids = matches.stream().map(BonusMatch::getPublicId).toList();
         Map<Integer, Prediction> preds = predictionService.predictionsByBonusMatchForUser(telegramId, ids);
         List<WeekReviewItem> items = new ArrayList<>();
