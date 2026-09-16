@@ -195,6 +195,14 @@ public class MiniAppController {
         return miniAppService.cupReview(requireTelegramId(initData), competition);
     }
 
+    @GetMapping("/cups/match/{publicId}/live-details")
+    public LiveMatchDetailsResponse cupLiveDetails(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int publicId
+    ) {
+        return miniAppService.liveCupMatchDetails(requireTelegramId(initData), publicId);
+    }
+
     @GetMapping("/match/{matchId}/crowd")
     public CrowdMeterResponse crowd(
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,

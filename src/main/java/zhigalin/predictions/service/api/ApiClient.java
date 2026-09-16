@@ -47,7 +47,8 @@ public class ApiClient {
     private static final String HOST = "v3.football.api-sports.io";
     private static final String BASE_URL = "https://v3.football.api-sports.io/fixtures/";
     private static final String LINEUPS = "lineups";
-    private static final String ESPN_SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary";
+    private static final String ESPN_SUMMARY_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/";
+    private static final String ESPN_SUMMARY_DEFAULT_LEAGUE = "eng.1";
     private static final long ESPN_SUMMARY_TTL_MS = 8_000L;
 
     private static final Pattern GOAL_SCORER = Pattern.compile("^Goal!\\s*.+?\\.\\s*(.+?)\\s+\\([^)]+\\)");
@@ -244,32 +245,40 @@ public class ApiClient {
      * Failed/empty responses are not cached so retries are not stuck.
      */
     public JsonNode fetchEspnSummary(String espnEventId) {
+        return fetchEspnSummary(espnEventId, ESPN_SUMMARY_DEFAULT_LEAGUE);
+    }
+
+    public JsonNode fetchEspnSummary(String espnEventId, String leagueSlug) {
         if (espnEventId == null || espnEventId.isBlank()) {
             return null;
         }
+        String league = (leagueSlug == null || leagueSlug.isBlank()) ? ESPN_SUMMARY_DEFAULT_LEAGUE : leagueSlug.trim();
+        String cacheKey = league + "|" + espnEventId;
         long now = System.currentTimeMillis();
-        CachedEspnSummary cached = espnSummaryCache.get(espnEventId);
+        CachedEspnSummary cached = espnSummaryCache.get(cacheKey);
         if (cached != null && now - cached.fetchedAtMs() < ESPN_SUMMARY_TTL_MS) {
             return cached.root();
         }
         try {
-            HttpResponse<String> response = Unirest.get(ESPN_SUMMARY_URL)
+            String url = ESPN_SUMMARY_BASE + league + "/summary";
+            HttpResponse<String> response = Unirest.get(url)
                     .queryString("event", espnEventId)
                     .asString();
             if (response.getStatus() != 200 || response.getBody() == null || response.getBody().isBlank()) {
-                espnSummaryCache.remove(espnEventId);
+                espnSummaryCache.remove(cacheKey);
                 return null;
             }
             JsonNode root = mapper.readTree(response.getBody());
             if (root == null || root.isMissingNode() || root.isNull()) {
-                espnSummaryCache.remove(espnEventId);
+                espnSummaryCache.remove(cacheKey);
                 return null;
             }
-            espnSummaryCache.put(espnEventId, new CachedEspnSummary(root, now));
+            espnSummaryCache.put(cacheKey, new CachedEspnSummary(root, now));
             return root;
         } catch (Exception e) {
-            espnSummaryCache.remove(espnEventId);
-            log.warn("ESPN summary fetch failed: espnEventId={}, error={}", espnEventId, e.getMessage());
+            espnSummaryCache.remove(cacheKey);
+            log.warn("ESPN summary fetch failed: league={}, espnEventId={}, error={}",
+                    league, espnEventId, e.getMessage());
             return null;
         }
     }

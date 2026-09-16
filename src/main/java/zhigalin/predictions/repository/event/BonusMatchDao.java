@@ -161,14 +161,22 @@ public class BonusMatchDao {
     }
 
     public List<BonusMatch> findByCompetition(String competition) {
+        return findByCompetitionFrom(competition, java.time.LocalDate.now());
+    }
+
+    public List<BonusMatch> findByCompetitionFrom(String competition, java.time.LocalDate fromDate) {
         try {
             String sql = """
                     SELECT * FROM bonus_match
                     WHERE competition = :competition
+                      AND CAST(local_date_time AS DATE) >= :fromDate
                     ORDER BY local_date_time, public_id
                     """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("competition", competition)
+                    .addValue("fromDate", fromDate);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new MapSqlParameterSource("competition", competition), new BonusMatchMapper()));
+                    sql, params, new BonusMatchMapper()));
         } catch (Exception e) {
             panicSender.sendPanic("Error find bonus_match by competition", e);
             return List.of();
@@ -176,13 +184,18 @@ public class BonusMatchDao {
     }
 
     public List<BonusMatch> findAllOrdered() {
+        return findAllFrom(java.time.LocalDate.now());
+    }
+
+    public List<BonusMatch> findAllFrom(java.time.LocalDate fromDate) {
         try {
             String sql = """
                     SELECT * FROM bonus_match
+                    WHERE CAST(local_date_time AS DATE) >= :fromDate
                     ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new BonusMatchMapper()));
+                    sql, new MapSqlParameterSource("fromDate", fromDate), new BonusMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }
