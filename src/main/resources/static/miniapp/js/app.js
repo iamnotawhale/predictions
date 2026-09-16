@@ -1468,7 +1468,10 @@
 
     async function loadLiveMatchDetails(match) {
         const modalMatchId = match.publicId;
-        const data = await api('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/live-details');
+        const liveUrl = match.cup
+            ? ('/cups/match/' + encodeURIComponent(match.bonusMatchId || match.publicId) + '/live-details')
+            : ('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/live-details');
+        const data = await api(liveUrl);
         if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
             return;
         }
@@ -2980,18 +2983,31 @@
         if (!container) return;
         container.innerHTML = '';
         if (!cups.length) {
-            container.innerHTML = '<div class="empty-state">Кубковых матчей пока нет</div>';
+            container.innerHTML = '<div class="empty-state">Актуальных кубковых матчей нет</div>';
             return;
         }
+        const title = document.createElement('div');
+        title.className = 'cup-section-title';
+        title.textContent = 'Кубковые турниры';
+        container.appendChild(title);
+        const list = document.createElement('div');
+        list.className = 'cup-card-list';
         cups.forEach(c => {
+            const key = competitionCssKey(c.competition);
             const btn = document.createElement('button');
-            btn.className = 'week-btn cup-comp-btn cup-' + competitionCssKey(c.competition)
-                + (c.hasPredictions ? ' has-predictions' : '');
-            btn.textContent = (c.label || competitionShort(c.competition))
-                + (c.matchCount != null ? (' · ' + c.matchCount) : '');
+            btn.type = 'button';
+            btn.className = 'cup-card cup-' + key + (c.hasPredictions ? ' has-predictions' : '');
+            btn.innerHTML =
+                '<span class="cup-card-accent" aria-hidden="true"></span>' +
+                '<span class="cup-card-body">' +
+                '<span class="cup-card-label">' + escapeHtml(c.label || competitionShort(c.competition)) + '</span>' +
+                '<span class="cup-card-hint">' + (c.hasPredictions ? 'есть прогнозы' : 'выбрать матчи') + '</span>' +
+                '</span>' +
+                '<span class="cup-card-chevron" aria-hidden="true">›</span>';
             btn.addEventListener('click', () => onSelect(c));
-            container.appendChild(btn);
+            list.appendChild(btn);
         });
+        container.appendChild(list);
     }
 
     async function showPredictCups(preloaded) {
@@ -3000,6 +3016,7 @@
         $('#predict-matches').classList.add('hidden');
         const grid = $('#predict-cups');
         grid.classList.remove('hidden');
+        grid.classList.add('cup-panel');
         state.predictCupsOpened = true;
         state.predictWeekOpened = false;
         state.predictCupCompetition = null;
@@ -3038,6 +3055,7 @@
         $('#my-predictions').classList.add('hidden');
         const grid = $('#my-cups');
         grid.classList.remove('hidden');
+        grid.classList.add('cup-panel');
         state.myCupsOpened = true;
         state.myWeekOpened = false;
         state.myCupCompetition = null;

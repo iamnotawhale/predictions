@@ -559,18 +559,104 @@ html[data-switching] *::after {
 
 .week-btn-cups {
     grid-column: 1 / -1;
-    background: rgba(100, 149, 237, 0.12);
-    border-color: rgba(100, 149, 237, 0.35);
-    color: #a8c0ff;
+    background: linear-gradient(135deg, rgba(100, 149, 237, 0.18), rgba(100, 149, 237, 0.06));
+    border-color: rgba(100, 149, 237, 0.4);
+    color: #c5d8ff;
     font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 .week-btn-cups.has-predictions {
-    box-shadow: inset 0 0 0 1px rgba(100, 149, 237, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(100, 149, 237, 0.5);
 }
 
-.cup-comp-btn {
-    min-height: 44px;
+.cup-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 0 16px;
+}
+
+.cup-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--hint);
+    padding: 0 2px;
+}
+
+.cup-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cup-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 14px 14px 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.cup-card:active {
+    transform: scale(0.985);
+}
+
+.cup-card-accent {
+    width: 5px;
+    align-self: stretch;
+    border-radius: 14px 0 0 14px;
+    background: #6495ed;
+    flex-shrink: 0;
+}
+
+.cup-card.cup-fa .cup-card-accent { background: #c43a6e; }
+.cup-card.cup-carabao .cup-card-accent { background: #1aa36a; }
+.cup-card.cup-ucl .cup-card-accent { background: #3d6ae8; }
+.cup-card.cup-uel .cup-card-accent { background: #e07020; }
+.cup-card.cup-uecl .cup-card-accent { background: #1aaa9a; }
+
+.cup-card.cup-fa { border-color: rgba(196, 58, 110, 0.28); background: rgba(196, 58, 110, 0.07); }
+.cup-card.cup-carabao { border-color: rgba(26, 163, 106, 0.28); background: rgba(26, 163, 106, 0.07); }
+.cup-card.cup-ucl { border-color: rgba(61, 106, 232, 0.28); background: rgba(61, 106, 232, 0.07); }
+.cup-card.cup-uel { border-color: rgba(224, 112, 32, 0.28); background: rgba(224, 112, 32, 0.07); }
+.cup-card.cup-uecl { border-color: rgba(26, 170, 154, 0.28); background: rgba(26, 170, 154, 0.07); }
+
+.cup-card.has-predictions {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.cup-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.cup-card-label {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.cup-card-hint {
+    font-size: 12px;
+    color: var(--hint);
+}
+
+.cup-card-chevron {
+    font-size: 22px;
+    color: var(--hint);
+    padding-right: 4px;
 }
 
 .score-pill {

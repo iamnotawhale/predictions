@@ -362,6 +362,65 @@ public class MiniAppService {
         );
     }
 
+    public LiveMatchDetailsResponse liveCupMatchDetails(String telegramId, int bonusPublicId) {
+        requireUser(telegramId);
+        BonusMatch match = bonusMatchDao.findByPublicId(bonusPublicId);
+        if (match == null) {
+            return emptyLiveDetails();
+        }
+        boolean live = isLiveStatus(match.getStatus())
+                       && match.getHomeTeamScore() != null
+                       && match.getAwayTeamScore() != null;
+        if (!live) {
+            return emptyLiveDetails();
+        }
+        JsonNode summaryRoot = loadEspnSummaryRoot(match.getEspnId(), match.getCompetition());
+        String homeCode = match.getHomeEspnCode() != null
+                ? TeamCodeMapper.toInternalCode(match.getHomeEspnCode()) : "HOME";
+        String awayCode = match.getAwayEspnCode() != null
+                ? TeamCodeMapper.toInternalCode(match.getAwayEspnCode()) : "AWAY";
+        if (match.getHomeTeamId() != null && DaoUtil.TEAMS.get(match.getHomeTeamId()) != null) {
+            homeCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
+        }
+        if (match.getAwayTeamId() != null && DaoUtil.TEAMS.get(match.getAwayTeamId()) != null) {
+            awayCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+        }
+        TeamFormationItem homeFormation = loadTeamFormation(summaryRoot, "home", homeCode);
+        TeamFormationItem awayFormation = loadTeamFormation(summaryRoot, "away", awayCode);
+        List<LineupPlayerItem> homeLineup = toLineupItemsFromFormation(homeFormation);
+        List<LineupPlayerItem> awayLineup = toLineupItemsFromFormation(awayFormation);
+        List<MatchEventItem> events = loadLiveEvents(summaryRoot);
+        List<MatchStatItem> matchStats = loadLiveStats(summaryRoot);
+        String homePitch = pitchColorForTeamId(match.getHomeTeamId(), true);
+        String awayPitch = pitchColorForTeamId(match.getAwayTeamId(), false);
+        if (homePitch == null && homeFormation != null && homeFormation.kitColor() != null) {
+            homePitch = homeFormation.kitColor();
+        }
+        if (awayPitch == null && awayFormation != null && awayFormation.kitColor() != null) {
+            awayPitch = awayFormation.kitColor();
+        }
+        if (homePitch == null) {
+            homePitch = "#ffffff";
+        }
+        if (awayPitch == null) {
+            awayPitch = "#c0c0c0";
+        }
+        return new LiveMatchDetailsResponse(
+                true,
+                homeLineup,
+                awayLineup,
+                homeFormation,
+                awayFormation,
+                events,
+                matchStats,
+                homePitch,
+                awayPitch,
+                match.getHomeTeamScore(),
+                match.getAwayTeamScore(),
+                match.getStatus()
+        );
+    }
+
     private static LiveMatchDetailsResponse emptyLiveDetails() {
         return new LiveMatchDetailsResponse(
                 false, List.of(), List.of(), null, null, List.of(), List.of(), null, null, null, null, null);
@@ -846,8 +905,16 @@ public class MiniAppService {
         if (match.getLocalDateTime() != null && isNotStartedStatus(match.getStatus())) {
             kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
         }
-        String homeCode = match.getHomeEspnCode() != null ? match.getHomeEspnCode() : "?";
-        String awayCode = match.getAwayEspnCode() != null ? match.getAwayEspnCode() : "?";
+        String homeCode = match.getHomeEspnCode() != null
+                ? TeamCodeMapper.toInternalCode(match.getHomeEspnCode()) : "?";
+        String awayCode = match.getAwayEspnCode() != null
+                ? TeamCodeMapper.toInternalCode(match.getAwayEspnCode()) : "?";
+        if (match.getHomeTeamId() != null && DaoUtil.TEAMS.get(match.getHomeTeamId()) != null) {
+            homeCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
+        }
+        if (match.getAwayTeamId() != null && DaoUtil.TEAMS.get(match.getAwayTeamId()) != null) {
+            awayCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
+        }
         String homeLogo = match.getHomeTeamId() != null
                 ? teamLogoPath(match.getHomeTeamId())
                 : (match.getHomeLogoUrl() != null ? match.getHomeLogoUrl() : "");
@@ -1348,14 +1415,22 @@ public class MiniAppService {
     }
 
     private JsonNode loadEspnSummaryRoot(Match match) {
-        if (match == null || match.getEspnId() == null || match.getEspnId().isBlank()) {
+        if (match == null) {
             return null;
         }
+        return loadEspnSummaryRoot(match.getEspnId(), "eng.1");
+    }
+
+    private JsonNode loadEspnSummaryRoot(String espnId, String competition) {
+        if (espnId == null || espnId.isBlank()) {
+            return null;
+        }
+        String league = (competition == null || competition.isBlank()) ? "eng.1" : competition;
         try {
-            return apiClient.fetchEspnSummary(match.getEspnId());
+            return apiClient.fetchEspnSummary(espnId, league);
         } catch (Exception e) {
-            log.warn("MiniApp summary fetch failed: matchId={}, espnId={}, error={}",
-                    match.getPublicId(), match.getEspnId(), e.getMessage());
+            log.warn("MiniApp summary fetch failed: league={}, espnId={}, error={}",
+                    league, espnId, e.getMessage());
             return null;
         }
     }
@@ -1598,7 +1673,10 @@ public class MiniAppService {
         return map;
     }
 
-    private String pitchColorForTeamId(int teamId, boolean homeKit) {
+    private String pitchColorForTeamId(Integer teamId, boolean homeKit) {
+        if (teamId == null) {
+            return null;
+        }
         TeamKitColors kits = TEAM_PITCH_COLORS.get(String.valueOf(teamId));
         if (kits == null) {
             return "#ffffff";
