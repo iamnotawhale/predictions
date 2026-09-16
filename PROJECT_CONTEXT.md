@@ -387,6 +387,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - `Live Points Race` удалён; live-динамика встроена в зачёт (`provisionalPoints/liveDelta/liveActive`).
 - live-подсчёт очков в leaderboard учитывает `-1` и пользователей без прогноза на live/finished матчах (provisional через один `findAllByWeekId`, не N×`getByMatchPublicId`).
 - график очков по неделям: целочисленная сетка Y; кубковые FT входят в снимок активной EPL-недели (`FlooredPointsService.flooredCumulativeByWeek`).
+- карточки АПЛ: ярко-фиолетовый без прогноза / тусклый фиолетовый с прогнозом (кубки — свои цвета турниров).
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
 
 ### Версия miniapp
