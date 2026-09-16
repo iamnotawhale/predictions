@@ -916,15 +916,21 @@
         }
         data.entries.forEach((e, i) => {
             const li = document.createElement('li');
-            li.className = 'list-item';
+            li.className = 'list-item leaderboard-item';
             li.style.cursor = 'default';
             const shownPoints = e.provisionalPoints != null ? e.provisionalPoints : e.points;
-            const sub = e.provisionalPoints != null && data.liveActive
-                ? '<div class="list-item-sub">база ' + e.points + ' · live ' + (e.liveDelta >= 0 ? '+' : '') + e.liveDelta + '</div>'
+            const liveMeta = e.provisionalPoints != null && data.liveActive
+                ? '<span class="leaderboard-live-meta">база ' + e.points
+                    + ' · live ' + (e.liveDelta >= 0 ? '+' : '') + e.liveDelta + '</span>'
                 : '';
             li.innerHTML =
                 '<span class="rank">' + (i + 1) + '</span>' +
-                '<div class="list-item-main"><div class="list-item-title">' + e.login.toUpperCase() + '</div>' + sub + '</div>' +
+                '<div class="list-item-main">' +
+                '<div class="list-item-title">' +
+                '<span class="list-item-codes">' + e.login.toUpperCase() + '</span>' +
+                liveMeta +
+                '</div>' +
+                '</div>' +
                 '<span class="pts">' + shownPoints + '</span>';
             list.appendChild(li);
         });
@@ -1251,17 +1257,11 @@
         const weeks = await api('/weeks');
         const container = $(containerId);
         container.innerHTML = '';
-        weeks.forEach(w => {
-            const btn = document.createElement('button');
-            btn.className = 'week-btn' + (w.hasPredictions ? ' has-predictions' : '');
-            btn.textContent = w.id;
-            btn.addEventListener('click', () => onSelect(w.id));
-            container.appendChild(btn);
-        });
         try {
             const cups = await api('/cups');
             const anyPred = (cups || []).some(c => c.hasPredictions);
             const cupBtn = document.createElement('button');
+            cupBtn.type = 'button';
             cupBtn.className = 'week-btn week-btn-cups' + (anyPred ? ' has-predictions' : '');
             cupBtn.textContent = 'Кубки';
             cupBtn.addEventListener('click', () => {
@@ -1272,6 +1272,14 @@
         } catch (_) {
             /* cups optional if API unavailable */
         }
+        weeks.forEach(w => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'week-btn' + (w.hasPredictions ? ' has-predictions' : '');
+            btn.textContent = w.id;
+            btn.addEventListener('click', () => onSelect(w.id));
+            container.appendChild(btn);
+        });
     }
 
     async function loadPredictMatches(weekId) {

@@ -8,6 +8,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 
 class FlooredPointsAndScoringModesTest {
 
@@ -28,6 +29,13 @@ class FlooredPointsAndScoringModesTest {
         Map<Integer, Integer> snaps = FlooredPointsService.cumulativeWeekSnapshots(events);
         assertEquals(8, snaps.get(1));
         assertEquals(9, snaps.get(2));
+    }
+
+    @Test
+    void weekBonusStartsFromWeekFive() {
+        assertEquals(false, UserWeekBonusMatchService.isEligibleWeek(4));
+        assertEquals(true, UserWeekBonusMatchService.isEligibleWeek(5));
+        assertEquals(true, UserWeekBonusMatchService.isEligibleWeek(6));
     }
 
     @Test
