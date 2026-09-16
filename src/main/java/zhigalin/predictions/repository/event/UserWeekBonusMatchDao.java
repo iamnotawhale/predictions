@@ -59,4 +59,13 @@ public class UserWeekBonusMatchDao {
             return List.of();
         }
     }
+
+    public void deleteBeforeWeek(int minWeekId) {
+        String sql = "DELETE FROM user_week_bonus_match WHERE week_id < :minWeekId";
+        try {
+            jdbc.update(sql, new MapSqlParameterSource("minWeekId", minWeekId));
+        } catch (Exception ignored) {
+            // schema may be mid-migration
+        }
+    }
 }

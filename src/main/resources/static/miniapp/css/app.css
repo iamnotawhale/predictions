@@ -411,6 +411,18 @@ html[data-switching] *::after {
     letter-spacing: 0.02em;
 }
 
+.leaderboard-live-meta {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--hint);
+    white-space: nowrap;
+}
+
+.leaderboard-item .list-item-title {
+    flex-wrap: nowrap;
+}
+
 .list-item-sub {
     font-size: 13px;
     color: var(--hint);
@@ -574,6 +586,8 @@ html[data-switching] *::after {
 
 .week-btn-cups {
     grid-column: 1 / -1;
+    /* Full-row width ≈ 4 tour cells; keep the same height as one tour button (aspect 1.1). */
+    aspect-ratio: 4.4;
     background: linear-gradient(135deg, rgba(100, 149, 237, 0.18), rgba(100, 149, 237, 0.06));
     border-color: rgba(100, 149, 237, 0.4);
     color: #c5d8ff;

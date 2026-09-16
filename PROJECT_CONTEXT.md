@@ -248,7 +248,7 @@
 - `MatchService`: team-scoped `findLastFinishedByTeamId` / `findNextByTeamId` (SQL LIMIT); `findFinishedMatches` / `findPastNonPostponedMatches` для points/H2H backfill.
 - `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` с режимами **EPL** (4/2/1/−1), **EPL week-bonus** (5/3/2/0/−1), **CUP** (2/1/0/0).
 - **Скользящий пол очков:** сырые `predict.points` не затираются; зачёт сезона/тура = `running = max(0, running + points)` в порядке `coalesce(finished_at, local_date_time)` (`FlooredPointsService` / `PointEventDao`). Leaderboard и chart используют floored totals.
-- **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус ×».
+- **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус ×»; только с **5 тура** (`UserWeekBonusMatchService.MIN_WEEK_ID`).
 - **Кубковые бонус-матчи:** таблица `bonus_match` (FA / Carabao / UCL / UEL / UECL), sync через `BonusMatchSyncService` + ESPN multi-league scoreboard; в матче ≥1 клуб АПЛ; прогнозы в `predict.bonus_match_id`; без live-уведомлений о счёте / FT картинкой (`ImageRenderer.createCupResultImage`); очки в общий зачёт. Mini App: карточки Home/Today с цветами турнира; `GET /api/miniapp/cups` + matches/review; live Общий зачёт учитывает in-play cup provisional.
 - `match.finished_at` проставляется при переходе в `ft` (для порядка пола).
 - `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM); для odds в NOTIFICATION — `ensureFresh`, не сырой `oddsInit2`; cup FT — `createCupResultImage` (цвета/логотипы турниров в `static/img/leagues/`, remote team logos cache).
@@ -418,7 +418,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - Данные из ESPN `summary.rosters`: `formation`, `formationPlace`, `jerseyImages`, stats, `subbedOut`/`subbedIn`, связи `subbedOutFor`/`subbedInFor` → `subPartnerId/Name`.
 - Fallback: API-Football lineups, если ESPN rosters пусты.
 - Расстановка по Opta `formationPlace` (словарь схем 4-2-3-1, 4-3-3, …; fallback на 4-2-3-1 при неизвестной схеме).
-- **Форма игрока:** картинка ESPN `jerseyImages` (не цветной прямоугольник); при отсутствии — номер на фоне цвета команды.
+- **Форма игрока:** картинка ESPN `jerseyImages` (не цветной прямоугольник); при отсутствии — номер на фоне цвета команды; URL с `width/height=128` (stitcher thumb вместо 1440px).
 - **Замены на поле:** вышедший запасной занимает позицию `formationPlace` заменённого; зелёная обводка формы; иконка ↕ справа сверху (без фонового бейджа).
 - Бейджи событий на поле: голы, ассисты, карточки (слева сверху).
 - Тап по игроку основного состава → `#player-modal` (форма без двоения: при `jerseyImage` номер/рамка не рисуются поверх картинки; stats из ESPN).

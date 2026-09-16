@@ -1369,6 +1369,8 @@ public class MiniAppService {
         );
     }
 
+    private static final int JERSEY_THUMB_PX = 128;
+
     private static String jerseyImageUrl(JsonNode images) {
         if (!images.isArray()) {
             return null;
@@ -1393,7 +1395,22 @@ public class MiniAppService {
                 dark = href;
             }
         }
-        return dark != null ? dark : any;
+        return withJerseyThumbSize(dark != null ? dark : any);
+    }
+
+    /**
+     * ESPN stitcher serves full 1440px jerseys (~200KB+); request a small thumb for formation dots.
+     */
+    static String withJerseyThumbSize(String href) {
+        if (href == null || href.isBlank()) {
+            return null;
+        }
+        String trimmed = href.trim();
+        if (trimmed.contains("width=") || trimmed.contains("height=")) {
+            return trimmed;
+        }
+        char sep = trimmed.indexOf('?') >= 0 ? '&' : '?';
+        return trimmed + sep + "width=" + JERSEY_THUMB_PX + "&height=" + JERSEY_THUMB_PX;
     }
 
     private static Integer intStat(List<PlayerStatItem> stats, String name) {
