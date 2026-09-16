@@ -56,7 +56,7 @@ public class ChartRenderer {
             }
 
             JFreeChart chart = ChartFactory.createLineChart(
-                    "ГРАФИК НАБОРА ОЧКОВ ПО ТУРАМ", "Week", "PTS",
+                    "ГРАФИК НАБОРА ОЧКОВ ПО НЕДЕЛЯМ", "Week", "PTS",
                     dataset, PlotOrientation.VERTICAL, true, true, false);
 
             chart.setBackgroundPaint(new Color(0, 0, 0, 0));

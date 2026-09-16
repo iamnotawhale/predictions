@@ -277,7 +277,7 @@
 | GET | `/team/{teamCode}/matches` | Последние/ближайшие матчи команды |
 | GET | `/h2h/{homeCode}/{awayCode}` | Личные встречи |
 | GET | `/today` | Матчи сегодня |
-| GET | `/chart` | Данные графика очков |
+| GET | `/chart` | Данные графика очков по неделям (floored, с кубками) |
 | POST/DELETE | `/predictions` | Сохранить / удалить прогноз |
 | POST | `/client-log` | Клиентские логи на сервер |
 
@@ -357,7 +357,7 @@ psql … -f deploy/recommender-calibration-report.sql
 
 ## Mini App: экраны и UX
 **4 экрана (нижняя навигация):**
-- **Главная** (`screen-stats`): live-карточка, зачёт (Общий / Текущий тур), график очков, таблица АПЛ, версия miniapp; в шапке ползунок **AI** (рекомендатор).
+- **Главная** (`screen-stats`): live-карточка, зачёт (Общий / `N тур`), график очков по неделям (EPL + кубки в снимке недели), таблица АПЛ, версия miniapp; в шапке ползунок **AI** (рекомендатор).
 - **Сегодня** (`screen-today`): матчи дня, счёт/старт, бейджи прогнозов.
 - **Прогноз** (`screen-predict`): выбор тура → список матчей → модалка прогноза.
 - **Мои** (`screen-my`): прогнозы тура + **Разбор тура**.
@@ -386,7 +386,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - `Crowd Meter` удален из UI; backend-эндпоинт остаётся.
 - `Live Points Race` удалён; live-динамика встроена в зачёт (`provisionalPoints/liveDelta/liveActive`).
 - live-подсчёт очков в leaderboard учитывает `-1` и пользователей без прогноза на live/finished матчах (provisional через один `findAllByWeekId`, не N×`getByMatchPublicId`).
-- график очков: целочисленная сетка Y.
+- график очков по неделям: целочисленная сетка Y; кубковые FT входят в снимок активной EPL-недели (`FlooredPointsService.flooredCumulativeByWeek`).
 - Backend `canPredict`: до `kickoff + 5 минут`; закрытые статусы `ft/aet/pen/canc/abd/awrd/wo` — нельзя.
 
 ### Версия miniapp
