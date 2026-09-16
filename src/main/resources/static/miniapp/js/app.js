@@ -2984,12 +2984,23 @@
         }
     }
 
-    function renderCupCompetitionsGrid(containerId, cups, onSelect) {
+    function renderCupCompetitionsGrid(containerId, cups, onSelect, onBack) {
         const container = $(containerId);
         if (!container) return;
         container.innerHTML = '';
+        if (onBack) {
+            const back = document.createElement('button');
+            back.type = 'button';
+            back.className = 'back-link';
+            back.innerHTML = '&#8592; Назад';
+            back.addEventListener('click', onBack);
+            container.appendChild(back);
+        }
         if (!cups.length) {
-            container.innerHTML = '<div class="empty-state">Актуальных кубковых матчей нет</div>';
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = 'Актуальных кубковых матчей нет';
+            container.appendChild(empty);
             return;
         }
         const title = document.createElement('div');
@@ -3025,7 +3036,10 @@
         state.predictCupsOpened = true;
         state.predictWeekOpened = false;
         state.predictCupCompetition = null;
-        renderCupCompetitionsGrid('#predict-cups', cups, showPredictCupCompetition);
+        renderCupCompetitionsGrid('#predict-cups', cups, showPredictCupCompetition, () => {
+            closePredictCupNav();
+            tg.BackButton.hide();
+        });
         tg.BackButton.show();
     }
 
@@ -3064,7 +3078,10 @@
         state.myCupsOpened = true;
         state.myWeekOpened = false;
         state.myCupCompetition = null;
-        renderCupCompetitionsGrid('#my-cups', cups, showMyCupCompetition);
+        renderCupCompetitionsGrid('#my-cups', cups, showMyCupCompetition, () => {
+            closeMyCupNav();
+            tg.BackButton.hide();
+        });
         tg.BackButton.show();
     }
 
