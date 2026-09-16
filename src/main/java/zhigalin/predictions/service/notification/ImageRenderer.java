@@ -40,7 +40,6 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.util.DaoUtil;
-import zhigalin.predictions.util.TeamCodeMapper;
 
 import static zhigalin.predictions.service.odds.OddsService.Odd;
 import static zhigalin.predictions.util.ColorComparator.similarTo;
@@ -904,14 +903,16 @@ public class ImageRenderer {
     }
 
     private static String displayTeamCode(Integer teamId, String espnCode) {
+        // Prefer stored ESPN/internal code (already mapped at ingest: Bayern→BAY).
+        // Do not let a wrong team_id (legacy Bayern→Man United) override the abbr.
+        if (espnCode != null && !espnCode.isBlank()) {
+            return espnCode;
+        }
         if (teamId != null) {
             Team team = DaoUtil.TEAMS.get(teamId);
             if (team != null && team.getCode() != null && !team.getCode().isBlank()) {
                 return team.getCode();
             }
-        }
-        if (espnCode != null && !espnCode.isBlank()) {
-            return TeamCodeMapper.toInternalCode(espnCode);
         }
         return "?";
     }

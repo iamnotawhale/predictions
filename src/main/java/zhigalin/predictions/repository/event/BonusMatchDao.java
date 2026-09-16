@@ -135,6 +135,7 @@ public class BonusMatchDao {
             String sql = """
                     SELECT * FROM bonus_match
                     WHERE CAST(local_date_time AS DATE) = :date
+                      AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
                     ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
@@ -151,6 +152,7 @@ public class BonusMatchDao {
                     SELECT * FROM bonus_match
                     WHERE status IS NOT NULL
                       AND status NOT IN ('ns', 'ft', 'pst', 'aet', 'pen')
+                      AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
                     ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
@@ -163,18 +165,26 @@ public class BonusMatchDao {
     public List<BonusMatch> findByCompetition(String competition) {
         return findByCompetitionBrowse(
                 competition,
-                LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY)
+                LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY),
+                zhigalin.predictions.service.DataInitService.seasonStartDate()
         );
     }
 
     /**
-     * All finished matches for the competition plus upcoming from {@code fromDate} (inclusive).
+     * Finished matches from {@code seasonStart} plus upcoming from {@code fromDate}.
+     * Requires at least one linked EPL club ({@code home_team_id} / {@code away_team_id}).
      */
-    public List<BonusMatch> findByCompetitionBrowse(String competition, LocalDate fromDate) {
+    public List<BonusMatch> findByCompetitionBrowse(
+            String competition,
+            LocalDate fromDate,
+            LocalDate seasonStart
+    ) {
         try {
             String sql = """
                     SELECT * FROM bonus_match
                     WHERE competition = :competition
+                      AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
+                      AND CAST(local_date_time AS DATE) >= :seasonStart
                       AND (
                             status IN ('ft', 'aet', 'pen')
                             OR CAST(local_date_time AS DATE) >= :fromDate
@@ -183,7 +193,8 @@ public class BonusMatchDao {
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("competition", competition)
-                    .addValue("fromDate", fromDate);
+                    .addValue("fromDate", fromDate)
+                    .addValue("seasonStart", seasonStart);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, params, new BonusMatchMapper()));
         } catch (Exception e) {
@@ -212,19 +223,29 @@ public class BonusMatchDao {
     }
 
     public List<BonusMatch> findAllOrdered() {
-        return findAllBrowse(LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
+        return findAllBrowse(
+                LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY),
+                zhigalin.predictions.service.DataInitService.seasonStartDate()
+        );
     }
 
-    public List<BonusMatch> findAllBrowse(LocalDate fromDate) {
+    public List<BonusMatch> findAllBrowse(LocalDate fromDate, LocalDate seasonStart) {
         try {
             String sql = """
                     SELECT * FROM bonus_match
-                    WHERE status IN ('ft', 'aet', 'pen')
-                       OR CAST(local_date_time AS DATE) >= :fromDate
+                    WHERE (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
+                      AND CAST(local_date_time AS DATE) >= :seasonStart
+                      AND (
+                            status IN ('ft', 'aet', 'pen')
+                            OR CAST(local_date_time AS DATE) >= :fromDate
+                      )
                     ORDER BY local_date_time, public_id
                     """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("fromDate", fromDate)
+                    .addValue("seasonStart", seasonStart);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new MapSqlParameterSource("fromDate", fromDate), new BonusMatchMapper()));
+                    sql, params, new BonusMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }
@@ -244,15 +265,75 @@ public class BonusMatchDao {
         }
     }
 
+    public int deleteBeforeDate(LocalDateTime before) {
+        try {
+            return namedParameterJdbcTemplate.update(
+                    "DELETE FROM bonus_match WHERE local_date_time IS NOT NULL AND local_date_time < :before",
+                    new MapSqlParameterSource("before", before)
+            );
+        } catch (Exception e) {
+            serverLogger.error("deleteBeforeDate bonus_match: {}", e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Rows with no linked EPL club, or both sides linked but names look non-EPL after bad MUN mapping.
+     * Also drops rows where neither team_id is set.
+     */
+    public int deleteWithoutEplTeam() {
+        try {
+            return namedParameterJdbcTemplate.update(
+                    """
+                            DELETE FROM bonus_match
+                            WHERE home_team_id IS NULL AND away_team_id IS NULL
+                            """,
+                    new MapSqlParameterSource()
+            );
+        } catch (Exception e) {
+            serverLogger.error("deleteWithoutEplTeam bonus_match: {}", e.getMessage());
+            return 0;
+        }
+    }
+
+    public int deleteByPublicId(int publicId) {
+        try {
+            return namedParameterJdbcTemplate.update(
+                    "DELETE FROM bonus_match WHERE public_id = :id",
+                    new MapSqlParameterSource("id", publicId)
+            );
+        } catch (Exception e) {
+            serverLogger.error("deleteByPublicId bonus_match: {}", e.getMessage());
+            return 0;
+        }
+    }
+
+    /** All rows (no season/EPL filter) — for purge/repair. */
+    public List<BonusMatch> findAllRaw() {
+        try {
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    "SELECT * FROM bonus_match ORDER BY public_id",
+                    new BonusMatchMapper()));
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
     public List<BonusMatch> findFinished() {
         try {
             String sql = """
                     SELECT * FROM bonus_match
                     WHERE status = 'ft'
+                      AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
+                      AND CAST(local_date_time AS DATE) >= :seasonStart
                     ORDER BY COALESCE(finished_at, local_date_time), public_id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new BonusMatchMapper()));
+                    sql,
+                    new MapSqlParameterSource(
+                            "seasonStart",
+                            zhigalin.predictions.service.DataInitService.seasonStartDate()),
+                    new BonusMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }

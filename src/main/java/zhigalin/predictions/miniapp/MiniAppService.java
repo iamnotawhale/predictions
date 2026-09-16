@@ -81,7 +81,6 @@ import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
-import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
 public class MiniAppService {
@@ -375,16 +374,8 @@ public class MiniAppService {
             return emptyLiveDetails();
         }
         JsonNode summaryRoot = loadEspnSummaryRoot(match.getEspnId(), match.getCompetition());
-        String homeCode = match.getHomeEspnCode() != null
-                ? TeamCodeMapper.toInternalCode(match.getHomeEspnCode()) : "HOME";
-        String awayCode = match.getAwayEspnCode() != null
-                ? TeamCodeMapper.toInternalCode(match.getAwayEspnCode()) : "AWAY";
-        if (match.getHomeTeamId() != null && DaoUtil.TEAMS.get(match.getHomeTeamId()) != null) {
-            homeCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
-        }
-        if (match.getAwayTeamId() != null && DaoUtil.TEAMS.get(match.getAwayTeamId()) != null) {
-            awayCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-        }
+        String homeCode = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "HOME");
+        String awayCode = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "AWAY");
         TeamFormationItem homeFormation = loadTeamFormation(summaryRoot, "home", homeCode);
         TeamFormationItem awayFormation = loadTeamFormation(summaryRoot, "away", awayCode);
         List<LineupPlayerItem> homeLineup = toLineupItemsFromFormation(homeFormation);
@@ -905,16 +896,8 @@ public class MiniAppService {
         if (match.getLocalDateTime() != null && isNotStartedStatus(match.getStatus())) {
             kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
         }
-        String homeCode = match.getHomeEspnCode() != null
-                ? TeamCodeMapper.toInternalCode(match.getHomeEspnCode()) : "?";
-        String awayCode = match.getAwayEspnCode() != null
-                ? TeamCodeMapper.toInternalCode(match.getAwayEspnCode()) : "?";
-        if (match.getHomeTeamId() != null && DaoUtil.TEAMS.get(match.getHomeTeamId()) != null) {
-            homeCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
-        }
-        if (match.getAwayTeamId() != null && DaoUtil.TEAMS.get(match.getAwayTeamId()) != null) {
-            awayCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-        }
+        String homeCode = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
+        String awayCode = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
         String homeLogo = match.getHomeTeamId() != null
                 ? teamLogoPath(match.getHomeTeamId())
                 : (match.getHomeLogoUrl() != null ? match.getHomeLogoUrl() : "");
@@ -1084,16 +1067,8 @@ public class MiniAppService {
             if (pts != null) {
                 total += pts;
             }
-            String home = match.getHomeEspnCode() != null
-                    ? TeamCodeMapper.toInternalCode(match.getHomeEspnCode()) : "?";
-            String away = match.getAwayEspnCode() != null
-                    ? TeamCodeMapper.toInternalCode(match.getAwayEspnCode()) : "?";
-            if (match.getHomeTeamId() != null && DaoUtil.TEAMS.get(match.getHomeTeamId()) != null) {
-                home = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
-            }
-            if (match.getAwayTeamId() != null && DaoUtil.TEAMS.get(match.getAwayTeamId()) != null) {
-                away = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-            }
+            String home = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
+            String away = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
             items.add(new WeekReviewItem(
                     match.getPublicId(),
                     home,
@@ -1215,6 +1190,20 @@ public class MiniAppService {
 
     private static String teamCode(int teamId) {
         return DaoUtil.TEAMS.get(teamId).getCode();
+    }
+
+    /** Prefer stored abbr (ingest already maps ESPN MUN→BAY); fall back to linked EPL team. */
+    private static String displayBonusCode(String espnCode, Integer teamId, String fallback) {
+        if (espnCode != null && !espnCode.isBlank()) {
+            return espnCode;
+        }
+        if (teamId != null) {
+            Team t = DaoUtil.TEAMS.get(teamId);
+            if (t != null && t.getCode() != null && !t.getCode().isBlank()) {
+                return t.getCode();
+            }
+        }
+        return fallback;
     }
 
     private static String teamLogoPath(int teamId) {

@@ -5,8 +5,6 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,18 +59,15 @@ public class BonusMatchSyncService {
     }
 
     public void syncTodayCups() {
-        Set<String> eplCodes = DaoUtil.TEAMS.values().stream()
-                .map(Team::getCode)
-                .map(String::toUpperCase)
-                .collect(Collectors.toSet());
+        purgeInvalidBonusMatches();
         java.time.LocalDate today = LocalDateTime.now(AppTimeZones.DISPLAY).toLocalDate();
         java.time.LocalDate until = today.plusDays(CUP_WINDOW_DAYS);
         boolean scanWindow = shouldScanCupWindow();
         for (String league : EspnScoreboardClient.CUP_LEAGUES) {
             try {
-                ingestScoreboard(league, espnScoreboardClient.fetchScoreboard(league), eplCodes);
+                ingestScoreboard(league, espnScoreboardClient.fetchScoreboard(league));
                 if (scanWindow) {
-                    ingestUpcomingWindow(league, today, until, eplCodes);
+                    ingestUpcomingWindow(league, today, until);
                 }
             } catch (Exception e) {
                 log.warn("Cup sync failed for {}: {}", league, e.getMessage());
@@ -83,6 +78,62 @@ public class BonusMatchSyncService {
         }
     }
 
+    /**
+     * Drop rows without an EPL club link and anything before the current season.
+     * Fixes legacy Bayern(MUN)→Man United collisions and last-season FA finals.
+     */
+    void purgeInvalidBonusMatches() {
+        java.time.LocalDate seasonStart = zhigalin.predictions.service.DataInitService.seasonStartDate();
+        int removed = bonusMatchDao.deleteBeforeDate(seasonStart.atStartOfDay());
+        int removedNonEpl = bonusMatchDao.deleteWithoutEplTeam();
+        int removedMismatch = 0;
+        int remappedBayern = 0;
+        for (BonusMatch m : bonusMatchDao.findAllRaw()) {
+            if (isFalseEplLink(m.getHomeName(), m.getHomeTeamId())
+                || isFalseEplLink(m.getAwayName(), m.getAwayTeamId())
+                || (m.getHomeTeamId() == null && m.getAwayTeamId() == null)) {
+                removedMismatch += bonusMatchDao.deleteByPublicId(m.getPublicId());
+                continue;
+            }
+            boolean dirty = false;
+            if (looksBayern(m.getHomeName()) && "MUN".equalsIgnoreCase(m.getHomeEspnCode())) {
+                m.setHomeEspnCode("BAY");
+                dirty = true;
+            }
+            if (looksBayern(m.getAwayName()) && "MUN".equalsIgnoreCase(m.getAwayEspnCode())) {
+                m.setAwayEspnCode("BAY");
+                dirty = true;
+            }
+            if (dirty) {
+                bonusMatchDao.upsert(m);
+                remappedBayern++;
+            }
+        }
+        if (removed > 0 || removedNonEpl > 0 || removedMismatch > 0 || remappedBayern > 0) {
+            log.info("Cup purge: beforeSeason={} withoutEpl={} mismatch={} remappedBayern={}",
+                    removed, removedNonEpl, removedMismatch, remappedBayern);
+        }
+    }
+
+    private static boolean isFalseEplLink(String name, Integer teamId) {
+        if (teamId == null || name == null) {
+            return false;
+        }
+        Team linked = DaoUtil.TEAMS.get(teamId);
+        if (linked == null || linked.getCode() == null) {
+            return false;
+        }
+        return looksBayern(name) && "MUN".equalsIgnoreCase(linked.getCode());
+    }
+
+    private static boolean looksBayern(String name) {
+        if (name == null) {
+            return false;
+        }
+        String n = name.toLowerCase();
+        return n.contains("bayern") || n.contains("münchen") || n.contains("munchen");
+    }
+
     private boolean shouldScanCupWindow() {
         long last = lastCupWindowSyncMs;
         return last == 0L || System.currentTimeMillis() - last >= CUP_WINDOW_MIN_INTERVAL_MS;
@@ -91,34 +142,31 @@ public class BonusMatchSyncService {
     private void ingestUpcomingWindow(
             String league,
             java.time.LocalDate from,
-            java.time.LocalDate until,
-            Set<String> eplCodes
+            java.time.LocalDate until
     ) {
         Scoreboard ranged = espnScoreboardClient.fetchScoreboard(league, from, until);
         if (ranged != null && ranged.getEvents() != null && !ranged.getEvents().isEmpty()) {
-            ingestScoreboard(league, ranged, eplCodes);
+            ingestScoreboard(league, ranged);
             return;
         }
-        // Fallback: day-by-day for typical cup days (today + Tue/Wed/Sat/Sun).
         for (java.time.LocalDate d = from; !d.isAfter(until); d = d.plusDays(1)) {
-            int dow = d.getDayOfWeek().getValue(); // 1=Mon .. 7=Sun
+            int dow = d.getDayOfWeek().getValue();
             if (d.equals(from) || dow == 2 || dow == 3 || dow == 6 || dow == 7) {
-                Scoreboard dayBoard = espnScoreboardClient.fetchScoreboard(league, d, d);
-                ingestScoreboard(league, dayBoard, eplCodes);
+                ingestScoreboard(league, espnScoreboardClient.fetchScoreboard(league, d, d));
             }
         }
     }
 
-    private void ingestScoreboard(String competition, Scoreboard board, Set<String> eplCodes) {
+    private void ingestScoreboard(String competition, Scoreboard board) {
         if (board == null || board.getEvents() == null) {
             return;
         }
         for (Event event : board.getEvents()) {
-            ingest(competition, event, eplCodes);
+            ingest(competition, event);
         }
     }
 
-    private void ingest(String competition, Event event, Set<String> eplCodes) {
+    private void ingest(String competition, Event event) {
         if (event.getCompetitions() == null || event.getCompetitions().isEmpty()) {
             return;
         }
@@ -136,9 +184,15 @@ public class BonusMatchSyncService {
         }
         String homeCode = codeOf(home);
         String awayCode = codeOf(away);
-        boolean involvesEpl = (homeCode != null && eplCodes.contains(homeCode.toUpperCase()))
-                || (awayCode != null && eplCodes.contains(awayCode.toUpperCase()));
-        if (!involvesEpl) {
+        Team homeTeam = resolveTeam(homeCode);
+        Team awayTeam = resolveTeam(awayCode);
+        // Only real EPL clubs from our roster — never match by bare code (Bayern ESPN MUN ≠ Man United).
+        if (homeTeam == null && awayTeam == null) {
+            return;
+        }
+
+        java.time.LocalDateTime kickoff = parseKickoff(event.getDate());
+        if (kickoff != null && kickoff.toLocalDate().isBefore(zhigalin.predictions.service.DataInitService.seasonStartDate())) {
             return;
         }
 
@@ -156,10 +210,6 @@ public class BonusMatchSyncService {
         String status = mapStatus(event, state);
         Integer homeScore = parseScore(home.getScore());
         Integer awayScore = parseScore(away.getScore());
-        LocalDateTime kickoff = parseKickoff(event.getDate());
-
-        Team homeTeam = resolveTeam(homeCode);
-        Team awayTeam = resolveTeam(awayCode);
 
         boolean wasFt = existing != null && "ft".equals(existing.getStatus());
 
@@ -293,7 +343,7 @@ public class BonusMatchSyncService {
 
     private static String codeOf(Competitor c) {
         if (c.getTeam() != null && c.getTeam().getAbbreviation() != null) {
-            return TeamCodeMapper.toInternalCode(c.getTeam().getAbbreviation());
+            return TeamCodeMapper.fromEspnAbbreviation(c.getTeam().getAbbreviation());
         }
         return null;
     }
