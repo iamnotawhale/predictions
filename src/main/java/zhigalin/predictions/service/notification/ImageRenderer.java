@@ -566,7 +566,7 @@ public class ImageRenderer {
 
             BufferedImage competitionLogo = scaleToHeight(loadCompetitionLogo(competition), CUP_LOGO_HEIGHT);
             int logoX = (WIDTH - competitionLogo.getWidth()) / 2;
-            g2d.drawImage(competitionLogo, logoX, 52, null);
+            g2d.drawImage(competitionLogo, logoX, 88, null);
 
             BufferedImage matchBlock = new BufferedImage((int) (WIDTH * 0.90), 200, BufferedImage.TYPE_INT_ARGB);
             int h = matchBlock.getHeight();
