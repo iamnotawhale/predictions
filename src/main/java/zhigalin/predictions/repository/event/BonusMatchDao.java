@@ -161,7 +161,41 @@ public class BonusMatchDao {
     }
 
     public List<BonusMatch> findByCompetition(String competition) {
-        return findByCompetitionFrom(competition, LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
+        java.time.LocalDate today = LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY);
+        return findByCompetitionBrowse(competition, today, today.minusDays(2));
+    }
+
+    /**
+     * Upcoming from {@code fromDate} plus finished matches whose kickoff/finish is on/after {@code recentFinishedFrom}.
+     */
+    public List<BonusMatch> findByCompetitionBrowse(
+            String competition,
+            LocalDate fromDate,
+            LocalDate recentFinishedFrom
+    ) {
+        try {
+            String sql = """
+                    SELECT * FROM bonus_match
+                    WHERE competition = :competition
+                      AND (
+                            CAST(local_date_time AS DATE) >= :fromDate
+                            OR (
+                                status IN ('ft', 'aet', 'pen')
+                                AND CAST(COALESCE(finished_at, local_date_time) AS DATE) >= :recentFinishedFrom
+                            )
+                      )
+                    ORDER BY local_date_time, public_id
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("competition", competition)
+                    .addValue("fromDate", fromDate)
+                    .addValue("recentFinishedFrom", recentFinishedFrom);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    sql, params, new BonusMatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error find bonus_match by competition", e);
+            return List.of();
+        }
     }
 
     public List<BonusMatch> findByCompetitionFrom(String competition, LocalDate fromDate) {
@@ -184,7 +218,29 @@ public class BonusMatchDao {
     }
 
     public List<BonusMatch> findAllOrdered() {
-        return findAllFrom(LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
+        java.time.LocalDate today = LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY);
+        return findAllBrowse(today, today.minusDays(2));
+    }
+
+    public List<BonusMatch> findAllBrowse(LocalDate fromDate, LocalDate recentFinishedFrom) {
+        try {
+            String sql = """
+                    SELECT * FROM bonus_match
+                    WHERE CAST(local_date_time AS DATE) >= :fromDate
+                       OR (
+                            status IN ('ft', 'aet', 'pen')
+                            AND CAST(COALESCE(finished_at, local_date_time) AS DATE) >= :recentFinishedFrom
+                       )
+                    ORDER BY local_date_time, public_id
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("fromDate", fromDate)
+                    .addValue("recentFinishedFrom", recentFinishedFrom);
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    sql, params, new BonusMatchMapper()));
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public List<BonusMatch> findAllFrom(LocalDate fromDate) {
