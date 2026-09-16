@@ -78,6 +78,11 @@ public class DataInitService {
     private final OddsService oddsService;
 
     public static final int SEASON = 2026;
+
+    /** English football season start (1 Aug of SEASON-1), e.g. 2026 → 2025-08-01. */
+    public static java.time.LocalDate seasonStartDate() {
+        return java.time.LocalDate.of(SEASON - 1, 8, 1);
+    }
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";
     private static final String HOST = "v3.football.api-sports.io";

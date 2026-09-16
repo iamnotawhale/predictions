@@ -15,7 +15,15 @@ class TeamCodeMapperTest {
         assertEquals("MCI", TeamCodeMapper.toInternalCode("MNC"));
         assertEquals("NOT", TeamCodeMapper.toInternalCode("NFO"));
         assertEquals("MUN", TeamCodeMapper.toInternalCode("MAN"));
-        assertEquals("BAY", TeamCodeMapper.toInternalCode("MUN"));
+        // Stored Man United code must stay MUN (do not remap as Bayern)
+        assertEquals("MUN", TeamCodeMapper.toInternalCode("MUN"));
+    }
+
+    @Test
+    void mapsEspnAbbreviationsAtIngest() {
+        assertEquals("BAY", TeamCodeMapper.fromEspnAbbreviation("MUN")); // Bayern
+        assertEquals("MUN", TeamCodeMapper.fromEspnAbbreviation("MAN")); // Man United
+        assertEquals("AST", TeamCodeMapper.fromEspnAbbreviation("AVL"));
     }
 
     @Test
