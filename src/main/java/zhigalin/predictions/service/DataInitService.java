@@ -79,9 +79,9 @@ public class DataInitService {
 
     public static final int SEASON = 2026;
 
-    /** English football season start (1 Aug of SEASON-1), e.g. 2026 → 2025-08-01. */
+    /** English / ESPN season start (1 Aug of SEASON), e.g. 2026 → 2026-08-01 for 2026/27. */
     public static java.time.LocalDate seasonStartDate() {
-        return java.time.LocalDate.of(SEASON - 1, 8, 1);
+        return java.time.LocalDate.of(SEASON, 8, 1);
     }
     private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
     private static final String HOST_NAME = "x-rapidapi-host";

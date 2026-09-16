@@ -8,5 +8,6 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Scoreboard {
+    private Season season;
     private List<Event> events;
 }

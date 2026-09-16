@@ -12,5 +12,6 @@ public class Event {
     private String date;
     private String shortName;
     private Status status;
+    private Season season;
     private List<Competition> competitions;
 }
