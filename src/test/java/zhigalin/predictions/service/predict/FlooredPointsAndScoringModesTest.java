@@ -2,7 +2,9 @@ package zhigalin.predictions.service.predict;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -12,6 +14,20 @@ class FlooredPointsAndScoringModesTest {
     @Test
     void runningFloorMatchesUserExample() {
         assertEquals(0, FlooredPointsCalculator.applyFloor(List.of(-1, 2, -1, -1, -1)));
+    }
+
+    @Test
+    void cumulativeWeekSnapshotsFoldCupsIntoActiveWeek() {
+        LocalDateTime t0 = LocalDateTime.of(2026, 8, 1, 12, 0);
+        List<PointEvent> events = List.of(
+                new PointEvent("u", 1, t0, 1, 1, 4, false),
+                new PointEvent("u", 1, t0.plusDays(1), 2, 1, 2, false),
+                new PointEvent("u", 1, t0.plusDays(3), 3, 0, 2, true),
+                new PointEvent("u", 1, t0.plusDays(7), 4, 2, 1, false)
+        );
+        Map<Integer, Integer> snaps = FlooredPointsService.cumulativeWeekSnapshots(events);
+        assertEquals(8, snaps.get(1));
+        assertEquals(9, snaps.get(2));
     }
 
     @Test

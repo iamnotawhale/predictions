@@ -40,7 +40,8 @@ public class FlooredPointsService {
     }
 
     /**
-     * Cumulative floored total after each EPL week (cups interleaved by finish time).
+     * Cumulative floored total after each season week.
+     * Cup finishes update the latest EPL week snapshot so midweek cups appear on the chart.
      */
     public Map<String, Map<Integer, Integer>> flooredCumulativeByWeek() {
         List<PointEvent> events = toEvents(pointEventDao.findSeasonFinishedEvents());
@@ -51,17 +52,34 @@ public class FlooredPointsService {
         }
         Map<String, Map<Integer, Integer>> result = new LinkedHashMap<>();
         for (Map.Entry<String, List<PointEvent>> entry : byLogin.entrySet()) {
-            Map<Integer, Integer> weekSnap = new LinkedHashMap<>();
-            int running = 0;
-            for (PointEvent e : entry.getValue()) {
-                running = Math.max(0, running + e.rawPoints());
-                if (!e.cup() && e.weekId() > 0) {
-                    weekSnap.put(e.weekId(), running);
-                }
-            }
-            result.put(entry.getKey(), weekSnap);
+            result.put(entry.getKey(), cumulativeWeekSnapshots(entry.getValue()));
         }
         return result;
+    }
+
+    /**
+     * Running floored total snapped after each EPL week; cups fold into the active week.
+     */
+    static Map<Integer, Integer> cumulativeWeekSnapshots(List<PointEvent> events) {
+        Map<Integer, Integer> weekSnap = new LinkedHashMap<>();
+        if (events == null || events.isEmpty()) {
+            return weekSnap;
+        }
+        int running = 0;
+        int activeWeek = 0;
+        for (PointEvent e : events) {
+            if (e == null) {
+                continue;
+            }
+            running = Math.max(0, running + e.rawPoints());
+            if (!e.cup() && e.weekId() > 0) {
+                activeWeek = e.weekId();
+                weekSnap.put(activeWeek, running);
+            } else if (e.cup() && activeWeek > 0) {
+                weekSnap.put(activeWeek, running);
+            }
+        }
+        return weekSnap;
     }
 
     public Map<String, Integer> floorByLogin(List<OrderedPointsRow> rows) {

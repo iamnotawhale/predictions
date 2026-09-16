@@ -52,14 +52,14 @@
         </section>
         <div class="segmented">
             <button class="segmented-btn active" data-leaderboard="">Общий</button>
-            <button class="segmented-btn" data-leaderboard="current">Текущий тур</button>
+            <button class="segmented-btn" data-leaderboard="current" id="leaderboard-current-week-btn">Текущий тур</button>
         </div>
         <section class="card">
             <h2 class="card-title" id="leaderboard-title">Зачёт</h2>
             <ul id="leaderboard-list" class="list"></ul>
         </section>
         <section class="card">
-            <h2 class="card-title">График очков по турам</h2>
+            <h2 class="card-title">График очков по неделям</h2>
             <div class="chart-wrap">
                 <canvas id="points-chart" height="200"></canvas>
             </div>

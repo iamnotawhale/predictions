@@ -819,6 +819,10 @@
         const user = tg.initDataUnsafe?.user;
         const name = user ? (user.first_name + (user.last_name ? ' ' + user.last_name : '')) : profile.login;
         $('#user-greeting').textContent = name + ' · ' + (profile.weekLabel || ('тур ' + profile.currentWeekId));
+        const currentWeekBtn = $('#leaderboard-current-week-btn');
+        if (currentWeekBtn && profile.currentWeekId) {
+            currentWeekBtn.textContent = profile.currentWeekId + ' тур';
+        }
         syncRecommenderToggle(profile.bettingRecommenderEnabled);
         syncRecommenderRefreshButton(!!profile.admin);
         const verEl = $('.miniapp-version');
@@ -1177,7 +1181,7 @@
             tooltip.className = 'chart-tooltip';
             wrap.appendChild(tooltip);
         }
-        tooltip.textContent = node.login.toUpperCase() + ' · тур ' + node.week + ': ' + node.points;
+        tooltip.textContent = node.login.toUpperCase() + ' · нед. ' + node.week + ': ' + node.points;
         tooltip.style.borderColor = node.color;
         tooltip.classList.add('visible');
         const tooltipWidth = Math.min(180, chartWidth - 12);
