@@ -513,17 +513,20 @@
             else if (m.canPredict) cls += ' needs-predict';
         }
         li.className = cls;
-        const badges = [];
-        if (m.weekBonus) badges.push('<span class="badge badge-bonus">бонус ×</span>');
-        if (m.cup) badges.push(competitionBadgeHtml(m, !!m.hasPrediction));
+        const metaBadges = [];
+        if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус ×</span>');
+        const cupBadge = m.cup ? competitionBadgeHtml(m, !!m.hasPrediction) : '';
         li.innerHTML =
             '<div class="list-item-main">' +
-            '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
+            '<div class="list-item-title">' +
+            '<span class="list-item-codes">' + m.homeCode + ' — ' + m.awayCode + '</span>' +
+            cupBadge +
+            '</div>' +
             '<div class="list-item-sub">' + (m.homeName || '') + ' vs ' + (m.awayName || '') + '</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + matchScoreLabel(m) + '</div>' +
-            badges.join('') +
+            metaBadges.join('') +
             matchStatusBadge(m) +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
@@ -574,22 +577,25 @@
             cls += ' needs-predict';
         }
         li.className = cls;
-        const badges = [];
-        if (m.cup) badges.push(competitionBadgeHtml(m, !!m.hasPrediction));
+        const metaBadges = [];
         if (!m.hasPrediction && m.canPredict && !m.cup) {
-            badges.push('<span class="badge badge-warn">нет прогноза</span>');
+            metaBadges.push('<span class="badge badge-warn">нет прогноза</span>');
         } else if (!m.hasPrediction && m.canPredict && m.cup) {
-            badges.push('<span class="badge badge-warn badge-cup-' + competitionCssKey(m.competition) + '">нет прогноза</span>');
+            metaBadges.push('<span class="badge badge-warn badge-cup-' + competitionCssKey(m.competition) + '">нет прогноза</span>');
         }
+        const cupBadge = m.cup ? competitionBadgeHtml(m, !!m.hasPrediction) : '';
         li.innerHTML =
             '<div class="list-item-main">' +
-            '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
+            '<div class="list-item-title">' +
+            '<span class="list-item-codes">' + m.homeCode + ' — ' + m.awayCode + '</span>' +
+            cupBadge +
+            '</div>' +
             '<div class="list-item-sub">' + (m.homeName || '') + ' vs ' + (m.awayName || '') + '</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + todayScoreLabel(m) + '</div>' +
             todayStatusBadge(m) +
-            badges.join('') +
+            metaBadges.join('') +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
@@ -3001,7 +3007,6 @@
                 '<span class="cup-card-accent" aria-hidden="true"></span>' +
                 '<span class="cup-card-body">' +
                 '<span class="cup-card-label">' + escapeHtml(c.label || competitionShort(c.competition)) + '</span>' +
-                '<span class="cup-card-hint">' + (c.hasPredictions ? 'есть прогнозы' : 'выбрать матчи') + '</span>' +
                 '</span>' +
                 '<span class="cup-card-chevron" aria-hidden="true">›</span>';
             btn.addEventListener('click', () => onSelect(c));

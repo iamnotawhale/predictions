@@ -392,8 +392,23 @@ html[data-switching] *::after {
 }
 
 .list-item-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     font-size: 16px;
     font-weight: 600;
+}
+
+.list-item-codes {
+    min-width: 0;
+}
+
+.list-item-title .badge-cup {
+    margin-top: 0;
+    flex-shrink: 0;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 .list-item-sub {
@@ -637,8 +652,7 @@ html[data-switching] *::after {
 
 .cup-card-body {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
+    align-items: center;
     flex: 1;
     min-width: 0;
 }
@@ -646,11 +660,6 @@ html[data-switching] *::after {
 .cup-card-label {
     font-size: 16px;
     font-weight: 700;
-}
-
-.cup-card-hint {
-    font-size: 12px;
-    color: var(--hint);
 }
 
 .cup-card-chevron {
