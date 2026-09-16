@@ -2,6 +2,7 @@ package zhigalin.predictions.service.api;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kong.unirest.HttpResponse;
@@ -15,8 +16,15 @@ import zhigalin.predictions.model.v2.Scoreboard;
 public class EspnScoreboardClient {
 
     private static final Logger log = LoggerFactory.getLogger("server");
-    private static final String SCOREBOARD_URL =
-            "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard";
+    private static final String BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/";
+    public static final String LEAGUE_EPL = "eng.1";
+    public static final List<String> CUP_LEAGUES = List.of(
+            "eng.fa",
+            "eng.league_cup",
+            "uefa.champions",
+            "uefa.europa",
+            "uefa.europa.conf"
+    );
     private static final DateTimeFormatter ESPN_DAY = DateTimeFormatter.BASIC_ISO_DATE;
 
     private final ObjectMapper mapper;
@@ -25,26 +33,25 @@ public class EspnScoreboardClient {
         this.mapper = mapper;
     }
 
-    /** Today's scoreboard (ESPN default when {@code dates} is omitted). */
     public Scoreboard fetchScoreboard() {
-        return fetchScoreboardUrl(SCOREBOARD_URL);
+        return fetchScoreboard(LEAGUE_EPL);
     }
 
-    /** Scoreboard for a single calendar day ({@code YYYYMMDD}). */
+    public Scoreboard fetchScoreboard(String leagueSlug) {
+        return fetchScoreboardUrl(BASE + leagueSlug + "/scoreboard");
+    }
+
     public Scoreboard fetchScoreboard(LocalDate day) {
-        if (day == null) {
-            return fetchScoreboard();
-        }
-        return fetchScoreboard(day, day);
+        return fetchScoreboard(LEAGUE_EPL, day, day);
     }
 
-    /**
-     * Scoreboard for an inclusive date range. ESPN expects {@code dates=YYYYMMDD} or
-     * {@code dates=YYYYMMDD-YYYYMMDD}.
-     */
     public Scoreboard fetchScoreboard(LocalDate from, LocalDate to) {
+        return fetchScoreboard(LEAGUE_EPL, from, to);
+    }
+
+    public Scoreboard fetchScoreboard(String leagueSlug, LocalDate from, LocalDate to) {
         if (from == null && to == null) {
-            return fetchScoreboard();
+            return fetchScoreboard(leagueSlug);
         }
         LocalDate start = from != null ? from : to;
         LocalDate end = to != null ? to : from;
@@ -56,7 +63,7 @@ public class EspnScoreboardClient {
         String dates = start.equals(end)
                 ? ESPN_DAY.format(start)
                 : ESPN_DAY.format(start) + "-" + ESPN_DAY.format(end);
-        return fetchScoreboardUrl(SCOREBOARD_URL + "?dates=" + dates);
+        return fetchScoreboardUrl(BASE + leagueSlug + "/scoreboard?dates=" + dates);
     }
 
     private Scoreboard fetchScoreboardUrl(String url) {

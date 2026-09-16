@@ -15,21 +15,33 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Match {
+public class BonusMatch {
 
-    /** Canonical list order: kickoff ascending, then publicId. */
-    public static final Comparator<Match> BY_KICKOFF_THEN_PUBLIC_ID = Comparator
-            .comparing(Match::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
-            .thenComparingInt(Match::getPublicId);
+    public static final Comparator<BonusMatch> BY_KICKOFF_THEN_PUBLIC_ID = Comparator
+            .comparing(BonusMatch::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparingInt(BonusMatch::getPublicId);
 
     @JsonProperty("public_id")
     private int publicId;
-    @JsonProperty("week_id")
-    private int weekId;
+    private String competition;
+    @JsonProperty("espn_id")
+    private String espnId;
     @JsonProperty("home_team_id")
-    private int homeTeamId;
+    private Integer homeTeamId;
     @JsonProperty("away_team_id")
-    private int awayTeamId;
+    private Integer awayTeamId;
+    @JsonProperty("home_name")
+    private String homeName;
+    @JsonProperty("away_name")
+    private String awayName;
+    @JsonProperty("home_logo_url")
+    private String homeLogoUrl;
+    @JsonProperty("away_logo_url")
+    private String awayLogoUrl;
+    @JsonProperty("home_espn_code")
+    private String homeEspnCode;
+    @JsonProperty("away_espn_code")
+    private String awayEspnCode;
     @JsonProperty("home_team_score")
     private Integer homeTeamScore;
     @JsonProperty("away_team_score")
@@ -38,14 +50,10 @@ public class Match {
     private String status;
     @JsonProperty("local_date_time")
     private LocalDateTime localDateTime;
-    @JsonProperty("last_processed_at")
-    private LocalDateTime lastProcessedAt;
-    @JsonProperty("espn_id")
-    private String espnId;
-    @JsonProperty("live_score_message_id")
-    private Integer liveScoreMessageId;
     @JsonProperty("finished_at")
     private LocalDateTime finishedAt;
+    @JsonProperty("live_score_message_id")
+    private Integer liveScoreMessageId;
 
     public LocalDateTime sortTime() {
         return finishedAt != null ? finishedAt : localDateTime;

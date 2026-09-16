@@ -44,8 +44,10 @@
 - `src/main/java/zhigalin/predictions/miniapp` — REST API и auth для Telegram WebApp (`X-Telegram-Init-Data`).
 - `src/main/java/zhigalin/predictions/service` — бизнес-логика (матчи, прогнозы, уведомления, синхронизация).
 - `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты через общий `EspnScoreboardClient` **по диапазону дат матчей** (`dates=YYYYMMDD-YYYYMMDD`), TTL 60с (`ensureFresh`), сохранение в БД; матчевый тотал (`overUnder`) + индивидуальные тоталы команд (ESPN propBets `Team Total Goals` через `EspnTeamTotalsClient`).
+- `src/main/java/zhigalin/predictions/service/predict` — скоринг (`ScoringMode`), **`FlooredPointsService`** (скользящий пол), FT recalc.
+- `src/main/java/zhigalin/predictions/service/event` — матчи; **`BonusMatchSyncService`** (кубки ESPN); **`UserWeekBonusMatchService`** (персональный бонус тура).
 - `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats + SoccerSTATS → Poisson-модель → кэш в БД; single-flight refresh, batch writes.
-- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — общий fetch/parse ESPN scoreboard для Odds + DataInit (today или date range); **`EspnTeamTotalsClient`** — team total goals lines.
+- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — eng.1 и cup leagues (`eng.fa`, `eng.league_cup`, `uefa.*`); **`EspnTeamTotalsClient`** — team total goals lines.
 - `src/main/java/zhigalin/predictions/telegram/MatchMessageFormatter` — единый формат строк матча для `/today`, `/tour`, upcoming.
 - `src/main/java/zhigalin/predictions/util/TelegramMarkdownV2` — escape caption для Unirest `sendPhoto`.
 - `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой (узкие выборки матчей/прогнозов, batch `updatePoints`).
@@ -109,8 +111,11 @@
 - `espn_id` — ESPN event id (заполняется уже на стадии `pre`).
 - `live_score_message_id` — id Telegram-сообщения live-счёта (переживает рестарт).
 - `odd_home`, `odd_draw`, `odd_away` — коэффициенты 1/X/2 (`NUMERIC(6,2)`), заполняются `OddsService`, читаются в miniapp и разборе тура.
-- `odd_over_under` — линия тотала матча (например 2.5); `odd_home_team_total` / `odd_away_team_total` — основная линия индивидуального тотала команды.
-- Миграция колонок odds: `MatchOddsSchemaMigration` + `ALTER` в `tablesInit.sql`; `OddsService` зависит от неё через `@DependsOn`.
+- `odd_over_under` — линия тотала матча; `odd_home_team_total` / `odd_away_team_total` — индивидуальные тоталы.
+- `finished_at` — время фиксации FT для скользящего пола очков.
+- `bonus_match` — кубковые матчи с участием клубов АПЛ; `predict.bonus_match_id` — прогноз на них.
+- `user_week_bonus_match` — персональный бонус-матч тура (user_id, week_id → match_public_id).
+- Миграция: `MatchOddsSchemaMigration`, `BonusMatchesSchemaMigration` + `ALTER`/`CREATE` в `tablesInit.sql`.
 
 **Рекомендатор ставок (FootyStats cache):**
 - `users.betting_recommender_enabled` — per-user toggle (default `false`).
@@ -241,7 +246,11 @@
 - Напоминания без прогноза: за 60/40/20 минут до kickoff; одна картинка на (матч, окно); `Set` predicted user ids; матч из notification без повторного `findByPublicId`.
 - **Порядок списков матчей:** всегда `Match.BY_KICKOFF_THEN_PUBLIC_ID` (kickoff ASC, затем `publicId`); DAO/MatchService/Telegram keyboards/miniapp сортируют одинаково.
 - `MatchService`: team-scoped `findLastFinishedByTeamId` / `findNextByTeamId` (SQL LIMIT); `findFinishedMatches` / `findPastNonPostponedMatches` для points/H2H backfill.
-- `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` (exact=4, diff=2, outcome=1, else −1).
+- `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` с режимами **EPL** (4/2/1/−1), **EPL week-bonus** (5/3/2/0/−1), **CUP** (2/1/0/0).
+- **Скользящий пол очков:** сырые `predict.points` не затираются; зачёт сезона/тура = `running = max(0, running + points)` в порядке `coalesce(finished_at, local_date_time)` (`FlooredPointsService` / `PointEventDao`). Leaderboard и chart используют floored totals.
+- **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус ×».
+- **Кубковые бонус-матчи:** таблица `bonus_match` (FA / Carabao / UCL / UEL / UECL), sync через `BonusMatchSyncService` + ESPN multi-league scoreboard; в матче ≥1 клуб АПЛ; прогнозы в `predict.bonus_match_id`; live/FT в общий чат; очки в общий зачёт.
+- `match.finished_at` проставляется при переходе в `ft` (для порядка пола).
 - `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM); для odds в NOTIFICATION — `ensureFresh`, не сырой `oddsInit2`.
 - Сводка тура в общий чат: только картинка результатов тура; защита от повторной отправки на тот же `weekId`.
 - `/start` и меню: кнопка «Открыть Mini App» первой.

@@ -323,6 +323,15 @@
 
     async function verifyPredictionSaved(match, homeScore, awayScore) {
         try {
+            if (match.cup || match.bonusMatchId) {
+                const data = await api('/today');
+                const item = (data.matches || []).find(m =>
+                    m.cup && Number(m.bonusMatchId || m.publicId) === Number(match.bonusMatchId || match.publicId)
+                );
+                return !!(item && item.hasPrediction
+                    && item.predictHome === homeScore
+                    && item.predictAway === awayScore);
+            }
             const item = await api('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode));
             return item.hasPrediction
                 && item.predictHome === homeScore
@@ -466,7 +475,10 @@
 
     function renderMatchItem(m, onClick) {
         const li = document.createElement('li');
-        li.className = 'list-item';
+        li.className = 'list-item' + (m.weekBonus ? ' list-item-week-bonus' : '') + (m.cup ? ' list-item-cup' : '');
+        const badges = [];
+        if (m.weekBonus) badges.push('<span class="badge badge-bonus">бонус ×</span>');
+        if (m.cup) badges.push('<span class="badge badge-cup">' + escapeHtml(competitionShort(m.competition)) + '</span>');
         li.innerHTML =
             '<div class="list-item-main">' +
             '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
@@ -474,10 +486,27 @@
             '</div>' +
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + matchScoreLabel(m) + '</div>' +
+            badges.join('') +
             matchStatusBadge(m) +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
+    }
+
+    function competitionShort(code) {
+        if (!code) return 'Cup';
+        if (code === 'eng.fa') return 'FA';
+        if (code === 'eng.league_cup') return 'Carabao';
+        if (code === 'uefa.champions') return 'UCL';
+        if (code === 'uefa.europa') return 'UEL';
+        if (code === 'uefa.europa.conf') return 'UECL';
+        return code;
+    }
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
     }
 
     function renderTeamMatchItem(m, onClick) {
@@ -1265,8 +1294,13 @@
             deleteBtn.classList.add('hidden');
             grid.innerHTML = '<p class="empty-state">Прогноз недоступен</p>';
             $('#score-modal').classList.remove('hidden');
-            loadScoreModalH2h(match).catch(() => {});
-            loadScoreModalInsights(match).catch(() => {});
+            if (!match.cup) {
+                loadScoreModalH2h(match).catch(() => {});
+                loadScoreModalInsights(match).catch(() => {});
+            } else {
+                $('#modal-h2h-section').classList.add('hidden');
+                $('#modal-news-section').classList.add('hidden');
+            }
             return;
         }
 
@@ -1286,8 +1320,13 @@
         }
         $('#score-modal').classList.remove('hidden');
         tg.BackButton.show();
-        loadScoreModalH2h(match).catch(() => {});
-        loadScoreModalInsights(match).catch(() => {});
+        if (!match.cup) {
+            loadScoreModalH2h(match).catch(() => {});
+            loadScoreModalInsights(match).catch(() => {});
+        } else {
+            $('#modal-h2h-section').classList.add('hidden');
+            $('#modal-news-section').classList.add('hidden');
+        }
     }
 
     function isLiveModalOpen() {
@@ -2785,14 +2824,18 @@
         setScoreButtonsDisabled(true);
         showToast('Сохраняем прогноз…', '');
         try {
+            const body = {
+                homeCode: match.homeCode,
+                awayCode: match.awayCode,
+                homeScore,
+                awayScore
+            };
+            if (match.cup && match.bonusMatchId != null) {
+                body.bonusMatchId = match.bonusMatchId;
+            }
             const res = await apiWithRetry('/predictions', {
                 method: 'POST',
-                body: JSON.stringify({
-                    homeCode: match.homeCode,
-                    awayCode: match.awayCode,
-                    homeScore,
-                    awayScore
-                })
+                body: JSON.stringify(body)
             });
             if (!res.ok) {
                 showToast(res.message || 'Не удалось сохранить прогноз', 'error');
@@ -2830,10 +2873,10 @@
         if (!m) return;
         setScoreButtonsDisabled(true);
         try {
-            const res = await apiWithRetry(
-                '/predictions?homeCode=' + encodeURIComponent(m.homeCode) + '&awayCode=' + encodeURIComponent(m.awayCode),
-                { method: 'DELETE' }
-            );
+            const path = (m.cup && m.bonusMatchId != null)
+                ? '/predictions?bonusMatchId=' + encodeURIComponent(m.bonusMatchId)
+                : '/predictions?homeCode=' + encodeURIComponent(m.homeCode) + '&awayCode=' + encodeURIComponent(m.awayCode);
+            const res = await apiWithRetry(path, { method: 'DELETE' });
             showToast(res.message, res.ok ? 'success' : 'error');
             if (res.ok) {
                 applyPredictionToScoreModal(m, null, null);

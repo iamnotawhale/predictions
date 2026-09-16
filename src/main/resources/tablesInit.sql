@@ -81,6 +81,44 @@ alter table match
 alter table match
     add column if not exists odd_away_team_total numeric(6, 2);
 
+alter table match
+    add column if not exists finished_at timestamp;
+
+alter table predict
+    add column if not exists bonus_match_id integer;
+
+create table if not exists bonus_match
+(
+    public_id             integer primary key,
+    competition           varchar(64) not null,
+    espn_id               varchar(32) not null,
+    home_team_id          integer,
+    away_team_id          integer,
+    home_name             varchar(255),
+    away_name             varchar(255),
+    home_logo_url         varchar(512),
+    away_logo_url         varchar(512),
+    home_espn_code        varchar(16),
+    away_espn_code        varchar(16),
+    home_team_score       integer,
+    away_team_score       integer,
+    result                varchar(16),
+    status                varchar(32),
+    local_date_time       timestamp,
+    finished_at           timestamp,
+    live_score_message_id integer,
+    constraint unique_bonus_match_espn unique (competition, espn_id)
+);
+
+create table if not exists user_week_bonus_match
+(
+    user_id         integer   not null,
+    week_id         integer   not null,
+    match_public_id integer   not null,
+    created_at      timestamp not null default now(),
+    primary key (user_id, week_id)
+);
+
 create table if not exists notification_weekly_results_sent
 (
     week_id integer primary key,

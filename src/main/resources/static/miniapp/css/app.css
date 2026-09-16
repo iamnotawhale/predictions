@@ -455,6 +455,24 @@ html[data-switching] *::after {
     color: var(--danger);
 }
 
+.badge-bonus {
+    background: rgba(255, 193, 7, 0.22);
+    color: #f0c040;
+}
+
+.badge-cup {
+    background: rgba(100, 149, 237, 0.22);
+    color: #8eb6f8;
+}
+
+.list-item-week-bonus {
+    border-color: rgba(255, 193, 7, 0.35);
+}
+
+.list-item-cup {
+    border-color: rgba(100, 149, 237, 0.35);
+}
+
 .score-pill {
     font-size: 18px;
     font-weight: 700;

@@ -235,10 +235,15 @@ public class MiniAppController {
     @DeleteMapping("/predictions")
     public ActionResponse deletePrediction(
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
-            @RequestParam String homeCode,
-            @RequestParam String awayCode
+            @RequestParam(required = false) String homeCode,
+            @RequestParam(required = false) String awayCode,
+            @RequestParam(required = false) Integer bonusMatchId
     ) {
-        return miniAppService.deletePrediction(requireTelegramId(initData), homeCode, awayCode);
+        String telegramId = requireTelegramId(initData);
+        if (bonusMatchId != null) {
+            return miniAppService.deleteBonusPrediction(telegramId, bonusMatchId);
+        }
+        return miniAppService.deletePrediction(telegramId, homeCode, awayCode);
     }
 
     @ExceptionHandler(MiniAppException.class)

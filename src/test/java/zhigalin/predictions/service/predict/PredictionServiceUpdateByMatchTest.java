@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -17,8 +18,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.user.UserService;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,14 +33,26 @@ class PredictionServiceUpdateByMatchTest {
     private MatchService matchService;
     @Mock
     private UserService userService;
+    @Mock
+    private FlooredPointsService flooredPointsService;
+    @Mock
+    private UserWeekBonusMatchService userWeekBonusMatchService;
+    @Mock
+    private BonusMatchDao bonusMatchDao;
 
     @InjectMocks
     private PredictionService predictionService;
+
+    @BeforeEach
+    void stubBonus() {
+        when(userWeekBonusMatchService.isWeekBonusMatch(anyInt(), anyInt(), anyInt())).thenReturn(false);
+    }
 
     @Test
     void updateByMatch_batchesComputedPointsForAllUsers() {
         Match match = Match.builder()
                 .publicId(100)
+                .weekId(1)
                 .homeTeamScore(2)
                 .awayTeamScore(1)
                 .status("ft")
@@ -71,9 +86,10 @@ class PredictionServiceUpdateByMatchTest {
     }
 
     @Test
-    void updateByMatch_fillsMissingPredictsWhenFewerThanFour() {
+    void updateByMatch_fillsMissingPredictsWhenFewerThanUsers() {
         Match match = Match.builder()
                 .publicId(200)
+                .weekId(1)
                 .homeTeamScore(1)
                 .awayTeamScore(0)
                 .status("ft")

@@ -57,6 +57,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewResponse;
+import zhigalin.predictions.model.event.BonusMatch;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
@@ -64,13 +65,17 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.odds.OddsService;
+import zhigalin.predictions.service.predict.FlooredPointsService;
 import zhigalin.predictions.service.predict.PredictionService;
+import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
@@ -119,6 +124,8 @@ public class MiniAppService {
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
+    private final UserWeekBonusMatchService userWeekBonusMatchService;
+    private final BonusMatchDao bonusMatchDao;
     private final String adminChatId;
     private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
 
@@ -132,6 +139,8 @@ public class MiniAppService {
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
+            UserWeekBonusMatchService userWeekBonusMatchService,
+            BonusMatchDao bonusMatchDao,
             @Value("${chatId:}") String adminChatId
     ) {
         this.userService = userService;
@@ -143,6 +152,8 @@ public class MiniAppService {
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
+        this.userWeekBonusMatchService = userWeekBonusMatchService;
+        this.bonusMatchDao = bonusMatchDao;
         this.adminChatId = adminChatId == null ? "" : adminChatId.trim();
     }
 
@@ -221,17 +232,26 @@ public class MiniAppService {
     }
 
     public List<MatchItem> weekMatches(String telegramId, int weekId) {
-        requireUser(telegramId);
+        User user = requireUser(telegramId);
+        userWeekBonusMatchService.ensureAssignedForUser(user.getId(), weekId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
         oddsService.ensureFresh(matches);
         Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
                 telegramId,
                 matches.stream().map(Match::getPublicId).toList()
         );
+        Integer bonusId = userWeekBonusMatchService.findAssigned(user.getId(), weekId).orElse(null);
         return matches.stream()
                 .map(match -> {
                     Prediction prediction = predictions.get(match.getPublicId());
-                    return toMatchItem(match, telegramId, prediction != null, prediction, null);
+                    return toMatchItem(
+                            match,
+                            telegramId,
+                            prediction != null,
+                            prediction,
+                            null,
+                            bonusId != null && bonusId == match.getPublicId()
+                    );
                 })
                 .toList();
     }
@@ -243,7 +263,7 @@ public class MiniAppService {
                 rows.stream().map(mp -> mp.match().getPublicId()).toList()
         );
         return rows.stream()
-                .map(mp -> toMatchItem(mp.match(), telegramId, true, mp.prediction(), kickoffs.get(mp.match().getPublicId())))
+                .map(mp -> toMatchItem(mp.match(), telegramId, true, mp.prediction(), kickoffs.get(mp.match().getPublicId()), false))
                 .toList();
     }
 
@@ -260,7 +280,12 @@ public class MiniAppService {
         int[] kickoff = match == null
                 ? null
                 : bettingRecommendationService.kickoffScore(match.getPublicId()).orElse(null);
-        return toMatchItem(match, telegramId, hasPrediction, prediction, kickoff);
+        boolean weekBonus = false;
+        if (match != null) {
+            User user = requireUser(telegramId);
+            weekBonus = userWeekBonusMatchService.isWeekBonusMatch(user.getId(), match.getWeekId(), match.getPublicId());
+        }
+        return toMatchItem(match, telegramId, hasPrediction, prediction, kickoff, weekBonus);
     }
 
     public MatchInsightsResponse matchInsights(String telegramId, String homeCode, String awayCode) {
@@ -409,19 +434,32 @@ public class MiniAppService {
     }
 
     public TodayMatchesResponse todayMatches(String telegramId) {
-        requireUser(telegramId);
+        User user = requireUser(telegramId);
         List<Match> matches = matchService.findAllByTodayDate();
         oddsService.ensureFresh(matches);
         Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
                 telegramId,
                 matches.stream().map(Match::getPublicId).toList()
         );
-        List<MatchItem> items = matches.stream()
+        List<MatchItem> items = new ArrayList<>(matches.stream()
                 .map(match -> {
                     Prediction prediction = predictions.get(match.getPublicId());
-                    return toMatchItem(match, telegramId, prediction != null, prediction, null);
+                    boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
+                            user.getId(), match.getWeekId(), match.getPublicId());
+                    return toMatchItem(match, telegramId, prediction != null, prediction, null, weekBonus);
                 })
-                .toList();
+                .toList());
+        List<BonusMatch> cups = bonusMatchDao.findAllByDate(java.time.LocalDate.now());
+        if (!cups.isEmpty()) {
+            Map<Integer, Prediction> cupPreds = predictionService.predictionsByBonusMatchForUser(
+                    telegramId, cups.stream().map(BonusMatch::getPublicId).toList());
+            for (BonusMatch cup : cups) {
+                items.add(toBonusMatchItem(cup, cupPreds.get(cup.getPublicId())));
+            }
+            items.sort(Comparator
+                    .comparing((MatchItem m) -> m.kickoff() == null ? "" : m.kickoff())
+                    .thenComparingInt(MatchItem::publicId));
+        }
         boolean hasLive = items.stream().anyMatch(m -> isLiveStatus(m.status()));
         return new TodayMatchesResponse(items, hasLive);
     }
@@ -683,14 +721,22 @@ public class MiniAppService {
 
     public ActionResponse savePrediction(String telegramId, PredictRequest request) {
         requireUser(telegramId);
+        if (request.homeScore() < 0 || request.homeScore() > 5 || request.awayScore() < 0 || request.awayScore() > 5) {
+            return new ActionResponse(false, "Счёт должен быть от 0 до 5.");
+        }
+        if (request.bonusMatchId() != null) {
+            BonusMatch bonus = bonusMatchDao.findByPublicId(request.bonusMatchId());
+            if (!canPredictBonus(bonus)) {
+                return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
+            }
+            predictionService.saveBonus(telegramId, bonus.getPublicId(), request.homeScore(), request.awayScore());
+            return new ActionResponse(true, "Прогноз на бонус-матч сохранён", request.homeScore(), request.awayScore());
+        }
         String home = request.homeCode().toUpperCase();
         String away = request.awayCode().toUpperCase();
         Match match = matchService.findByTeamCodes(home, away);
         if (!canPredict(match)) {
             return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
-        }
-        if (request.homeScore() < 0 || request.homeScore() > 5 || request.awayScore() < 0 || request.awayScore() > 5) {
-            return new ActionResponse(false, "Счёт должен быть от 0 до 5.");
         }
         boolean exists = predictionService.isExist(telegramId, match.getPublicId());
         predictionService.save(telegramId, home, away, request.homeScore(), request.awayScore());
@@ -714,7 +760,24 @@ public class MiniAppService {
         return new ActionResponse(true, "Прогноз удалён");
     }
 
-    private MatchItem toMatchItem(Match match, String telegramId, boolean hasPrediction, Prediction prediction, int[] kickoffScore) {
+    public ActionResponse deleteBonusPrediction(String telegramId, int bonusMatchId) {
+        requireUser(telegramId);
+        BonusMatch bonus = bonusMatchDao.findByPublicId(bonusMatchId);
+        if (!canPredictBonus(bonus)) {
+            return new ActionResponse(false, "Время для удаления прогноза истекло.");
+        }
+        predictionService.deleteBonusByUserTelegramId(telegramId, bonusMatchId);
+        return new ActionResponse(true, "Прогноз удалён");
+    }
+
+    private MatchItem toMatchItem(
+            Match match,
+            String telegramId,
+            boolean hasPrediction,
+            Prediction prediction,
+            int[] kickoffScore,
+            boolean weekBonus
+    ) {
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
         OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
@@ -756,8 +819,78 @@ public class MiniAppService {
                 predictSecondsLeft,
                 kickoffSecondsLeft,
                 kickoffScore != null ? kickoffScore[0] : null,
-                kickoffScore != null ? kickoffScore[1] : null
+                kickoffScore != null ? kickoffScore[1] : null,
+                weekBonus,
+                false,
+                null,
+                null
         );
+    }
+
+    private MatchItem toBonusMatchItem(BonusMatch match, Prediction prediction) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
+        Long predictSecondsLeft = null;
+        if (until != null && canPredictBonus(match)) {
+            predictSecondsLeft = java.time.Duration.between(now, until).getSeconds();
+            if (predictSecondsLeft < 0) {
+                predictSecondsLeft = 0L;
+            }
+        }
+        Long kickoffSecondsLeft = null;
+        if (match.getLocalDateTime() != null && isNotStartedStatus(match.getStatus())) {
+            kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
+        }
+        String homeCode = match.getHomeEspnCode() != null ? match.getHomeEspnCode() : "?";
+        String awayCode = match.getAwayEspnCode() != null ? match.getAwayEspnCode() : "?";
+        String homeLogo = match.getHomeTeamId() != null
+                ? teamLogoPath(match.getHomeTeamId())
+                : (match.getHomeLogoUrl() != null ? match.getHomeLogoUrl() : "");
+        String awayLogo = match.getAwayTeamId() != null
+                ? teamLogoPath(match.getAwayTeamId())
+                : (match.getAwayLogoUrl() != null ? match.getAwayLogoUrl() : "");
+        return new MatchItem(
+                match.getPublicId(),
+                0,
+                homeCode,
+                match.getHomeName() != null ? match.getHomeName() : homeCode,
+                homeLogo,
+                awayCode,
+                match.getAwayName() != null ? match.getAwayName() : awayCode,
+                awayLogo,
+                match.getStatus(),
+                match.getHomeTeamScore(),
+                match.getAwayTeamScore(),
+                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
+                canPredictBonus(match),
+                prediction != null,
+                prediction != null ? prediction.getHomeTeamScore() : null,
+                prediction != null ? prediction.getAwayTeamScore() : null,
+                prediction != null ? prediction.getPoints() : null,
+                null,
+                null,
+                null,
+                until != null ? until.format(KICKOFF) : null,
+                predictSecondsLeft,
+                kickoffSecondsLeft,
+                null,
+                null,
+                false,
+                true,
+                match.getCompetition(),
+                match.getPublicId()
+        );
+    }
+
+    private static boolean canPredictBonus(BonusMatch match) {
+        if (match == null || match.getLocalDateTime() == null) {
+            return false;
+        }
+        String status = match.getStatus();
+        if (status != null && CLOSED_MATCH_STATUSES.contains(status.toLowerCase())) {
+            return false;
+        }
+        return LocalDateTime.now().isBefore(match.getLocalDateTime().plusMinutes(5));
     }
 
     private static boolean isNotStartedStatus(String status) {
@@ -784,9 +917,9 @@ public class MiniAppService {
     }
 
     private Map<String, Integer> computeCurrentWeekProvisionalPoints(int weekId) {
-        Map<String, Integer> weekProvisional = new LinkedHashMap<>();
+        Map<String, List<Integer>> ordered = new LinkedHashMap<>();
         for (User user : DaoUtil.USERS.values()) {
-            weekProvisional.put(user.getLogin(), 0);
+            ordered.put(user.getLogin(), new ArrayList<>());
         }
         Map<Integer, Map<Integer, Prediction>> predictionsByMatch = predictionService.findAllByWeekId(weekId).stream()
                 .collect(Collectors.groupingBy(
@@ -797,7 +930,10 @@ public class MiniAppService {
                                 (left, right) -> left
                         )
                 ));
-        List<Match> weekMatches = matchService.findAllByWeekId(weekId);
+        List<Match> weekMatches = matchService.findAllByWeekId(weekId).stream()
+                .sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID)
+                .toList();
+        userWeekBonusMatchService.ensureAssignedForWeek(weekId);
         for (Match match : weekMatches) {
             Map<Integer, Prediction> byUser = predictionsByMatch.getOrDefault(match.getPublicId(), Map.of());
             boolean finished = isFinishedStatus(match.getStatus());
@@ -809,11 +945,16 @@ public class MiniAppService {
             }
             for (User user : DaoUtil.USERS.values()) {
                 Prediction p = byUser.get(user.getId());
+                ScoringMode mode = userWeekBonusMatchService.isWeekBonusMatch(
+                        user.getId(), weekId, match.getPublicId())
+                        ? ScoringMode.EPL_WEEK_BONUS
+                        : ScoringMode.EPL;
                 int pts;
                 if (finished && p != null && p.getPoints() != null) {
                     pts = p.getPoints();
                 } else if (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null) {
                     pts = PredictionService.computePoints(
+                            mode,
                             match.getHomeTeamScore(),
                             match.getAwayTeamScore(),
                             p != null ? p.getHomeTeamScore() : null,
@@ -822,10 +963,10 @@ public class MiniAppService {
                 } else {
                     continue;
                 }
-                weekProvisional.merge(user.getLogin(), pts, Integer::sum);
+                ordered.get(user.getLogin()).add(pts);
             }
         }
-        return weekProvisional;
+        return FlooredPointsService.floorProvisional(ordered);
     }
 
     private static boolean canPredict(Match match) {
