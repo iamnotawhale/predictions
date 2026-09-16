@@ -170,6 +170,12 @@ public class BonusMatchSyncService {
         if (event.getCompetitions() == null || event.getCompetitions().isEmpty()) {
             return;
         }
+        // ESPN FA often keeps last campaign on the default board (year=SEASON-1).
+        // Align with DataInitService.SEASON / eng.1 / uefa.* (start year of the campaign).
+        Integer espnSeasonYear = event.getSeason() != null ? event.getSeason().getYear() : null;
+        if (espnSeasonYear != null && espnSeasonYear != zhigalin.predictions.service.DataInitService.SEASON) {
+            return;
+        }
         var competitionObj = event.getCompetitions().getFirst();
         List<Competitor> competitors = competitionObj.getCompetitors();
         if (competitors == null || competitors.size() < 2) {
