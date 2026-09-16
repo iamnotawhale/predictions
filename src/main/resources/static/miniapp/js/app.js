@@ -511,6 +511,10 @@
             cls += ' list-item-cup cup-' + competitionCssKey(m.competition);
             if (m.hasPrediction) cls += ' cup-predicted';
             else if (m.canPredict) cls += ' needs-predict';
+        } else if (m.hasPrediction) {
+            cls += ' epl-predicted';
+        } else if (m.canPredict) {
+            cls += ' needs-predict';
         }
         li.className = cls;
         const metaBadges = [];
@@ -573,7 +577,9 @@
             cls += ' list-item-cup cup-' + competitionCssKey(m.competition);
             if (m.hasPrediction) cls += ' cup-predicted';
             else if (m.canPredict) cls += ' needs-predict';
-        } else if (!m.hasPrediction) {
+        } else if (m.hasPrediction) {
+            cls += ' epl-predicted';
+        } else {
             cls += ' needs-predict';
         }
         li.className = cls;

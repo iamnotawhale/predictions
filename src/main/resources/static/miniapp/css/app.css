@@ -2140,16 +2140,31 @@ html[data-switching] *::after {
     margin-top: 4px;
     padding: 2px 6px;
     border-radius: 999px;
-    background: rgba(245, 197, 66, 0.2);
-    color: #f5c542;
+    background: var(--accent-a22);
+    color: var(--accent-lift);
     font-size: 11px;
 }
 
+/* EPL: bright violet when prediction missing */
 .list-item.needs-predict {
-    border: 1px solid rgba(245, 197, 66, 0.25);
+    border: 1px solid var(--accent-a45);
     border-radius: 10px;
     padding: 10px 10px;
     margin: 4px 0;
-    background: rgba(245, 197, 66, 0.03);
+    background: var(--accent-a12);
+}
+
+/* EPL: dull violet when already predicted */
+.list-item.epl-predicted {
+    border: 1px solid rgba(157, 123, 240, 0.18);
+    border-radius: 10px;
+    padding: 10px 10px;
+    margin: 4px 0;
+    background: rgba(157, 123, 240, 0.04);
+}
+
+html[data-theme="light"] .list-item.epl-predicted {
+    border-color: rgba(114, 85, 187, 0.18);
+    background: rgba(114, 85, 187, 0.04);
 }
 
