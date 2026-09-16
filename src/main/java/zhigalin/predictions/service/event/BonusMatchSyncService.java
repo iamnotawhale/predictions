@@ -120,8 +120,6 @@ public class BonusMatchSyncService {
         Team homeTeam = resolveTeam(homeCode);
         Team awayTeam = resolveTeam(awayCode);
 
-        Integer prevHome = existing != null ? existing.getHomeTeamScore() : null;
-        Integer prevAway = existing != null ? existing.getAwayTeamScore() : null;
         boolean wasFt = existing != null && "ft".equals(existing.getStatus());
 
         BonusMatch match = BonusMatch.builder()
@@ -152,35 +150,9 @@ public class BonusMatchSyncService {
 
         bonusMatchDao.upsert(match);
 
-        int prevTotal = nz(prevHome) + nz(prevAway);
-        int nextTotal = nz(homeScore) + nz(awayScore);
-        if (nextTotal != prevTotal && (isLive(status) || "ft".equals(status))) {
-            sendLive(match, prevHome, prevAway);
-        }
         if (becameFt) {
             predictionService.updateByBonusMatch(match);
             sendFullTime(match);
-        }
-    }
-
-    private void sendLive(BonusMatch match, Integer prevHome, Integer prevAway) {
-        String home = match.getHomeEspnCode() != null ? match.getHomeEspnCode() : "?";
-        String away = match.getAwayEspnCode() != null ? match.getAwayEspnCode() : "?";
-        String text = home + " " + nz(match.getHomeTeamScore()) + ":" + nz(match.getAwayTeamScore())
-                      + " " + away + "\n" + competitionLabel(match.getCompetition());
-        if (prevHome != null && prevAway != null) {
-            text += "\n(было " + prevHome + ":" + prevAway + ")";
-        }
-        Integer existing = match.getLiveScoreMessageId();
-        boolean delivered = false;
-        if (existing != null) {
-            delivered = apiClient.editMessageText(defaultChatId, existing, text, null);
-        }
-        if (!delivered) {
-            Integer sent = apiClient.sendMessageAndGetId(defaultChatId, text, null);
-            if (sent != null) {
-                bonusMatchDao.updateLiveScoreMessageId(match.getPublicId(), sent);
-            }
         }
     }
 
@@ -242,10 +214,6 @@ public class BonusMatchSyncService {
                 .filter(t -> t.getCode().equalsIgnoreCase(code))
                 .findFirst()
                 .orElse(null);
-    }
-
-    private static boolean isLive(String status) {
-        return status != null && !Set.of("ns", "ft", "pst", "aet", "pen").contains(status.toLowerCase());
     }
 
     private static String mapStatus(Event event, String state) {
