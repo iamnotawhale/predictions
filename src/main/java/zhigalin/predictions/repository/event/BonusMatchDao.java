@@ -161,47 +161,15 @@ public class BonusMatchDao {
     }
 
     public List<BonusMatch> findByCompetition(String competition) {
-        return findByCompetitionOnDate(competition, LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
+        return findByCompetitionFrom(competition, LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
     }
 
-    /**
-     * Matches scheduled on {@code date} plus any still in-play for the competition.
-     */
-    public List<BonusMatch> findByCompetitionOnDate(String competition, LocalDate date) {
+    public List<BonusMatch> findByCompetitionFrom(String competition, LocalDate fromDate) {
         try {
             String sql = """
                     SELECT * FROM bonus_match
                     WHERE competition = :competition
-                      AND (
-                            CAST(local_date_time AS DATE) = :date
-                            OR (
-                                status IS NOT NULL
-                                AND status NOT IN ('ns', 'ft', 'pst', 'aet', 'pen')
-                            )
-                      )
-                    ORDER BY local_date_time, public_id
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("competition", competition)
-                    .addValue("date", date);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, params, new BonusMatchMapper()));
-        } catch (Exception e) {
-            panicSender.sendPanic("Error find bonus_match by competition", e);
-            return List.of();
-        }
-    }
-
-    /** Finished + from {@code fromDate} — for «Мои» cup review. */
-    public List<BonusMatch> findByCompetitionForReview(String competition, LocalDate fromDate) {
-        try {
-            String sql = """
-                    SELECT * FROM bonus_match
-                    WHERE competition = :competition
-                      AND (
-                            status = 'ft'
-                            OR CAST(local_date_time AS DATE) >= :fromDate
-                      )
+                      AND CAST(local_date_time AS DATE) >= :fromDate
                     ORDER BY local_date_time, public_id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
@@ -210,34 +178,16 @@ public class BonusMatchDao {
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, params, new BonusMatchMapper()));
         } catch (Exception e) {
-            panicSender.sendPanic("Error find bonus_match by competition for review", e);
+            panicSender.sendPanic("Error find bonus_match by competition", e);
             return List.of();
         }
     }
 
     public List<BonusMatch> findAllOrdered() {
-        return findAllOnDate(LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
+        return findAllFrom(LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
     }
 
-    public List<BonusMatch> findAllOnDate(LocalDate date) {
-        try {
-            String sql = """
-                    SELECT * FROM bonus_match
-                    WHERE CAST(local_date_time AS DATE) = :date
-                       OR (
-                            status IS NOT NULL
-                            AND status NOT IN ('ns', 'ft', 'pst', 'aet', 'pen')
-                       )
-                    ORDER BY local_date_time, public_id
-                    """;
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new MapSqlParameterSource("date", date), new BonusMatchMapper()));
-        } catch (Exception e) {
-            return List.of();
-        }
-    }
-
-    public List<BonusMatch> findAllFrom(java.time.LocalDate fromDate) {
+    public List<BonusMatch> findAllFrom(LocalDate fromDate) {
         try {
             String sql = """
                     SELECT * FROM bonus_match
