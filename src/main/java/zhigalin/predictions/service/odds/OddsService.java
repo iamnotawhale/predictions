@@ -118,99 +118,107 @@ public class OddsService {
         Set<Integer> updated = new HashSet<>();
 
         for (Event event : events) {
-            if (event.getStatus() == null || event.getStatus().getType() == null) {
-                continue;
+            try {
+                ingestEventOdds(event, matches, updated);
+            } catch (Exception e) {
+                log.warn("Skip odds for event {}: {}", event != null ? event.getId() : null, e.getMessage());
             }
-            String state = event.getStatus().getType().getState();
-            if (!"pre".equals(state)) {
-                continue;
-            }
-            if (event.getShortName() == null || !event.getShortName().contains(" @ ")) {
-                continue;
-            }
-            String[] teams = event.getShortName().split(" @ ");
-            if (teams.length != 2) {
-                continue;
-            }
-
-            String home = TeamCodeMapper.toInternalCode(teams[1]);
-            String away = TeamCodeMapper.toInternalCode(teams[0]);
-
-            Match match = matches.stream()
-                    .filter(m -> {
-                        Team homeTeam = DaoUtil.TEAMS.get(m.getHomeTeamId());
-                        Team awayTeam = DaoUtil.TEAMS.get(m.getAwayTeamId());
-                        return homeTeam != null && awayTeam != null
-                               && homeTeam.getCode().equalsIgnoreCase(home)
-                               && awayTeam.getCode().equalsIgnoreCase(away);
-                    })
-                    .findFirst()
-                    .orElse(null);
-
-            if (match == null) {
-                continue;
-            }
-            if (event.getCompetitions() == null || event.getCompetitions().isEmpty()) {
-                continue;
-            }
-            Competition competition = event.getCompetitions().getFirst();
-            if (competition.getOdds() == null || competition.getOdds().isEmpty()) {
-                continue;
-            }
-            OddV2 oddV2 = competition.getOdds().getFirst();
-            Odd base = extractOdd(oddV2);
-            if (base == null) {
-                continue;
-            }
-
-            Double overUnder = oddV2.getOverUnder();
-            Odd prev = oddsCache.get(match.getPublicId());
-            Double homeTeamTotal = prev != null ? prev.homeTeamTotal() : null;
-            Double awayTeamTotal = prev != null ? prev.awayTeamTotal() : null;
-            // Team totals come from paginated propBets — fetch once until both lines exist.
-            if ((homeTeamTotal == null || awayTeamTotal == null)
-                && event.getId() != null) {
-                String homeEspnTeamId = competitorTeamId(competition, "home");
-                String awayEspnTeamId = competitorTeamId(competition, "away");
-                if (homeEspnTeamId != null && awayEspnTeamId != null) {
-                    EspnTeamTotalsClient.TeamTotals teamTotals =
-                            espnTeamTotalsClient.fetchMainLines(event.getId(), homeEspnTeamId, awayEspnTeamId);
-                    if (teamTotals != null) {
-                        if (teamTotals.homeLine() != null) {
-                            homeTeamTotal = teamTotals.homeLine();
-                        }
-                        if (teamTotals.awayLine() != null) {
-                            awayTeamTotal = teamTotals.awayLine();
-                        }
-                    }
-                }
-            }
-
-            Odd odd = new Odd(
-                    base.home(),
-                    base.draw(),
-                    base.away(),
-                    overUnder,
-                    homeTeamTotal,
-                    awayTeamTotal
-            );
-            storeOdd(match.getPublicId(), odd);
-            updated.add(match.getPublicId());
-            log.info(
-                    "Odds loaded for {}-{}: {} / {} / {} · OU {} · team totals {}/{}",
-                    home,
-                    away,
-                    odd.home(),
-                    odd.draw(),
-                    odd.away(),
-                    odd.overUnder(),
-                    odd.homeTeamTotal(),
-                    odd.awayTeamTotal()
-            );
         }
         if (!updated.isEmpty()) {
             log.info("Odds refresh stored {} match(es)", updated.size());
         }
+    }
+
+    private void ingestEventOdds(Event event, List<Match> matches, Set<Integer> updated) {
+        if (event.getStatus() == null || event.getStatus().getType() == null) {
+            return;
+        }
+        String state = event.getStatus().getType().getState();
+        if (!"pre".equals(state)) {
+            return;
+        }
+        if (event.getShortName() == null || !event.getShortName().contains(" @ ")) {
+            return;
+        }
+        String[] teams = event.getShortName().split(" @ ");
+        if (teams.length != 2) {
+            return;
+        }
+
+        String home = TeamCodeMapper.toInternalCode(teams[1]);
+        String away = TeamCodeMapper.toInternalCode(teams[0]);
+
+        Match match = matches.stream()
+                .filter(m -> {
+                    Team homeTeam = DaoUtil.TEAMS.get(m.getHomeTeamId());
+                    Team awayTeam = DaoUtil.TEAMS.get(m.getAwayTeamId());
+                    return homeTeam != null && awayTeam != null
+                           && homeTeam.getCode().equalsIgnoreCase(home)
+                           && awayTeam.getCode().equalsIgnoreCase(away);
+                })
+                .findFirst()
+                .orElse(null);
+
+        if (match == null) {
+            return;
+        }
+        if (event.getCompetitions() == null || event.getCompetitions().isEmpty()) {
+            return;
+        }
+        Competition competition = event.getCompetitions().getFirst();
+        OddV2 oddV2 = firstOdd(competition);
+        if (oddV2 == null) {
+            return;
+        }
+        Odd base = extractOdd(oddV2);
+        if (base == null) {
+            return;
+        }
+
+        Double overUnder = oddV2.getOverUnder();
+        Odd prev = oddsCache.get(match.getPublicId());
+        Double homeTeamTotal = prev != null ? prev.homeTeamTotal() : null;
+        Double awayTeamTotal = prev != null ? prev.awayTeamTotal() : null;
+        // Team totals come from paginated propBets — fetch once until both lines exist.
+        if ((homeTeamTotal == null || awayTeamTotal == null)
+            && event.getId() != null) {
+            String homeEspnTeamId = competitorTeamId(competition, "home");
+            String awayEspnTeamId = competitorTeamId(competition, "away");
+            if (homeEspnTeamId != null && awayEspnTeamId != null) {
+                EspnTeamTotalsClient.TeamTotals teamTotals =
+                        espnTeamTotalsClient.fetchMainLines(event.getId(), homeEspnTeamId, awayEspnTeamId);
+                if (teamTotals != null) {
+                    if (teamTotals.homeLine() != null) {
+                        homeTeamTotal = teamTotals.homeLine();
+                    }
+                    if (teamTotals.awayLine() != null) {
+                        awayTeamTotal = teamTotals.awayLine();
+                    }
+                }
+            }
+        }
+
+        Odd odd = new Odd(
+                base.home(),
+                base.draw(),
+                base.away(),
+                overUnder,
+                homeTeamTotal,
+                awayTeamTotal
+        );
+        storeOdd(match.getPublicId(), odd);
+        updated.add(match.getPublicId());
+        log.info(
+                "Odds loaded for {}-{}: {} / {} / {} · OU {} · team totals {}/{}",
+                home,
+                away,
+                odd.home(),
+                odd.draw(),
+                odd.away(),
+                odd.overUnder(),
+                odd.homeTeamTotal(),
+                odd.awayTeamTotal()
+        );
     }
 
     /**
@@ -253,7 +261,23 @@ public class OddsService {
         );
     }
 
+    /** First non-null odds entry from ESPN competition (list may contain nulls). */
+    private static OddV2 firstOdd(Competition competition) {
+        if (competition == null || competition.getOdds() == null) {
+            return null;
+        }
+        for (OddV2 odd : competition.getOdds()) {
+            if (odd != null) {
+                return odd;
+            }
+        }
+        return null;
+    }
+
     private Odd extractOdd(OddV2 oddV2) {
+        if (oddV2 == null) {
+            return null;
+        }
         OddV2.Moneyline ml = oddV2.getMoneyline();
         if (ml != null
             && ml.getHome() != null && ml.getHome().getClose() != null
