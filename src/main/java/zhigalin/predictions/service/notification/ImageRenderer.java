@@ -135,8 +135,8 @@ public class ImageRenderer {
     }
 
     private String createTodayMatchesImageUnlocked(List<MatchRecord> list) {
-        Map<Integer, List<MatchRecord>> weeks = list.stream().collect(java.util.stream.Collectors.groupingBy(MatchRecord::weekId));
-        int allRows = list.size() + weeks.size();
+        List<TodaySection> sections = buildTodaySections(list);
+        int allRows = list.size() + sections.size();
         int fullSize = allRows * 90;
         try {
             BufferedImage image = generateWithBackground(WIDTH, HEIGHT, BACKGROUND_COLOR);
@@ -144,9 +144,8 @@ public class ImageRenderer {
             int middleX = WIDTH / 2;
             int weekBlockY = (HEIGHT - fullSize) / 2;
 
-            for (Map.Entry<Integer, List<MatchRecord>> entry : weeks.entrySet()) {
-                int weekId = entry.getKey();
-                List<MatchRecord> matchRecords = entry.getValue();
+            for (TodaySection section : sections) {
+                List<MatchRecord> matchRecords = section.matches();
                 int elements = matchRecords.size() + 1;
 
                 BufferedImage weekBlock = new BufferedImage(WIDTH, elements * 90, BufferedImage.TYPE_INT_ARGB);
@@ -155,57 +154,15 @@ public class ImageRenderer {
                 Font font = loadFont(true).deriveFont(50f);
                 wG.setFont(font);
 
-                String message = "WEEK " + weekId;
+                String message = section.title();
                 int weekTextX = middleX - wG.getFontMetrics().stringWidth(message) / 2;
                 int weekTextY = wG.getFontMetrics().getHeight();
                 wG.drawString(message, weekTextX, weekTextY);
 
                 for (int matchNum = 1; matchNum < elements; matchNum++) {
                     MatchRecord mr = matchRecords.get(matchNum - 1);
-                    BufferedImage matchBlock = new BufferedImage((int) (WIDTH * 0.8), 80, BufferedImage.TYPE_INT_ARGB);
-                    int h = matchBlock.getHeight();
-                    int w = matchBlock.getWidth();
-
-                    BufferedImage home = scaleImage(loadTeamLogo(mr.homeTeamId()), h);
-                    BufferedImage away = scaleImage(loadTeamLogo(mr.awayTeamId()), h);
-
-                    Graphics2D bG = matchBlock.createGraphics();
-                    BufferedImage fill = generateWithGradient(w - h, h - 20, mr.homeTeamId(), mr.awayTeamId());
-                    bG.drawImage(fill, h / 2, 10, null);
-
-                    bG.setPaint(new Color(255, 255, 255, 100));
-                    bG.fillRect(w / 2 - 80, 10, 160, fill.getHeight());
-
-                    font = loadFont(false).deriveFont(50f);
-                    bG.setColor(Color.WHITE);
-                    bG.setFont(font);
-
-                    String time = DateTimeFormatter.ofPattern("HH:mm").format(mr.localDateTime());
-                    Rectangle2D tb = bG.getFontMetrics().getStringBounds(time, bG);
-                    int timeX = (w - bG.getFontMetrics().stringWidth(time)) / 2;
-                    int timeY = (int) ((double) h / 2 - tb.getHeight() / 2 - tb.getY());
-                    bG.drawString(time, timeX, timeY);
-
-                    font = loadFont(true).deriveFont(80f);
-                    bG.setFont(font);
-
-                    String homeCode = DaoUtil.TEAMS.get(mr.homeTeamId()).getCode();
-                    Rectangle2D hb = bG.getFontMetrics().getStringBounds(homeCode, bG);
-                    int homeX = w / 2 - 100 - bG.getFontMetrics().stringWidth(homeCode);
-                    int homeY = (int) ((double) h / 2 - hb.getHeight() / 2 - hb.getY());
-                    bG.drawString(homeCode, homeX, homeY);
-
-                    String awayCode = DaoUtil.TEAMS.get(mr.awayTeamId()).getCode();
-                    Rectangle2D ab = bG.getFontMetrics().getStringBounds(awayCode, bG);
-                    int awayX = w / 2 + 100;
-                    int awayY = (int) ((double) h / 2 - ab.getHeight() / 2 - ab.getY());
-                    bG.drawString(awayCode, awayX, awayY);
-
-                    bG.drawImage(home, null, 0, 0);
-                    bG.drawImage(away, null, w - h, 0);
-                    bG.dispose();
-
-                    wG.drawImage(matchBlock, null, middleX - w / 2, matchNum * 90);
+                    BufferedImage matchBlock = drawTodayMatchBlock(mr);
+                    wG.drawImage(matchBlock, null, middleX - matchBlock.getWidth() / 2, matchNum * 90);
                 }
                 wG.dispose();
                 g2d.drawImage(weekBlock, null, 0, weekBlockY);
@@ -222,6 +179,133 @@ public class ImageRenderer {
             return null;
         }
     }
+
+    private BufferedImage drawTodayMatchBlock(MatchRecord mr) throws Exception {
+        BufferedImage matchBlock = new BufferedImage((int) (WIDTH * 0.8), 80, BufferedImage.TYPE_INT_ARGB);
+        int h = matchBlock.getHeight();
+        int w = matchBlock.getWidth();
+
+        BufferedImage home = scaleImage(resolveTodayTeamLogo(mr, true), h);
+        BufferedImage away = scaleImage(resolveTodayTeamLogo(mr, false), h);
+
+        Graphics2D bG = matchBlock.createGraphics();
+        BufferedImage fill;
+        if (mr.isCup()) {
+            Color homeColor = resolveCupTeamColor(mr.homeTeamId(), mr.homeCode(), true);
+            Color awayColor = resolveCupTeamColor(mr.awayTeamId(), mr.awayCode(), false);
+            if (similarTo(homeColor, awayColor)) {
+                awayColor = resolveCupTeamColor(mr.awayTeamId(), mr.awayCode(), true);
+            }
+            fill = generateWithGradient(w - h, h - 20, homeColor, awayColor);
+        } else {
+            fill = generateWithGradient(w - h, h - 20, mr.homeTeamId(), mr.awayTeamId());
+        }
+        bG.drawImage(fill, h / 2, 10, null);
+
+        bG.setPaint(new Color(255, 255, 255, 100));
+        bG.fillRect(w / 2 - 80, 10, 160, fill.getHeight());
+
+        Font font = loadFont(false).deriveFont(50f);
+        bG.setColor(Color.WHITE);
+        bG.setFont(font);
+
+        String time = DateTimeFormatter.ofPattern("HH:mm").format(mr.localDateTime());
+        Rectangle2D tb = bG.getFontMetrics().getStringBounds(time, bG);
+        int timeX = (w - bG.getFontMetrics().stringWidth(time)) / 2;
+        int timeY = (int) ((double) h / 2 - tb.getHeight() / 2 - tb.getY());
+        bG.drawString(time, timeX, timeY);
+
+        font = loadFont(true).deriveFont(80f);
+        bG.setFont(font);
+
+        String homeCode = todayDisplayCode(mr, true);
+        Rectangle2D hb = bG.getFontMetrics().getStringBounds(homeCode, bG);
+        int homeX = w / 2 - 100 - bG.getFontMetrics().stringWidth(homeCode);
+        int homeY = (int) ((double) h / 2 - hb.getHeight() / 2 - hb.getY());
+        bG.drawString(homeCode, homeX, homeY);
+
+        String awayCode = todayDisplayCode(mr, false);
+        Rectangle2D ab = bG.getFontMetrics().getStringBounds(awayCode, bG);
+        int awayX = w / 2 + 100;
+        int awayY = (int) ((double) h / 2 - ab.getHeight() / 2 - ab.getY());
+        bG.drawString(awayCode, awayX, awayY);
+
+        bG.drawImage(home, null, 0, 0);
+        bG.drawImage(away, null, w - h, 0);
+        bG.dispose();
+        return matchBlock;
+    }
+
+    private BufferedImage resolveTodayTeamLogo(MatchRecord mr, boolean home) throws Exception {
+        Integer teamId = home ? mr.homeTeamId() : mr.awayTeamId();
+        String logoUrl = home ? mr.homeLogoUrl() : mr.awayLogoUrl();
+        if (mr.isCup()) {
+            return resolveCupTeamLogo(teamId, logoUrl);
+        }
+        return loadTeamLogo(teamId);
+    }
+
+    private static String todayDisplayCode(MatchRecord mr, boolean home) {
+        if (mr.isCup()) {
+            return displayTeamCode(home ? mr.homeTeamId() : mr.awayTeamId(),
+                    home ? mr.homeCode() : mr.awayCode());
+        }
+        Integer teamId = home ? mr.homeTeamId() : mr.awayTeamId();
+        Team team = teamId != null ? DaoUtil.TEAMS.get(teamId) : null;
+        return team != null && team.getCode() != null ? team.getCode() : "?";
+    }
+
+    private static List<TodaySection> buildTodaySections(List<MatchRecord> list) {
+        List<MatchRecord> epl = list.stream()
+                .filter(m -> !m.isCup())
+                .sorted(java.util.Comparator
+                        .comparing(MatchRecord::localDateTime, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                        .thenComparingInt(MatchRecord::publicId))
+                .toList();
+        List<MatchRecord> cups = list.stream()
+                .filter(MatchRecord::isCup)
+                .sorted(java.util.Comparator
+                        .comparing(MatchRecord::localDateTime, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                        .thenComparingInt(MatchRecord::publicId))
+                .toList();
+
+        List<TodaySection> sections = new java.util.ArrayList<>();
+        epl.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        MatchRecord::weekId,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()))
+                .forEach((weekId, matches) ->
+                        sections.add(new TodaySection("WEEK " + (weekId != null ? weekId : "?"), matches)));
+
+        cups.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        MatchRecord::competition,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()))
+                .entrySet().stream()
+                .sorted(java.util.Comparator.comparing(
+                        e -> e.getValue().getFirst().localDateTime(),
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .forEach(e -> sections.add(new TodaySection(cupSectionTitle(e.getKey()), e.getValue())));
+        return sections;
+    }
+
+    private static String cupSectionTitle(String competition) {
+        if (competition == null) {
+            return "CUP";
+        }
+        return switch (competition) {
+            case "eng.fa" -> "FA CUP";
+            case "eng.league_cup" -> "CARABAO";
+            case "uefa.champions" -> "UCL";
+            case "uefa.europa" -> "UEL";
+            case "uefa.europa.conf" -> "UECL";
+            default -> competition.toUpperCase();
+        };
+    }
+
+    private record TodaySection(String title, List<MatchRecord> matches) {}
 
     public String createImage(Integer matchPublicId,
                               Integer homeTeamId,

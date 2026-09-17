@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import zhigalin.predictions.model.event.BonusMatch;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.event.Player;
@@ -29,6 +30,7 @@ import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.recommender.BettingRecommendationService;
+import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.notification.NotificationDedupDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.ApiClient.GoalScorer;
@@ -46,6 +48,7 @@ public class NotificationService {
     private String defaultChatId;
 
     private final MatchService matchService;
+    private final BonusMatchDao bonusMatchDao;
     private final PredictionService predictionService;
     private final OddsService oddsService;
     private final ImageRenderer images;
@@ -61,6 +64,7 @@ public class NotificationService {
     private final NotificationDedupDao notificationDedupDao;
 
     public NotificationService(MatchService matchService,
+                               BonusMatchDao bonusMatchDao,
                                PredictionService predictionService,
                                OddsService oddsService,
                                ImageRenderer images,
@@ -70,6 +74,7 @@ public class NotificationService {
                                NotificationDedupDao notificationDedupDao,
                                BettingRecommendationService bettingRecommendationService) {
         this.matchService = matchService;
+        this.bonusMatchDao = bonusMatchDao;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
         this.images = images;
@@ -86,22 +91,15 @@ public class NotificationService {
 
     public boolean sendTodayMatchNotification(LocalDate date) {
         log.info("Send today match notification for {}", date);
-        List<Match> matches = matchService.findAllByDate(date);
-        if (matches.isEmpty()) {
+        List<Match> eplMatches = matchService.findAllByDate(date);
+        List<MatchRecord> list = buildTodayMatchRecords(date, eplMatches);
+        if (list.isEmpty()) {
             return false;
         }
 
-        oddsService.oddsInit2(matches);
-
-        List<MatchRecord> list = matches.stream()
-                .map(m -> new MatchRecord(
-                        m.getHomeTeamId(),
-                        m.getAwayTeamId(),
-                        m.getWeekId(),
-                        m.getLocalDateTime(),
-                        m.getPublicId()
-                ))
-                .toList();
+        if (!eplMatches.isEmpty()) {
+            oddsService.oddsInit2(eplMatches);
+        }
 
         String path = images.createTodayMatchesImage(list);
         if (path != null) {
@@ -112,6 +110,27 @@ public class NotificationService {
             return true;
         }
         return false;
+    }
+
+    /** Build PNG for the date without sending (EPL + cups). */
+    public String renderTodayMatchesImage(LocalDate date) {
+        return images.createTodayMatchesImage(buildTodayMatchRecords(date, matchService.findAllByDate(date)));
+    }
+
+    private List<MatchRecord> buildTodayMatchRecords(LocalDate date, List<Match> eplMatches) {
+        List<MatchRecord> list = new java.util.ArrayList<>();
+        if (eplMatches != null) {
+            for (Match m : eplMatches) {
+                list.add(MatchRecord.fromEpl(m));
+            }
+        }
+        for (BonusMatch cup : bonusMatchDao.findAllByDate(date)) {
+            list.add(MatchRecord.fromCup(cup));
+        }
+        list.sort(Comparator
+                .comparing(MatchRecord::localDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparingInt(MatchRecord::publicId));
+        return list;
     }
 
     public void sendFullTime(Match match) {
