@@ -37,14 +37,14 @@ class LiveStandingsResultTest {
                 .status("1h")
                 .localDateTime(LocalDateTime.of(2026, 8, 29, 18, 0))
                 .build();
-        assertEquals("1-0", MiniAppService.liveScoreForTeam(match, 10));
-        assertEquals("0-1", MiniAppService.liveScoreForTeam(match, 20));
+        assertEquals("1:0", MiniAppService.liveScoreForTeam(match, 10));
+        assertEquals("0:1", MiniAppService.liveScoreForTeam(match, 20));
 
         match.setHomeTeamId(30);
         match.setAwayTeamId(40);
         match.setHomeTeamScore(1);
         match.setAwayTeamScore(3);
-        assertEquals("1-3", MiniAppService.liveScoreForTeam(match, 30));
-        assertEquals("3-1", MiniAppService.liveScoreForTeam(match, 40));
+        assertEquals("1:3", MiniAppService.liveScoreForTeam(match, 30));
+        assertEquals("3:1", MiniAppService.liveScoreForTeam(match, 40));
     }
 }

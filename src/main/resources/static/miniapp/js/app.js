@@ -1239,7 +1239,7 @@
             if (r.liveScore) {
                 const resultClass = r.liveResult === 'W' ? 'win' : (r.liveResult === 'L' ? 'lose' : 'draw');
                 livePill = '<span class="standings-live-pill ' + resultClass + '">'
-                    + escapeHtml(String(r.liveScore).replace('-', '–'))
+                    + escapeHtml(String(r.liveScore).replace(/[-–]/g, ':'))
                     + '</span>';
             }
             tr.innerHTML =

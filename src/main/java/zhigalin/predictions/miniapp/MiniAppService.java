@@ -741,7 +741,7 @@ public class MiniAppService {
         boolean isHome = match.getHomeTeamId() == teamId;
         int mine = isHome ? home : away;
         int theirs = isHome ? away : home;
-        return mine + "-" + theirs;
+        return mine + ":" + theirs;
     }
 
     static String liveResultForTeam(Match match, int teamId) {
