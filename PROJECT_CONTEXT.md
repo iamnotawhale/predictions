@@ -389,7 +389,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - header показывает сезон/тур (`profile.weekLabel`); справа — toggle рекомендатора.
 - для admin в `ver.` рядом может быть `dnsHint` (`DeploymentInfoService`, публичный DNS lookup hostname → IP).
 - `Crowd Meter` удален из UI; backend-эндпоинт остаётся.
-- `Live Points Race` удалён; live-динамика встроена в зачёт (`provisionalPoints/liveDelta/liveActive`).
+- `Live Points Race` удалён; live-динамика встроена в зачёт (`provisionalPoints/liveDelta/liveActive`). `liveActive` = есть live EPL в текущем туре или live-кубок (не только ненулевая дельта после пола — иначе 0:0 с −1 у всех остаётся без «(live)»).
 - live-подсчёт очков в leaderboard учитывает `-1` и пользователей без прогноза на live/finished матчах (provisional через один `findAllByWeekId`, не N×`getByMatchPublicId`).
 - график очков по неделям: целочисленная сетка Y; кубковые FT входят в снимок активной EPL-недели (`FlooredPointsService.flooredCumulativeByWeek`).
 - карточки АПЛ: ярко-фиолетовый без прогноза / тусклый фиолетовый с прогнозом (кубки — свои цвета турниров).

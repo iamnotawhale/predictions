@@ -448,6 +448,7 @@ public class MiniAppService {
         if (weekId != null) {
             Map<String, Integer> points = predictionService.getWeeklyUsersPoints(weekId);
             if (weekId == DaoUtil.currentWeekId) {
+                liveActive = hasLiveEplInWeek(weekId);
                 Map<String, Integer> provisional = computeCurrentWeekProvisionalPoints(weekId);
                 List<LeaderboardEntry> liveEntries = new ArrayList<>();
                 for (User user : DaoUtil.USERS.values()) {
@@ -455,9 +456,6 @@ public class MiniAppService {
                     int base = points.getOrDefault(login, 0);
                     int prov = provisional.getOrDefault(login, 0);
                     int delta = prov - base;
-                    if (delta != 0) {
-                        liveActive = true;
-                    }
                     liveEntries.add(new LeaderboardEntry(login, base, prov, delta));
                 }
                 title = liveActive ? "Очки за " + weekId + " тур (live)" : "Очки за " + weekId + " тур";
@@ -476,6 +474,7 @@ public class MiniAppService {
             }
         } else {
             int currentWeekId = DaoUtil.currentWeekId;
+            liveActive = hasLiveEplInWeek(currentWeekId) || hasLiveCupMatches();
             Map<String, Integer> seasonPoints = new LinkedHashMap<>(predictionService.getAllPointsByUsers());
             Map<String, Integer> weekStored = predictionService.getWeeklyUsersPoints(currentWeekId);
             Map<String, Integer> weekProvisional = computeCurrentWeekProvisionalPoints(currentWeekId);
@@ -489,9 +488,6 @@ public class MiniAppService {
                 int provisionalWeek = weekProvisional.getOrDefault(login, 0);
                 int cupPts = cupLive.getOrDefault(login, 0);
                 int liveDelta = provisionalWeek - storedWeek + cupPts;
-                if (liveDelta != 0) {
-                    liveActive = true;
-                }
                 seasonProvisional.put(login, base + liveDelta);
                 seasonPoints.putIfAbsent(login, base);
             }
@@ -986,6 +982,25 @@ public class MiniAppService {
         return !Set.of("ns", "ft", "aet", "pen", "pst", "canc", "abd", "awrd", "wo").contains(s);
     }
 
+    /** In-play EPL match that feeds provisional week points (same gate as computeCurrentWeekProvisionalPoints). */
+    private static boolean isLiveLikeMatch(Match match) {
+        if (match == null) {
+            return false;
+        }
+        boolean finished = isFinishedStatus(match.getStatus());
+        return isLiveStatus(match.getStatus())
+               || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
+                   && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
+    }
+
+    private boolean hasLiveEplInWeek(int weekId) {
+        return matchService.findAllByWeekId(weekId).stream().anyMatch(MiniAppService::isLiveLikeMatch);
+    }
+
+    private boolean hasLiveCupMatches() {
+        return !bonusMatchDao.findOnline().isEmpty();
+    }
+
     private static boolean isFinishedStatus(String status) {
         return status != null && CLOSED_MATCH_STATUSES.contains(status.toLowerCase());
     }
@@ -1168,9 +1183,7 @@ public class MiniAppService {
         for (Match match : weekMatches) {
             Map<Integer, Prediction> byUser = predictionsByMatch.getOrDefault(match.getPublicId(), Map.of());
             boolean finished = isFinishedStatus(match.getStatus());
-            boolean liveLike = isLiveStatus(match.getStatus())
-                               || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
-                                   && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
+            boolean liveLike = isLiveLikeMatch(match);
             if (!finished && !liveLike) {
                 continue;
             }
