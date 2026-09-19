@@ -35,6 +35,12 @@ public class FlooredPointsService {
         return floorByLogin(pointEventDao.findSeasonFinishedEvents());
     }
 
+    /** Raw (unfloored) sum of finished EPL match points in a week — can be negative. */
+    public Map<String, Integer> rawWeekTotals(int weekId) {
+        return sumByLogin(pointEventDao.findWeekFinishedEvents(weekId));
+    }
+
+    /** Kept for tests / diagnostics; week standings use {@link #rawWeekTotals(int)}. */
     public Map<String, Integer> flooredWeekTotals(int weekId) {
         return floorByLogin(pointEventDao.findWeekFinishedEvents(weekId));
     }
@@ -96,6 +102,15 @@ public class FlooredPointsService {
         return totals;
     }
 
+    public Map<String, Integer> sumByLogin(List<OrderedPointsRow> rows) {
+        List<PointEvent> events = toEvents(rows);
+        Map<String, Integer> totals = new LinkedHashMap<>();
+        for (PointEvent e : events) {
+            totals.merge(e.login(), e.rawPoints(), Integer::sum);
+        }
+        return totals;
+    }
+
     private static List<PointEvent> toEvents(List<OrderedPointsRow> rows) {
         List<PointEvent> events = new ArrayList<>();
         if (rows == null) {
@@ -122,6 +137,23 @@ public class FlooredPointsService {
         Map<String, Integer> out = new LinkedHashMap<>();
         for (Map.Entry<String, List<Integer>> e : orderedByLogin.entrySet()) {
             out.put(e.getKey(), FlooredPointsCalculator.applyFloor(e.getValue()));
+        }
+        return out;
+    }
+
+    /** Raw sum for in-week provisional (no floor — floor is season-only). */
+    public static Map<String, Integer> sumProvisional(Map<String, List<Integer>> orderedByLogin) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Integer>> e : orderedByLogin.entrySet()) {
+            int sum = 0;
+            if (e.getValue() != null) {
+                for (Integer v : e.getValue()) {
+                    if (v != null) {
+                        sum += v;
+                    }
+                }
+            }
+            out.put(e.getKey(), sum);
         }
         return out;
     }

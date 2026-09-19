@@ -44,6 +44,19 @@ class FlooredPointsAndScoringModesTest {
         assertEquals(2, Math.max(0, -1 + -1 + 4)); // naive sum differs
     }
 
+    @Test
+    void weekStandingsUseRawSumNotFloor() {
+        assertEquals(-2, List.of(-1, -1).stream().mapToInt(Integer::intValue).sum());
+        assertEquals(0, FlooredPointsCalculator.applyFloor(List.of(-1, -1)));
+        assertEquals(
+                Map.of("a", -2, "b", 0),
+                FlooredPointsService.sumProvisional(Map.of(
+                        "a", List.of(-1, -1),
+                        "b", List.of(1, -1)
+                ))
+        );
+    }
+
     @ParameterizedTest
     @CsvSource({
             "2,1,2,1,5",
