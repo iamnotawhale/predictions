@@ -34,6 +34,8 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.odds.OddsService.Odd;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.EspnTeamLogos;
+import zhigalin.predictions.util.TeamCodeMapper;
 
 import static zhigalin.predictions.service.notification.CardRenderModels.*;
 
@@ -657,7 +659,20 @@ public class HtmlImageRenderer {
     }
 
     static String resolveLogoSrc(Integer teamId, String remoteUrl) {
+        if (remoteUrl != null && !remoteUrl.isBlank()) {
+            return remoteUrl;
+        }
         if (teamId != null) {
+            Team team = DaoUtil.TEAMS.get(teamId);
+            if (team != null) {
+                String espn = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(team.getCode()));
+                if (espn != null) {
+                    return espn;
+                }
+                if (team.getLogo() != null && !team.getLogo().isBlank()) {
+                    return team.getLogo();
+                }
+            }
             String data = classpathImageDataUri("static/img/teams/" + teamId + ".webp");
             if (data == null) {
                 data = classpathImageDataUri("static/img/teams/" + teamId + ".png");
@@ -665,9 +680,6 @@ public class HtmlImageRenderer {
             if (data != null) {
                 return data;
             }
-        }
-        if (remoteUrl != null && !remoteUrl.isBlank()) {
-            return remoteUrl;
         }
         return "";
     }
