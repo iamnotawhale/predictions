@@ -362,7 +362,7 @@ public class PredictionService {
     }
 
     public Map<String, Integer> getWeeklyUsersPoints(int weekId) {
-        return flooredPointsService.flooredWeekTotals(weekId).entrySet().stream()
+        return flooredPointsService.rawWeekTotals(weekId).entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
                         .thenComparing(Map.Entry::getKey))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));

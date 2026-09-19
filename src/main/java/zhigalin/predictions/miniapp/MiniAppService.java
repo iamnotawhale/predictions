@@ -1224,7 +1224,7 @@ public class MiniAppService {
                 ordered.get(user.getLogin()).add(pts);
             }
         }
-        return FlooredPointsService.floorProvisional(ordered);
+        return FlooredPointsService.sumProvisional(ordered);
     }
 
     private static boolean canPredict(Match match) {
