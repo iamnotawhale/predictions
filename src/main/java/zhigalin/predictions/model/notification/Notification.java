@@ -10,7 +10,6 @@ import lombok.Getter;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.service.api.InjuryService.InjuryInfo;
 
 @EqualsAndHashCode
 @AllArgsConstructor
@@ -20,7 +19,6 @@ public class Notification {
     User user;
     Match match;
     Map<Integer, List<Lineup>> lineups;
-    List<InjuryInfo> injuries;
 
     @Override
     public String toString() {

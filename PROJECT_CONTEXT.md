@@ -243,8 +243,8 @@
 - live-обновления счёта в Telegram редактируют одно сообщение на матч: ключ состояния строится с приоритетом `espnId` (fallback: `publicId`/пара команд), чтобы избежать дублей при разных источниках id.
 - `message_id` live-сообщения хранится в БД (`match.live_score_message_id`), поэтому после рестарта приложения обновления продолжают редактировать старое сообщение, а не создавать новое.
 - дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей. У reminder сохраняется `telegram_message_id`; при следующем окне (60→40→20) предыдущее сообщение в ЛС удаляется и шлётся новое.
-- Напоминания без прогноза: за 60/40/20 минут до kickoff; одна картинка на (матч, окно); `Set` predicted user ids; матч из notification без повторного `findByPublicId`. Caption: стартовый XI (ESPN summary → API-Football fallback, monospace-колонки) + травмы/отсутствия через `InjuryService` (**не** API-Football); предыдущее reminder-сообщение в ЛС удаляется. Caption уходит multipart-полем (не queryString).
-- **Травмы:** `InjuryService` — FPL `bootstrap-static` (1 запрос на всю лигу, TTL 6ч; при ошибке TTL 30м) → fallback ESPN eng.1 `/injuries`. Фильтр трансферов/аренды/уходов (FPL `status=u` + ключевые слова); причины локализуются на русский. **API-Football injuries не используется** (лимит ~100 req/day). UI: `#score-modal` + caption reminder.
+- Напоминания без прогноза: за 60/40/20 минут до kickoff; одна картинка на (матч, окно); `Set` predicted user ids; матч из notification без повторного `findByPublicId`. Caption: стартовый XI (ESPN summary → API-Football fallback, monospace-колонки); предыдущее reminder-сообщение в ЛС удаляется. Caption уходит multipart-полем (не queryString).
+- **Травмы/отсутствия:** `InjuryService` — FPL `bootstrap-static` (1 запрос на всю лигу, TTL 6ч; при ошибке TTL 30м) → fallback ESPN eng.1 `/injuries`. Фильтр трансферов/аренды/уходов. В API только `playerName` + `kind` (`injury` / `suspension` / `doubt` / `other`), без дат возвращения и длинных причин. **API-Football injuries не используется**. UI: `#score-modal` → блок «Отсутствия» (✕ травма, ▮ дисквал, ? сомнение).
 - **Порядок списков матчей:** всегда `Match.BY_KICKOFF_THEN_PUBLIC_ID` (kickoff ASC, затем `publicId`); DAO/MatchService/Telegram keyboards/miniapp сортируют одинаково.
 - `MatchService`: team-scoped `findLastFinishedByTeamId` / `findNextByTeamId` (SQL LIMIT); `findFinishedMatches` / `findPastNonPostponedMatches` для points/H2H backfill.
 - `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` с режимами **EPL** (4/2/1/−1), **EPL week-bonus** (5/3/2/0/−1), **CUP** (2/1/0/0).
@@ -272,7 +272,7 @@
 | GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
 | GET | `/weeks/{weekId}/review` | **Разбор тура** |
 | GET | `/match/{homeCode}/{awayCode}` | Матч + odds + canPredict |
-| GET | `/match/.../insights` | Форма (`FormItem.home`) + новости + травмы (`injuries` из FPL/ESPN, без API-Football) + `recommendation` (таблица `explanationRows` дом/гости + `explanationNotes`) |
+| GET | `/match/.../insights` | Форма (`FormItem.home`) + новости + `injuries` (FPL/ESPN, kind без дат) + `homeLineup`/`awayLineup` (ESPN summary → fallback AF, если есть) + `recommendation` |
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |
@@ -368,7 +368,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - **Мои** (`screen-my`): прогнозы тура + **Разбор тура**.
 
 **Модалки:**
-- `#score-modal` — прогноз, odds 1/X/2, блок рекомендации (если AI вкл.), кнопка «Удалить» под сеткой счёта, **травмы/отсутствия** (API-Football, 2 колонки), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
+- `#score-modal` — прогноз, odds 1/X/2, блок рекомендации (если AI вкл.), кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
 - `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
 - `#team-modal`, `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
 

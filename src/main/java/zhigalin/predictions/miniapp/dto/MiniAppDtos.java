@@ -132,8 +132,7 @@ public final class MiniAppDtos {
     public record InjuryItem(
             String teamCode,
             String playerName,
-            String status,
-            String reason
+            String kind
     ) {
     }
 
@@ -142,7 +141,9 @@ public final class MiniAppDtos {
             List<FormItem> awayForm,
             List<MatchNewsItem> news,
             MatchRecommendationResponse recommendation,
-            List<InjuryItem> injuries
+            List<InjuryItem> injuries,
+            List<LineupPlayerItem> homeLineup,
+            List<LineupPlayerItem> awayLineup
     ) {
     }
 
