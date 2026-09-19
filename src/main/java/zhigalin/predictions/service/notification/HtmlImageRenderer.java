@@ -11,11 +11,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import jakarta.annotation.PreDestroy;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +28,7 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.WaitUntilState;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
@@ -49,6 +53,11 @@ public class HtmlImageRenderer {
     private static final int WIDTH = 1080;
     private static final int HEIGHT = 1080;
     private static final long RENDER_TIMEOUT_MS = 45_000L;
+    private static final int LOGO_CONNECT_TIMEOUT_MS = 2_000;
+    private static final int LOGO_SOCKET_TIMEOUT_MS = 3_000;
+
+    /** Remote logo URL → data URI (or "" after failed fetch). Avoids Playwright waiting on ESPN CDN. */
+    private static final ConcurrentHashMap<String, String> LOGO_DATA_URI_CACHE = new ConcurrentHashMap<>();
 
     private final PanicSender panicSender;
     private final MatchService matchService;
@@ -601,8 +610,14 @@ public class HtmlImageRenderer {
                     .setViewportSize(WIDTH, HEIGHT)
                     .setDeviceScaleFactor(1.0))) {
                 Page page = context.newPage();
-                page.navigate(htmlFile.toUri().toString());
-                page.waitForTimeout(400); // fonts
+                // DOMCONTENTLOADED: do not wait for remote imgs/fonts (ESPN CDN hangs from Odyssey).
+                page.navigate(
+                        htmlFile.toUri().toString(),
+                        new Page.NavigateOptions()
+                                .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                                .setTimeout(15_000)
+                );
+                page.waitForTimeout(200);
                 page.screenshot(new Page.ScreenshotOptions().setPath(png).setType(com.microsoft.playwright.options.ScreenshotType.PNG));
             }
             return png.toAbsolutePath().toString();
@@ -659,18 +674,20 @@ public class HtmlImageRenderer {
     }
 
     static String resolveLogoSrc(Integer teamId, String remoteUrl) {
-        if (remoteUrl != null && !remoteUrl.isBlank()) {
-            return remoteUrl;
-        }
+        // EPL: API-Football media CDN (ESPN CDN hangs mid-download from Odyssey).
         if (teamId != null) {
+            String af = embedRemoteLogo("https://media.api-sports.io/football/teams/" + teamId + ".png");
+            if (!af.isBlank()) {
+                return af;
+            }
             Team team = DaoUtil.TEAMS.get(teamId);
             if (team != null) {
                 String espn = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(team.getCode()));
                 if (espn != null) {
-                    return espn;
-                }
-                if (team.getLogo() != null && !team.getLogo().isBlank()) {
-                    return team.getLogo();
+                    String embedded = embedRemoteLogo(espn);
+                    if (!embedded.isBlank()) {
+                        return embedded;
+                    }
                 }
             }
             String data = classpathImageDataUri("static/img/teams/" + teamId + ".webp");
@@ -681,7 +698,70 @@ public class HtmlImageRenderer {
                 return data;
             }
         }
+        if (remoteUrl != null && !remoteUrl.isBlank()) {
+            return embedRemoteLogo(remoteUrl);
+        }
         return "";
+    }
+
+    /**
+     * Fetch remote logo into a data URI so Playwright never blocks on ESPN CDN (often stalls on Odyssey).
+     * Failures are cached as empty to avoid repeated timeouts.
+     */
+    static String embedRemoteLogo(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
+        if (url.startsWith("data:")) {
+            return url;
+        }
+        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
+            return url;
+        }
+        String cached = LOGO_DATA_URI_CACHE.get(url);
+        if (cached != null) {
+            return cached;
+        }
+        String embedded = fetchLogoDataUri(url);
+        LOGO_DATA_URI_CACHE.put(url, embedded);
+        return embedded;
+    }
+
+    private static String fetchLogoDataUri(String url) {
+        try {
+            HttpResponse<byte[]> resp = Unirest.get(url)
+                    .header("User-Agent", "Mozilla/5.0")
+                    .header("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+                    .connectTimeout(LOGO_CONNECT_TIMEOUT_MS)
+                    .socketTimeout(LOGO_SOCKET_TIMEOUT_MS)
+                    .asBytes();
+            if (resp.getStatus() != 200 || resp.getBody() == null || resp.getBody().length == 0) {
+                log.warn("Logo fetch failed status={} url={}", resp.getStatus(), url);
+                return "";
+            }
+            String mime = contentTypeToMime(resp.getHeaders().getFirst("Content-Type"), url);
+            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(resp.getBody());
+        } catch (Exception e) {
+            log.warn("Logo fetch error url={}: {}", url, e.getMessage());
+            return "";
+        }
+    }
+
+    private static String contentTypeToMime(String contentType, String url) {
+        if (contentType != null && !contentType.isBlank()) {
+            String mime = contentType.split(";")[0].trim().toLowerCase(Locale.ROOT);
+            if (mime.startsWith("image/")) {
+                return mime;
+            }
+        }
+        String lower = url.toLowerCase(Locale.ROOT);
+        if (lower.contains(".webp")) {
+            return "image/webp";
+        }
+        if (lower.contains(".svg")) {
+            return "image/svg+xml";
+        }
+        return "image/png";
     }
 
     private static String classpathImageDataUri(String path) {
