@@ -25,7 +25,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
-import zhigalin.predictions.service.notification.ImageRenderer;
+import zhigalin.predictions.service.notification.HtmlImageRenderer;
 import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -68,10 +68,10 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                       MatchService matchService, TeamService teamService,
                       HeadToHeadService headToHeadService, DataInitService dataInitService,
                       PredictionService predictionService, PanicSender panicSender, NotificationService notificationService,
-                      ImageRenderer imageRenderer) {
+                      HtmlImageRenderer htmlImageRenderer) {
         super(token);
         this.name = name;
-        this.sendBotMessageService = new SendBotMessageService(this, imageRenderer, webAppUrl);
+        this.sendBotMessageService = new SendBotMessageService(this, htmlImageRenderer, webAppUrl);
         this.panicSender = panicSender;
         long adminId = 0L;
         try {

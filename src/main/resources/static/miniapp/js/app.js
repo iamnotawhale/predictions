@@ -573,6 +573,7 @@
     function renderTodayMatchItem(m, onClick) {
         const li = document.createElement('li');
         let cls = 'list-item';
+        if (m.weekBonus) cls += ' list-item-week-bonus';
         if (m.cup) {
             cls += ' list-item-cup cup-' + competitionCssKey(m.competition);
             if (m.hasPrediction) cls += ' cup-predicted';
@@ -584,6 +585,7 @@
         }
         li.className = cls;
         const metaBadges = [];
+        if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус ×</span>');
         if (!m.hasPrediction && m.canPredict && !m.cup) {
             metaBadges.push('<span class="badge badge-warn">нет прогноза</span>');
         } else if (!m.hasPrediction && m.canPredict && m.cup) {
@@ -2721,8 +2723,9 @@
         const details = $('#modal-recommendation-details');
         const summaryEl = $('#modal-recommendation-summary');
         const scoreEl = $('#modal-recommendation-score');
-        const linesEl = $('#modal-recommendation-lines');
-        if (!section || !details || !summaryEl || !scoreEl || !linesEl) return;
+        const tableWrap = $('#modal-recommendation-table-wrap');
+        const notesEl = $('#modal-recommendation-notes');
+        if (!section || !details || !summaryEl || !scoreEl || !tableWrap || !notesEl) return;
 
         const enabled = state.profile && state.profile.bettingRecommenderEnabled;
         if (!enabled || !recommendation) {
@@ -2741,27 +2744,55 @@
                 + ' · шанс счёта '
                 + Math.round(Number(recommendation.scoreProbability || 0) * 100) + '%');
 
-        linesEl.innerHTML = '';
-        const lines = recommendation.explanationLines || [];
-        lines.forEach((line) => {
+        const homeCode = (state.selectedMatch && state.selectedMatch.homeCode) || 'HOME';
+        const awayCode = (state.selectedMatch && state.selectedMatch.awayCode) || 'AWAY';
+        const rows = recommendation.explanationRows || [];
+        const notes = recommendation.explanationNotes
+            || ((!rows.length && recommendation.explanationLines) ? recommendation.explanationLines : [])
+            || [];
+
+        if (rows.length) {
+            let html = '<table class="modal-recommendation-table"><thead><tr>'
+                + '<th>Показатель</th>'
+                + '<th class="col-side">' + escapeHtml(homeCode) + '</th>'
+                + '<th class="col-side">' + escapeHtml(awayCode) + '</th>'
+                + '</tr></thead><tbody>';
+            rows.forEach((row) => {
+                html += '<tr>'
+                    + '<td class="col-metric">' + escapeHtml(row.metric || '') + '</td>'
+                    + '<td class="col-side">' + escapeHtml(row.home != null ? row.home : '—') + '</td>'
+                    + '<td class="col-side">' + escapeHtml(row.away != null ? row.away : '—') + '</td>'
+                    + '</tr>';
+            });
+            html += '</tbody></table>';
+            tableWrap.innerHTML = html;
+        } else {
+            tableWrap.innerHTML = '';
+        }
+
+        notesEl.innerHTML = '';
+        notes.forEach((line) => {
             const li = document.createElement('li');
             li.textContent = line;
-            linesEl.appendChild(li);
+            notesEl.appendChild(li);
         });
 
-        if (!state.recommendationDetailsOpen) {
+        const hasDetails = rows.length > 0 || notes.length > 0;
+        if (!state.recommendationDetailsOpen || !hasDetails) {
             details.classList.add('hidden');
-        } else if (lines.length) {
-            details.classList.remove('hidden');
         } else {
-            details.classList.add('hidden');
+            details.classList.remove('hidden');
         }
     }
 
     function toggleRecommendationDetails() {
         const details = $('#modal-recommendation-details');
-        const linesEl = $('#modal-recommendation-lines');
-        if (!details || !linesEl || !linesEl.children.length) return;
+        const tableWrap = $('#modal-recommendation-table-wrap');
+        const notesEl = $('#modal-recommendation-notes');
+        if (!details) return;
+        const hasTable = tableWrap && tableWrap.children.length;
+        const hasNotes = notesEl && notesEl.children.length;
+        if (!hasTable && !hasNotes) return;
         state.recommendationDetailsOpen = !state.recommendationDetailsOpen;
         details.classList.toggle('hidden', !state.recommendationDetailsOpen);
     }
@@ -2782,13 +2813,19 @@
             dot.className = 'form-dot ' + formDotClassByOutcome(item.outcome);
             dot.setAttribute('aria-hidden', 'true');
             btn.appendChild(dot);
-            btn.setAttribute('aria-label', teamCode + ' vs ' + (item.opponentCode || '?'));
+            btn.setAttribute('aria-label', item.home
+                ? (teamCode + ' ' + (item.ownScore ?? 0) + ':' + (item.opponentScore ?? 0) + ' ' + (item.opponentCode || '?'))
+                : ((item.opponentCode || '?') + ' ' + (item.opponentScore ?? 0) + ':' + (item.ownScore ?? 0) + ' ' + teamCode));
             btn.addEventListener('click', () => {
                 const own = item.ownScore ?? 0;
                 const opp = item.opponentScore ?? 0;
                 const opponent = item.opponentCode || '?';
                 const datePart = item.kickoff ? (' · ' + item.kickoff) : '';
-                showToast(teamCode + ' ' + own + ':' + opp + ' ' + opponent + datePart);
+                // Real match order: home first, so away games read e.g. NOT 0:0 TOT
+                const line = item.home
+                    ? (teamCode + ' ' + own + ':' + opp + ' ' + opponent)
+                    : (opponent + ' ' + opp + ':' + own + ' ' + teamCode);
+                showToast(line + datePart);
             });
             container.appendChild(btn);
         });

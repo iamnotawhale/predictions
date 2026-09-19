@@ -51,7 +51,7 @@ public class NotificationService {
     private final BonusMatchDao bonusMatchDao;
     private final PredictionService predictionService;
     private final OddsService oddsService;
-    private final ImageRenderer images;
+    private final HtmlImageRenderer htmlImages;
     private final ApiClient api;
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
@@ -67,7 +67,7 @@ public class NotificationService {
                                BonusMatchDao bonusMatchDao,
                                PredictionService predictionService,
                                OddsService oddsService,
-                               ImageRenderer images,
+                               HtmlImageRenderer htmlImages,
                                ApiClient api,
                                PanicSender panicSender,
                                ObjectMapper objectMapper,
@@ -77,7 +77,7 @@ public class NotificationService {
         this.bonusMatchDao = bonusMatchDao;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
-        this.images = images;
+        this.htmlImages = htmlImages;
         this.api = api;
         this.panicSender = panicSender;
         this.objectMapper = objectMapper;
@@ -101,7 +101,7 @@ public class NotificationService {
             oddsService.oddsInit2(eplMatches);
         }
 
-        String path = images.createTodayMatchesImage(list);
+        String path = htmlImages.createTodayMatchesImage(list);
         if (path != null) {
             String caption = date.equals(LocalDate.now())
                     ? "Сегодняшние матчи"
@@ -114,7 +114,7 @@ public class NotificationService {
 
     /** Build PNG for the date without sending (EPL + cups). */
     public String renderTodayMatchesImage(LocalDate date) {
-        return images.createTodayMatchesImage(buildTodayMatchRecords(date, matchService.findAllByDate(date)));
+        return htmlImages.createTodayMatchesImage(buildTodayMatchRecords(date, matchService.findAllByDate(date)));
     }
 
     private List<MatchRecord> buildTodayMatchRecords(LocalDate date, List<Match> eplMatches) {
@@ -157,12 +157,11 @@ public class NotificationService {
                 .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
                 .toList();
 
-        String path = images.createImage(
+        String path = htmlImages.createEplResultImage(
                 match.getPublicId(),
                 match.getHomeTeamId(),
                 match.getAwayTeamId(),
                 center,
-                NotificationImageMode.RESULT,
                 results,
                 aiKickoffScore
         );
@@ -182,7 +181,7 @@ public class NotificationService {
             return;
         }
         Map<String, Integer> usersPoints = predictionService.getWeeklyUsersPoints(weekId);
-        String path = images.createWeeklyImage(weekId, usersPoints);
+        String path = htmlImages.createWeeklyImage(weekId, usersPoints);
         if (path != null) {
             api.sendPhoto(defaultChatId, "Результаты " + weekId + " тура", path, null);
         }
@@ -354,13 +353,11 @@ public class NotificationService {
                     }
                     if (imagePath == null) {
                         String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
-                        imagePath = images.createImage(
+                        imagePath = htmlImages.createReminderImage(
                                 match.getPublicId(),
                                 match.getHomeTeamId(),
                                 match.getAwayTeamId(),
-                                matchTime,
-                                NotificationImageMode.NOTIFICATION,
-                                null
+                                matchTime
                         );
                     }
                     Notification notification = Notification.builder()

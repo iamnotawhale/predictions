@@ -117,7 +117,8 @@ public final class MiniAppDtos {
             int ownScore,
             int opponentScore,
             String opponentCode,
-            String kickoff
+            String kickoff,
+            boolean home
     ) {
     }
 
@@ -142,8 +143,17 @@ public final class MiniAppDtos {
             double expectedHomeGoals,
             double expectedAwayGoals,
             double scoreProbability,
+            List<ExplanationStatRow> explanationRows,
+            List<String> explanationNotes,
             List<String> explanationLines,
             String summary
+    ) {
+    }
+
+    public record ExplanationStatRow(
+            String metric,
+            String home,
+            String away
     ) {
     }
 

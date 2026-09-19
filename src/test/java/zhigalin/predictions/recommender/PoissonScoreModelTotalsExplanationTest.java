@@ -46,10 +46,11 @@ class PoissonScoreModelTotalsExplanationTest {
                 0.67
         );
         assertEquals(2, lines.size());
-        assertTrue(lines.get(0).contains("Тотал матча — линия 3.5"));
-        assertTrue(lines.get(0).contains("больше (4+) ~40%"));
-        assertTrue(lines.get(0).contains("меньше (0–3) ~60%"));
-        assertTrue(lines.get(1).contains("MUN больше 1.5 (2+) ~35%"));
-        assertTrue(lines.get(1).contains("MCI больше 1.5 (2+) ~67%"));
+        assertTrue(lines.get(0).contains("Индив. тотал"));
+        assertTrue(lines.get(0).contains(">1.5 (2+) ~35%"));
+        assertTrue(lines.get(0).contains(">1.5 (2+) ~67%"));
+        assertTrue(lines.get(1).contains("Тотал матча 3.5"));
+        assertTrue(lines.get(1).contains("больше (4+) ~40%"));
+        assertTrue(lines.get(1).contains("меньше (0–3) ~60%"));
     }
 }

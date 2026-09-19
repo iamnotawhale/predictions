@@ -248,10 +248,11 @@
 - `MatchService`: team-scoped `findLastFinishedByTeamId` / `findNextByTeamId` (SQL LIMIT); `findFinishedMatches` / `findPastNonPostponedMatches` для points/H2H backfill.
 - `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` с режимами **EPL** (4/2/1/−1), **EPL week-bonus** (5/3/2/0/−1), **CUP** (2/1/0/0).
 - **Скользящий пол очков:** сырые `predict.points` не затираются; зачёт сезона/тура = `running = max(0, running + points)` в порядке `coalesce(finished_at, local_date_time)` (`FlooredPointsService` / `PointEventDao`). Leaderboard и chart используют floored totals.
-- **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус ×»; только с **5 тура** (`UserWeekBonusMatchService.MIN_WEEK_ID`).
-- **Кубковые бонус-матчи:** таблица `bonus_match` (FA / Carabao / UCL / UEL / UECL), sync через `BonusMatchSyncService` + ESPN multi-league scoreboard; для всех кубков дополнительно окно **30 дней** (раз в 30 мин; default board часто залипает); в матче ≥1 клуб АПЛ (**по `team_id` из ростера**, не по голому ESPN-коду); ingest: `TeamCodeMapper.fromEspnAbbreviation` (`MAN`→`MUN`, `MUN`→`BAY` для Bayern); **только `event.season.year == DataInitService.SEASON`** (ESPN FA часто залипает на SEASON−1 / финал прошлого розыгрыша); списки/purge с **`seasonStartDate()` = 1 авг SEASON**; purge удаляет pre-season, без EPL-link и ложные Bayern→Man United; прогнозы в `predict.bonus_match_id`; без live-уведомлений о счёте / FT картинкой (`ImageRenderer.createCupResultImage`); очки в общий зачёт. Mini App: карточки Home/Today с цветами турнира; `GET /api/miniapp/cups` + matches/review; live Общий зачёт учитывает in-play cup provisional.
+- **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус ×» на странице тура и на «Сегодня» (и home live); только с **5 тура** (`UserWeekBonusMatchService.MIN_WEEK_ID`).
+- **Кубковые бонус-матчи:** таблица `bonus_match` (FA / Carabao / UCL / UEL / UECL), sync через `BonusMatchSyncService` + ESPN multi-league scoreboard; для всех кубков дополнительно окно **30 дней** (раз в 30 мин; default board часто залипает); в матче ≥1 клуб АПЛ (**по `team_id` из ростера**, не по голому ESPN-коду); ingest: `TeamCodeMapper.fromEspnAbbreviation` (`MAN`→`MUN`, `MUN`→`BAY` для Bayern); **только `event.season.year == DataInitService.SEASON`** (ESPN FA часто залипает на SEASON−1 / финал прошлого розыгрыша); списки/purge с **`seasonStartDate()` = 1 авг SEASON**; purge удаляет pre-season, без EPL-link и ложные Bayern→Man United; прогнозы в `predict.bonus_match_id`; без live-уведомлений о счёте; **cup FT** через `HtmlImageRenderer.createResultImage` (accent по турниру); очки в общий зачёт. Mini App: карточки Home/Today с цветами турнира; `GET /api/miniapp/cups` + matches/review; live Общий зачёт учитывает in-play cup provisional.
 - `match.finished_at` проставляется при переходе в `ft` (для порядка пола).
-- `ImageRenderer`: семафор на 1 параллельный рендер (снижает пики RAM); для odds в NOTIFICATION — `ensureFresh`, не сырой `oddsInit2`; cup FT — `createCupResultImage` (цвета/логотипы турниров в `static/img/leagues/`, remote team logos cache).
+- **`HtmlImageRenderer`**: все Telegram-карточки 1080×1080 HTML→PNG (Playwright/Chromium): сегодняшние матчи, напоминание без прогноза, FT EPL/кубки, weekly results, «твой прогноз», график очков (JFreeChart внутри HTML-shell). CSS: `src/main/resources/notification-cards/base.css`. Chrome: `notification.cards.chromeExecutable` / `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` / `/usr/bin/google-chrome`. Семафор на 1 рендер. Превью: `./mvnw -Dtest=HtmlCardPreviewTest test` → `target/preview-cards/`.
+- `ImageRenderer` (AWT): legacy, больше не вызывается из notification/bot paths; можно удалить позже.
 - Сводка тура в общий чат: только картинка результатов тура; защита от повторной отправки на тот же `weekId`.
 - `/start` и меню: кнопка «Открыть Mini App» первой.
 - Telegram-команды матчей (`TodayMatchesCommand`, `TourNumCommand`, `UpcomingCommand`) форматируют строки через `MatchMessageFormatter`.
@@ -270,7 +271,7 @@
 | GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
 | GET | `/weeks/{weekId}/review` | **Разбор тура** |
 | GET | `/match/{homeCode}/{awayCode}` | Матч + odds + canPredict |
-| GET | `/match/.../insights` | Форма + новости + `recommendation` (если toggle включён) |
+| GET | `/match/.../insights` | Форма (`FormItem.home`) + новости + `recommendation` (таблица `explanationRows` дом/гости + `explanationNotes`) |
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |
@@ -330,9 +331,11 @@
 - Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
 - В `#score-modal` блок `#modal-recommendation-section` (между odds и сеткой счёта): **живой** рекомендованный счёт + explanation (только при включённом toggle).
 - На **«Мои» / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
-- Картинка FT (`ImageRenderer` RESULT): строка `AI h:a` под финальным счётом, если freeze есть. Cup FT — без AI, логотип турнира сверху, фон цвета кубка.
+- Картинка FT: `HtmlImageRenderer` RESULT (EPL + кубки с разными accent); строка `AI h:a` для EPL, если freeze есть.
 - Mini App кубки: цвета турниров на карточках; категория «Кубки» (карточки турниров, вся FT-история + матчи с сегодня и будущие); live-детали/составы/комментарии через ESPN summary по league slug; live Общий зачёт += provisional cup.
-- Утреннее уведомление «Сегодняшние матчи» (`NotificationService.sendTodayMatchNotification` / `todaypub`): картинка включает **EPL + кубки** за день (секции WEEK N / CARABAO / UEL / …); отправляется и если в день только кубки.
+- Утреннее уведомление «Сегодняшние матчи» / `todaypub`: HTML-карточка (EPL + кубки); отправляется и если в день только кубки.
+- Напоминание без прогноза: HTML `createReminderImage`.
+- Weekly results / «твой прогноз» / Telegram-график очков: тоже `HtmlImageRenderer` (`createWeeklyImage`, `createYourPredictImage`, `ChartRenderer` → `createChartImage`).
 
 ### Калибровка рекомендатора
 Отчёт (read-only) на проде:
@@ -443,7 +446,9 @@ psql … -f deploy/recommender-calibration-report.sql
 - Новости в miniapp: Sports.ru RSS по тегам команд (`MiniAppService.loadMatchNews`, кэш ~120с); бот `/news` — `DataInitService.newsInit` с отдельным TTL.
 
 ## Генерация изображений уведомлений
-- В `ImageRenderer` fallback цветов команд по `teamId`, если нет записи в `team_colors.json`.
+- Telegram-карточки: `HtmlImageRenderer` (HTML/CSS → PNG через Playwright/Chrome); accent по competition, без `team_colors.json`.
+- Legacy `ImageRenderer` (AWT) ещё читает `team_colors.json` для цветных полос; bot/notification paths на него не ходят.
+- Miniapp live-питч: цвета формы из ESPN `rosters[].uniform.color` (`TeamFormationItem.kitColor`), fallback `#ffffff` / `#c0c0c0`.
 - Масштабирование логотипов с сохранением пропорций (padding).
 - Логотипы сезона 2026: `64.webp` (HUL), `1346.webp` (COV).
 

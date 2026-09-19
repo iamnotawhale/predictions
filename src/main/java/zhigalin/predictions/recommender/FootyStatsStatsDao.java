@@ -1,6 +1,7 @@
 package zhigalin.predictions.recommender;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,6 +12,7 @@ import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
 import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
 import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
@@ -158,9 +160,12 @@ public class FootyStatsStatsDao {
                 (ps, recommendation) -> {
                     String explanationJson;
                     try {
-                        explanationJson = objectMapper.writeValueAsString(recommendation.explanationLines());
+                        ExplanationBreakdown explanation = recommendation.explanation() != null
+                                ? recommendation.explanation()
+                                : ExplanationBreakdown.empty();
+                        explanationJson = objectMapper.writeValueAsString(explanation);
                     } catch (Exception e) {
-                        explanationJson = "[]";
+                        explanationJson = "{\"rows\":[],\"notes\":[]}";
                     }
                     ps.setInt(1, recommendation.matchPublicId());
                     ps.setInt(2, recommendation.weekId());
@@ -297,13 +302,7 @@ public class FootyStatsStatsDao {
 
     private RowMapper<MatchRecommendationSnapshot> recommendationMapper() {
         return (rs, rowNum) -> {
-            List<String> lines;
-            try {
-                lines = objectMapper.readValue(rs.getString("explanation_json"), new TypeReference<>() {
-                });
-            } catch (Exception e) {
-                lines = List.of();
-            }
+            ExplanationBreakdown explanation = parseExplanation(rs.getString("explanation_json"));
             Timestamp frozenAt = rs.getTimestamp("kickoff_frozen_at");
             Integer kickoffHome = getNullableInt(rs, "kickoff_home");
             Integer kickoffAway = getNullableInt(rs, "kickoff_away");
@@ -315,7 +314,7 @@ public class FootyStatsStatsDao {
                     rs.getDouble("expected_home_goals"),
                     rs.getDouble("expected_away_goals"),
                     rs.getDouble("score_probability"),
-                    lines,
+                    explanation,
                     buildSummary(rs.getInt("recommended_home"), rs.getInt("recommended_away")),
                     rs.getTimestamp("computed_at").toInstant(),
                     kickoffHome,
@@ -323,6 +322,23 @@ public class FootyStatsStatsDao {
                     frozenAt != null ? frozenAt.toInstant() : null
             );
         };
+    }
+
+    private ExplanationBreakdown parseExplanation(String json) {
+        if (json == null || json.isBlank()) {
+            return ExplanationBreakdown.empty();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            if (node.isArray()) {
+                List<String> notes = objectMapper.convertValue(node, new TypeReference<>() {
+                });
+                return new ExplanationBreakdown(List.of(), notes != null ? notes : List.of());
+            }
+            return objectMapper.treeToValue(node, ExplanationBreakdown.class);
+        } catch (Exception e) {
+            return ExplanationBreakdown.empty();
+        }
     }
 
     private static String buildSummary(int home, int away) {

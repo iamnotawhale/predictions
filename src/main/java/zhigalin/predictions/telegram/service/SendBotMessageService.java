@@ -24,22 +24,20 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
-import zhigalin.predictions.service.notification.ImageRenderer;
+import zhigalin.predictions.service.notification.HtmlImageRenderer;
 import zhigalin.predictions.telegram.model.EPLInfoBot;
 import zhigalin.predictions.util.DaoUtil;
-
-import static zhigalin.predictions.service.notification.NotificationImageMode.YOUR_PREDICT;
 
 public class SendBotMessageService {
 
     private final EPLInfoBot bot;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
-    private final ImageRenderer imageRenderer;
+    private final HtmlImageRenderer htmlImageRenderer;
     private final String webAppUrl;
 
-    public SendBotMessageService(EPLInfoBot bot, ImageRenderer imageRenderer, String webAppUrl) {
+    public SendBotMessageService(EPLInfoBot bot, HtmlImageRenderer htmlImageRenderer, String webAppUrl) {
         this.bot = bot;
-        this.imageRenderer = imageRenderer;
+        this.htmlImageRenderer = htmlImageRenderer;
         this.webAppUrl = webAppUrl == null ? "" : webAppUrl;
         if (this.webAppUrl.isBlank()) {
             serverLogger.warn("bot.webAppUrl is blank: main menu will be sent without Mini App button");
@@ -114,13 +112,9 @@ public class SendBotMessageService {
     public void sendMessageNotificationPicture(String chatId, String message, Match match, int homePredict, int awayPredict) {
         deletePreviousMessage(chatId);
 
-        String imagePath = imageRenderer.createImage(
-            match.getPublicId(),
-            match.getHomeTeamId(),
-            match.getAwayTeamId(),
-            homePredict + ":" + awayPredict,
-            YOUR_PREDICT,
-            null
+        String imagePath = htmlImageRenderer.createYourPredictImage(
+            match,
+            homePredict + ":" + awayPredict
         );
         if (imagePath == null) {
             sendMessage(chatId, message);

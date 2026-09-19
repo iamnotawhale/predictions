@@ -1,13 +1,11 @@
 package zhigalin.predictions.service.notification;
 
-import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,13 +25,22 @@ import zhigalin.predictions.service.predict.PredictionService;
 @Service
 public class ChartRenderer {
 
+    private static final Color[] SERIES = {
+            new Color(157, 123, 240),
+            new Color(92, 184, 122),
+            new Color(232, 168, 64),
+            new Color(91, 155, 213),
+            new Color(212, 96, 74),
+            new Color(46, 207, 192)
+    };
+
     private final PredictionService predictionService;
-    private final ImageRenderer images;
+    private final HtmlImageRenderer htmlImages;
     private final PanicSender panicSender;
 
-    public ChartRenderer(PredictionService predictionService, ImageRenderer images, PanicSender panicSender) {
+    public ChartRenderer(PredictionService predictionService, HtmlImageRenderer htmlImages, PanicSender panicSender) {
         this.predictionService = predictionService;
-        this.images = images;
+        this.htmlImages = htmlImages;
         this.panicSender = panicSender;
     }
 
@@ -56,61 +63,49 @@ public class ChartRenderer {
             }
 
             JFreeChart chart = ChartFactory.createLineChart(
-                    "ГРАФИК НАБОРА ОЧКОВ ПО НЕДЕЛЯМ", "Week", "PTS",
-                    dataset, PlotOrientation.VERTICAL, true, true, false);
+                    null, null, null,
+                    dataset, PlotOrientation.VERTICAL, true, false, false);
 
-            chart.setBackgroundPaint(new Color(0, 0, 0, 0));
-            chart.setBackgroundImageAlpha(0f);
+            chart.setBackgroundPaint(new Color(20, 17, 26));
+            chart.setBorderVisible(false);
 
             CategoryPlot plot = chart.getCategoryPlot();
-            plot.setBackgroundPaint(new Color(255, 255, 255, 160));
+            plot.setBackgroundPaint(new Color(28, 24, 36));
             plot.setOutlineVisible(false);
             plot.setDomainGridlinesVisible(true);
             plot.setRangeGridlinesVisible(true);
-            plot.setDomainGridlinePaint(Color.WHITE);
-            plot.setRangeGridlinePaint(Color.WHITE);
+            plot.setDomainGridlinePaint(new Color(255, 255, 255, 28));
+            plot.setRangeGridlinePaint(new Color(255, 255, 255, 28));
 
             LineAndShapeRenderer renderer = new LineAndShapeRenderer();
             for (int i = 0; i < dataset.getRowCount(); i++) {
-                renderer.setSeriesPaint(i, getSeriesColor(i));
-                renderer.setSeriesStroke(i, new BasicStroke(2.5f));
+                renderer.setSeriesPaint(i, SERIES[i % SERIES.length]);
+                renderer.setSeriesStroke(i, new BasicStroke(2.8f));
                 renderer.setSeriesShapesVisible(i, true);
-                renderer.setSeriesShape(i, new Ellipse2D.Double(-3, -3, 6, 6));
+                renderer.setSeriesShape(i, new Ellipse2D.Double(-3.5, -3.5, 7, 7));
             }
             plot.setRenderer(renderer);
 
-            chart.getTitle().setFont(new Font("Arial", Font.BOLD, 40));
-            chart.getTitle().setPaint(Color.WHITE);
-            plot.getDomainAxis().setLabelPaint(Color.WHITE);
-            plot.getDomainAxis().setTickLabelPaint(Color.WHITE);
-            plot.getRangeAxis().setLabelPaint(Color.WHITE);
-            plot.getRangeAxis().setTickLabelPaint(Color.WHITE);
+            Font axisFont = new Font("SansSerif", Font.PLAIN, 16);
+            plot.getDomainAxis().setLabelPaint(new Color(154, 143, 176));
+            plot.getDomainAxis().setTickLabelPaint(new Color(232, 223, 245));
+            plot.getRangeAxis().setLabelPaint(new Color(154, 143, 176));
+            plot.getRangeAxis().setTickLabelPaint(new Color(232, 223, 245));
+            plot.getDomainAxis().setTickLabelFont(axisFont);
+            plot.getRangeAxis().setTickLabelFont(axisFont);
+            if (chart.getLegend() != null) {
+                chart.getLegend().setBackgroundPaint(new Color(20, 17, 26));
+                chart.getLegend().setItemPaint(new Color(232, 223, 245));
+                chart.getLegend().setItemFont(new Font("SansSerif", Font.BOLD, 14));
+            }
 
-            plot.getDomainAxis().setLabelFont(new Font("Arial", Font.BOLD, 14));
-            plot.getRangeAxis().setLabelFont(new Font("Arial", Font.BOLD, 14));
-
-            BufferedImage background = images.generateWithBackground(ImageRenderer.WIDTH, ImageRenderer.HEIGHT, ImageRenderer.BACKGROUND_COLOR);
-            BufferedImage chartImage = chart.createBufferedImage(
-                    (int) (background.getWidth() * 0.8),
-                    (int) (background.getHeight() * 0.8)
-            );
-
-            Graphics2D g = background.createGraphics();
-            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-            g.drawImage(chartImage, (int) (background.getWidth() * 0.1), (int) (background.getHeight() * 0.1), null);
-            g.dispose();
-
-            File out = File.createTempFile("charts", ".png");
-            ImageIO.write(background, "png", out);
-            return out.getAbsolutePath();
+            BufferedImage chartImage = chart.createBufferedImage(920, 720);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(chartImage, "png", baos);
+            return htmlImages.createChartImage(baos.toByteArray());
         } catch (Exception e) {
             panicSender.sendPanic("Error creating chart", e);
             return null;
         }
-    }
-
-    private static Color getSeriesColor(int index) {
-        Color[] colors = {Color.blue, Color.green, Color.red, Color.yellow};
-        return colors[index % colors.length];
     }
 }

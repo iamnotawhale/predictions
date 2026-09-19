@@ -1157,7 +1157,59 @@ html[data-switching] *::after {
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.modal-recommendation-lines {
+.modal-recommendation-table-wrap {
+    margin-top: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-recommendation-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.modal-recommendation-table th,
+.modal-recommendation-table td {
+    padding: 7px 8px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    vertical-align: top;
+}
+
+.modal-recommendation-table thead th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--hint);
+    font-weight: 600;
+}
+
+.modal-recommendation-table th.col-side,
+.modal-recommendation-table td.col-side {
+    text-align: center;
+    width: 28%;
+}
+
+.modal-recommendation-table td.col-metric {
+    color: var(--hint);
+    width: 44%;
+}
+
+.modal-recommendation-table td.col-side {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.modal-recommendation-table tbody tr:last-child th,
+.modal-recommendation-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.modal-recommendation-notes {
     list-style: none;
     margin-top: 10px;
     display: flex;
@@ -1165,7 +1217,7 @@ html[data-switching] *::after {
     gap: 6px;
 }
 
-.modal-recommendation-lines li {
+.modal-recommendation-notes li {
     font-size: 12px;
     line-height: 1.4;
     color: var(--hint);
@@ -1173,7 +1225,7 @@ html[data-switching] *::after {
     position: relative;
 }
 
-.modal-recommendation-lines li::before {
+.modal-recommendation-notes li::before {
     content: '•';
     position: absolute;
     left: 0;
