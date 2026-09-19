@@ -20,7 +20,7 @@ import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
-import zhigalin.predictions.service.notification.ImageRenderer;
+import zhigalin.predictions.service.notification.HtmlImageRenderer;
 import zhigalin.predictions.service.notification.Result;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
@@ -41,7 +41,7 @@ public class BonusMatchSyncService {
     private final BonusMatchDao bonusMatchDao;
     private final PredictionService predictionService;
     private final ApiClient apiClient;
-    private final ImageRenderer imageRenderer;
+    private final HtmlImageRenderer htmlImageRenderer;
     private volatile long lastCupWindowSyncMs;
 
     public BonusMatchSyncService(
@@ -49,13 +49,13 @@ public class BonusMatchSyncService {
             BonusMatchDao bonusMatchDao,
             PredictionService predictionService,
             ApiClient apiClient,
-            ImageRenderer imageRenderer
+            HtmlImageRenderer htmlImageRenderer
     ) {
         this.espnScoreboardClient = espnScoreboardClient;
         this.bonusMatchDao = bonusMatchDao;
         this.predictionService = predictionService;
         this.apiClient = apiClient;
-        this.imageRenderer = imageRenderer;
+        this.htmlImageRenderer = htmlImageRenderer;
     }
 
     public void syncTodayCups() {
@@ -276,8 +276,9 @@ public class BonusMatchSyncService {
                 .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
                 .toList();
 
-        String path = imageRenderer.createCupResultImage(
-                match.getCompetition(),
+        String path = htmlImageRenderer.createResultImage(
+                HtmlImageRenderer.competitionAccent(match.getCompetition()),
+                HtmlImageRenderer.competitionBadge(match.getCompetition()),
                 match.getHomeTeamId(),
                 match.getAwayTeamId(),
                 match.getHomeEspnCode(),
@@ -285,11 +286,12 @@ public class BonusMatchSyncService {
                 match.getHomeLogoUrl(),
                 match.getAwayLogoUrl(),
                 center,
+                null,
                 results
         );
 
-        String caption = "Бонус-матч окончен: " + home + " " + center + " " + away
-                         + " (" + competitionLabel(match.getCompetition()) + ")";
+        String caption = "Матч " + home + " " + center + " " + away
+                         + " (" + competitionLabel(match.getCompetition()) + ") окончен";
         if (path != null) {
             apiClient.sendPhoto(defaultChatId, caption, path, null);
         } else {

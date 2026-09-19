@@ -6,7 +6,6 @@ import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.InputStream;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -27,7 +26,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.config.DeploymentInfoService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchRecommendationResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ExplanationStatRow;
 import zhigalin.predictions.recommender.BettingRecommendationService;
+import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ChartSeries;
@@ -89,7 +90,6 @@ public class MiniAppService {
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
     private static final String SPORTS_RU_TEAM_RSS = "https://www.sports.ru/stat/export/rss/taglenta.xml?id=";
-    private static final Map<String, TeamKitColors> TEAM_PITCH_COLORS = loadTeamPitchColors();
     private static final long TEAM_NEWS_CACHE_MS = 120_000L;
     private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
             "ft", "aet", "pen", "canc", "abd", "awrd", "wo"
@@ -310,12 +310,21 @@ public class MiniAppService {
     }
 
     private MatchRecommendationResponse toRecommendationResponse(MatchRecommendationSnapshot snapshot) {
+        var explanation = snapshot.explanation() != null
+                ? snapshot.explanation()
+                : ExplanationBreakdown.empty();
+        List<ExplanationStatRow> rows = explanation.rows() == null ? List.of() : explanation.rows().stream()
+                .map(r -> new ExplanationStatRow(r.metric(), r.home(), r.away()))
+                .toList();
+        List<String> notes = explanation.notes() != null ? explanation.notes() : List.of();
         return new MatchRecommendationResponse(
                 snapshot.recommendedHome(),
                 snapshot.recommendedAway(),
                 snapshot.expectedHomeGoals(),
                 snapshot.expectedAwayGoals(),
                 snapshot.scoreProbability(),
+                rows,
+                notes,
                 snapshot.explanationLines(),
                 snapshot.summary()
         );
@@ -353,8 +362,8 @@ public class MiniAppService {
                 awayFormation,
                 events,
                 matchStats,
-                pitchColorForTeamId(match.getHomeTeamId(), true),
-                pitchColorForTeamId(match.getAwayTeamId(), false),
+                pitchColorFromFormation(homeFormation, "#ffffff"),
+                pitchColorFromFormation(awayFormation, "#c0c0c0"),
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
                 match.getStatus()
@@ -382,20 +391,6 @@ public class MiniAppService {
         List<LineupPlayerItem> awayLineup = toLineupItemsFromFormation(awayFormation);
         List<MatchEventItem> events = loadLiveEvents(summaryRoot);
         List<MatchStatItem> matchStats = loadLiveStats(summaryRoot);
-        String homePitch = pitchColorForTeamId(match.getHomeTeamId(), true);
-        String awayPitch = pitchColorForTeamId(match.getAwayTeamId(), false);
-        if (homePitch == null && homeFormation != null && homeFormation.kitColor() != null) {
-            homePitch = homeFormation.kitColor();
-        }
-        if (awayPitch == null && awayFormation != null && awayFormation.kitColor() != null) {
-            awayPitch = awayFormation.kitColor();
-        }
-        if (homePitch == null) {
-            homePitch = "#ffffff";
-        }
-        if (awayPitch == null) {
-            awayPitch = "#c0c0c0";
-        }
         return new LiveMatchDetailsResponse(
                 true,
                 homeLineup,
@@ -404,8 +399,8 @@ public class MiniAppService {
                 awayFormation,
                 events,
                 matchStats,
-                homePitch,
-                awayPitch,
+                pitchColorFromFormation(homeFormation, "#ffffff"),
+                pitchColorFromFormation(awayFormation, "#c0c0c0"),
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
                 match.getStatus()
@@ -1646,49 +1641,11 @@ public class MiniAppService {
     ) {
     }
 
-    private record TeamKitColors(int[] home, int[] away) {
-    }
-
-    private static Map<String, TeamKitColors> loadTeamPitchColors() {
-        Map<String, TeamKitColors> map = new LinkedHashMap<>();
-        try (InputStream input = MiniAppService.class.getClassLoader().getResourceAsStream("team_colors.json")) {
-            if (input == null) {
-                return map;
-            }
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(input);
-            root.fields().forEachRemaining(entry -> {
-                JsonNode home = entry.getValue().path("home");
-                JsonNode away = entry.getValue().path("away");
-                map.put(entry.getKey(), new TeamKitColors(
-                        new int[]{
-                                home.path("r").asInt(255),
-                                home.path("g").asInt(255),
-                                home.path("b").asInt(255)
-                        },
-                        new int[]{
-                                away.path("r").asInt(255),
-                                away.path("g").asInt(255),
-                                away.path("b").asInt(255)
-                        }
-                ));
-            });
-        } catch (Exception e) {
-            LoggerFactory.getLogger(MiniAppService.class).warn("team_colors.json load failed: {}", e.getMessage());
+    private static String pitchColorFromFormation(TeamFormationItem formation, String fallback) {
+        if (formation != null && formation.kitColor() != null && !formation.kitColor().isBlank()) {
+            return formation.kitColor();
         }
-        return map;
-    }
-
-    private String pitchColorForTeamId(Integer teamId, boolean homeKit) {
-        if (teamId == null) {
-            return null;
-        }
-        TeamKitColors kits = TEAM_PITCH_COLORS.get(String.valueOf(teamId));
-        if (kits == null) {
-            return "#ffffff";
-        }
-        int[] rgb = homeKit ? kits.home() : kits.away();
-        return String.format("#%02x%02x%02x", rgb[0], rgb[1], rgb[2]);
+        return fallback;
     }
 
     private List<FormItem> buildRecentForm(int teamId, int limit) {
@@ -1709,7 +1666,8 @@ public class MiniAppService {
                 ownScore,
                 opponentScore,
                 opponent != null ? opponent.getCode() : "?",
-                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : ""
+                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
+                teamIsHome
         );
     }
 

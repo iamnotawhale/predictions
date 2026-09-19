@@ -11,6 +11,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 import org.junit.jupiter.api.Test;
 import zhigalin.predictions.recommender.PoissonScoreModel.MarketOutcome;
+import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
 import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
 
@@ -56,7 +57,7 @@ class PoissonScoreModelExplanationTest {
                 .over25(0.0, 0.0, 0.0)
                 .build();
 
-        List<String> lines = PoissonScoreModel.buildHumanExplanation(
+        ExplanationBreakdown explanation = PoissonScoreModel.buildHumanExplanation(
                 "TOT",
                 "NEW",
                 1.09,
@@ -90,22 +91,23 @@ class PoissonScoreModelExplanationTest {
                 0.122
         );
 
-        String joined = String.join("\n", lines);
+        String joined = String.join("\n", explanation.asLines());
         assertFalse(joined.contains("λ"));
         assertFalse(joined.contains("BTTS"));
         assertFalse(joined.contains("SoccerSTATS"));
         assertTrue(joined.contains("Ожидаемые голы"));
-        assertTrue(joined.contains("NEW в гостях ещё не играли"));
+        assertTrue(joined.contains("ещё не играли"));
         assertFalse(joined.contains("NEW в гостях забивает 2"));
-        assertTrue(joined.contains("Букмекеры"));
+        assertTrue(joined.contains("Шанс победы") || joined.contains("Ничья"));
         assertTrue(joined.contains("Самый вероятный счёт — 0:1"));
+        assertFalse(explanation.rows().isEmpty());
     }
 
     @Test
     void thinSampleWithoutMarketDoesNotClaimBookmakers() {
         FootyStatsTeamSnapshot a = team("SUN", 0, 0, 0, 0, 0, 0);
         FootyStatsTeamSnapshot b = team("ARS", 0, 0, 0, 0, 0, 0);
-        List<String> lines = PoissonScoreModel.buildHumanExplanation(
+        ExplanationBreakdown explanation = PoissonScoreModel.buildHumanExplanation(
                 "SUN",
                 "ARS",
                 1.4,
@@ -132,9 +134,10 @@ class PoissonScoreModelExplanationTest {
                 1,
                 0.1
         );
-        String joined = String.join("\n", lines);
+        String joined = String.join("\n", explanation.asLines());
         assertTrue(joined.contains("ещё недоступны"));
         assertFalse(joined.contains("Букмекеры:"));
+        assertFalse(joined.contains("Шанс победы"));
     }
 
     @Test

@@ -233,7 +233,7 @@ public class BettingRecommendationService {
                 result.lambdaHome(),
                 result.lambdaAway(),
                 result.scoreProbability(),
-                result.explanationLines(),
+                result.explanation(),
                 result.summary(),
                 Instant.now()
         ));
