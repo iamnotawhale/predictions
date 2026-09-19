@@ -302,7 +302,7 @@ public class MiniAppService {
         User user = requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match == null) {
-            return new MatchInsightsResponse(List.of(), List.of(), List.of(), null, List.of());
+            return new MatchInsightsResponse(List.of(), List.of(), List.of(), null, List.of(), List.of(), List.of());
         }
         List<FormItem> homeForm = buildRecentForm(match.getHomeTeamId(), 5);
         List<FormItem> awayForm = buildRecentForm(match.getAwayTeamId(), 5);
@@ -313,6 +313,20 @@ public class MiniAppService {
                 homeTeam != null ? homeTeam.getCode() : null,
                 awayTeam != null ? awayTeam.getCode() : null
         ));
+        List<LineupPlayerItem> homeLineup = List.of();
+        List<LineupPlayerItem> awayLineup = List.of();
+        Map<Integer, List<Lineup>> lineups = apiClient.getLineupsFromEspnSummary(
+                match.getEspnId(),
+                match.getHomeTeamId(),
+                match.getAwayTeamId()
+        );
+        if (lineups.isEmpty()) {
+            lineups = apiClient.getLineups(match.getPublicId());
+        }
+        if (!lineups.isEmpty()) {
+            homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
+            awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
+        }
         MatchRecommendationResponse recommendation = null;
         if (user.isBettingRecommenderEnabled()) {
             bettingRecommendationService.ensureCurrentWeekRecommendations();
@@ -320,23 +334,21 @@ public class MiniAppService {
                     .map(this::toRecommendationResponse)
                     .orElse(null);
         }
-        return new MatchInsightsResponse(homeForm, awayForm, news, recommendation, injuries);
+        return new MatchInsightsResponse(
+                homeForm, awayForm, news, recommendation, injuries, homeLineup, awayLineup);
     }
 
     private List<InjuryItem> toInjuryItems(List<InjuryInfo> injuries) {
         if (injuries == null || injuries.isEmpty()) {
             return List.of();
         }
-        List<InjuryItem> out = new ArrayList<>();
-        for (InjuryInfo injury : injuries) {
-            out.add(new InjuryItem(
-                    injury.teamCode(),
-                    injury.playerName(),
-                    injury.status() != null ? injury.status() : "",
-                    injury.reason() != null ? injury.reason() : ""
-            ));
-        }
-        return List.copyOf(out);
+        return injuries.stream()
+                .map(i -> new InjuryItem(
+                        i.teamCode(),
+                        i.playerName(),
+                        i.kind() != null ? i.kind() : InjuryService.KIND_OTHER
+                ))
+                .toList();
     }
 
     private MatchRecommendationResponse toRecommendationResponse(MatchRecommendationSnapshot snapshot) {

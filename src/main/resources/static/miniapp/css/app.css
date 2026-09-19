@@ -1256,13 +1256,19 @@ html[data-switching] *::after {
     gap: 8px;
 }
 
-.modal-injuries-grid {
+.modal-prematch-block + .modal-prematch-block {
+    margin-top: 12px;
+}
+
+.modal-injuries-grid,
+.modal-lineups-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
 }
 
-.modal-injuries-col {
+.modal-injuries-col,
+.modal-lineups-col {
     min-width: 0;
     padding: 8px 10px;
     border-radius: var(--radius-sm);
@@ -1270,7 +1276,8 @@ html[data-switching] *::after {
     border: 1px solid var(--border);
 }
 
-.modal-injuries-code {
+.modal-injuries-code,
+.modal-lineups-code {
     font-family: var(--font-display);
     font-size: 12px;
     letter-spacing: 0.04em;
@@ -1278,31 +1285,65 @@ html[data-switching] *::after {
     margin-bottom: 6px;
 }
 
-.modal-injuries-list {
+.modal-injuries-list,
+.modal-lineups-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
-.modal-injuries-list li {
+.modal-injuries-list li,
+.modal-lineups-list li {
     display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.modal-injuries-name {
+    align-items: baseline;
+    gap: 6px;
     font-size: 13px;
-    color: var(--text);
     line-height: 1.25;
+    color: var(--text);
 }
 
-.modal-injuries-reason {
+.modal-injury-kind {
+    flex: 0 0 auto;
+    width: 1em;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.modal-injury-kind--injury {
+    color: #e25555;
+}
+
+.modal-injury-kind--suspension {
+    color: #c9a227;
+}
+
+.modal-injury-kind--doubt {
+    color: var(--hint);
+}
+
+.modal-injury-kind--other {
+    color: var(--hint);
+}
+
+.modal-injuries-name,
+.modal-lineups-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modal-lineups-num {
+    flex: 0 0 auto;
+    min-width: 1.4em;
     font-size: 11px;
     color: var(--hint);
-    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
 }
 
 .modal-news-item {

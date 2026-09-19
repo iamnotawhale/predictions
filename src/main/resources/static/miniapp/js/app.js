@@ -1355,13 +1355,11 @@
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
         renderModalNews([]);
-        renderModalInjuries([]);
+        renderModalPrematch([], [], [], match);
         renderModalRecommendation(null);
         $('#score-grid').classList.remove('hidden');
         $('#modal-h2h-section').classList.remove('hidden');
         $('#modal-news-section').classList.remove('hidden');
-        const injuriesSection = $('#modal-injuries-section');
-        if (injuriesSection) injuriesSection.classList.add('hidden');
         setModalCenterRegular(match);
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
@@ -1396,8 +1394,7 @@
             } else {
                 $('#modal-h2h-section').classList.add('hidden');
                 $('#modal-news-section').classList.add('hidden');
-                const injuriesSection = $('#modal-injuries-section');
-                if (injuriesSection) injuriesSection.classList.add('hidden');
+                renderModalPrematch([], [], [], match);
             }
             return;
         }
@@ -1424,8 +1421,7 @@
         } else {
             $('#modal-h2h-section').classList.add('hidden');
             $('#modal-news-section').classList.add('hidden');
-            const injuriesSection = $('#modal-injuries-section');
-            if (injuriesSection) injuriesSection.classList.add('hidden');
+            renderModalPrematch([], [], [], match);
         }
     }
 
@@ -2713,7 +2709,12 @@
             renderTeamFormDots('#modal-home-form', match.homeCode, insights.homeForm || []);
             renderTeamFormDots('#modal-away-form', match.awayCode, insights.awayForm || []);
             renderModalNews(insights.news || []);
-            renderModalInjuries(insights.injuries || [], match);
+            renderModalPrematch(
+                insights.injuries || [],
+                insights.homeLineup || [],
+                insights.awayLineup || [],
+                match
+            );
             renderModalRecommendation(insights.recommendation || null);
         } catch (_) {
             if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
@@ -2722,7 +2723,7 @@
             renderTeamFormDots('#modal-home-form', match.homeCode, []);
             renderTeamFormDots('#modal-away-form', match.awayCode, []);
             renderModalNews([]);
-            renderModalInjuries([]);
+            renderModalPrematch([], [], [], match);
             renderModalRecommendation(null);
         }
     }
@@ -2862,44 +2863,109 @@
         });
     }
 
-    function renderModalInjuries(injuries, match) {
-        const section = $('#modal-injuries-section');
-        const container = $('#modal-injuries-content');
-        if (!section || !container) return;
-        const items = injuries || [];
-        if (!items.length) {
-            section.classList.add('hidden');
-            container.innerHTML = '<p class="empty-state">Нет данных</p>';
-            return;
+    function injuryKindMeta(kind) {
+        switch ((kind || '').toLowerCase()) {
+            case 'injury':
+                return { symbol: '✕', title: 'травма', cls: 'modal-injury-kind--injury' };
+            case 'suspension':
+                return { symbol: '▮', title: 'дисквалификация', cls: 'modal-injury-kind--suspension' };
+            case 'doubt':
+                return { symbol: '?', title: 'под вопросом', cls: 'modal-injury-kind--doubt' };
+            default:
+                return { symbol: '–', title: 'отсутствие', cls: 'modal-injury-kind--other' };
         }
-        section.classList.remove('hidden');
+    }
+
+    function shortPlayerName(name) {
+        if (!name) return '';
+        const parts = String(name).trim().split(/\s+/);
+        return parts[parts.length - 1] || name;
+    }
+
+    function renderModalPrematch(injuries, homeLineup, awayLineup, match) {
+        const section = $('#modal-prematch-section');
+        const lineupsBlock = $('#modal-lineups-block');
+        const lineupsContainer = $('#modal-lineups-content');
+        const injuriesBlock = $('#modal-injuries-block');
+        const injuriesContainer = $('#modal-injuries-content');
+        if (!section) return;
+
         const homeCode = (match && match.homeCode) || 'HOME';
         const awayCode = (match && match.awayCode) || 'AWAY';
-        const home = items.filter((i) => i.teamCode === homeCode);
-        const away = items.filter((i) => i.teamCode === awayCode);
+        const homeXi = homeLineup || [];
+        const awayXi = awayLineup || [];
+        const hasLineups = homeXi.length > 0 || awayXi.length > 0;
+        const injuryItems = injuries || [];
+        const hasInjuries = injuryItems.length > 0;
 
-        function colHtml(code, list) {
-            if (!list.length) {
-                return '<div class="modal-injuries-col">'
-                    + '<div class="modal-injuries-code">' + escapeHtml(code) + '</div>'
-                    + '<p class="empty-state">—</p></div>';
+        if (lineupsBlock && lineupsContainer) {
+            if (!hasLineups) {
+                lineupsBlock.classList.add('hidden');
+                lineupsContainer.innerHTML = '';
+            } else {
+                lineupsBlock.classList.remove('hidden');
+                lineupsContainer.innerHTML = '<div class="modal-lineups-grid">'
+                    + lineupColHtml(homeCode, homeXi)
+                    + lineupColHtml(awayCode, awayXi)
+                    + '</div>';
             }
-            let html = '<div class="modal-injuries-col">'
-                + '<div class="modal-injuries-code">' + escapeHtml(code) + '</div><ul class="modal-injuries-list">';
-            list.forEach((item) => {
-                const detail = item.reason || item.status || '';
-                html += '<li><span class="modal-injuries-name">' + escapeHtml(item.playerName || '') + '</span>'
-                    + (detail ? ('<span class="modal-injuries-reason">' + escapeHtml(detail) + '</span>') : '')
-                    + '</li>';
-            });
-            html += '</ul></div>';
-            return html;
         }
 
-        container.innerHTML = '<div class="modal-injuries-grid">'
-            + colHtml(homeCode, home)
-            + colHtml(awayCode, away)
-            + '</div>';
+        if (injuriesBlock && injuriesContainer) {
+            if (!hasInjuries) {
+                injuriesBlock.classList.add('hidden');
+                injuriesContainer.innerHTML = '';
+            } else {
+                injuriesBlock.classList.remove('hidden');
+                const home = injuryItems.filter((i) => i.teamCode === homeCode);
+                const away = injuryItems.filter((i) => i.teamCode === awayCode);
+                injuriesContainer.innerHTML = '<div class="modal-injuries-grid">'
+                    + injuryColHtml(homeCode, home)
+                    + injuryColHtml(awayCode, away)
+                    + '</div>';
+            }
+        }
+
+        section.classList.toggle('hidden', !hasLineups && !hasInjuries);
+    }
+
+    function lineupColHtml(code, list) {
+        if (!list.length) {
+            return '<div class="modal-lineups-col">'
+                + '<div class="modal-lineups-code">' + escapeHtml(code) + '</div>'
+                + '<p class="empty-state">—</p></div>';
+        }
+        let html = '<div class="modal-lineups-col">'
+            + '<div class="modal-lineups-code">' + escapeHtml(code) + '</div><ul class="modal-lineups-list">';
+        list.forEach((p) => {
+            const num = p.number != null ? String(p.number) : '';
+            html += '<li>'
+                + (num ? ('<span class="modal-lineups-num">' + escapeHtml(num) + '</span>') : '')
+                + '<span class="modal-lineups-name">' + escapeHtml(shortPlayerName(p.name)) + '</span>'
+                + '</li>';
+        });
+        html += '</ul></div>';
+        return html;
+    }
+
+    function injuryColHtml(code, list) {
+        if (!list.length) {
+            return '<div class="modal-injuries-col">'
+                + '<div class="modal-injuries-code">' + escapeHtml(code) + '</div>'
+                + '<p class="empty-state">—</p></div>';
+        }
+        let html = '<div class="modal-injuries-col">'
+            + '<div class="modal-injuries-code">' + escapeHtml(code) + '</div><ul class="modal-injuries-list">';
+        list.forEach((item) => {
+            const meta = injuryKindMeta(item.kind);
+            html += '<li>'
+                + '<span class="modal-injury-kind ' + meta.cls + '" title="' + escapeHtml(meta.title) + '" aria-label="'
+                + escapeHtml(meta.title) + '">' + meta.symbol + '</span>'
+                + '<span class="modal-injuries-name">' + escapeHtml(item.playerName || '') + '</span>'
+                + '</li>';
+        });
+        html += '</ul></div>';
+        return html;
     }
 
     function normalizeOutcome(outcome) {
