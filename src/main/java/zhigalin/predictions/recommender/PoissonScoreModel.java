@@ -431,7 +431,7 @@ public final class PoissonScoreModel {
         String awayPart = formatTeamTotalCell(awayTeamTotal, awayOverProb);
         if (homePart != null || awayPart != null) {
             rows.add(new ExplanationRow(
-                    "Индив. тотал",
+                    "ИТБ",
                     homePart != null ? homePart : "—",
                     awayPart != null ? awayPart : "—"
             ));
@@ -442,17 +442,13 @@ public final class PoissonScoreModel {
         if (line == null || line <= 0) {
             return null;
         }
-        int overFrom = goalsNeededForOver(line);
-        if (overProb != null) {
-            return String.format(
-                    Locale.US,
-                    ">%.1f (%d+) ~%.0f%%",
-                    line,
-                    overFrom,
-                    overProb * 100
-            );
+        if (overProb != null && overProb > 0.01 && overProb < 0.99) {
+            return String.format(Locale.US, "%.1f × %.2f", line, 1.0 / overProb);
         }
-        return String.format(Locale.US, "линия %.1f", line);
+        if (overProb != null && overProb >= 0.99) {
+            return String.format(Locale.US, "%.1f × 1.01", line);
+        }
+        return String.format(Locale.US, "%.1f", line);
     }
 
     static String formatTeamTotalPart(String code, Double line, Double overProb) {
@@ -784,8 +780,8 @@ public final class PoissonScoreModel {
         if (h2h.venueGames() > 0) {
             rows.add(new ExplanationRow(
                     "H2H дома у " + homeCode + " (" + h2h.venueGames() + ")",
-                    h2h.currentHomeWinsAtVenue() + "П/" + h2h.drawsAtVenue() + "Н",
-                    h2h.currentAwayWinsAtVenue() + "П"
+                    String.valueOf(h2h.currentHomeWinsAtVenue()),
+                    String.valueOf(h2h.currentAwayWinsAtVenue())
             ));
             rows.add(new ExplanationRow(
                     "H2H голы дома у " + homeCode,
@@ -881,7 +877,7 @@ public final class PoissonScoreModel {
         boolean awayOk = hasVenueSample(away.scoredAway(), away.concededAway()) && awayExt.over25Away() != null;
         if (homeOk || awayOk) {
             rows.add(new ExplanationRow(
-                    "Тотал >2.5",
+                    "ТБ2.5",
                     homeOk ? pct(homeExt.over25Home()) : "—",
                     awayOk ? pct(awayExt.over25Away()) : "—"
             ));
