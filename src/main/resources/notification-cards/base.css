@@ -5,12 +5,12 @@
   --bg3: #1c1824;
   --text: #e8dff5;
   --hint: #9a8fb0;
-  --accent: #9d7bf0;
-  --accent-lift: #b9a4f7;
+  --accent: #b08cff;
+  --accent-lift: #c9b4ff;
   --accent-deep: #6b4fc4;
   --pl-deep: #37003c;
-  --line: rgba(157, 123, 240, 0.18);
-  --glow: rgba(157, 123, 240, 0.12);
+  --line: rgba(176, 140, 255, 0.18);
+  --glow: rgba(176, 140, 255, 0.12);
   --radius: 12px;
   --font: "Manrope", system-ui, sans-serif;
   --font-display: "Unbounded", "Manrope", system-ui, sans-serif;
@@ -71,6 +71,17 @@ html, body {
   font-size: 28px;
   margin: 0;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.badge-bonus.reminder-bonus {
+  font-size: 14px;
+  padding: 5px 10px;
+  vertical-align: middle;
 }
 
 .block-label {
@@ -249,7 +260,7 @@ html, body {
   width: 100%;
 }
 
-.card[data-accent="epl"] { --accent: #9d7bf0; --accent-lift: #b9a4f7; --accent-deep: #6b4fc4; }
+.card[data-accent="epl"] { --accent: #b08cff; --accent-lift: #c9b4ff; --accent-deep: #6b4fc4; }
 .card[data-accent="eng.fa"] { --accent: #e07090; --accent-lift: #f0a0b4; --accent-deep: #6e1634; }
 .card[data-accent="eng.league_cup"] { --accent: #3dcf8a; --accent-lift: #7ae0ae; --accent-deep: #085f3e; }
 .card[data-accent="uefa.champions"] { --accent: #6b8cff; --accent-lift: #9bb0ff; --accent-deep: #102464; }
@@ -521,6 +532,7 @@ html, body {
 .result-line {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   font-family: var(--font-mono);
   font-size: 22px;
@@ -530,9 +542,37 @@ html, body {
   border: 1px solid rgba(255,255,255,0.06);
 }
 
+.result-line.week-bonus {
+  border-color: rgba(232, 176, 74, 0.55);
+  background: linear-gradient(90deg, rgba(232, 176, 74, 0.16), rgba(255,255,255,0.03));
+  box-shadow: inset 3px 0 0 #e8b04a;
+}
+
+.result-who {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge-bonus {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1a1208;
+  background: #e8b04a;
+  border-radius: 5px;
+  padding: 3px 7px;
+  line-height: 1.2;
+}
+
 .result-line .pts {
   color: var(--accent-lift);
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .weekly-list {

@@ -131,8 +131,12 @@ create table if not exists notification_reminder_sent
     match_public_id integer,
     reminder_minutes integer,
     sent_at timestamp not null,
+    telegram_message_id integer,
     primary key (user_id, match_public_id, reminder_minutes)
 );
+
+alter table notification_reminder_sent
+    add column if not exists telegram_message_id integer;
 
 alter table users
     add column if not exists betting_recommender_enabled boolean default false;

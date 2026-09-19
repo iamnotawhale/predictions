@@ -129,11 +129,20 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record InjuryItem(
+            String teamCode,
+            String playerName,
+            String status,
+            String reason
+    ) {
+    }
+
     public record MatchInsightsResponse(
             List<FormItem> homeForm,
             List<FormItem> awayForm,
             List<MatchNewsItem> news,
-            MatchRecommendationResponse recommendation
+            MatchRecommendationResponse recommendation,
+            List<InjuryItem> injuries
     ) {
     }
 

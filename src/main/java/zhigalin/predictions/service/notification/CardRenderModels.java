@@ -32,7 +32,8 @@ public final class CardRenderModels {
             String awayOdd,
             List<FormChip> homeForm,
             List<FormChip> awayForm,
-            List<H2hChip> h2h
+            List<H2hChip> h2h,
+            boolean weekBonus
     ) {}
 
     /** One last-5 entry: opponent crest + score from this team's perspective. */
@@ -56,7 +57,11 @@ public final class CardRenderModels {
             List<ResultLine> results
     ) {}
 
-    public record ResultLine(String login, String predict, int points) {}
+    public record ResultLine(String login, String predict, int points, boolean weekBonus) {
+        public ResultLine(String login, String predict, int points) {
+            this(login, predict, points, false);
+        }
+    }
 
     public record WeeklyCard(int weekId, List<WeeklyRow> rows) {}
 
