@@ -56,6 +56,7 @@ import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.EspnTeamLogos;
 import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
@@ -589,11 +590,16 @@ public class DataInitService {
                 .asString();
         Root root = mapper.readValue(resp.getBody(), Root.class);
         for (Response response : root.getResponse()) {
+            String code = response.getTeam().getCode();
+            String logo = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(code));
+            if (logo == null) {
+                logo = response.getTeam().getLogo();
+            }
             Team team = Team.builder()
                     .publicId(response.getTeam().getId())
-                    .logo(response.getTeam().getLogo())
+                    .logo(logo)
                     .name(response.getTeam().getName())
-                    .code(response.getTeam().getCode())
+                    .code(code)
                     .build();
             teamService.save(team);
         }

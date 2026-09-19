@@ -85,6 +85,8 @@ import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.EspnTeamLogos;
+import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
 public class MiniAppService {
@@ -1243,6 +1245,16 @@ public class MiniAppService {
     }
 
     private static String teamLogoPath(int teamId) {
+        Team team = DaoUtil.TEAMS.get(teamId);
+        if (team != null) {
+            String espn = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(team.getCode()));
+            if (espn != null) {
+                return espn;
+            }
+            if (team.getLogo() != null && !team.getLogo().isBlank()) {
+                return team.getLogo();
+            }
+        }
         return "/img/teams/" + teamId + ".webp";
     }
 
