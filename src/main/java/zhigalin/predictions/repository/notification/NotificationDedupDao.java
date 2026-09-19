@@ -1,5 +1,6 @@
 package zhigalin.predictions.repository.notification;
 
+import java.util.List;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,59 @@ public class NotificationDedupDao {
             panicSender.sendPanic("Error while marking reminder sent", e);
             serverLogger.error(e.getMessage());
             return false;
+        }
+    }
+
+    /** Latest stored Telegram message id for a prior reminder on this user+match (any window). */
+    public Integer findLatestReminderTelegramMessageId(int userId, int matchPublicId) {
+        try {
+            String sql = """
+                    SELECT telegram_message_id
+                    FROM notification_reminder_sent
+                    WHERE user_id = :userId
+                      AND match_public_id = :matchPublicId
+                      AND telegram_message_id IS NOT NULL
+                    ORDER BY sent_at DESC
+                    LIMIT 1
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("matchPublicId", matchPublicId);
+            List<Integer> ids = namedParameterJdbcTemplate.query(
+                    sql,
+                    params,
+                    (rs, rowNum) -> {
+                        int v = rs.getInt("telegram_message_id");
+                        return rs.wasNull() ? null : v;
+                    }
+            );
+            return ids.isEmpty() ? null : ids.getFirst();
+        } catch (Exception e) {
+            serverLogger.warn("findLatestReminderTelegramMessageId: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public void saveReminderTelegramMessageId(int userId, int matchPublicId, int reminderMinutes, Integer messageId) {
+        if (messageId == null) {
+            return;
+        }
+        try {
+            String sql = """
+                    UPDATE notification_reminder_sent
+                    SET telegram_message_id = :messageId
+                    WHERE user_id = :userId
+                      AND match_public_id = :matchPublicId
+                      AND reminder_minutes = :reminderMinutes
+                    """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("messageId", messageId)
+                    .addValue("userId", userId)
+                    .addValue("matchPublicId", matchPublicId)
+                    .addValue("reminderMinutes", reminderMinutes);
+            namedParameterJdbcTemplate.update(sql, params);
+        } catch (Exception e) {
+            serverLogger.warn("saveReminderTelegramMessageId: {}", e.getMessage());
         }
     }
 }

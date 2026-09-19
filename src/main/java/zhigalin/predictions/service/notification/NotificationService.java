@@ -34,7 +34,10 @@ import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.notification.NotificationDedupDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.ApiClient.GoalScorer;
+import zhigalin.predictions.service.api.InjuryService;
+import zhigalin.predictions.service.api.InjuryService.InjuryInfo;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.DaoUtil;
@@ -53,9 +56,11 @@ public class NotificationService {
     private final OddsService oddsService;
     private final HtmlImageRenderer htmlImages;
     private final ApiClient api;
+    private final InjuryService injuryService;
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
     private final BettingRecommendationService bettingRecommendationService;
+    private final UserWeekBonusMatchService userWeekBonusMatchService;
 
     private static final int[] REMINDER_MINUTES_BEFORE = {60, 40, 20};
 
@@ -69,20 +74,24 @@ public class NotificationService {
                                OddsService oddsService,
                                HtmlImageRenderer htmlImages,
                                ApiClient api,
+                               InjuryService injuryService,
                                PanicSender panicSender,
                                ObjectMapper objectMapper,
                                NotificationDedupDao notificationDedupDao,
-                               BettingRecommendationService bettingRecommendationService) {
+                               BettingRecommendationService bettingRecommendationService,
+                               UserWeekBonusMatchService userWeekBonusMatchService) {
         this.matchService = matchService;
         this.bonusMatchDao = bonusMatchDao;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
         this.htmlImages = htmlImages;
         this.api = api;
+        this.injuryService = injuryService;
         this.panicSender = panicSender;
         this.objectMapper = objectMapper;
         this.notificationDedupDao = notificationDedupDao;
         this.bettingRecommendationService = bettingRecommendationService;
+        this.userWeekBonusMatchService = userWeekBonusMatchService;
     }
 
     public boolean sendTodayMatchNotification() {
@@ -152,7 +161,9 @@ public class NotificationService {
                     User user = DaoUtil.USERS.get(p.getUserId());
                     String predict = (p.getHomeTeamScore() != null ? p.getHomeTeamScore() : "") + ":" +
                                      (p.getAwayTeamScore() != null ? p.getAwayTeamScore() : "");
-                    return new Result(user.getLogin().substring(0, 3), predict, p.getPoints());
+                    boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
+                            p.getUserId(), match.getWeekId(), match.getPublicId());
+                    return new Result(user.getLogin().substring(0, 3), predict, p.getPoints(), weekBonus);
                 })
                 .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
                 .toList();
@@ -340,10 +351,18 @@ public class NotificationService {
                 if (lineups.isEmpty()) {
                     lineups = api.getLineups(match.getPublicId());
                 }
+                Team homeT = DaoUtil.team(match.getHomeTeamId());
+                Team awayT = DaoUtil.team(match.getAwayTeamId());
+                List<InjuryInfo> injuries = injuryService.forTeams(
+                        homeT != null ? homeT.getCode() : null,
+                        awayT != null ? awayT.getCode() : null
+                );
                 Set<Integer> predictedUserIds = predictionService.getByMatchPublicId(match.getPublicId()).stream()
                         .map(Prediction::getUserId)
                         .collect(Collectors.toSet());
-                String imagePath = null;
+                String imagePathPlain = null;
+                String imagePathBonus = null;
+                String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
                 for (User user : DaoUtil.USERS.values()) {
                     if (predictedUserIds.contains(user.getId())) {
                         continue;
@@ -351,23 +370,48 @@ public class NotificationService {
                     if (!notificationDedupDao.tryMarkReminderSent(user.getId(), match.getPublicId(), reminderMinutes)) {
                         continue;
                     }
-                    if (imagePath == null) {
-                        String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
-                        imagePath = htmlImages.createReminderImage(
-                                match.getPublicId(),
-                                match.getHomeTeamId(),
-                                match.getAwayTeamId(),
-                                matchTime
-                        );
+                    boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
+                            user.getId(), match.getWeekId(), match.getPublicId());
+                    String imagePath;
+                    if (weekBonus) {
+                        if (imagePathBonus == null) {
+                            imagePathBonus = htmlImages.createReminderImage(
+                                    match.getPublicId(),
+                                    match.getHomeTeamId(),
+                                    match.getAwayTeamId(),
+                                    matchTime,
+                                    true
+                            );
+                        }
+                        imagePath = imagePathBonus;
+                    } else {
+                        if (imagePathPlain == null) {
+                            imagePathPlain = htmlImages.createReminderImage(
+                                    match.getPublicId(),
+                                    match.getHomeTeamId(),
+                                    match.getAwayTeamId(),
+                                    matchTime,
+                                    false
+                            );
+                        }
+                        imagePath = imagePathPlain;
                     }
                     Notification notification = Notification.builder()
                             .user(user)
                             .match(match)
                             .lineups(lineups)
+                            .injuries(injuries)
                             .build();
-                    log.info("Predict reminder: {} min before match, user={}, match={}",
-                            reminderMinutes, user.getId(), match.getPublicId());
-                    sendNotification(notification, imagePath);
+                    log.info("Predict reminder: {} min before match, user={}, match={}, weekBonus={}",
+                            reminderMinutes, user.getId(), match.getPublicId(), weekBonus);
+                    Integer prevMessageId = notificationDedupDao.findLatestReminderTelegramMessageId(
+                            user.getId(), match.getPublicId());
+                    if (prevMessageId != null && user.getTelegramId() != null && !user.getTelegramId().isBlank()) {
+                        api.deleteMessage(user.getTelegramId(), prevMessageId);
+                    }
+                    Integer messageId = sendNotification(notification, imagePath);
+                    notificationDedupDao.saveReminderTelegramMessageId(
+                            user.getId(), match.getPublicId(), reminderMinutes, messageId);
                 }
             }
         }
@@ -378,7 +422,7 @@ public class NotificationService {
         return minutesLeft <= reminderMinutes && minutesLeft > reminderMinutes - 2;
     }
 
-    private void sendNotification(Notification notification, String imagePath) {
+    private Integer sendNotification(Notification notification, String imagePath) {
         log.info("Send notification");
         try {
             Match match = notification.getMatch();
@@ -390,7 +434,7 @@ public class NotificationService {
                 Team home = DaoUtil.team(match.getHomeTeamId());
                 Team away = DaoUtil.team(match.getAwayTeamId());
                 if (home == null || away == null) {
-                    return;
+                    return null;
                 }
                 String homeTeam = home.getCode();
                 String awayTeam = away.getCode();
@@ -450,15 +494,19 @@ public class NotificationService {
                     }
                 }
 
+                appendInjuriesCaption(caption, match, notification.getInjuries());
+
+                String text = trimCaption(caption.toString(), 900);
                 String replyMarkupJson = objectMapper.writeValueAsString(markup);
                 if (imagePath != null) {
-                    api.sendPhoto(chatId, caption.toString(), imagePath, replyMarkupJson);
+                    return api.sendPhoto(chatId, text, imagePath, replyMarkupJson);
                 }
             }
         } catch (Exception e) {
             panicSender.sendPanic("Sending reminder error", e);
             log.error("Sending reminder error: {}", e.getMessage());
         }
+        return null;
     }
 
     private String getFormattedName(Lineup l) {
@@ -470,6 +518,68 @@ public class NotificationService {
         } else {
             return padRight(number + ". ", 4) + player.getName();
         }
+    }
+
+    private void appendInjuriesCaption(StringBuilder caption, Match match, List<InjuryInfo> injuries) {
+        if (injuries == null || injuries.isEmpty()) {
+            return;
+        }
+        Team homeTeam = DaoUtil.team(match.getHomeTeamId());
+        Team awayTeam = DaoUtil.team(match.getAwayTeamId());
+        String homeCode = homeTeam != null ? homeTeam.getCode() : "HOME";
+        String awayCode = awayTeam != null ? awayTeam.getCode() : "AWAY";
+        List<InjuryInfo> home = injuries.stream()
+                .filter(i -> homeCode.equalsIgnoreCase(i.teamCode()))
+                .toList();
+        List<InjuryInfo> away = injuries.stream()
+                .filter(i -> awayCode.equalsIgnoreCase(i.teamCode()))
+                .toList();
+        if (home.isEmpty() && away.isEmpty()) {
+            return;
+        }
+        caption.append("\nТравмы / отсутствия:\n");
+        if (!home.isEmpty()) {
+            caption.append(homeCode).append(": ").append(formatInjuryList(home)).append("\n");
+        }
+        if (!away.isEmpty()) {
+            caption.append(awayCode).append(": ").append(formatInjuryList(away)).append("\n");
+        }
+    }
+
+    private static String formatInjuryList(List<InjuryInfo> injuries) {
+        return injuries.stream()
+                .map(NotificationService::formatInjuryShort)
+                .collect(Collectors.joining("; "));
+    }
+
+    private static String formatInjuryShort(InjuryInfo injury) {
+        String name = shortPlayerName(injury.playerName());
+        String detail = injury.reason() != null && !injury.reason().isBlank()
+                ? injury.reason()
+                : (injury.status() != null ? injury.status() : "");
+        if (detail == null || detail.isBlank()) {
+            return name;
+        }
+        return name + " (" + detail + ")";
+    }
+
+    private static String shortPlayerName(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            return "?";
+        }
+        String trimmed = fullName.trim();
+        if (!trimmed.contains(" ")) {
+            return trimmed;
+        }
+        String[] parts = trimmed.split("\\s+");
+        return parts[parts.length - 1];
+    }
+
+    private static String trimCaption(String text, int maxLen) {
+        if (text == null || text.length() <= maxLen) {
+            return text;
+        }
+        return text.substring(0, maxLen - 1) + "…";
     }
 
     private static String padRight(String text, int length) {

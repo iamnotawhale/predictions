@@ -96,7 +96,13 @@ public class HtmlImageRenderer {
     }
 
     public String createReminderImage(int matchPublicId, int homeTeamId, int awayTeamId, String kickoff) {
-        ReminderCard card = buildReminderCard(matchPublicId, homeTeamId, awayTeamId, kickoff);
+        return createReminderImage(matchPublicId, homeTeamId, awayTeamId, kickoff, false);
+    }
+
+    public String createReminderImage(
+            int matchPublicId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
+    ) {
+        ReminderCard card = buildReminderCard(matchPublicId, homeTeamId, awayTeamId, kickoff, weekBonus);
         return renderHtml(buildReminderHtml(card), card.accent());
     }
 
@@ -196,7 +202,9 @@ public class HtmlImageRenderer {
         return renderHtml(buildChartHtml(dataUri), "epl");
     }
 
-    private ReminderCard buildReminderCard(int matchPublicId, int homeTeamId, int awayTeamId, String kickoff) {
+    private ReminderCard buildReminderCard(
+            int matchPublicId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
+    ) {
         Team home = DaoUtil.TEAMS.get(homeTeamId);
         Team away = DaoUtil.TEAMS.get(awayTeamId);
         Odd odd = oddsService.getOdd(matchPublicId);
@@ -234,7 +242,8 @@ public class HtmlImageRenderer {
                 odd != null ? formatOdd(odd.away()) : "—",
                 homeForm,
                 awayForm,
-                h2hChips
+                h2hChips,
+                weekBonus
         );
     }
 
@@ -266,7 +275,7 @@ public class HtmlImageRenderer {
         }
         return results.stream()
                 .limit(8)
-                .map(r -> new ResultLine(r.login(), r.predict(), r.point()))
+                .map(r -> new ResultLine(r.login(), r.predict(), r.point(), r.weekBonus()))
                 .toList();
     }
 
@@ -411,7 +420,9 @@ public class HtmlImageRenderer {
         return shell(card.accent(),
                 "<div class=\"card-inner reminder\">"
                 + "<div class=\"badge\">" + escape(card.badge()) + "</div>"
-                + "<h1 class=\"heading heading-sm\">Не проставлен прогноз</h1>"
+                + "<h1 class=\"heading heading-sm\">Не проставлен прогноз"
+                + (card.weekBonus() ? "<span class=\"badge-bonus reminder-bonus\">бонус</span>" : "")
+                + "</h1>"
                 + "<div class=\"block-label\">head to head</div>"
                 + h2h
                 + "<div class=\"match-banner\">"
@@ -465,10 +476,15 @@ public class HtmlImageRenderer {
     private String buildResultHtml(ResultCard card) {
         StringBuilder results = new StringBuilder();
         for (ResultLine line : card.results()) {
-            results.append("<div class=\"result-line\"><span>")
+            results.append("<div class=\"result-line")
+                    .append(line.weekBonus() ? " week-bonus" : "")
+                    .append("\"><span class=\"result-who\">")
                     .append(escape(line.login())).append(" ")
-                    .append(escape(line.predict()))
-                    .append("</span><span class=\"pts\">").append(line.points()).append("</span></div>");
+                    .append(escape(line.predict()));
+            if (line.weekBonus()) {
+                results.append("<span class=\"badge-bonus\">бонус</span>");
+            }
+            results.append("</span><span class=\"pts\">").append(line.points()).append("</span></div>");
         }
         String ai = card.aiKickoffScore() != null && !card.aiKickoffScore().isBlank()
                 ? "<div class=\"ai-line\">AI " + escape(card.aiKickoffScore()) + "</div>"

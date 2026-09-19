@@ -48,6 +48,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchStatItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchNewsItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.InjuryItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PlayerStatItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
@@ -71,6 +72,8 @@ import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.ApiClient;
+import zhigalin.predictions.service.api.InjuryService;
+import zhigalin.predictions.service.api.InjuryService.InjuryInfo;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -123,6 +126,7 @@ public class MiniAppService {
     private final HeadToHeadService headToHeadService;
     private final OddsService oddsService;
     private final ApiClient apiClient;
+    private final InjuryService injuryService;
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
@@ -138,6 +142,7 @@ public class MiniAppService {
             HeadToHeadService headToHeadService,
             OddsService oddsService,
             ApiClient apiClient,
+            InjuryService injuryService,
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
@@ -151,6 +156,7 @@ public class MiniAppService {
         this.headToHeadService = headToHeadService;
         this.oddsService = oddsService;
         this.apiClient = apiClient;
+        this.injuryService = injuryService;
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
@@ -294,11 +300,17 @@ public class MiniAppService {
         User user = requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match == null) {
-            return new MatchInsightsResponse(List.of(), List.of(), List.of(), null);
+            return new MatchInsightsResponse(List.of(), List.of(), List.of(), null, List.of());
         }
         List<FormItem> homeForm = buildRecentForm(match.getHomeTeamId(), 5);
         List<FormItem> awayForm = buildRecentForm(match.getAwayTeamId(), 5);
         List<MatchNewsItem> news = loadMatchNews(match, 4);
+        Team homeTeam = DaoUtil.team(match.getHomeTeamId());
+        Team awayTeam = DaoUtil.team(match.getAwayTeamId());
+        List<InjuryItem> injuries = toInjuryItems(injuryService.forTeams(
+                homeTeam != null ? homeTeam.getCode() : null,
+                awayTeam != null ? awayTeam.getCode() : null
+        ));
         MatchRecommendationResponse recommendation = null;
         if (user.isBettingRecommenderEnabled()) {
             bettingRecommendationService.ensureCurrentWeekRecommendations();
@@ -306,7 +318,23 @@ public class MiniAppService {
                     .map(this::toRecommendationResponse)
                     .orElse(null);
         }
-        return new MatchInsightsResponse(homeForm, awayForm, news, recommendation);
+        return new MatchInsightsResponse(homeForm, awayForm, news, recommendation, injuries);
+    }
+
+    private List<InjuryItem> toInjuryItems(List<InjuryInfo> injuries) {
+        if (injuries == null || injuries.isEmpty()) {
+            return List.of();
+        }
+        List<InjuryItem> out = new ArrayList<>();
+        for (InjuryInfo injury : injuries) {
+            out.add(new InjuryItem(
+                    injury.teamCode(),
+                    injury.playerName(),
+                    injury.status() != null ? injury.status() : "",
+                    injury.reason() != null ? injury.reason() : ""
+            ));
+        }
+        return List.copyOf(out);
     }
 
     private MatchRecommendationResponse toRecommendationResponse(MatchRecommendationSnapshot snapshot) {

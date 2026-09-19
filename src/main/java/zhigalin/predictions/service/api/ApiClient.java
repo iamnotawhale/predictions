@@ -104,25 +104,45 @@ public class ApiClient {
         }
     }
 
-    public void sendPhoto(String chatId, String caption, String filePath, String replyMarkupJson) {
+    public Integer sendPhoto(String chatId, String caption, String filePath, String replyMarkupJson) {
         try {
             caption = TelegramMarkdownV2.escape(caption);
 
             File file = new File(filePath);
+            // caption/parse_mode as multipart fields — queryString truncates long lineup captions
             MultipartBody body = Unirest.post(urlPhoto)
                     .header("accept", "application/json")
                     .queryString("chat_id", chatId)
-                    .queryString("caption", caption)
-                    .queryString("parse_mode", "MarkdownV2")
-                    .field("photo", file);
+                    .field("photo", file)
+                    .field("caption", caption != null ? caption : "")
+                    .field("parse_mode", "MarkdownV2");
 
             if (replyMarkupJson != null) {
-                body = body.queryString("reply_markup", replyMarkupJson);
+                body = body.field("reply_markup", replyMarkupJson);
             }
             HttpResponse<String> resp = body.asString();
-            checkOk("sendPhoto", resp);
+            if (!checkOk("sendPhoto", resp)) {
+                return null;
+            }
+            return extractMessageId(resp.getBody());
         } catch (Exception e) {
             log.error("sendPhoto error: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public boolean deleteMessage(String chatId, int messageId) {
+        try {
+            String urlDelete = urlMessage.replace("sendMessage", "deleteMessage");
+            HttpResponse<String> resp = Unirest.post(urlDelete)
+                    .headers(Map.of("accept", "application/json", "content-type", "application/json"))
+                    .queryString("chat_id", chatId)
+                    .queryString("message_id", messageId)
+                    .asString();
+            return checkOk("deleteMessage", resp);
+        } catch (Exception e) {
+            log.error("deleteMessage error: chatId={}, messageId={}, err={}", chatId, messageId, e.getMessage());
+            return false;
         }
     }
 

@@ -242,13 +242,14 @@
 - `DataInitService` сохраняет `espn_id` в `match` уже на стадии `pre` (не только `in`), чтобы можно было заранее использовать ESPN summary по конкретному событию.
 - live-обновления счёта в Telegram редактируют одно сообщение на матч: ключ состояния строится с приоритетом `espnId` (fallback: `publicId`/пара команд), чтобы избежать дублей при разных источниках id.
 - `message_id` live-сообщения хранится в БД (`match.live_score_message_id`), поэтому после рестарта приложения обновления продолжают редактировать старое сообщение, а не создавать новое.
-- дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей.
-- Напоминания без прогноза: за 60/40/20 минут до kickoff; одна картинка на (матч, окно); `Set` predicted user ids; матч из notification без повторного `findByPublicId`.
+- дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей. У reminder сохраняется `telegram_message_id`; при следующем окне (60→40→20) предыдущее сообщение в ЛС удаляется и шлётся новое.
+- Напоминания без прогноза: за 60/40/20 минут до kickoff; одна картинка на (матч, окно); `Set` predicted user ids; матч из notification без повторного `findByPublicId`. Caption: стартовый XI (ESPN summary → API-Football fallback, monospace-колонки) + травмы/отсутствия через `InjuryService` (**не** API-Football); предыдущее reminder-сообщение в ЛС удаляется. Caption уходит multipart-полем (не queryString).
+- **Травмы:** `InjuryService` — FPL `bootstrap-static` (1 запрос на всю лигу, TTL 6ч; при ошибке TTL 30м) → fallback ESPN eng.1 `/injuries`. **API-Football injuries не используется** (лимит ~100 req/day). UI: `#score-modal` + caption reminder.
 - **Порядок списков матчей:** всегда `Match.BY_KICKOFF_THEN_PUBLIC_ID` (kickoff ASC, затем `publicId`); DAO/MatchService/Telegram keyboards/miniapp сортируют одинаково.
 - `MatchService`: team-scoped `findLastFinishedByTeamId` / `findNextByTeamId` (SQL LIMIT); `findFinishedMatches` / `findPastNonPostponedMatches` для points/H2H backfill.
 - `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` с режимами **EPL** (4/2/1/−1), **EPL week-bonus** (5/3/2/0/−1), **CUP** (2/1/0/0).
 - **Скользящий пол очков:** сырые `predict.points` не затираются; зачёт сезона/тура = `running = max(0, running + points)` в порядке `coalesce(finished_at, local_date_time)` (`FlooredPointsService` / `PointEventDao`). Leaderboard и chart используют floored totals.
-- **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус ×» на странице тура и на «Сегодня» (и home live); только с **5 тура** (`UserWeekBonusMatchService.MIN_WEEK_ID`).
+- **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч тура; UI бейдж «бонус» на странице тура и на «Сегодня» (и home live); на FT-картинке EPL и на reminder «не проставлен прогноз» — бейдж для пользователей, у которых этот матч персональный бонус; только с **5 тура** (`UserWeekBonusMatchService.MIN_WEEK_ID`).
 - **Кубковые бонус-матчи:** таблица `bonus_match` (FA / Carabao / UCL / UEL / UECL), sync через `BonusMatchSyncService` + ESPN multi-league scoreboard; для всех кубков дополнительно окно **30 дней** (раз в 30 мин; default board часто залипает); в матче ≥1 клуб АПЛ (**по `team_id` из ростера**, не по голому ESPN-коду); ingest: `TeamCodeMapper.fromEspnAbbreviation` (`MAN`→`MUN`, `MUN`→`BAY` для Bayern); **только `event.season.year == DataInitService.SEASON`** (ESPN FA часто залипает на SEASON−1 / финал прошлого розыгрыша); списки/purge с **`seasonStartDate()` = 1 авг SEASON**; purge удаляет pre-season, без EPL-link и ложные Bayern→Man United; прогнозы в `predict.bonus_match_id`; без live-уведомлений о счёте; **cup FT** через `HtmlImageRenderer.createResultImage` (accent по турниру); очки в общий зачёт. Mini App: карточки Home/Today с цветами турнира; `GET /api/miniapp/cups` + matches/review; live Общий зачёт учитывает in-play cup provisional.
 - `match.finished_at` проставляется при переходе в `ft` (для порядка пола).
 - **`HtmlImageRenderer`**: все Telegram-карточки 1080×1080 HTML→PNG (Playwright/Chromium): сегодняшние матчи, напоминание без прогноза, FT EPL/кубки, weekly results, «твой прогноз», график очков (JFreeChart внутри HTML-shell). CSS: `src/main/resources/notification-cards/base.css`. Chrome: `notification.cards.chromeExecutable` / `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` / `/usr/bin/google-chrome`. Семафор на 1 рендер. Превью: `./mvnw -Dtest=HtmlCardPreviewTest test` → `target/preview-cards/`.
@@ -271,7 +272,7 @@
 | GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
 | GET | `/weeks/{weekId}/review` | **Разбор тура** |
 | GET | `/match/{homeCode}/{awayCode}` | Матч + odds + canPredict |
-| GET | `/match/.../insights` | Форма (`FormItem.home`) + новости + `recommendation` (таблица `explanationRows` дом/гости + `explanationNotes`) |
+| GET | `/match/.../insights` | Форма (`FormItem.home`) + новости + травмы (`injuries` из FPL/ESPN, без API-Football) + `recommendation` (таблица `explanationRows` дом/гости + `explanationNotes`) |
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |
@@ -367,13 +368,13 @@ psql … -f deploy/recommender-calibration-report.sql
 - **Мои** (`screen-my`): прогнозы тура + **Разбор тура**.
 
 **Модалки:**
-- `#score-modal` — прогноз, odds 1/X/2, блок рекомендации (если AI вкл.), кнопка «Удалить» под сеткой счёта, H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
+- `#score-modal` — прогноз, odds 1/X/2, блок рекомендации (если AI вкл.), кнопка «Удалить» под сеткой счёта, **травмы/отсутствия** (API-Football, 2 колонки), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
 - `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
 - `#team-modal`, `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
 
 **Файлы:** `static/miniapp/js/app.js`, `index.html`, `css/app.css`.
 
-**Визуальный стиль:** architect-вайб (сетка/aurora, Manrope + Unbounded) с фиолетовым акцентом АПЛ (`#9d7bf0`). Светлая/тёмная палитра следует `Telegram.WebApp.colorScheme` (событие `themeChanged`); без ручного переключателя. Chrome Telegram синхронизируется с текущей схемой.
+**Визуальный стиль:** architect-вайб (сетка/aurora, Manrope + Unbounded) с фиолетовым акцентом АПЛ (`#b08cff`). Светлая/тёмная палитра следует `Telegram.WebApp.colorScheme` (событие `themeChanged`); без ручного переключателя. Chrome Telegram синхронизируется с текущей схемой.
 
 ### Общее поведение
 - Списки матчей (тур/сегодня/мои/клавиатуры бота): порядок kickoff → `publicId` (без приоритета live/predicted).

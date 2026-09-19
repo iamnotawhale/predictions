@@ -106,9 +106,11 @@ class HtmlCardPreviewTest {
         ));
         copy(today, outDir.resolve("today-2026-09-17.png"));
 
-        String reminder = renderer.createReminderImage(1557416, 47, 66, "14:30");
+        String reminder = renderer.createReminderImage(1557416, 47, 66, "14:30", false);
         copy(reminder, outDir.resolve("reminder-epl.png"));
         copy(reminder, outDir.resolve("reminder-tot-ast-today.png"));
+        copy(renderer.createReminderImage(1557416, 47, 66, "14:30", true),
+                outDir.resolve("reminder-tot-ast-week-bonus.png"));
 
         List<Result> results = List.of(
                 new Result("nik", "2:1", 3),
@@ -119,6 +121,18 @@ class HtmlCardPreviewTest {
 
         copy(renderer.createEplResultImage(1, 50, 33, "2:1", results, "1:1"),
                 outDir.resolve("result-epl.png"));
+
+        // Scoring: EPL 4/2/1/−1; personal week-bonus 5/3/2/0/−1 (per user — badge only on their row).
+        // Actual 2:1 → nik exact(5), max outcome(1), alex GD(3), ivan miss(−1), ole no-bet(−1).
+        List<Result> bonusResults = List.of(
+                new Result("nik", "2:1", 5, true),
+                new Result("alex", "1:0", 3, true),
+                new Result("max", "2:0", 1, false),
+                new Result("ivan", "0:0", -1, false),
+                new Result("ole", "—", -1, false)
+        );
+        copy(renderer.createEplResultImage(1, 47, 66, "2:1", bonusResults, "1:1"),
+                outDir.resolve("result-epl-week-bonus.png"));
         copy(renderer.createResultImage("uefa.champions", "UCL · FULL TIME",
                         50, null, "MCI", "RMA",
                         null, "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",

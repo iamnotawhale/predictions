@@ -84,7 +84,7 @@
         }
     }
 
-    const CHART_COLORS = ['#9d7bf0', '#5cb87a', '#d4604a', '#e8a840', '#64d4e0', '#ff8ec4'];
+    const CHART_COLORS = ['#b08cff', '#5cb87a', '#d4604a', '#e8a840', '#64d4e0', '#ff8ec4'];
     const TODAY_POLL_LIVE_MS = 10000;
     const TODAY_POLL_IDLE_MS = 60000;
     const LIVE_MODAL_POLL_MS = 10000;
@@ -518,7 +518,7 @@
         }
         li.className = cls;
         const metaBadges = [];
-        if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус ×</span>');
+        if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус</span>');
         const cupBadge = m.cup ? competitionBadgeHtml(m, !!m.hasPrediction) : '';
         li.innerHTML =
             '<div class="list-item-main">' +
@@ -585,7 +585,7 @@
         }
         li.className = cls;
         const metaBadges = [];
-        if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус ×</span>');
+        if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус</span>');
         if (!m.hasPrediction && m.canPredict && !m.cup) {
             metaBadges.push('<span class="badge badge-warn">нет прогноза</span>');
         } else if (!m.hasPrediction && m.canPredict && m.cup) {
@@ -1355,10 +1355,13 @@
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
         renderModalNews([]);
+        renderModalInjuries([]);
         renderModalRecommendation(null);
         $('#score-grid').classList.remove('hidden');
         $('#modal-h2h-section').classList.remove('hidden');
         $('#modal-news-section').classList.remove('hidden');
+        const injuriesSection = $('#modal-injuries-section');
+        if (injuriesSection) injuriesSection.classList.add('hidden');
         setModalCenterRegular(match);
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
@@ -1393,6 +1396,8 @@
             } else {
                 $('#modal-h2h-section').classList.add('hidden');
                 $('#modal-news-section').classList.add('hidden');
+                const injuriesSection = $('#modal-injuries-section');
+                if (injuriesSection) injuriesSection.classList.add('hidden');
             }
             return;
         }
@@ -1419,6 +1424,8 @@
         } else {
             $('#modal-h2h-section').classList.add('hidden');
             $('#modal-news-section').classList.add('hidden');
+            const injuriesSection = $('#modal-injuries-section');
+            if (injuriesSection) injuriesSection.classList.add('hidden');
         }
     }
 
@@ -2706,6 +2713,7 @@
             renderTeamFormDots('#modal-home-form', match.homeCode, insights.homeForm || []);
             renderTeamFormDots('#modal-away-form', match.awayCode, insights.awayForm || []);
             renderModalNews(insights.news || []);
+            renderModalInjuries(insights.injuries || [], match);
             renderModalRecommendation(insights.recommendation || null);
         } catch (_) {
             if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
@@ -2714,6 +2722,7 @@
             renderTeamFormDots('#modal-home-form', match.homeCode, []);
             renderTeamFormDots('#modal-away-form', match.awayCode, []);
             renderModalNews([]);
+            renderModalInjuries([]);
             renderModalRecommendation(null);
         }
     }
@@ -2851,6 +2860,46 @@
                 published;
             container.appendChild(row);
         });
+    }
+
+    function renderModalInjuries(injuries, match) {
+        const section = $('#modal-injuries-section');
+        const container = $('#modal-injuries-content');
+        if (!section || !container) return;
+        const items = injuries || [];
+        if (!items.length) {
+            section.classList.add('hidden');
+            container.innerHTML = '<p class="empty-state">Нет данных</p>';
+            return;
+        }
+        section.classList.remove('hidden');
+        const homeCode = (match && match.homeCode) || 'HOME';
+        const awayCode = (match && match.awayCode) || 'AWAY';
+        const home = items.filter((i) => i.teamCode === homeCode);
+        const away = items.filter((i) => i.teamCode === awayCode);
+
+        function colHtml(code, list) {
+            if (!list.length) {
+                return '<div class="modal-injuries-col">'
+                    + '<div class="modal-injuries-code">' + escapeHtml(code) + '</div>'
+                    + '<p class="empty-state">—</p></div>';
+            }
+            let html = '<div class="modal-injuries-col">'
+                + '<div class="modal-injuries-code">' + escapeHtml(code) + '</div><ul class="modal-injuries-list">';
+            list.forEach((item) => {
+                const detail = item.reason || item.status || '';
+                html += '<li><span class="modal-injuries-name">' + escapeHtml(item.playerName || '') + '</span>'
+                    + (detail ? ('<span class="modal-injuries-reason">' + escapeHtml(detail) + '</span>') : '')
+                    + '</li>';
+            });
+            html += '</ul></div>';
+            return html;
+        }
+
+        container.innerHTML = '<div class="modal-injuries-grid">'
+            + colHtml(homeCode, home)
+            + colHtml(awayCode, away)
+            + '</div>';
     }
 
     function normalizeOutcome(outcome) {
