@@ -150,9 +150,9 @@ public class DataInitService {
             panicSender.sendPanic("syncTodayCups", e);
         }
         try {
-            userWeekBonusMatchService.ensureAssignedForWeek(DaoUtil.currentWeekId);
+            userWeekBonusMatchService.purgePrematureFutureWeeks(DaoUtil.currentWeekId);
         } catch (Exception e) {
-            serverLogger.warn("ensure week bonus matches: {}", e.getMessage());
+            serverLogger.warn("purge future week bonuses: {}", e.getMessage());
         }
         try {
             notificationService.checkReminders();
@@ -181,7 +181,7 @@ public class DataInitService {
                                || Objects.equals(m.getStatus(), "pst"))) {
             notificationService.sendWeeklyResults();
             weekService.updateCurrent();
-            refreshBettingRecommendationsForCurrentWeek();
+            onCurrentWeekRollover();
         }
 
         boolean hasOnlineMatches = !matchService.findOnlineMatches().isEmpty();
@@ -330,15 +330,23 @@ public class DataInitService {
                 || normalized.endsWith(" ht");
     }
 
-    private void refreshBettingRecommendationsForCurrentWeek() {
+    /** After {@link WeekService#updateCurrent()}: refresh DaoUtil week, AI tips, personal bonus draws. */
+    private void onCurrentWeekRollover() {
         var currentWeek = weekService.findCurrentWeek();
-        if (currentWeek != null) {
-            DaoUtil.currentWeekId = currentWeek.getId();
-            try {
-                bettingRecommendationService.refreshForWeek(currentWeek.getId());
-            } catch (Exception e) {
-                serverLogger.warn("Betting recommender refresh after week rollover failed: {}", e.getMessage());
-            }
+        if (currentWeek == null) {
+            return;
+        }
+        DaoUtil.currentWeekId = currentWeek.getId();
+        try {
+            userWeekBonusMatchService.assignForNewCurrentWeek(currentWeek.getId());
+            serverLogger.info("Week bonus matches assigned for week {}", currentWeek.getId());
+        } catch (Exception e) {
+            serverLogger.warn("Week bonus assign after rollover failed: {}", e.getMessage());
+        }
+        try {
+            bettingRecommendationService.refreshForWeek(currentWeek.getId());
+        } catch (Exception e) {
+            serverLogger.warn("Betting recommender refresh after week rollover failed: {}", e.getMessage());
         }
     }
 
@@ -384,7 +392,7 @@ public class DataInitService {
                                || Objects.equals(m.getStatus(), "pst"))) {
             notificationService.sendWeeklyResults();
             weekService.updateCurrent();
-            refreshBettingRecommendationsForCurrentWeek();
+            onCurrentWeekRollover();
         }
         if (!matchService.findOnlineMatches().isEmpty()) {
             serverLogger.info("Matches to update found");

@@ -329,7 +329,6 @@ public class PredictionService {
     public void updateByMatch(Match match) {
         List<User> users = userService.findAll();
         if (match != null) {
-            userWeekBonusMatchService.ensureAssignedForWeek(match.getWeekId());
             List<Prediction> predictions = getByMatchPublicId(match.getPublicId());
             if (!predictions.isEmpty() && predictions.size() < users.size()) {
                 Set<Integer> predictedUserIds = predictions.stream()

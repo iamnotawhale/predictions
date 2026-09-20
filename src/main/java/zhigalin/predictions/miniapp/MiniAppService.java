@@ -266,7 +266,6 @@ public class MiniAppService {
 
     public List<MatchItem> weekMatches(String telegramId, int weekId) {
         User user = requireUser(telegramId);
-        userWeekBonusMatchService.ensureAssignedForUser(user.getId(), weekId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
         oddsService.ensureFresh(matches);
         Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
@@ -1385,7 +1384,6 @@ public class MiniAppService {
         List<Match> weekMatches = matchService.findAllByWeekId(weekId).stream()
                 .sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID)
                 .toList();
-        userWeekBonusMatchService.ensureAssignedForWeek(weekId);
         for (Match match : weekMatches) {
             Map<Integer, Prediction> byUser = predictionsByMatch.getOrDefault(match.getPublicId(), Map.of());
             boolean finished = isFinishedStatus(match.getStatus());

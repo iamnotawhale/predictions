@@ -68,4 +68,13 @@ public class UserWeekBonusMatchDao {
             // schema may be mid-migration
         }
     }
+
+    public void deleteAfterWeek(int maxWeekIdInclusive) {
+        String sql = "DELETE FROM user_week_bonus_match WHERE week_id > :maxWeekId";
+        try {
+            jdbc.update(sql, new MapSqlParameterSource("maxWeekId", maxWeekIdInclusive));
+        } catch (Exception ignored) {
+            // schema may be mid-migration
+        }
+    }
 }
