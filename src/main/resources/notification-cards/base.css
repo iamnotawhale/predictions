@@ -45,6 +45,30 @@ html, body {
   gap: 28px;
 }
 
+/* Mild narrowing for today / FT / weekly / predict / chart — never on reminder. */
+.card.card-narrow {
+  padding-left: 90px;
+  padding-right: 90px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.card.card-narrow > .heading,
+.card.card-narrow > .sub {
+  width: 100%;
+}
+
+.card.card-narrow > .sheet,
+.card.card-narrow > .weekly-list,
+.card.card-narrow > .chart-wrap,
+.card.card-narrow > .predict-banner {
+  box-sizing: border-box;
+  width: min(900px, 100%);
+  max-width: 100%;
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .card-inner {
   position: relative;
   z-index: 1;
@@ -527,6 +551,9 @@ html, body {
   grid-template-columns: 1fr 1fr;
   gap: 12px 24px;
   padding: 24px 28px 28px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
 
 .result-line {
@@ -540,6 +567,8 @@ html, body {
   border-radius: 8px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.06);
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .result-line.week-bonus {

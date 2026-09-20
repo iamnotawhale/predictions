@@ -392,7 +392,8 @@ public class HtmlImageRenderer {
                 "<div class=\"badge\">TODAY</div>"
                 + "<h1 class=\"heading\">Сегодняшние матчи</h1>"
                 + sections
-                + "<div class=\"foot\">predictions</div>");
+                + "<div class=\"foot\">predictions</div>",
+                "card-narrow");
     }
 
     private String buildReminderHtml(ReminderCard card) {
@@ -511,7 +512,8 @@ public class HtmlImageRenderer {
                 + "<div class=\"code\">" + escape(card.awayCode()) + "</div></div>"
                 + "</div>"
                 + (results.isEmpty() ? "" : "<div class=\"sheet\"><div class=\"results\">" + results + "</div></div>")
-                + "<div class=\"foot\">predictions</div>");
+                + "<div class=\"foot\">predictions</div>",
+                "card-narrow");
     }
 
     private String buildWeeklyHtml(WeeklyCard card) {
@@ -529,7 +531,8 @@ public class HtmlImageRenderer {
                 "<div class=\"badge\">WEEK " + card.weekId() + "</div>"
                 + "<h1 class=\"heading\">Результаты " + card.weekId() + " тура</h1>"
                 + rows
-                + "<div class=\"foot\">predictions</div>");
+                + "<div class=\"foot\">predictions</div>",
+                "card-narrow");
     }
 
     private String buildYourPredictHtml(YourPredictCard card) {
@@ -545,7 +548,8 @@ public class HtmlImageRenderer {
                 + "<div class=\"code\">" + escape(card.awayCode()) + "</div></div>"
                 + "</div>"
                 + "<div class=\"predict-banner\">Сохранено</div>"
-                + "<div class=\"foot\">predictions</div>");
+                + "<div class=\"foot\">predictions</div>",
+                "card-narrow");
     }
 
     private String buildChartHtml(String chartDataUri) {
@@ -553,7 +557,8 @@ public class HtmlImageRenderer {
                 "<div class=\"badge\">CHART</div>"
                 + "<h1 class=\"heading\">Очки по неделям</h1>"
                 + "<div class=\"chart-wrap\"><img src=\"" + escapeAttr(chartDataUri) + "\" alt=\"chart\"/></div>"
-                + "<div class=\"foot\">predictions</div>");
+                + "<div class=\"foot\">predictions</div>",
+                "card-narrow");
     }
 
     private static String oddCell(String label, String val) {
@@ -569,12 +574,17 @@ public class HtmlImageRenderer {
     }
 
     private String shell(String accent, String body) {
+        return shell(accent, body, null);
+    }
+
+    private String shell(String accent, String body, String layoutClass) {
         String css;
         try {
             css = readClasspath("notification-cards/base.css");
         } catch (Exception e) {
             css = "body{background:#0b0910;color:#fff;font-family:sans-serif}";
         }
+        String extra = (layoutClass != null && !layoutClass.isBlank()) ? (" " + layoutClass.trim()) : "";
         return """
                 <!DOCTYPE html>
                 <html lang="ru">
@@ -586,10 +596,10 @@ public class HtmlImageRenderer {
                   <style>%s</style>
                 </head>
                 <body>
-                  <div class="card" data-accent="%s">%s</div>
+                  <div class="card%s" data-accent="%s">%s</div>
                 </body>
                 </html>
-                """.formatted(css, escapeAttr(accent), body);
+                """.formatted(css, extra, escapeAttr(accent), body);
     }
 
     private String renderHtml(String html, String accentForLog) {

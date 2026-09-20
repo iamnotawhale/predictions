@@ -1144,6 +1144,59 @@ html[data-switching] *::after {
     border-bottom: none;
 }
 
+.team-matches-section {
+    margin-top: 4px;
+}
+
+.team-matches-past h4 {
+    color: var(--hint);
+    letter-spacing: 0.04em;
+}
+
+.team-matches-next h4 {
+    color: var(--accent-lift);
+    letter-spacing: 0.04em;
+}
+
+.team-match-item {
+    border-radius: 10px;
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+}
+
+.team-match-item:last-child {
+    margin-bottom: 0;
+}
+
+.team-match-past {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.team-match-past .list-item-title {
+    opacity: 0.92;
+}
+
+.team-match-next {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.team-match-kick {
+    min-width: 64px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: var(--accent-lift);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 .modal-team-logo.is-clickable,
 .modal-team-code.is-clickable {
     cursor: pointer;
