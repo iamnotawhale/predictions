@@ -1043,6 +1043,116 @@ html[data-switching] *::after {
     color: var(--hint);
 }
 
+.team-modal-sheet {
+    max-height: min(92vh, 900px);
+    overflow-y: auto;
+    padding-top: 18px;
+}
+
+.team-profile-hero {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 4px 0 14px;
+    padding: 14px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--accent-a12), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--accent-a35);
+}
+
+.team-profile-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.28));
+}
+
+.team-profile-hero-text {
+    min-width: 0;
+}
+
+.team-profile-code {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-lift);
+    margin-bottom: 2px;
+}
+
+.team-profile-name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 1.2;
+    color: var(--text);
+}
+
+.team-profile-meta {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--hint);
+    line-height: 1.35;
+}
+
+.team-profile-form {
+    justify-content: flex-start;
+    margin: 0 0 14px;
+    min-height: 14px;
+}
+
+.team-leaders-wrap {
+    overflow-x: auto;
+}
+
+.team-leaders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.team-leaders-table th,
+.team-leaders-table td {
+    padding: 7px 6px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.team-leaders-table th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--hint);
+    font-weight: 600;
+}
+
+.team-leaders-table th.num,
+.team-leaders-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    width: 2.4em;
+}
+
+.team-leaders-table .pos {
+    color: var(--hint);
+    font-size: 11px;
+    margin-left: 6px;
+}
+
+.team-leaders-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.modal-team-logo.is-clickable,
+.modal-team-code.is-clickable {
+    cursor: pointer;
+}
+
+.modal-team-code.is-clickable:hover {
+    color: var(--accent-lift);
+}
+
 .modal-match-center {
     flex: 1;
     text-align: center;

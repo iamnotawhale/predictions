@@ -3145,23 +3145,117 @@
         });
     }
 
+    function bindTeamProfileTap(el, getCode) {
+        if (!el || el.dataset.teamTapBound === '1') return;
+        el.dataset.teamTapBound = '1';
+        el.classList.add('is-clickable');
+        el.setAttribute('role', 'button');
+        el.tabIndex = 0;
+        const open = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const code = typeof getCode === 'function' ? getCode() : getCode;
+            if (!code) {
+                showToast('Нет профиля команды', 'error');
+                return;
+            }
+            openTeamModal(code);
+        };
+        el.addEventListener('click', open);
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') open(e);
+        });
+    }
+
+    function wireMatchHeaderTeamTaps() {
+        bindTeamProfileTap($('#modal-home-logo'), () => state.selectedMatch && state.selectedMatch.homeCode);
+        bindTeamProfileTap($('#modal-away-logo'), () => state.selectedMatch && state.selectedMatch.awayCode);
+        bindTeamProfileTap($('#modal-home-code'), () => state.selectedMatch && state.selectedMatch.homeCode);
+        bindTeamProfileTap($('#modal-away-code'), () => state.selectedMatch && state.selectedMatch.awayCode);
+        bindTeamProfileTap($('#live-modal-home-logo'), () => state.selectedMatch && state.selectedMatch.homeCode);
+        bindTeamProfileTap($('#live-modal-away-logo'), () => state.selectedMatch && state.selectedMatch.awayCode);
+        bindTeamProfileTap($('#live-modal-home-code'), () => state.selectedMatch && state.selectedMatch.homeCode);
+        bindTeamProfileTap($('#live-modal-away-code'), () => state.selectedMatch && state.selectedMatch.awayCode);
+    }
+
     async function openTeamModal(teamCode) {
+        if (!teamCode) {
+            showToast('Нет профиля команды', 'error');
+            return;
+        }
         state.selectedTeamCode = teamCode;
         state.teamModalOpened = true;
         $('#team-modal-title').textContent = teamCode;
+        $('#team-profile-code').textContent = teamCode;
+        $('#team-profile-meta').textContent = 'Загрузка…';
+        setLogoSrc($('#team-profile-logo'), '');
+        renderTeamFormDots('#team-profile-form', teamCode, []);
+        $('#team-leaders-section').classList.add('hidden');
+        $('#team-leaders-table-wrap').innerHTML = '';
         $('#team-last-list').innerHTML = '<li class="empty-state">Загрузка…</li>';
         $('#team-next-list').innerHTML = '<li class="empty-state">Загрузка…</li>';
         $('#team-modal').classList.remove('hidden');
         tg.BackButton.show();
         try {
-            const data = await api('/team/' + encodeURIComponent(teamCode) + '/matches');
-            $('#team-modal-title').textContent = data.teamName + ' (' + data.teamCode + ')';
+            const data = await api('/team/' + encodeURIComponent(teamCode));
+            $('#team-modal-title').textContent = data.teamName || teamCode;
+            $('#team-profile-code').textContent = data.teamCode || teamCode;
+            setLogoSrc($('#team-profile-logo'), data.logo || '');
+            const metaParts = [];
+            if (data.place != null) metaParts.push(data.place + ' место');
+            if (data.points != null) metaParts.push(data.points + ' очк.');
+            if (data.played != null) {
+                metaParts.push('И ' + data.played
+                    + ' · В ' + (data.won ?? '—')
+                    + ' · Н ' + (data.drawn ?? '—')
+                    + ' · П ' + (data.lost ?? '—'));
+            }
+            if (data.goalsFor != null && data.goalsAgainst != null) {
+                metaParts.push('Мячи ' + data.goalsFor + ':' + data.goalsAgainst);
+            }
+            $('#team-profile-meta').textContent = metaParts.join(' · ') || '';
+            renderTeamFormDots('#team-profile-form', data.teamCode || teamCode, data.form || []);
+            renderTeamLeaders(data.leaders || []);
             fillTeamMatchesList('#team-last-list', data.lastMatches || []);
             fillTeamMatchesList('#team-next-list', data.upcomingMatches || []);
         } catch (e) {
+            $('#team-profile-meta').textContent = e.message || 'Ошибка';
             $('#team-last-list').innerHTML = '<li class="empty-state">' + (e.message || 'Ошибка') + '</li>';
             $('#team-next-list').innerHTML = '<li class="empty-state">—</li>';
         }
+    }
+
+    function renderTeamLeaders(leaders) {
+        const section = $('#team-leaders-section');
+        const wrap = $('#team-leaders-table-wrap');
+        if (!section || !wrap) return;
+        if (!leaders.length) {
+            section.classList.add('hidden');
+            wrap.innerHTML = '';
+            return;
+        }
+        section.classList.remove('hidden');
+        let html = '<table class="team-leaders-table"><thead><tr>'
+            + '<th>Игрок</th>'
+            + '<th class="num">И</th>'
+            + '<th class="num">Г</th>'
+            + '<th class="num">А</th>'
+            + '<th class="num">Сейв</th>'
+            + '</tr></thead><tbody>';
+        leaders.forEach((p) => {
+            const saves = p.saves != null ? String(p.saves) : '—';
+            html += '<tr>'
+                + '<td>' + escapeHtml(p.name || '')
+                + (p.position ? ('<span class="pos">' + escapeHtml(p.position) + '</span>') : '')
+                + '</td>'
+                + '<td class="num">' + (p.appearances ?? 0) + '</td>'
+                + '<td class="num">' + (p.goals ?? 0) + '</td>'
+                + '<td class="num">' + (p.assists ?? 0) + '</td>'
+                + '<td class="num">' + saves + '</td>'
+                + '</tr>';
+        });
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
     }
 
     function fillTeamMatchesList(selector, matches) {
@@ -3565,6 +3659,7 @@
         $('#modal-delete').addEventListener('click', deletePrediction);
         $('#team-modal-close').addEventListener('click', closeTeamModal);
         $('#h2h-modal-close').addEventListener('click', closeH2hModal);
+        wireMatchHeaderTeamTaps();
         const playerModalClose = $('#player-modal-close');
         if (playerModalClose) playerModalClose.addEventListener('click', closePlayerModal);
         const playerModal = $('#player-modal');
