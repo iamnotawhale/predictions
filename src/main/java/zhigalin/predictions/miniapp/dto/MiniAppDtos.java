@@ -419,7 +419,7 @@ public final class MiniAppDtos {
             String teamName,
             String logo,
             int matches,
-            double avgPoints,
+            Double avgPoints,
             String hint
     ) {
     }
@@ -443,8 +443,7 @@ public final class MiniAppDtos {
             int predictedFinished,
             List<ProfileHighlight> highlights,
             List<ProfileBreakdownRow> breakdown,
-            List<ProfileTeamQualityRow> bestTeams,
-            List<ProfileTeamQualityRow> worstTeams,
+            List<ProfileTeamQualityRow> teams,
             List<ProfileHabitRow> habits,
             ProfileWeekHighlight bestWeek,
             ProfileWeekHighlight worstWeek,

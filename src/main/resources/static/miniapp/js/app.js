@@ -3532,25 +3532,29 @@
         return Math.max(0, Math.min(100, n));
     }
 
-    function renderProfileTeamList(container, rows, emptyText) {
+    function renderProfileTeamList(container, rows) {
         container.innerHTML = '';
         if (!rows || !rows.length) {
-            container.innerHTML = '<li class="empty-state">' + escapeHtml(emptyText || 'Пока пусто') + '</li>';
+            container.innerHTML = '<li class="empty-state">Пока нет данных</li>';
             return;
         }
         rows.forEach((row) => {
             const li = document.createElement('li');
-            li.className = 'profile-team-row';
+            const hasAvg = row.avgPoints != null && row.matches > 0;
+            li.className = 'profile-team-row' + (hasAvg ? '' : ' muted');
             const logo = row.logo
                 ? '<img class="profile-team-logo" src="' + escapeHtml(row.logo) + '" alt="">'
                 : '<span class="profile-team-logo"></span>';
-            const avg = row.avgPoints;
-            const avgLabel = (avg > 0 ? '+' : '') + String(avg);
+            let avgLabel = '—';
+            if (hasAvg) {
+                const avg = row.avgPoints;
+                avgLabel = (avg > 0 ? '+' : '') + String(avg);
+            }
             li.innerHTML =
                 logo +
                 '<div class="profile-team-main">' +
                 '<div class="profile-team-code">' + escapeHtml(row.teamCode) + '</div>' +
-                '<div class="profile-team-sub">' + escapeHtml(row.matches + ' матч.') + '</div>' +
+                '<div class="profile-team-sub">' + escapeHtml(hasAvg ? (row.matches + ' матч.') : 'нет матчей') + '</div>' +
                 '</div>' +
                 '<div class="profile-team-pts">' + escapeHtml(avgLabel) + '</div>';
             li.title = row.hint || '';
@@ -3603,11 +3607,10 @@
         });
 
         const teamsSection = $('#profile-teams-section');
-        const hasTeams = (data.bestTeams && data.bestTeams.length) || (data.worstTeams && data.worstTeams.length);
-        teamsSection.classList.toggle('hidden', !hasTeams);
-        if (hasTeams) {
-            renderProfileTeamList($('#profile-best-teams'), data.bestTeams || [], 'Пока нет клубов со ср. > 0');
-            renderProfileTeamList($('#profile-worst-teams'), data.worstTeams || [], 'Пока мало матчей');
+        const teams = data.teams || [];
+        teamsSection.classList.toggle('hidden', !teams.length);
+        if (teams.length) {
+            renderProfileTeamList($('#profile-teams-list'), teams);
         }
 
         const habitsSection = $('#profile-habits-section');

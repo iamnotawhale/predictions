@@ -1285,18 +1285,22 @@ html[data-switching] *::after {
     line-height: 1.35;
 }
 
-.profile-teams-cols {
+.profile-teams-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 0 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
-.profile-teams-caption {
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+.profile-teams-grid .profile-team-row {
+    border-bottom: 1px solid var(--border);
+}
+
+.profile-teams-grid .profile-team-row.muted .profile-team-pts {
     color: var(--hint);
-    margin-bottom: 6px;
+    font-weight: 600;
 }
 
 .profile-team-row {
@@ -1402,7 +1406,7 @@ html[data-switching] *::after {
 }
 
 @media (max-width: 360px) {
-    .profile-teams-cols {
+    .profile-teams-grid {
         grid-template-columns: 1fr;
     }
 }

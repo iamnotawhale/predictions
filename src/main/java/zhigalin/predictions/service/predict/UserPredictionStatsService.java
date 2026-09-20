@@ -31,9 +31,6 @@ import zhigalin.predictions.util.DaoUtil;
 @Service
 public class UserPredictionStatsService {
 
-    private static final int MIN_TEAM_SAMPLE = 2;
-    private static final int TEAM_LIST_LIMIT = 5;
-
     private final PredictionService predictionService;
     private final MatchService matchService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
@@ -99,7 +96,14 @@ public class UserPredictionStatsService {
         int pickBtts = 0;
         int pickOver25 = 0;
         int pickTotalGoalsSum = 0;
+        int actualTotalGoalsSum = 0;
         int pickScored = 0;
+        int ptsHomePickSum = 0;
+        int ptsHomePickN = 0;
+        int ptsDrawPickSum = 0;
+        int ptsDrawPickN = 0;
+        int ptsAwayPickSum = 0;
+        int ptsAwayPickN = 0;
 
         int bonusMatches = 0;
         int bonusPointsSum = 0;
@@ -148,12 +152,19 @@ public class UserPredictionStatsService {
             });
             pickScored++;
             pickTotalGoalsSum += ph + pa;
+            actualTotalGoalsSum += rh + ra;
             if (ph > pa) {
                 pickHome++;
+                ptsHomePickSum += pts;
+                ptsHomePickN++;
             } else if (Objects.equals(ph, pa)) {
                 pickDraw++;
+                ptsDrawPickSum += pts;
+                ptsDrawPickN++;
             } else {
                 pickAway++;
+                ptsAwayPickSum += pts;
+                ptsAwayPickN++;
             }
             if (ph > 0 && pa > 0) {
                 pickBtts++;
@@ -226,67 +237,71 @@ public class UserPredictionStatsService {
             habits.add(new ProfileHabitRow(
                     "Чаще ставите на",
                     dominantPickLabel(pickHome, pickDraw, pickAway),
-                    "Среди ваших прогнозов с цифрами: победа хозяев / ничья / гости."
+                    "Среди ваших прогнозов: победа хозяев / ничья / гости."
+            ));
+            if (ptsHomePickN > 0 || ptsDrawPickN > 0 || ptsAwayPickN > 0) {
+                habits.add(new ProfileHabitRow(
+                        "Ср. очки по типу ставки",
+                        formatPickTypeAvgs(ptsHomePickSum, ptsHomePickN, ptsDrawPickSum, ptsDrawPickN, ptsAwayPickSum, ptsAwayPickN),
+                        "Сколько в среднем приносят прогнозы «П1», «X» и «П2»."
+                ));
+            }
+            double predTot = round1(pickTotalGoalsSum / (double) pickScored);
+            double actTot = round1(actualTotalGoalsSum / (double) pickScored);
+            double bias = round1(predTot - actTot);
+            String biasSign = bias > 0 ? "+" : "";
+            habits.add(new ProfileHabitRow(
+                    "Тотал: прогноз / факт",
+                    formatNum(predTot) + " / " + formatNum(actTot) + " (" + biasSign + formatNum(bias) + ")",
+                    "Средняя сумма голов в вашем счёте против реального тотала. Плюс — завышаете тотал."
             ));
             habits.add(new ProfileHabitRow(
                     "Обе забьют",
                     formatPct(pct(pickBtts, pickScored)),
-                    "Доля прогнозов, где обеим командам ставите хотя бы по голу."
+                    "Доля прогнозов, где обеим ставите хотя бы по голу."
             ));
             habits.add(new ProfileHabitRow(
                     "Тотал 2.5+",
                     formatPct(pct(pickOver25, pickScored)),
                     "Доля прогнозов с суммой голов 3 и больше."
             ));
-            habits.add(new ProfileHabitRow(
-                    "Ср. тотал в прогнозе",
-                    formatNum(round1(pickTotalGoalsSum / (double) pickScored)),
-                    "Средняя сумма голов в вашем счёте."
-            ));
             if (favoriteScore != null) {
                 habits.add(new ProfileHabitRow(
                         "Любимый счёт",
                         favoriteScore,
-                        "Счёт, который вы ставите чаще всего (не меньше двух раз)."
+                        "Счёт, который ставите чаще всего (не меньше двух раз)."
                 ));
             }
         }
 
-        List<ProfileTeamQualityRow> ranked = byTeam.entrySet().stream()
-                .filter(e -> e.getValue().n >= MIN_TEAM_SAMPLE)
-                .map(e -> {
-                    TeamAgg a = e.getValue();
-                    Team team = DaoUtil.TEAMS.values().stream()
-                            .filter(t -> e.getKey().equals(t.getCode()))
-                            .findFirst()
-                            .orElse(null);
-                    double avg = round1(a.pointsSum / (double) a.n);
+        Map<String, Team> teamsByCode = new HashMap<>();
+        for (Team t : DaoUtil.TEAMS.values()) {
+            if (t != null && t.getCode() != null && !t.getCode().isBlank()) {
+                teamsByCode.putIfAbsent(t.getCode(), t);
+            }
+        }
+        List<ProfileTeamQualityRow> teams = teamsByCode.values().stream()
+                .map(team -> {
+                    TeamAgg a = byTeam.get(team.getCode());
+                    int n = a == null ? 0 : a.n;
+                    Double avg = (a == null || n == 0) ? null : round1(a.pointsSum / (double) n);
+                    String hint = n == 0
+                            ? "Пока нет завершённых прогнозов с участием " + team.getCode()
+                            : "Средние очки в " + n + " матчах с участием " + team.getCode()
+                            + ": " + formatNum(avg);
                     return new ProfileTeamQualityRow(
-                            e.getKey(),
-                            team != null ? team.getName() : e.getKey(),
-                            team != null ? teamLogoCacheService.pathForTeam(team.getPublicId()) : null,
-                            a.n,
+                            team.getCode(),
+                            team.getName() != null ? team.getName() : team.getCode(),
+                            teamLogoCacheService.pathForTeam(team.getPublicId()),
+                            n,
                             avg,
-                            "Средние очки в " + a.n + " матчах с участием " + e.getKey()
-                                    + ": " + formatNum(avg)
+                            hint
                     );
                 })
-                .toList();
-
-        List<ProfileTeamQualityRow> bestTeams = ranked.stream()
-                .filter(r -> r.avgPoints() > 0)
-                .sorted(Comparator.comparingDouble(ProfileTeamQualityRow::avgPoints).reversed()
-                        .thenComparingInt(ProfileTeamQualityRow::matches).reversed())
-                .limit(TEAM_LIST_LIMIT)
-                .toList();
-        java.util.Set<String> bestCodes = bestTeams.stream()
-                .map(ProfileTeamQualityRow::teamCode)
-                .collect(java.util.stream.Collectors.toSet());
-        List<ProfileTeamQualityRow> worstTeams = ranked.stream()
-                .filter(r -> !bestCodes.contains(r.teamCode()))
-                .sorted(Comparator.comparingDouble(ProfileTeamQualityRow::avgPoints)
-                        .thenComparingInt(ProfileTeamQualityRow::matches).reversed())
-                .limit(TEAM_LIST_LIMIT)
+                .sorted(Comparator
+                        .comparing((ProfileTeamQualityRow r) -> r.avgPoints() == null)
+                        .thenComparing(r -> r.avgPoints() == null ? 0.0 : r.avgPoints(), Comparator.reverseOrder())
+                        .thenComparing(ProfileTeamQualityRow::teamCode))
                 .toList();
 
         ProfileWeekHighlight bestWeek = weekHighlight(weekAgg, true);
@@ -309,8 +324,7 @@ public class UserPredictionStatsService {
                 finishedWithPick,
                 highlights,
                 breakdown,
-                bestTeams,
-                worstTeams,
+                teams,
                 habits,
                 bestWeek,
                 worstWeek,
@@ -318,6 +332,22 @@ public class UserPredictionStatsService {
                 bonusMatches > 0 ? round1(bonusPointsSum / (double) bonusMatches) : null,
                 bonusHint
         );
+    }
+
+    private static String formatPickTypeAvgs(
+            int homeSum, int homeN, int drawSum, int drawN, int awaySum, int awayN
+    ) {
+        List<String> parts = new ArrayList<>(3);
+        if (homeN > 0) {
+            parts.add("П1 " + formatNum(round1(homeSum / (double) homeN)));
+        }
+        if (drawN > 0) {
+            parts.add("X " + formatNum(round1(drawSum / (double) drawN)));
+        }
+        if (awayN > 0) {
+            parts.add("П2 " + formatNum(round1(awaySum / (double) awayN)));
+        }
+        return parts.isEmpty() ? "—" : String.join(" · ", parts);
     }
 
     private static ProfileBreakdownRow row(String label, int count, int total, String description) {
