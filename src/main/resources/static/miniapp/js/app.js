@@ -1063,6 +1063,24 @@
         pollTodayMatchesForUpdates().catch(() => {});
     }
 
+    function niceChartStep(range, targetTicks) {
+        const safeRange = Math.max(range, 1);
+        const rough = safeRange / Math.max(targetTicks, 2);
+        const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+        const n = rough / pow;
+        let step;
+        if (n <= 1) step = 1;
+        else if (n <= 2) step = 2;
+        else if (n <= 5) step = 5;
+        else step = 10;
+        step = step * pow;
+        // Prefer multiples of 5 for point totals when the span is wide enough
+        if (safeRange >= 15 && step < 5) {
+            return 5;
+        }
+        return step;
+    }
+
     function drawPointsChart(data) {
         const canvas = $('#points-chart');
         const ctx = canvas.getContext('2d');
@@ -1110,31 +1128,38 @@
             return;
         }
         minY = Math.min(minY, 0);
-        maxY = Math.max(maxY, 4);
-        if (maxY <= minY) {
-            maxY = minY + 1;
-        }
-        const tickStep = 5;
-        const axisMin = Math.floor(minY / tickStep) * tickStep;
-        const axisMax = Math.max(axisMin + tickStep, Math.ceil(maxY / tickStep) * tickStep);
+        maxY = Math.max(maxY, minY + 1);
+        const padY = Math.max(1, (maxY - minY) * 0.06);
+        const dataMin = minY;
+        const dataMax = maxY + padY;
+
+        const majorStep = niceChartStep(dataMax - dataMin, 5);
+        const minorStep = majorStep >= 10 ? majorStep / 5 : (majorStep >= 5 ? 1 : majorStep);
+        const axisMin = Math.floor(dataMin / majorStep) * majorStep;
+        const axisMax = Math.max(axisMin + majorStep, Math.ceil(dataMax / majorStep) * majorStep);
         const yRange = axisMax - axisMin;
 
         const weekCount = data.weeks.length;
         const xAt = (i) => pad.left + (weekCount <= 1 ? plotW / 2 : (i / (weekCount - 1)) * plotW);
         const yAt = (v) => pad.top + plotH - ((v - axisMin) / yRange) * plotH;
 
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 1;
-        for (let tick = axisMin; tick <= axisMax; tick += tickStep) {
+        const isMajor = (tick) => Math.abs(tick / majorStep - Math.round(tick / majorStep)) < 1e-6;
+        for (let tick = axisMin; tick <= axisMax + 1e-6; tick += minorStep) {
             const y = yAt(tick);
+            const major = isMajor(tick);
+            ctx.strokeStyle = major ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(pad.left, y);
             ctx.lineTo(pad.left + plotW, y);
             ctx.stroke();
+            if (!major) {
+                continue;
+            }
             ctx.fillStyle = cssVar('--hint', '#9a8fb0');
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText(String(tick), pad.left - 6, y + 3);
+            ctx.fillText(String(Math.round(tick)), pad.left - 6, y + 3);
         }
 
         ctx.fillStyle = cssVar('--hint', '#9a8fb0');

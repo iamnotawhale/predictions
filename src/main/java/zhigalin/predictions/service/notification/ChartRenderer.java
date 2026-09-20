@@ -94,8 +94,10 @@ public class ChartRenderer {
             plot.getDomainAxis().setTickLabelFont(axisFont);
             plot.getRangeAxis().setTickLabelFont(axisFont);
             if (plot.getRangeAxis() instanceof org.jfree.chart.axis.NumberAxis numberAxis) {
-                numberAxis.setTickUnit(new org.jfree.chart.axis.NumberTickUnit(5));
                 numberAxis.setAutoRangeIncludesZero(true);
+                numberAxis.setAutoTickUnitSelection(true);
+                numberAxis.setMinorTickCount(4);
+                numberAxis.setMinorTickMarksVisible(true);
             }
             if (chart.getLegend() != null) {
                 chart.getLegend().setBackgroundPaint(new Color(20, 17, 26));
