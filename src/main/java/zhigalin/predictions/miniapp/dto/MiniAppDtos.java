@@ -102,6 +102,35 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record TeamProfileResponse(
+            String teamCode,
+            String teamName,
+            String logo,
+            Integer place,
+            Integer played,
+            Integer won,
+            Integer drawn,
+            Integer lost,
+            Integer goalsFor,
+            Integer goalsAgainst,
+            Integer points,
+            List<FormItem> form,
+            List<TeamPlayerLeaderItem> leaders,
+            List<TeamMatchItem> lastMatches,
+            List<TeamMatchItem> upcomingMatches
+    ) {
+    }
+
+    public record TeamPlayerLeaderItem(
+            String name,
+            String position,
+            int appearances,
+            int goals,
+            int assists,
+            Integer saves
+    ) {
+    }
+
     public record H2hItem(
             String leagueName,
             String kickoff,

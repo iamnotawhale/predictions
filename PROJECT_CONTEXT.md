@@ -276,7 +276,8 @@
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |
-| GET | `/team/{teamCode}/matches` | Последние/ближайшие матчи команды |
+| GET | `/team/{teamCode}` | Профиль клуба: место в таблице, форма, ESPN leaders (Г/А/сейвы), last/next матчи |
+| GET | `/team/{teamCode}/matches` | Thin wrapper: только last/next (совместимость) |
 | GET | `/h2h/{homeCode}/{awayCode}` | Личные встречи |
 | GET | `/today` | Матчи сегодня |
 | GET | `/logos/{teamId}.png` | Логотип клуба (публичный, кэш 30д; без Telegram auth) |
@@ -372,7 +373,8 @@ psql … -f deploy/recommender-calibration-report.sql
 - `#score-modal` — прогноз, odds 1/X/2, кнопка AI-рекомендации (если AI вкл.) → `#ai-modal`, кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
 - `#ai-modal` — Poisson-калькулятор style: λ, 1X2 + fair odds, BTTS/OU, heatmap взвешенной матрицы 0–5, топ-счета, «Почему так» (explanation rows/notes).
 - `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
-- `#team-modal`, `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
+- `#team-modal` — профиль клуба: hero (лого/имя/место·очки·ИВНП), форма WDL, лидеры сезона ESPN roster (`EspnTeamRosterService`, TTL 6ч), последние/ближайшие матчи. Открытие: строка таблицы АПЛ; лого/код в `#score-modal` и `#live-modal`.
+- `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
 
 **Файлы:** `static/miniapp/js/app.js`, `index.html`, `css/app.css`.
 
@@ -382,7 +384,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - Списки матчей (тур/сегодня/мои/клавиатуры бота): порядок kickoff → `publicId` (без приоритета live/predicted).
 - «Сегодня»: текущий счёт / время старта, таймер до `kickoff+5м`.
 - MiniApp списки: bulk-load прогнозов пользователя (`predictionsByMatchForUser` / weekly map), без N+1 per match.
-- `GET /team/{code}/matches`: last/next 5 через SQL LIMIT (`findLastFinishedByTeamId` / `findNextByTeamId`).
+- `GET /team/{code}`: профиль (standings snapshot + form + ESPN leaders + last/next). `GET /team/{code}/matches`: last/next 5 через SQL LIMIT (`findLastFinishedByTeamId` / `findNextByTeamId`).
 - H2H: лимит `HeadToHeadService.H2H_LIMIT = 7` (и Telegram, и miniapp).
 - **Polling:** 10с при live/pre-start на «Сегодня» и в live-модалке; 60с в idle; кэш leaderboard/chart/standings ~45с; в poll leaderboard обновляется только при live или смене счёта; на главной при live также обновляется таблица АПЛ.
 - Таблица АПЛ (`GET /standings`): места/очки с учётом live-счёта; `placeDelta` относительно finished-only таблицы; у live-команд — `liveScore` (голы **своей** команды первыми) + `liveResult` (W/D/L) → стрелка места и цветной score-pill (как в 365Scores).

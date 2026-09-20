@@ -300,17 +300,27 @@
 </div>
 
 <div id="team-modal" class="modal hidden">
-    <div class="modal-sheet">
-        <div class="modal-header">
-            <h3 id="team-modal-title">Команда</h3>
-            <button id="team-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
+    <div class="modal-sheet team-modal-sheet">
+        <button id="team-modal-close" class="icon-btn icon-btn-floating" aria-label="Закрыть">&#10005;</button>
+        <div class="team-profile-hero">
+            <img id="team-profile-logo" class="team-profile-logo" alt="">
+            <div class="team-profile-hero-text">
+                <div id="team-profile-code" class="team-profile-code">—</div>
+                <h3 id="team-modal-title" class="team-profile-name">Команда</h3>
+                <p id="team-profile-meta" class="team-profile-meta"></p>
+            </div>
         </div>
+        <div id="team-profile-form" class="team-profile-form modal-team-form" aria-label="Форма"></div>
+        <section id="team-leaders-section" class="modal-h2h team-leaders-section hidden">
+            <h4>Лидеры сезона</h4>
+            <div id="team-leaders-table-wrap" class="team-leaders-wrap"></div>
+        </section>
         <section class="modal-h2h">
-            <h4>Последние 5 матчей</h4>
+            <h4>Последние матчи</h4>
             <ul id="team-last-list" class="list"></ul>
         </section>
         <section class="modal-h2h">
-            <h4>Будущие 5 матчей</h4>
+            <h4>Ближайшие</h4>
             <ul id="team-next-list" class="list"></ul>
         </section>
     </div>

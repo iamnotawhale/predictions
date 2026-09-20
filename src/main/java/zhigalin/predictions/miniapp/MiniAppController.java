@@ -34,6 +34,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamProfileResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewResponse;
@@ -152,6 +153,14 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
     ) {
         return miniAppService.standings(requireTelegramId(initData));
+    }
+
+    @GetMapping("/team/{teamCode}")
+    public TeamProfileResponse teamProfile(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String teamCode
+    ) {
+        return miniAppService.teamProfile(requireTelegramId(initData), teamCode);
     }
 
     @GetMapping("/team/{teamCode}/matches")

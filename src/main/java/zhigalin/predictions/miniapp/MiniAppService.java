@@ -59,6 +59,8 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamFormationItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamPlayerLeaderItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamProfileResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewItem;
@@ -76,6 +78,7 @@ import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.InjuryService;
 import zhigalin.predictions.service.api.InjuryService.InjuryInfo;
+import zhigalin.predictions.service.api.EspnTeamRosterService;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
@@ -131,6 +134,7 @@ public class MiniAppService {
     private final ApiClient apiClient;
     private final InjuryService injuryService;
     private final TeamLogoCacheService teamLogoCacheService;
+    private final EspnTeamRosterService espnTeamRosterService;
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
@@ -148,6 +152,7 @@ public class MiniAppService {
             ApiClient apiClient,
             InjuryService injuryService,
             TeamLogoCacheService teamLogoCacheService,
+            EspnTeamRosterService espnTeamRosterService,
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
@@ -163,6 +168,7 @@ public class MiniAppService {
         this.apiClient = apiClient;
         this.injuryService = injuryService;
         this.teamLogoCacheService = teamLogoCacheService;
+        this.espnTeamRosterService = espnTeamRosterService;
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
@@ -818,6 +824,16 @@ public class MiniAppService {
     }
 
     public TeamMatchesResponse teamMatches(String telegramId, String teamCode) {
+        TeamProfileResponse profile = teamProfile(telegramId, teamCode);
+        return new TeamMatchesResponse(
+                profile.teamCode(),
+                profile.teamName(),
+                profile.lastMatches(),
+                profile.upcomingMatches()
+        );
+    }
+
+    public TeamProfileResponse teamProfile(String telegramId, String teamCode) {
         requireUser(telegramId);
         String normalizedCode = teamCode.toUpperCase();
         Team team = DaoUtil.TEAMS.values().stream()
@@ -828,12 +844,63 @@ public class MiniAppService {
         List<TeamMatchItem> lastMatches = matchService.findLastFinishedByTeamId(team.getPublicId(), 5).stream()
                 .map(this::toTeamMatchItem)
                 .toList();
-
         List<TeamMatchItem> upcomingMatches = matchService.findNextByTeamId(team.getPublicId(), 5).stream()
                 .map(this::toTeamMatchItem)
                 .toList();
+        List<FormItem> form = buildRecentForm(team.getPublicId(), 5);
 
-        return new TeamMatchesResponse(team.getCode(), team.getName(), lastMatches, upcomingMatches);
+        Integer place = null;
+        Integer played = null;
+        Integer won = null;
+        Integer drawn = null;
+        Integer lost = null;
+        Integer goalsFor = null;
+        Integer goalsAgainst = null;
+        Integer points = null;
+        int idx = 1;
+        for (Standing standing : matchService.getStandings()) {
+            if (standing.getTeamId() == team.getPublicId()) {
+                place = idx;
+                played = standing.getGames();
+                won = standing.getWon();
+                drawn = standing.getDrawn();
+                lost = standing.getLost();
+                goalsFor = standing.getGoalsFor();
+                goalsAgainst = standing.getGoalsAgainst();
+                points = standing.getPoints();
+                break;
+            }
+            idx++;
+        }
+
+        List<TeamPlayerLeaderItem> leaders = espnTeamRosterService.leadersForInternalCode(team.getCode(), 8).stream()
+                .map(p -> new TeamPlayerLeaderItem(
+                        p.name(),
+                        p.position(),
+                        p.appearances(),
+                        p.goals(),
+                        p.assists(),
+                        p.saves()
+                ))
+                .toList();
+
+        return new TeamProfileResponse(
+                team.getCode(),
+                team.getName(),
+                teamLogoPath(team.getPublicId()),
+                place,
+                played,
+                won,
+                drawn,
+                lost,
+                goalsFor,
+                goalsAgainst,
+                points,
+                form,
+                leaders,
+                lastMatches,
+                upcomingMatches
+        );
     }
 
     public List<H2hItem> h2h(String telegramId, String homeCode, String awayCode) {
