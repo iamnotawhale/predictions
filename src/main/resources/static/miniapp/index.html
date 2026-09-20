@@ -106,7 +106,53 @@
     </main>
 
     <main id="screen-my" class="screen">
-        <div id="my-weeks" class="week-grid"></div>
+        <div id="profile-home">
+            <div class="team-profile-hero profile-hero">
+                <div class="profile-avatar" aria-hidden="true">&#128100;</div>
+                <div class="team-profile-hero-text">
+                    <div id="profile-week-label" class="team-profile-code">—</div>
+                    <h3 id="profile-login" class="team-profile-name">Профиль</h3>
+                    <p id="profile-meta" class="team-profile-meta"></p>
+                </div>
+            </div>
+            <div id="profile-bonus-chip" class="profile-bonus-chip hidden"></div>
+            <section class="modal-h2h team-stats-section profile-section">
+                <h4>Сезон</h4>
+                <p class="profile-section-desc">Ключевые цифры по уже сыгранным матчам АПЛ.</p>
+                <div id="profile-highlights" class="team-stats-grid"></div>
+            </section>
+            <section class="modal-h2h profile-section">
+                <h4>Качество прогнозов</h4>
+                <p class="profile-section-desc">Как часто угадываете счёт, разницу и исход.</p>
+                <div id="profile-breakdown" class="profile-breakdown"></div>
+            </section>
+            <section id="profile-teams-section" class="modal-h2h profile-section hidden">
+                <h4>По командам</h4>
+                <p class="profile-section-desc">Где прогнозы чаще заходят и где чаще промахи — минимум 2 матча с клубом.</p>
+                <div class="profile-teams-cols">
+                    <div>
+                        <div class="profile-teams-caption">Лучше всего</div>
+                        <ul id="profile-best-teams" class="list team-matches-list"></ul>
+                    </div>
+                    <div>
+                        <div class="profile-teams-caption">Сложнее всего</div>
+                        <ul id="profile-worst-teams" class="list team-matches-list"></ul>
+                    </div>
+                </div>
+            </section>
+            <section id="profile-habits-section" class="modal-h2h profile-section hidden">
+                <h4>Привычки</h4>
+                <p class="profile-section-desc">Какие счета вы ставите чаще — без оценки «правильно/неправильно».</p>
+                <div id="profile-habits" class="profile-habits"></div>
+            </section>
+            <section id="profile-weeks-section" class="modal-h2h profile-section hidden">
+                <h4>Туры и бонус</h4>
+                <p class="profile-section-desc">Пики сезона и персональный бонус-матч.</p>
+                <div id="profile-weeks" class="profile-habits"></div>
+            </section>
+            <button type="button" id="profile-open-predictions" class="profile-cta">Мои прогнозы</button>
+        </div>
+        <div id="my-weeks" class="week-grid hidden"></div>
         <div id="my-cups" class="cup-panel hidden"></div>
         <div id="my-predictions" class="hidden">
             <button class="back-link" id="my-back-weeks">&#8592; Назад</button>
@@ -131,8 +177,8 @@
             <span>Прогноз</span>
         </button>
         <button class="nav-btn" data-screen="my">
-            <span class="nav-icon">&#128203;</span>
-            <span>Мои</span>
+            <span class="nav-icon">&#128100;</span>
+            <span>Профиль</span>
         </button>
     </nav>
 </div>

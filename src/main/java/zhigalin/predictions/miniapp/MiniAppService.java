@@ -56,6 +56,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.PlayerStatItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileStatsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamFormationItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchItem;
@@ -94,6 +95,7 @@ import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.FlooredPointsService;
 import zhigalin.predictions.service.predict.PredictionService;
+import zhigalin.predictions.service.predict.UserPredictionStatsService;
 import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.AppTimeZones;
@@ -148,6 +150,7 @@ public class MiniAppService {
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
+    private final UserPredictionStatsService userPredictionStatsService;
     private final BonusMatchDao bonusMatchDao;
     private final String adminChatId;
     private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
@@ -168,6 +171,7 @@ public class MiniAppService {
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
             UserWeekBonusMatchService userWeekBonusMatchService,
+            UserPredictionStatsService userPredictionStatsService,
             BonusMatchDao bonusMatchDao,
             @Value("${chatId:}") String adminChatId
     ) {
@@ -186,6 +190,7 @@ public class MiniAppService {
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
+        this.userPredictionStatsService = userPredictionStatsService;
         this.bonusMatchDao = bonusMatchDao;
         this.adminChatId = adminChatId == null ? "" : adminChatId.trim();
     }
@@ -212,6 +217,10 @@ public class MiniAppService {
                 user.isBettingRecommenderEnabled(),
                 admin
         );
+    }
+
+    public ProfileStatsResponse profileStats(String telegramId) {
+        return userPredictionStatsService.build(requireUser(telegramId));
     }
 
     public ActionResponse setBettingRecommender(String telegramId, boolean enabled) {

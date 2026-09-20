@@ -73,6 +73,10 @@ public class PredictionService {
         return predictionDao.findAllByWeekId(weekId);
     }
 
+    public List<MatchPrediction> findAllByUserId(int userId) {
+        return predictionDao.findAllByUserId(userId);
+    }
+
     public void deleteById(int userId, int matchPublicId) {
         predictionDao.delete(userId, matchPublicId);
     }
