@@ -130,6 +130,23 @@ public class FootyStatsStatsDao {
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
     }
 
+    public Optional<FootyStatsTeamSnapshot> findLatestTeamStats(String teamCode) {
+        if (teamCode == null || teamCode.isBlank()) {
+            return Optional.empty();
+        }
+        List<FootyStatsTeamSnapshot> rows = jdbcTemplate.query(
+                """
+                        SELECT * FROM footystats_team_stats
+                        WHERE team_code = ?
+                        ORDER BY week_id DESC
+                        LIMIT 1
+                        """,
+                teamMapper(),
+                teamCode
+        );
+        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
+    }
+
     public void saveRecommendation(MatchRecommendationSnapshot recommendation) {
         saveRecommendations(List.of(recommendation));
     }

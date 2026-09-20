@@ -3209,6 +3209,8 @@
         $('#team-profile-meta').textContent = 'Загрузка…';
         setLogoSrc($('#team-profile-logo'), '');
         renderTeamFormDots('#team-profile-form', teamCode, []);
+        $('#team-stats-section').classList.add('hidden');
+        $('#team-stats-grid').innerHTML = '';
         $('#team-leaders-section').classList.add('hidden');
         $('#team-leaders-table-wrap').innerHTML = '';
         $('#team-last-list').innerHTML = '<li class="empty-state">Загрузка…</li>';
@@ -3234,14 +3236,69 @@
             }
             $('#team-profile-meta').textContent = metaParts.join(' · ') || '';
             renderTeamFormDots('#team-profile-form', data.teamCode || teamCode, data.form || []);
+            renderTeamSeasonStats(data.seasonStats || null);
             renderTeamLeaders(data.leaders || []);
             fillTeamMatchesList('#team-last-list', data.lastMatches || [], 'past');
             fillTeamMatchesList('#team-next-list', data.upcomingMatches || [], 'next');
         } catch (e) {
             $('#team-profile-meta').textContent = e.message || 'Ошибка';
+            $('#team-stats-section').classList.add('hidden');
+            $('#team-stats-grid').innerHTML = '';
             $('#team-last-list').innerHTML = '<li class="empty-state">' + (e.message || 'Ошибка') + '</li>';
             $('#team-next-list').innerHTML = '<li class="empty-state">—</li>';
         }
+    }
+
+    function renderTeamSeasonStats(stats) {
+        const section = $('#team-stats-section');
+        const grid = $('#team-stats-grid');
+        if (!section || !grid) return;
+        if (!stats) {
+            section.classList.add('hidden');
+            grid.innerHTML = '';
+            return;
+        }
+        const cells = [
+            { label: 'xG', value: fmtStatNum(stats.xg) },
+            { label: 'xGA', value: fmtStatNum(stats.xga) },
+            { label: 'Г / М', value: fmtStatNum(stats.scoredPerMatch) },
+            { label: 'Пр / М', value: fmtStatNum(stats.concededPerMatch) },
+            { label: 'ОЗ', value: fmtStatPct(stats.bttsPct) },
+            { label: 'СМ %', value: fmtStatPct(stats.csPct) },
+            { label: 'ТБ 2.5', value: fmtStatPct(stats.over25Pct) },
+            { label: 'ППГ дом', value: fmtStatNum(stats.homePpg) },
+            { label: 'ППГ выезд', value: fmtStatNum(stats.awayPpg) },
+            { label: 'Владение', value: fmtStatPct(stats.possessionPct) },
+            { label: 'Удары / М', value: fmtStatNum(stats.shotsPerMatch) },
+            { label: 'В створ / М', value: fmtStatNum(stats.shotsOnTargetPerMatch) },
+            { label: 'Сухие', value: stats.cleanSheets != null ? String(stats.cleanSheets) : null }
+        ].filter((c) => c.value != null);
+
+        if (!cells.length) {
+            section.classList.add('hidden');
+            grid.innerHTML = '';
+            return;
+        }
+        section.classList.remove('hidden');
+        grid.innerHTML = cells.map((c) =>
+            '<div class="team-stat-cell">'
+            + '<span class="team-stat-label">' + escapeHtml(c.label) + '</span>'
+            + '<span class="team-stat-value">' + escapeHtml(c.value) + '</span>'
+            + '</div>'
+        ).join('');
+    }
+
+    function fmtStatNum(v) {
+        if (v == null || Number.isNaN(Number(v))) return null;
+        const n = Number(v);
+        return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    }
+
+    function fmtStatPct(v) {
+        if (v == null || Number.isNaN(Number(v))) return null;
+        const n = Number(v);
+        const shown = n <= 1.5 ? n * 100 : n;
+        return (Math.round(shown * 10) / 10) + '%';
     }
 
     function renderTeamLeaders(leaders) {
