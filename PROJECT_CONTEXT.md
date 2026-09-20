@@ -47,7 +47,7 @@
 - `src/main/java/zhigalin/predictions/service/predict` — скоринг (`ScoringMode`), **`FlooredPointsService`** (скользящий пол), FT recalc.
 - `src/main/java/zhigalin/predictions/service/event` — матчи; **`BonusMatchSyncService`** (кубки ESPN); **`UserWeekBonusMatchService`** (персональный бонус тура).
 - `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats + SoccerSTATS → Poisson-модель → кэш в БД; single-flight refresh, batch writes.
-- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — eng.1 и cup leagues (`eng.fa`, `eng.league_cup`, `uefa.*`); **`EspnTeamTotalsClient`** — team total goals lines; **`EspnTeamRosterService`** — season leaders. ESPN site JSON: хост **`site.web.api.espn.com`** (не `site.api` — Akamai с Odyssey часто даёт 403), UA `predictions-bot/1.0`.
+- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — eng.1 и cup leagues (`eng.fa`, `eng.league_cup`, `uefa.*`); **`EspnTeamTotalsClient`** — team total goals lines; **`EspnTeamRosterService`** — season leaders; **`EspnTeamSeasonStatsService`** — командные сезон-статы (владение/удары/CS/xG, TTL 6ч). ESPN site JSON: хост **`site.web.api.espn.com`** (не `site.api` — Akamai с Odyssey часто даёт 403), UA `predictions-bot/1.0`; core stats — `sports.core.api.espn.com`.
 - `src/main/java/zhigalin/predictions/telegram/MatchMessageFormatter` — единый формат строк матча для `/today`, `/tour`, upcoming.
 - `src/main/java/zhigalin/predictions/util/TelegramMarkdownV2` — escape caption для Unirest `sendPhoto`.
 - `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой (узкие выборки матчей/прогнозов, batch `updatePoints`).
@@ -276,7 +276,7 @@
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |
-| GET | `/team/{teamCode}` | Профиль клуба: место в таблице, форма, ESPN leaders (Г/А/сейвы), last/next матчи |
+| GET | `/team/{teamCode}` | Профиль клуба: место в таблице, форма, seasonStats (FootyStats+ESPN), ESPN leaders (Г/А/сейвы), last/next матчи |
 | GET | `/team/{teamCode}/matches` | Thin wrapper: только last/next (совместимость) |
 | GET | `/h2h/{homeCode}/{awayCode}` | Личные встречи |
 | GET | `/today` | Матчи сегодня |
@@ -373,7 +373,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - `#score-modal` — прогноз, odds 1/X/2, кнопка AI-рекомендации (если AI вкл.) → `#ai-modal`, кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
 - `#ai-modal` — Poisson-калькулятор style: λ, 1X2 + fair odds, BTTS/OU, heatmap взвешенной матрицы 0–5, топ-счета, «Почему так» (explanation rows/notes).
 - `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
-- `#team-modal` — профиль клуба: hero (лого/имя/место·очки·ИВНП), форма WDL, лидеры сезона ESPN roster (`EspnTeamRosterService`, TTL 6ч), последние/ближайшие матчи (разный UI: счёт+форма vs время kickoff). Открытие: строка таблицы АПЛ; лого/код в `#score-modal` и `#live-modal`.
+- `#team-modal` — профиль клуба: hero (лого/имя/место·очки·ИВНП), форма WDL, **статистика сезона** (FootyStats кэш + ESPN team stats: xG/xGA, Г/М, ОЗ, СМ, ТБ2.5, PPG, владение, удары, сухие), лидеры ESPN roster (`EspnTeamRosterService`, TTL 6ч), последние/ближайшие матчи (разный UI: счёт+форма vs время kickoff). Открытие: строка таблицы АПЛ; лого/код в `#score-modal` и `#live-modal`.
 - `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
 
 **Файлы:** `static/miniapp/js/app.js`, `index.html`, `css/app.css`.

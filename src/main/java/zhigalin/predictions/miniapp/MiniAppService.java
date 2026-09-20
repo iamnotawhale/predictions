@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,10 +77,16 @@ import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.ApiClient;
+import zhigalin.predictions.service.api.EspnTeamRosterService;
+import zhigalin.predictions.service.api.EspnTeamSeasonStatsService;
+import zhigalin.predictions.service.api.EspnTeamSeasonStatsService.TeamSeasonExtras;
 import zhigalin.predictions.service.api.InjuryService;
 import zhigalin.predictions.service.api.InjuryService.InjuryInfo;
-import zhigalin.predictions.service.api.EspnTeamRosterService;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamSeasonStats;
+import zhigalin.predictions.recommender.FootyStatsStatsDao;
+import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
+import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -135,6 +142,8 @@ public class MiniAppService {
     private final InjuryService injuryService;
     private final TeamLogoCacheService teamLogoCacheService;
     private final EspnTeamRosterService espnTeamRosterService;
+    private final EspnTeamSeasonStatsService espnTeamSeasonStatsService;
+    private final FootyStatsStatsDao footyStatsStatsDao;
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
@@ -153,6 +162,8 @@ public class MiniAppService {
             InjuryService injuryService,
             TeamLogoCacheService teamLogoCacheService,
             EspnTeamRosterService espnTeamRosterService,
+            EspnTeamSeasonStatsService espnTeamSeasonStatsService,
+            FootyStatsStatsDao footyStatsStatsDao,
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
@@ -169,6 +180,8 @@ public class MiniAppService {
         this.injuryService = injuryService;
         this.teamLogoCacheService = teamLogoCacheService;
         this.espnTeamRosterService = espnTeamRosterService;
+        this.espnTeamSeasonStatsService = espnTeamSeasonStatsService;
+        this.footyStatsStatsDao = footyStatsStatsDao;
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
@@ -884,6 +897,8 @@ public class MiniAppService {
                 ))
                 .toList();
 
+        TeamSeasonStats seasonStats = buildTeamSeasonStats(team.getCode());
+
         return new TeamProfileResponse(
                 team.getCode(),
                 team.getName(),
@@ -897,10 +912,76 @@ public class MiniAppService {
                 goalsAgainst,
                 points,
                 form,
+                seasonStats,
                 leaders,
                 lastMatches,
                 upcomingMatches
         );
+    }
+
+    private TeamSeasonStats buildTeamSeasonStats(String teamCode) {
+        Optional<FootyStatsTeamSnapshot> fsOpt = footyStatsStatsDao.findTeamStats(DaoUtil.currentWeekId, teamCode);
+        if (fsOpt.isEmpty()) {
+            fsOpt = footyStatsStatsDao.findLatestTeamStats(teamCode);
+        }
+        FootyStatsTeamSnapshot fs = fsOpt.orElse(null);
+        FootyStatsExtendedMetrics ext = fs != null ? fs.extendedOrEmpty() : FootyStatsExtendedMetrics.empty();
+        TeamSeasonExtras espn = espnTeamSeasonStatsService.forInternalCode(teamCode);
+
+        Double xg = firstNonNull(espn.avgXg(), fs != null ? fs.xgOverall() : null);
+        Double xga = firstNonNull(espn.avgXga(), fs != null ? fs.xgaOverall() : null);
+        Double scoredPm = firstNonNull(ext.seasonScoredPerMatch(), fs != null ? fs.scoredOverall() : null);
+        Double concededPm = firstNonNull(ext.seasonConcededPerMatch(), fs != null ? fs.concededOverall() : null);
+        Integer cleanSheets = espn.cleanSheets();
+        Double csPct = ext.seasonCsOverall();
+
+        TeamSeasonStats stats = new TeamSeasonStats(
+                round1(xg),
+                round1(xga),
+                round1(scoredPm),
+                round1(concededPm),
+                roundPct(ext.seasonBttsOverall()),
+                roundPct(csPct),
+                roundPct(ext.over25Overall()),
+                round1(ext.homePpg()),
+                round1(ext.awayPpg()),
+                round1(espn.possessionPct()),
+                round1(espn.shotsPerMatch()),
+                round1(espn.shotsOnTargetPerMatch()),
+                cleanSheets
+        );
+        if (isSeasonStatsEmpty(stats)) {
+            return null;
+        }
+        return stats;
+    }
+
+    private static boolean isSeasonStatsEmpty(TeamSeasonStats s) {
+        return s.xg() == null && s.xga() == null
+                && s.scoredPerMatch() == null && s.concededPerMatch() == null
+                && s.bttsPct() == null && s.csPct() == null && s.over25Pct() == null
+                && s.homePpg() == null && s.awayPpg() == null
+                && s.possessionPct() == null && s.shotsPerMatch() == null
+                && s.shotsOnTargetPerMatch() == null && s.cleanSheets() == null;
+    }
+
+    private static Double firstNonNull(Double a, Double b) {
+        return a != null ? a : b;
+    }
+
+    private static Double round1(Double v) {
+        if (v == null || v.isNaN() || v.isInfinite()) {
+            return null;
+        }
+        return Math.round(v * 10.0) / 10.0;
+    }
+
+    private static Double roundPct(Double v) {
+        if (v == null || v.isNaN() || v.isInfinite()) {
+            return null;
+        }
+        double pct = v <= 1.5 ? v * 100.0 : v;
+        return Math.round(pct * 10.0) / 10.0;
     }
 
     public List<H2hItem> h2h(String telegramId, String homeCode, String awayCode) {

@@ -1106,6 +1106,42 @@ html[data-switching] *::after {
     overflow-x: auto;
 }
 
+.team-stats-section h4 {
+    color: var(--accent-lift);
+    letter-spacing: 0.04em;
+}
+
+.team-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.team-stat-cell {
+    padding: 10px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+    text-align: center;
+}
+
+.team-stat-label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--hint);
+    margin-bottom: 4px;
+}
+
+.team-stat-value {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+}
+
 .team-leaders-table {
     width: 100%;
     border-collapse: collapse;

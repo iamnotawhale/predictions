@@ -115,9 +115,27 @@ public final class MiniAppDtos {
             Integer goalsAgainst,
             Integer points,
             List<FormItem> form,
+            TeamSeasonStats seasonStats,
             List<TeamPlayerLeaderItem> leaders,
             List<TeamMatchItem> lastMatches,
             List<TeamMatchItem> upcomingMatches
+    ) {
+    }
+
+    public record TeamSeasonStats(
+            Double xg,
+            Double xga,
+            Double scoredPerMatch,
+            Double concededPerMatch,
+            Double bttsPct,
+            Double csPct,
+            Double over25Pct,
+            Double homePpg,
+            Double awayPpg,
+            Double possessionPct,
+            Double shotsPerMatch,
+            Double shotsOnTargetPerMatch,
+            Integer cleanSheets
     ) {
     }
 
