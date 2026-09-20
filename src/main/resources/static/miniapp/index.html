@@ -167,17 +167,13 @@
             </div>
         </div>
         <section id="modal-recommendation-section" class="modal-recommendation hidden">
-            <button type="button" id="modal-recommendation-toggle" class="modal-recommendation-head">
+            <button type="button" id="modal-recommendation-open" class="modal-recommendation-head">
                 <div class="modal-recommendation-title-wrap">
-                    <h4>Рекомендация</h4>
+                    <h4>AI · рекомендация</h4>
                     <p id="modal-recommendation-summary" class="modal-recommendation-summary"></p>
                 </div>
                 <span id="modal-recommendation-score" class="modal-recommendation-score">—</span>
             </button>
-            <div id="modal-recommendation-details" class="modal-recommendation-details hidden">
-                <div id="modal-recommendation-table-wrap" class="modal-recommendation-table-wrap"></div>
-                <ul id="modal-recommendation-notes" class="modal-recommendation-notes"></ul>
-            </div>
         </section>
         <div id="score-grid" class="score-grid"></div>
         <button id="modal-delete" class="btn-danger hidden">Удалить прогноз</button>
@@ -316,6 +312,51 @@
         <section class="modal-h2h">
             <h4>Будущие 5 матчей</h4>
             <ul id="team-next-list" class="list"></ul>
+        </section>
+    </div>
+</div>
+
+<div id="ai-modal" class="modal hidden">
+    <div class="modal-sheet ai-modal-sheet">
+        <div class="modal-header">
+            <h3 id="ai-modal-title">AI</h3>
+            <button id="ai-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
+        </div>
+        <div class="ai-modal-tip-row">
+            <span id="ai-modal-tip-score" class="ai-modal-tip-score">—</span>
+            <span id="ai-modal-tip-prob" class="ai-modal-tip-prob"></span>
+        </div>
+        <p id="ai-modal-matrix-note" class="ai-modal-note">Взвешенная матрица (статы · xG · рынок), не чистый λ×λ</p>
+        <section class="ai-modal-section">
+            <h4>Ожидаемые голы (λ)</h4>
+            <div class="ai-lambda-grid">
+                <div class="ai-lambda-card">
+                    <span id="ai-lambda-home-code" class="ai-lambda-code">HOME</span>
+                    <span id="ai-lambda-home" class="ai-lambda-value">—</span>
+                </div>
+                <div class="ai-lambda-card">
+                    <span id="ai-lambda-away-code" class="ai-lambda-code">AWAY</span>
+                    <span id="ai-lambda-away" class="ai-lambda-value">—</span>
+                </div>
+            </div>
+        </section>
+        <section id="ai-modal-markets" class="ai-modal-section hidden">
+            <h4>1X2 · рынки</h4>
+            <div id="ai-markets-1x2" class="ai-markets-row"></div>
+            <div id="ai-markets-extra" class="ai-markets-extra"></div>
+        </section>
+        <section id="ai-modal-heatmap-section" class="ai-modal-section hidden">
+            <h4>Матрица счетов 0–5</h4>
+            <div id="ai-heatmap" class="ai-heatmap" aria-label="Score probability matrix"></div>
+        </section>
+        <section id="ai-modal-tops-section" class="ai-modal-section hidden">
+            <h4>Наиболее вероятные счета</h4>
+            <ul id="ai-top-scores" class="ai-top-scores"></ul>
+        </section>
+        <section class="ai-modal-section">
+            <h4>Почему так</h4>
+            <div id="ai-modal-table-wrap" class="modal-recommendation-table-wrap"></div>
+            <ul id="ai-modal-notes" class="modal-recommendation-notes"></ul>
         </section>
     </div>
 </div>

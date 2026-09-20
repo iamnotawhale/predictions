@@ -156,8 +156,25 @@ public final class MiniAppDtos {
             List<ExplanationStatRow> explanationRows,
             List<String> explanationNotes,
             List<String> explanationLines,
-            String summary
+            String summary,
+            ScoreDistributionDto distribution
     ) {
+    }
+
+    public record ScoreDistributionDto(
+            List<List<Double>> matrix,
+            double homeWin,
+            double draw,
+            double awayWin,
+            double btts,
+            double over15,
+            double over25,
+            double over35,
+            List<TopScoreDto> topScores
+    ) {
+    }
+
+    public record TopScoreDto(int home, int away, double probability) {
     }
 
     public record ExplanationStatRow(

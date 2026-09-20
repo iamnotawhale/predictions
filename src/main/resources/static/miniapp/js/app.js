@@ -130,7 +130,9 @@
         formationSide: 'home',
         liveEventRuCompiled: null,
         apiCache: {},
-        recommendationDetailsOpen: false
+        recommendationDetailsOpen: false,
+        aiModalOpened: false,
+        currentRecommendation: null
     };
 
     const $ = (sel) => document.querySelector(sel);
@@ -1386,9 +1388,11 @@
 
     function openScoreModal(match) {
         closeLiveMatchModal(false);
+        closeAiModal(false);
         stopLiveMatchModalPolling();
         state.selectedMatch = match;
         state.recommendationDetailsOpen = false;
+        state.currentRecommendation = null;
         renderH2hList('#modal-h2h-content', []);
         renderTeamFormDots('#modal-home-form', match.homeCode, []);
         renderTeamFormDots('#modal-away-form', match.awayCode, []);
@@ -2674,10 +2678,12 @@
     }
 
     function closeScoreModal(clearSelection) {
+        closeAiModal(false);
         const modal = $('#score-modal');
         if (modal) modal.classList.add('hidden');
         if (clearSelection !== false) {
             state.selectedMatch = null;
+            state.currentRecommendation = null;
         }
         if (shouldHideBackButton()) {
             tg.BackButton.hide();
@@ -2705,6 +2711,7 @@
             && !isLiveModalOpen()
             && !state.teamModalOpened
             && !state.h2hModalOpened
+            && !state.aiModalOpened
             && !state.predictWeekOpened
             && !state.predictCupsOpened
             && !state.myWeekOpened
@@ -2752,37 +2759,100 @@
 
     function renderModalRecommendation(recommendation) {
         const section = $('#modal-recommendation-section');
-        const details = $('#modal-recommendation-details');
         const summaryEl = $('#modal-recommendation-summary');
         const scoreEl = $('#modal-recommendation-score');
-        const tableWrap = $('#modal-recommendation-table-wrap');
-        const notesEl = $('#modal-recommendation-notes');
-        if (!section || !details || !summaryEl || !scoreEl || !tableWrap || !notesEl) return;
+        if (!section || !summaryEl || !scoreEl) return;
 
         const enabled = state.profile && state.profile.bettingRecommenderEnabled;
-        if (!enabled || !recommendation) {
+        state.currentRecommendation = (enabled && recommendation) ? recommendation : null;
+        if (!state.currentRecommendation) {
             section.classList.add('hidden');
-            details.classList.add('hidden');
-            state.recommendationDetailsOpen = false;
             return;
         }
 
         section.classList.remove('hidden');
         const score = recommendation.recommendedHome + ':' + recommendation.recommendedAway;
         scoreEl.textContent = score;
-        summaryEl.textContent = recommendation.summary
-            || ('Ожидаемые голы ' + Number(recommendation.expectedHomeGoals).toFixed(1)
-                + ' : ' + Number(recommendation.expectedAwayGoals).toFixed(1)
-                + ' · шанс счёта '
-                + Math.round(Number(recommendation.scoreProbability || 0) * 100) + '%');
+        const lambda = 'λ '
+            + Number(recommendation.expectedHomeGoals).toFixed(1)
+            + ' : '
+            + Number(recommendation.expectedAwayGoals).toFixed(1);
+        const tipPct = Math.round(Number(recommendation.scoreProbability || 0) * 100);
+        summaryEl.textContent = lambda + ' · tip ' + tipPct + '% · открыть матрицу';
+    }
 
-        const homeCode = (state.selectedMatch && state.selectedMatch.homeCode) || 'HOME';
-        const awayCode = (state.selectedMatch && state.selectedMatch.awayCode) || 'AWAY';
+    function fairOdds(p) {
+        if (!p || p <= 0) return '—';
+        return (1 / p).toFixed(2);
+    }
+
+    function pctLabel(p) {
+        return Math.round(Number(p || 0) * 100) + '%';
+    }
+
+    function marketChipHtml(label, p) {
+        return '<div class="ai-market-chip">'
+            + '<span class="ai-market-label">' + escapeHtml(label) + '</span>'
+            + '<span class="ai-market-pct">' + pctLabel(p) + '</span>'
+            + '<span class="ai-market-odds">' + fairOdds(p) + '</span>'
+            + '</div>';
+    }
+
+    function openAiModal() {
+        const recommendation = state.currentRecommendation;
+        const match = state.selectedMatch;
+        const modal = $('#ai-modal');
+        if (!recommendation || !modal) return;
+
+        const homeCode = (match && match.homeCode) || 'HOME';
+        const awayCode = (match && match.awayCode) || 'AWAY';
+        $('#ai-modal-title').textContent = homeCode + ' — ' + awayCode;
+        $('#ai-modal-tip-score').textContent =
+            recommendation.recommendedHome + ':' + recommendation.recommendedAway;
+        $('#ai-modal-tip-prob').textContent =
+            'шанс tip ' + pctLabel(recommendation.scoreProbability);
+        $('#ai-lambda-home-code').textContent = homeCode;
+        $('#ai-lambda-away-code').textContent = awayCode;
+        $('#ai-lambda-home').textContent = Number(recommendation.expectedHomeGoals).toFixed(2);
+        $('#ai-lambda-away').textContent = Number(recommendation.expectedAwayGoals).toFixed(2);
+
+        const dist = recommendation.distribution;
+        const marketsSection = $('#ai-modal-markets');
+        const heatmapSection = $('#ai-modal-heatmap-section');
+        const topsSection = $('#ai-modal-tops-section');
+        const matrixNote = $('#ai-modal-matrix-note');
+
+        if (dist && dist.matrix && dist.matrix.length) {
+            if (matrixNote) matrixNote.classList.remove('hidden');
+            marketsSection.classList.remove('hidden');
+            heatmapSection.classList.remove('hidden');
+            topsSection.classList.remove('hidden');
+            $('#ai-markets-1x2').innerHTML =
+                marketChipHtml('1', dist.homeWin)
+                + marketChipHtml('X', dist.draw)
+                + marketChipHtml('2', dist.awayWin);
+            $('#ai-markets-extra').innerHTML =
+                marketChipHtml('BTTS', dist.btts)
+                + marketChipHtml('O1.5', dist.over15)
+                + marketChipHtml('O2.5', dist.over25)
+                + marketChipHtml('O3.5', dist.over35);
+            renderAiHeatmap(dist.matrix, recommendation.recommendedHome, recommendation.recommendedAway);
+            renderAiTopScores(dist.topScores || [], recommendation.recommendedHome, recommendation.recommendedAway);
+        } else {
+            if (matrixNote) matrixNote.classList.add('hidden');
+            marketsSection.classList.add('hidden');
+            heatmapSection.classList.add('hidden');
+            topsSection.classList.add('hidden');
+            $('#ai-heatmap').innerHTML = '';
+            $('#ai-top-scores').innerHTML = '';
+        }
+
         const rows = recommendation.explanationRows || [];
         const notes = recommendation.explanationNotes
             || ((!rows.length && recommendation.explanationLines) ? recommendation.explanationLines : [])
             || [];
-
+        const tableWrap = $('#ai-modal-table-wrap');
+        const notesEl = $('#ai-modal-notes');
         if (rows.length) {
             let html = '<table class="modal-recommendation-table"><thead><tr>'
                 + '<th>Показатель</th>'
@@ -2801,7 +2871,6 @@
         } else {
             tableWrap.innerHTML = '';
         }
-
         notesEl.innerHTML = '';
         notes.forEach((line) => {
             const li = document.createElement('li');
@@ -2809,24 +2878,65 @@
             notesEl.appendChild(li);
         });
 
-        const hasDetails = rows.length > 0 || notes.length > 0;
-        if (!state.recommendationDetailsOpen || !hasDetails) {
-            details.classList.add('hidden');
-        } else {
-            details.classList.remove('hidden');
-        }
+        state.aiModalOpened = true;
+        modal.classList.remove('hidden');
+        tg.BackButton.show();
     }
 
-    function toggleRecommendationDetails() {
-        const details = $('#modal-recommendation-details');
-        const tableWrap = $('#modal-recommendation-table-wrap');
-        const notesEl = $('#modal-recommendation-notes');
-        if (!details) return;
-        const hasTable = tableWrap && tableWrap.children.length;
-        const hasNotes = notesEl && notesEl.children.length;
-        if (!hasTable && !hasNotes) return;
-        state.recommendationDetailsOpen = !state.recommendationDetailsOpen;
-        details.classList.toggle('hidden', !state.recommendationDetailsOpen);
+    function renderAiHeatmap(matrix, modeHome, modeAway) {
+        const el = $('#ai-heatmap');
+        if (!el) return;
+        let maxP = 0;
+        matrix.forEach((row) => {
+            (row || []).forEach((p) => {
+                if (p > maxP) maxP = p;
+            });
+        });
+        let html = '<div class="ai-heatmap-corner"></div>';
+        for (let a = 0; a <= 5; a++) {
+            html += '<div class="ai-heatmap-axis">' + a + '</div>';
+        }
+        for (let h = 0; h < matrix.length && h <= 5; h++) {
+            html += '<div class="ai-heatmap-axis">' + h + '</div>';
+            const row = matrix[h] || [];
+            for (let a = 0; a <= 5; a++) {
+                const p = Number(row[a] || 0);
+                const heat = maxP > 0 ? Math.round((p / maxP) * 70) : 0;
+                const isMode = h === modeHome && a === modeAway;
+                html += '<div class="ai-heatmap-cell' + (isMode ? ' is-mode' : '') + '" style="--heat:' + heat + '">'
+                    + '<span class="ai-heat-score">' + h + ':' + a + '</span>'
+                    + '<span class="ai-heat-pct">' + Math.round(p * 100) + '%</span>'
+                    + '</div>';
+            }
+        }
+        el.innerHTML = html;
+    }
+
+    function renderAiTopScores(tops, modeHome, modeAway) {
+        const el = $('#ai-top-scores');
+        if (!el) return;
+        if (!tops.length) {
+            el.innerHTML = '';
+            return;
+        }
+        el.innerHTML = tops.map((t) => {
+            const isMode = t.home === modeHome && t.away === modeAway;
+            return '<li class="' + (isMode ? 'is-mode' : '') + '">'
+                + '<span class="ai-top-score">' + t.home + ':' + t.away + '</span>'
+                + '<span class="ai-top-pct">' + pctLabel(t.probability) + '</span>'
+                + '</li>';
+        }).join('');
+    }
+
+    function closeAiModal(manageBackButton) {
+        const modal = $('#ai-modal');
+        if (modal) modal.classList.add('hidden');
+        state.aiModalOpened = false;
+        if (manageBackButton !== false && shouldHideBackButton()) {
+            tg.BackButton.hide();
+        } else if (manageBackButton !== false && state.selectedMatch && !$('#score-modal').classList.contains('hidden')) {
+            tg.BackButton.show();
+        }
     }
 
     function renderTeamFormDots(containerSelector, teamCode, items) {
@@ -3442,9 +3552,13 @@
                 refreshBettingRecommendations().catch(() => {});
             });
         }
-        const recommendationToggle = $('#modal-recommendation-toggle');
-        if (recommendationToggle) {
-            recommendationToggle.addEventListener('click', toggleRecommendationDetails);
+        const recommendationOpen = $('#modal-recommendation-open');
+        if (recommendationOpen) {
+            recommendationOpen.addEventListener('click', openAiModal);
+        }
+        const aiModalClose = $('#ai-modal-close');
+        if (aiModalClose) {
+            aiModalClose.addEventListener('click', () => closeAiModal());
         }
         $('#live-modal-close').addEventListener('click', closeLiveMatchModal);
         $('#modal-delete').addEventListener('click', deletePrediction);
@@ -3480,6 +3594,10 @@
         tg.BackButton.onClick(() => {
             if (playerModal && !playerModal.classList.contains('hidden')) {
                 closePlayerModal();
+                return;
+            }
+            if (state.aiModalOpened) {
+                closeAiModal();
                 return;
             }
             if (state.h2hModalOpened) {

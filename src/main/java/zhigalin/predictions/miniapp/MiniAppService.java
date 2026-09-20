@@ -27,6 +27,8 @@ import org.springframework.stereotype.Service;
 import zhigalin.predictions.config.DeploymentInfoService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchRecommendationResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ExplanationStatRow;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ScoreDistributionDto;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.TopScoreDto;
 import zhigalin.predictions.recommender.BettingRecommendationService;
 import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
@@ -361,6 +363,7 @@ public class MiniAppService {
                 .map(r -> new ExplanationStatRow(r.metric(), r.home(), r.away()))
                 .toList();
         List<String> notes = explanation.notes() != null ? explanation.notes() : List.of();
+        ScoreDistributionDto distribution = toDistributionDto(explanation.distribution());
         return new MatchRecommendationResponse(
                 snapshot.recommendedHome(),
                 snapshot.recommendedAway(),
@@ -370,7 +373,30 @@ public class MiniAppService {
                 rows,
                 notes,
                 snapshot.explanationLines(),
-                snapshot.summary()
+                snapshot.summary(),
+                distribution
+        );
+    }
+
+    private static ScoreDistributionDto toDistributionDto(
+            zhigalin.predictions.recommender.model.ScoreDistribution distribution
+    ) {
+        if (distribution == null || !distribution.hasMatrix()) {
+            return null;
+        }
+        List<TopScoreDto> tops = distribution.topScores() == null ? List.of() : distribution.topScores().stream()
+                .map(t -> new TopScoreDto(t.home(), t.away(), t.probability()))
+                .toList();
+        return new ScoreDistributionDto(
+                distribution.matrix(),
+                distribution.homeWin(),
+                distribution.draw(),
+                distribution.awayWin(),
+                distribution.btts(),
+                distribution.over15(),
+                distribution.over25(),
+                distribution.over35(),
+                tops
         );
     }
 
