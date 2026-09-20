@@ -3532,10 +3532,10 @@
         return Math.max(0, Math.min(100, n));
     }
 
-    function renderProfileTeamList(container, rows) {
+    function renderProfileTeamList(container, rows, emptyText) {
         container.innerHTML = '';
         if (!rows || !rows.length) {
-            container.innerHTML = '<li class="empty-state">Пока мало матчей</li>';
+            container.innerHTML = '<li class="empty-state">' + escapeHtml(emptyText || 'Пока пусто') + '</li>';
             return;
         }
         rows.forEach((row) => {
@@ -3544,13 +3544,15 @@
             const logo = row.logo
                 ? '<img class="profile-team-logo" src="' + escapeHtml(row.logo) + '" alt="">'
                 : '<span class="profile-team-logo"></span>';
+            const avg = row.avgPoints;
+            const avgLabel = (avg > 0 ? '+' : '') + String(avg);
             li.innerHTML =
                 logo +
                 '<div class="profile-team-main">' +
                 '<div class="profile-team-code">' + escapeHtml(row.teamCode) + '</div>' +
-                '<div class="profile-team-sub">' + escapeHtml(row.matches + ' матч. · exact ' + row.exactCount) + '</div>' +
+                '<div class="profile-team-sub">' + escapeHtml(row.matches + ' матч.') + '</div>' +
                 '</div>' +
-                '<div class="profile-team-pts">' + escapeHtml(String(row.avgPoints)) + '</div>';
+                '<div class="profile-team-pts">' + escapeHtml(avgLabel) + '</div>';
             li.title = row.hint || '';
             container.appendChild(li);
         });
@@ -3561,7 +3563,7 @@
         $('#profile-week-label').textContent = data.weekLabel || ('Сезон ' + data.season);
         $('#profile-meta').textContent =
             'Сезон ' + (data.seasonPoints ?? 0) + ' очк. · тур ' + (data.currentWeekPoints ?? 0) + ' очк.' +
-            (data.finishedMatches ? ' · ' + data.predictedFinished + '/' + data.finishedMatches + ' с прогнозом' : '');
+            (data.predictedFinished ? ' · ' + data.predictedFinished + ' матч. с прогнозом' : '');
 
         const bonus = $('#profile-bonus-chip');
         if (data.bonusMatchLabel) {
@@ -3604,8 +3606,8 @@
         const hasTeams = (data.bestTeams && data.bestTeams.length) || (data.worstTeams && data.worstTeams.length);
         teamsSection.classList.toggle('hidden', !hasTeams);
         if (hasTeams) {
-            renderProfileTeamList($('#profile-best-teams'), data.bestTeams || []);
-            renderProfileTeamList($('#profile-worst-teams'), data.worstTeams || []);
+            renderProfileTeamList($('#profile-best-teams'), data.bestTeams || [], 'Пока нет клубов со ср. > 0');
+            renderProfileTeamList($('#profile-worst-teams'), data.worstTeams || [], 'Пока мало матчей');
         }
 
         const habitsSection = $('#profile-habits-section');

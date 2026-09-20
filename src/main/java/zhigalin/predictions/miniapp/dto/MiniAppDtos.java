@@ -419,7 +419,6 @@ public final class MiniAppDtos {
             String teamName,
             String logo,
             int matches,
-            int exactCount,
             double avgPoints,
             String hint
     ) {

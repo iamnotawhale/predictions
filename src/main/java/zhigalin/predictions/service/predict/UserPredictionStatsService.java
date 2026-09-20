@@ -21,6 +21,7 @@ import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
+import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.util.DaoUtil;
 
@@ -34,15 +35,18 @@ public class UserPredictionStatsService {
     private static final int TEAM_LIST_LIMIT = 5;
 
     private final PredictionService predictionService;
+    private final MatchService matchService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final TeamLogoCacheService teamLogoCacheService;
 
     public UserPredictionStatsService(
             PredictionService predictionService,
+            MatchService matchService,
             UserWeekBonusMatchService userWeekBonusMatchService,
             TeamLogoCacheService teamLogoCacheService
     ) {
         this.predictionService = predictionService;
+        this.matchService = matchService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.teamLogoCacheService = teamLogoCacheService;
     }
@@ -60,18 +64,27 @@ public class UserPredictionStatsService {
         String bonusLabel = null;
         Integer bonusMatchId = userWeekBonusMatchService.findAssigned(userId, currentWeekId).orElse(null);
         if (bonusMatchId != null) {
-            bonusLabel = all.stream()
-                    .filter(mp -> mp.match().getPublicId() == bonusMatchId)
-                    .findFirst()
-                    .map(mp -> code(mp.match().getHomeTeamId()) + "–" + code(mp.match().getAwayTeamId()))
-                    .orElse("#" + bonusMatchId);
+            Match bonusMatch = matchService.findByPublicId(bonusMatchId);
+            if (bonusMatch != null) {
+                String home = code(bonusMatch.getHomeTeamId());
+                String away = code(bonusMatch.getAwayTeamId());
+                if (home != null && away != null) {
+                    bonusLabel = home + "–" + away;
+                }
+            }
+            if (bonusLabel == null) {
+                bonusLabel = all.stream()
+                        .filter(mp -> mp.match().getPublicId() == bonusMatchId)
+                        .findFirst()
+                        .map(mp -> code(mp.match().getHomeTeamId()) + "–" + code(mp.match().getAwayTeamId()))
+                        .orElse(null);
+            }
         }
 
         int exact = 0;
         int goalDiff = 0;
         int outcome = 0;
         int miss = 0;
-        int noBet = 0;
         int finishedWithPick = 0;
         int pointsSum = 0;
         int pointsN = 0;
@@ -113,48 +126,50 @@ public class UserPredictionStatsService {
                     : PredictionService.computePoints(mode, rh, ra, ph, pa);
 
             Bucket bucket = classify(rh, ra, ph, pa);
+            if (bucket == Bucket.NO_BET) {
+                continue;
+            }
             switch (bucket) {
                 case EXACT -> exact++;
                 case GOAL_DIFF -> goalDiff++;
                 case OUTCOME -> outcome++;
                 case MISS -> miss++;
-                case NO_BET -> noBet++;
+                case NO_BET -> {
+                }
             }
 
-            if (bucket != Bucket.NO_BET) {
-                finishedWithPick++;
-                pointsSum += pts;
-                pointsN++;
-                String line = ph + ":" + pa;
-                scorelineCounts.merge(line, new int[]{1}, (a, b) -> {
-                    a[0] += b[0];
-                    return a;
-                });
-                pickScored++;
-                pickTotalGoalsSum += ph + pa;
-                if (ph > pa) {
-                    pickHome++;
-                } else if (Objects.equals(ph, pa)) {
-                    pickDraw++;
-                } else {
-                    pickAway++;
-                }
-                if (ph > 0 && pa > 0) {
-                    pickBtts++;
-                }
-                if (ph + pa >= 3) {
-                    pickOver25++;
-                }
-                accumulateTeam(byTeam, match.getHomeTeamId(), pts, bucket);
-                accumulateTeam(byTeam, match.getAwayTeamId(), pts, bucket);
+            finishedWithPick++;
+            pointsSum += pts;
+            pointsN++;
+            String line = ph + ":" + pa;
+            scorelineCounts.merge(line, new int[]{1}, (a, b) -> {
+                a[0] += b[0];
+                return a;
+            });
+            pickScored++;
+            pickTotalGoalsSum += ph + pa;
+            if (ph > pa) {
+                pickHome++;
+            } else if (Objects.equals(ph, pa)) {
+                pickDraw++;
+            } else {
+                pickAway++;
             }
+            if (ph > 0 && pa > 0) {
+                pickBtts++;
+            }
+            if (ph + pa >= 3) {
+                pickOver25++;
+            }
+            accumulateTeam(byTeam, match.getHomeTeamId(), pts);
+            accumulateTeam(byTeam, match.getAwayTeamId(), pts);
 
             weekAgg.computeIfAbsent(match.getWeekId(), w -> new int[2]);
             int[] wa = weekAgg.get(match.getWeekId());
             wa[0] += pts;
             wa[1] += 1;
 
-            if (weekBonus && bucket != Bucket.NO_BET) {
+            if (weekBonus) {
                 bonusMatches++;
                 bonusPointsSum += pts;
             }
@@ -182,9 +197,9 @@ public class UserPredictionStatsService {
                         "Средние очки за матч с прогнозом (Англия, с учётом бонуса тура)."
                 ),
                 new ProfileHighlight(
-                        "Без прогноза",
-                        String.valueOf(noBet),
-                        "Завершённые матчи тура без вашего счёта (штраф −1)."
+                        "С прогнозом",
+                        String.valueOf(finishedWithPick),
+                        "Сколько завершённых матчей АПЛ вы уже спрогнозировали."
                 )
         );
 
@@ -196,9 +211,7 @@ public class UserPredictionStatsService {
                 row("Только исход", outcome, scoredOrMiss,
                         "Угадан победитель/ничья, но не разница голов."),
                 row("Промах", miss, scoredOrMiss,
-                        "Исход не угадан."),
-                row("Без прогноза", noBet, exact + goalDiff + outcome + miss + noBet,
-                        "Матч закончился, счёта не было.")
+                        "Исход не угадан.")
         );
 
         String favoriteScore = scorelineCounts.entrySet().stream()
@@ -253,17 +266,24 @@ public class UserPredictionStatsService {
                             team != null ? team.getName() : e.getKey(),
                             team != null ? teamLogoCacheService.pathForTeam(team.getPublicId()) : null,
                             a.n,
-                            a.exact,
                             avg,
-                            "Ср. " + formatNum(avg) + " очк. в " + a.n + " матчах с этой командой"
+                            "Средние очки в " + a.n + " матчах с участием " + e.getKey()
+                                    + ": " + formatNum(avg)
                     );
                 })
-                .sorted(Comparator.comparingDouble(ProfileTeamQualityRow::avgPoints).reversed()
-                        .thenComparingInt(ProfileTeamQualityRow::matches).reversed())
                 .toList();
 
-        List<ProfileTeamQualityRow> bestTeams = ranked.stream().limit(TEAM_LIST_LIMIT).toList();
+        List<ProfileTeamQualityRow> bestTeams = ranked.stream()
+                .filter(r -> r.avgPoints() > 0)
+                .sorted(Comparator.comparingDouble(ProfileTeamQualityRow::avgPoints).reversed()
+                        .thenComparingInt(ProfileTeamQualityRow::matches).reversed())
+                .limit(TEAM_LIST_LIMIT)
+                .toList();
+        java.util.Set<String> bestCodes = bestTeams.stream()
+                .map(ProfileTeamQualityRow::teamCode)
+                .collect(java.util.stream.Collectors.toSet());
         List<ProfileTeamQualityRow> worstTeams = ranked.stream()
+                .filter(r -> !bestCodes.contains(r.teamCode()))
                 .sorted(Comparator.comparingDouble(ProfileTeamQualityRow::avgPoints)
                         .thenComparingInt(ProfileTeamQualityRow::matches).reversed())
                 .limit(TEAM_LIST_LIMIT)
@@ -285,7 +305,7 @@ public class UserPredictionStatsService {
                 currentWeekPoints,
                 bonusMatchId,
                 bonusLabel,
-                finishedWithPick + noBet,
+                finishedWithPick,
                 finishedWithPick,
                 highlights,
                 breakdown,
@@ -333,7 +353,7 @@ public class UserPredictionStatsService {
         return new ProfileWeekHighlight(picked.getKey(), picked.getValue()[0], desc);
     }
 
-    private static void accumulateTeam(Map<String, TeamAgg> byTeam, int teamId, int pts, Bucket bucket) {
+    private static void accumulateTeam(Map<String, TeamAgg> byTeam, int teamId, int pts) {
         String c = code(teamId);
         if (c == null || c.isBlank()) {
             return;
@@ -341,9 +361,6 @@ public class UserPredictionStatsService {
         TeamAgg a = byTeam.computeIfAbsent(c, k -> new TeamAgg());
         a.n++;
         a.pointsSum += pts;
-        if (bucket == Bucket.EXACT) {
-            a.exact++;
-        }
     }
 
     private static String code(int teamId) {
@@ -431,6 +448,5 @@ public class UserPredictionStatsService {
     private static final class TeamAgg {
         int n;
         int pointsSum;
-        int exact;
     }
 }
