@@ -1162,6 +1162,9 @@ html[data-switching] *::after {
     border-radius: 10px;
     margin-bottom: 6px;
     border: 1px solid transparent;
+    padding: 12px 16px;
+    border-bottom: none;
+    gap: 12px;
 }
 
 .team-match-item:last-child {
@@ -1171,6 +1174,7 @@ html[data-switching] *::after {
 .team-match-past {
     background: rgba(255, 255, 255, 0.02);
     border-color: rgba(255, 255, 255, 0.05);
+    padding: 12px 16px;
 }
 
 .team-match-past .list-item-title {
@@ -1181,6 +1185,7 @@ html[data-switching] *::after {
     background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-color: color-mix(in srgb, var(--accent) 32%, transparent);
     box-shadow: inset 3px 0 0 var(--accent);
+    padding: 12px 16px 12px 18px;
 }
 
 .team-match-kick {
