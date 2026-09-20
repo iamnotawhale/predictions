@@ -53,6 +53,7 @@ public class NotificationService {
     private final PredictionService predictionService;
     private final OddsService oddsService;
     private final HtmlImageRenderer htmlImages;
+    private final GoalEventGifRenderer goalGifRenderer;
     private final ApiClient api;
     private final PanicSender panicSender;
     private final ObjectMapper objectMapper;
@@ -70,6 +71,7 @@ public class NotificationService {
                                PredictionService predictionService,
                                OddsService oddsService,
                                HtmlImageRenderer htmlImages,
+                               GoalEventGifRenderer goalGifRenderer,
                                ApiClient api,
                                PanicSender panicSender,
                                ObjectMapper objectMapper,
@@ -81,6 +83,7 @@ public class NotificationService {
         this.predictionService = predictionService;
         this.oddsService = oddsService;
         this.htmlImages = htmlImages;
+        this.goalGifRenderer = goalGifRenderer;
         this.api = api;
         this.panicSender = panicSender;
         this.objectMapper = objectMapper;
@@ -222,6 +225,69 @@ public class NotificationService {
         }
         if (delivered) {
             liveScoreLastTexts.put(key, text);
+            maybeSendGoalEventGif(match, home, away, prevHome, prevAway);
+        }
+    }
+
+    private void maybeSendGoalEventGif(Match match, Team home, Team away, Integer prevHome, Integer prevAway) {
+        if (!goalGifRenderer.isEnabled()) {
+            return;
+        }
+        int ph = prevHome == null ? 0 : prevHome;
+        int pa = prevAway == null ? 0 : prevAway;
+        int nh = match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore();
+        int na = match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore();
+        int prevTotal = ph + pa;
+        int nextTotal = nh + na;
+        if (prevTotal == nextTotal) {
+            return;
+        }
+        boolean disallowed = nextTotal < prevTotal;
+        String subtitle = disallowed ? "VAR  ·  offside" : resolveLatestScorerLabel(match, nextTotal);
+        String path = null;
+        try {
+            path = goalGifRenderer.renderToTempFile(new GoalEventGifRenderer.Request(
+                    home.getPublicId(),
+                    away.getPublicId(),
+                    home.getCode(),
+                    away.getCode(),
+                    ph, pa, nh, na,
+                    subtitle,
+                    disallowed
+            ));
+            if (path == null) {
+                return;
+            }
+            String caption = home.getCode() + " " + nh + ":" + na + " " + away.getCode();
+            api.sendAnimation(defaultChatId, caption, path, null);
+        } catch (Exception e) {
+            log.warn("Goal GIF send failed: {}", e.getMessage());
+        } finally {
+            if (path != null) {
+                try {
+                    java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(path));
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    private String resolveLatestScorerLabel(Match match, int expectedTotal) {
+        if (expectedTotal <= 0 || match.getEspnId() == null || match.getEspnId().isBlank()) {
+            return null;
+        }
+        try {
+            List<GoalScorer> scorers = api.listGoalScorers(match.getEspnId(), expectedTotal);
+            if (scorers.isEmpty()) {
+                return null;
+            }
+            GoalScorer last = scorers.get(scorers.size() - 1);
+            if (last.minute() == null || last.minute().isBlank()) {
+                return last.scorer();
+            }
+            return last.scorer() + "  " + last.minute();
+        } catch (Exception e) {
+            return null;
         }
     }
 

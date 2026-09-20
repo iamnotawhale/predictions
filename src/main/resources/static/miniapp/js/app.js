@@ -1114,17 +1114,18 @@
         if (maxY <= minY) {
             maxY = minY + 1;
         }
-        const yRange = maxY - minY;
+        const tickStep = 5;
+        const axisMin = Math.floor(minY / tickStep) * tickStep;
+        const axisMax = Math.max(axisMin + tickStep, Math.ceil(maxY / tickStep) * tickStep);
+        const yRange = axisMax - axisMin;
 
         const weekCount = data.weeks.length;
         const xAt = (i) => pad.left + (weekCount <= 1 ? plotW / 2 : (i / (weekCount - 1)) * plotW);
-        const yAt = (v) => pad.top + plotH - ((v - minY) / yRange) * plotH;
+        const yAt = (v) => pad.top + plotH - ((v - axisMin) / yRange) * plotH;
 
-        const tickMin = Math.floor(minY);
-        const tickMax = Math.ceil(maxY);
         ctx.strokeStyle = 'rgba(255,255,255,0.1)';
         ctx.lineWidth = 1;
-        for (let tick = tickMin; tick <= tickMax; tick++) {
+        for (let tick = axisMin; tick <= axisMax; tick += tickStep) {
             const y = yAt(tick);
             ctx.beginPath();
             ctx.moveTo(pad.left, y);

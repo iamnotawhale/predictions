@@ -35,6 +35,8 @@ public class ApiClient {
     private String urlMessage;
     @Value("${bot.urlPhoto}")
     private String urlPhoto;
+    @Value("${bot.urlAnimation}")
+    private String urlAnimation;
     @Value("${bot.urlEditMessage}")
     private String urlEditMessage;
 
@@ -127,6 +129,30 @@ public class ApiClient {
             return extractMessageId(resp.getBody());
         } catch (Exception e) {
             log.error("sendPhoto error: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public Integer sendAnimation(String chatId, String caption, String filePath, String replyMarkupJson) {
+        try {
+            caption = TelegramMarkdownV2.escape(caption);
+            File file = new File(filePath);
+            MultipartBody body = Unirest.post(urlAnimation)
+                    .header("accept", "application/json")
+                    .queryString("chat_id", chatId)
+                    .field("animation", file)
+                    .field("caption", caption != null ? caption : "")
+                    .field("parse_mode", "MarkdownV2");
+            if (replyMarkupJson != null) {
+                body = body.field("reply_markup", replyMarkupJson);
+            }
+            HttpResponse<String> resp = body.asString();
+            if (!checkOk("sendAnimation", resp)) {
+                return null;
+            }
+            return extractMessageId(resp.getBody());
+        } catch (Exception e) {
+            log.error("sendAnimation error: {}", e.getMessage());
             return null;
         }
     }
