@@ -580,22 +580,41 @@
         }[c]));
     }
 
-    function renderTeamMatchItem(m, onClick) {
-        const formClass = teamFormDotClass(m);
+    function renderTeamMatchItem(m, onClick, kind) {
+        const isNext = kind === 'next';
+        const formClass = isNext ? 'form-dot-neutral' : teamFormDotClass(m);
         const li = document.createElement('li');
-        li.className = 'list-item';
+        li.className = 'list-item team-match-item ' + (isNext ? 'team-match-next' : 'team-match-past');
+        const datePart = kickoffDateLabel(m.kickoff);
+        const sub = isNext
+            ? [datePart, (m.weekId != null ? (m.weekId + ' тур') : '')].filter(Boolean).join(' · ')
+            : [(m.kickoff || ''), (m.weekId != null ? (m.weekId + ' тур') : '')].filter(Boolean).join(' · ');
+        const metaMain = isNext
+            ? '<div class="team-match-kick">' + escapeHtml(kickoffTimeLabel(m.kickoff)) + '</div>'
+            : '<span class="form-dot ' + formClass + '" aria-hidden="true"></span>'
+                + '<div class="score-pill">' + (m.homeScore != null ? (m.homeScore + ' : ' + m.awayScore) : '—') + '</div>';
         li.innerHTML =
             '<div class="list-item-main">' +
-            '<div class="list-item-title">' + m.homeCode + ' — ' + m.awayCode + '</div>' +
-            '<div class="list-item-sub">' + (m.kickoff || '') + ' · ' + (m.weekId || '') + ' тур</div>' +
+            '<div class="list-item-title">' + escapeHtml(m.homeCode || '') + ' — ' + escapeHtml(m.awayCode || '') + '</div>' +
+            '<div class="list-item-sub">' + escapeHtml(sub) + '</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
-            '<span class="form-dot ' + formClass + '" aria-hidden="true"></span>' +
-            '<div class="score-pill">' + (m.homeScore != null ? (m.homeScore + ' : ' + m.awayScore) : '—') + '</div>' +
-            '<span class="badge">' + (m.status || '') + '</span>' +
+            metaMain +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
+    }
+
+    function kickoffTimeLabel(kickoff) {
+        if (!kickoff) return '—';
+        const m = String(kickoff).match(/(\d{1,2}:\d{2})\s*$/);
+        return m ? m[1] : kickoff;
+    }
+
+    function kickoffDateLabel(kickoff) {
+        if (!kickoff) return '';
+        const m = String(kickoff).match(/^(\d{1,2}\.\d{1,2})/);
+        return m ? m[1] : '';
     }
 
     function teamFormDotClass(match) {
@@ -3216,8 +3235,8 @@
             $('#team-profile-meta').textContent = metaParts.join(' · ') || '';
             renderTeamFormDots('#team-profile-form', data.teamCode || teamCode, data.form || []);
             renderTeamLeaders(data.leaders || []);
-            fillTeamMatchesList('#team-last-list', data.lastMatches || []);
-            fillTeamMatchesList('#team-next-list', data.upcomingMatches || []);
+            fillTeamMatchesList('#team-last-list', data.lastMatches || [], 'past');
+            fillTeamMatchesList('#team-next-list', data.upcomingMatches || [], 'next');
         } catch (e) {
             $('#team-profile-meta').textContent = e.message || 'Ошибка';
             $('#team-last-list').innerHTML = '<li class="empty-state">' + (e.message || 'Ошибка') + '</li>';
@@ -3258,14 +3277,14 @@
         wrap.innerHTML = html;
     }
 
-    function fillTeamMatchesList(selector, matches) {
+    function fillTeamMatchesList(selector, matches, kind) {
         const list = $(selector);
         list.innerHTML = '';
         if (!matches.length) {
             list.innerHTML = '<li class="empty-state">Нет матчей</li>';
             return;
         }
-        matches.forEach((m) => list.appendChild(renderTeamMatchItem(m, openH2hModalForMatch)));
+        matches.forEach((m) => list.appendChild(renderTeamMatchItem(m, openH2hModalForMatch, kind)));
     }
 
     function openH2hModalForMatch(match) {
