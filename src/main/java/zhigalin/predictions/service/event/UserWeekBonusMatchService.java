@@ -51,15 +51,25 @@ public class UserWeekBonusMatchService {
     }
 
     /**
-     * Ensure every user has a random unfinished (or any) match for the week.
-     * Stable once assigned. No-op before {@link #MIN_WEEK_ID}.
+     * Drop rows for weeks after the current one (created by old lazy assign when browsing).
+     * Does not draw new bonuses — that happens only in {@link #assignForNewCurrentWeek}.
      */
-    public void ensureAssignedForWeek(int weekId) {
+    public void purgePrematureFutureWeeks(int currentWeekId) {
+        dao.deleteBeforeWeek(MIN_WEEK_ID);
+        dao.deleteAfterWeek(currentWeekId);
+    }
+
+    /**
+     * Draw a personal bonus match for every user for the week that just became current.
+     * Call only from current-week rollover — does not assign for arbitrary browsed weeks.
+     * Drops premature rows for weeks after {@code weekId}. Stable once assigned for a user/week.
+     * No-op before {@link #MIN_WEEK_ID}.
+     */
+    public void assignForNewCurrentWeek(int weekId) {
+        purgePrematureFutureWeeks(weekId);
         if (!isEligibleWeek(weekId)) {
-            dao.deleteBeforeWeek(MIN_WEEK_ID);
             return;
         }
-        dao.deleteBeforeWeek(MIN_WEEK_ID);
         List<Match> matches = matchService.findAllByWeekId(weekId);
         if (matches == null || matches.isEmpty()) {
             return;
@@ -79,17 +89,5 @@ public class UserWeekBonusMatchService {
             Match pick = pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
             dao.insert(user.getId(), weekId, pick.getPublicId());
         }
-    }
-
-    public Integer ensureAssignedForUser(int userId, int weekId) {
-        if (!isEligibleWeek(weekId)) {
-            return null;
-        }
-        Optional<Integer> existing = dao.findMatchPublicId(userId, weekId);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        ensureAssignedForWeek(weekId);
-        return dao.findMatchPublicId(userId, weekId).orElse(null);
     }
 }
