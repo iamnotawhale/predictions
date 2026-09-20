@@ -167,6 +167,7 @@ public final class MiniAppDtos {
             double draw,
             double awayWin,
             double btts,
+            double over05,
             double over15,
             double over25,
             double over35,

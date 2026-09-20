@@ -384,20 +384,36 @@ public class MiniAppService {
         if (distribution == null || !distribution.hasMatrix()) {
             return null;
         }
-        List<TopScoreDto> tops = distribution.topScores() == null ? List.of() : distribution.topScores().stream()
+        // Recompute markets from matrix so older explanation_json without over05 stays correct.
+        double[][] raw = toRawMatrix(distribution.matrix());
+        var fresh = zhigalin.predictions.recommender.model.ScoreDistribution.fromNormalizedMatrix(raw);
+        List<TopScoreDto> tops = fresh.topScores() == null ? List.of() : fresh.topScores().stream()
                 .map(t -> new TopScoreDto(t.home(), t.away(), t.probability()))
                 .toList();
         return new ScoreDistributionDto(
-                distribution.matrix(),
-                distribution.homeWin(),
-                distribution.draw(),
-                distribution.awayWin(),
-                distribution.btts(),
-                distribution.over15(),
-                distribution.over25(),
-                distribution.over35(),
+                fresh.matrix(),
+                fresh.homeWin(),
+                fresh.draw(),
+                fresh.awayWin(),
+                fresh.btts(),
+                fresh.over05(),
+                fresh.over15(),
+                fresh.over25(),
+                fresh.over35(),
                 tops
         );
+    }
+
+    private static double[][] toRawMatrix(List<List<Double>> matrix) {
+        double[][] raw = new double[matrix.size()][];
+        for (int h = 0; h < matrix.size(); h++) {
+            List<Double> row = matrix.get(h);
+            raw[h] = new double[row.size()];
+            for (int a = 0; a < row.size(); a++) {
+                raw[h][a] = row.get(a) != null ? row.get(a) : 0.0;
+            }
+        }
+        return raw;
     }
 
     public LiveMatchDetailsResponse liveMatchDetails(String telegramId, String homeCode, String awayCode) {

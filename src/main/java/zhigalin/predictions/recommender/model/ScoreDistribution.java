@@ -6,6 +6,7 @@ import java.util.List;
 
 /**
  * Normalized 0–5 score probability grid plus derived markets (calculator-style).
+ * Overs use bookmaker convention: ТБ n.5 = total goals &gt; n.5 (i.e. ≥ n+1).
  */
 public record ScoreDistribution(
         List<List<Double>> matrix,
@@ -13,6 +14,7 @@ public record ScoreDistribution(
         double draw,
         double awayWin,
         double btts,
+        double over05,
         double over15,
         double over25,
         double over35,
@@ -42,6 +44,7 @@ public record ScoreDistribution(
         double draw = 0;
         double awayWin = 0;
         double btts = 0;
+        double over05 = 0;
         double over15 = 0;
         double over25 = 0;
         double over35 = 0;
@@ -63,6 +66,9 @@ public record ScoreDistribution(
                     btts += p;
                 }
                 int goals = h + a;
+                if (goals > 0) {
+                    over05 += p;
+                }
                 if (goals > 1) {
                     over15 += p;
                 }
@@ -86,6 +92,7 @@ public record ScoreDistribution(
                 draw,
                 awayWin,
                 btts,
+                over05,
                 over15,
                 over25,
                 over35,
@@ -94,7 +101,7 @@ public record ScoreDistribution(
     }
 
     public static ScoreDistribution empty() {
-        return new ScoreDistribution(List.of(), 0, 0, 0, 0, 0, 0, 0, List.of());
+        return new ScoreDistribution(List.of(), 0, 0, 0, 0, 0, 0, 0, 0, List.of());
     }
 
     public boolean hasMatrix() {

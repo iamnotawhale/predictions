@@ -272,7 +272,7 @@
 | GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
 | GET | `/weeks/{weekId}/review` | **Разбор тура** |
 | GET | `/match/{homeCode}/{awayCode}` | Матч + odds + canPredict |
-| GET | `/match/.../insights` | Форма (`FormItem.home`) + новости + `injuries` (FPL/ESPN, kind без дат) + `homeLineup`/`awayLineup` (ESPN summary → fallback AF, если есть) + `recommendation` |
+| GET | `/match/.../insights` | Форма (`FormItem.home`) + новости + `injuries` (FPL/ESPN, kind без дат) + `homeLineup`/`awayLineup` (ESPN summary → fallback AF, если есть) + `recommendation` (+ `distribution`: матрица, 1/X/2, ОЗ, ТБ 0.5–3.5) |
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |

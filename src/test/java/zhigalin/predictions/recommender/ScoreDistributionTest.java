@@ -41,6 +41,10 @@ class ScoreDistributionTest {
         assertEquals(6, dist.topScores().size());
         assertEquals(1, dist.topScores().getFirst().home());
         assertEquals(1, dist.topScores().getFirst().away());
+        assertEquals(1.0 - matrix[0][0], dist.over05(), 1e-12);
+        assertTrue(dist.over05() >= dist.over15());
+        assertTrue(dist.over15() >= dist.over25());
+        assertTrue(dist.over25() >= dist.over35());
     }
 
     @Test
