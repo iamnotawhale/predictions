@@ -22,7 +22,7 @@ import zhigalin.predictions.util.EspnTeamLogos;
 public class EspnTeamRosterService {
     private static final Logger log = LoggerFactory.getLogger("server");
     private static final String ROSTER_URL =
-            "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams/%d/roster";
+            "https://site.web.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams/%d/roster";
     private static final long TTL_MS = 6 * 60 * 60 * 1000L;
     private static final long FAILURE_TTL_MS = 30 * 60 * 1000L;
 
@@ -108,7 +108,7 @@ public class EspnTeamRosterService {
         try {
             HttpResponse<String> resp = Unirest.get(ROSTER_URL.formatted(espnTeamId))
                     .header("Accept", "application/json")
-                    .header("User-Agent", "Mozilla/5.0")
+                    .header("User-Agent", "predictions-bot/1.0")
                     .connectTimeout(3_000)
                     .socketTimeout(6_000)
                     .asString();

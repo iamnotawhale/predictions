@@ -47,7 +47,7 @@ public class ApiClient {
     private static final String HOST = "v3.football.api-sports.io";
     private static final String BASE_URL = "https://v3.football.api-sports.io/fixtures/";
     private static final String LINEUPS = "lineups";
-    private static final String ESPN_SUMMARY_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/";
+    private static final String ESPN_SUMMARY_BASE = "https://site.web.api.espn.com/apis/site/v2/sports/soccer/";
     private static final String ESPN_SUMMARY_DEFAULT_LEAGUE = "eng.1";
     private static final long ESPN_SUMMARY_TTL_MS = 8_000L;
 
@@ -282,6 +282,8 @@ public class ApiClient {
         try {
             String url = ESPN_SUMMARY_BASE + league + "/summary";
             HttpResponse<String> response = Unirest.get(url)
+                    .header("Accept", "application/json")
+                    .header("User-Agent", "predictions-bot/1.0")
                     .queryString("event", espnEventId)
                     .asString();
             if (response.getStatus() != 200 || response.getBody() == null || response.getBody().isBlank()) {
