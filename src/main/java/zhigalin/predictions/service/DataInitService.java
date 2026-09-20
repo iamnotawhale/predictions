@@ -286,7 +286,10 @@ public class DataInitService {
                     matchService.update(match);
                 }
                 bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
-                if (nextTotal != prevTotal) {
+                if (becameFinished) {
+                    // Drop live GIF/text; FT result card arrives via LISTEN→sendFullTime.
+                    notificationService.removeLiveScoreNoise(match);
+                } else if (nextTotal != prevTotal) {
                     notificationService.sendLiveScoreUpdate(match, prevHome, prevAway);
                 }
                 headToHeadService.saveFromFinishedMatch(match);
