@@ -407,4 +407,51 @@ public final class MiniAppDtos {
             List<WeekReviewItem> items
     ) {
     }
+
+    public record ProfileHighlight(String label, String value, String hint) {
+    }
+
+    public record ProfileBreakdownRow(String label, int count, String percent, String description) {
+    }
+
+    public record ProfileTeamQualityRow(
+            String teamCode,
+            String teamName,
+            String logo,
+            int matches,
+            int exactCount,
+            double avgPoints,
+            String hint
+    ) {
+    }
+
+    public record ProfileHabitRow(String label, String value, String description) {
+    }
+
+    public record ProfileWeekHighlight(int weekId, int points, String description) {
+    }
+
+    public record ProfileStatsResponse(
+            String login,
+            String weekLabel,
+            int season,
+            int currentWeekId,
+            int seasonPoints,
+            int currentWeekPoints,
+            Integer bonusMatchPublicId,
+            String bonusMatchLabel,
+            int finishedMatches,
+            int predictedFinished,
+            List<ProfileHighlight> highlights,
+            List<ProfileBreakdownRow> breakdown,
+            List<ProfileTeamQualityRow> bestTeams,
+            List<ProfileTeamQualityRow> worstTeams,
+            List<ProfileHabitRow> habits,
+            ProfileWeekHighlight bestWeek,
+            ProfileWeekHighlight worstWeek,
+            int bonusMatchCount,
+            Double bonusAvgPoints,
+            String bonusHint
+    ) {
+    }
 }

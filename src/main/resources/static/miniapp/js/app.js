@@ -106,6 +106,8 @@
         myWeekOpened: false,
         myCupsOpened: false,
         myCupCompetition: null,
+        myPredictionsNavOpened: false,
+        profileStatsLoaded: false,
         leaderboardMode: '',
         chartLoaded: false,
         chartData: null,
@@ -2760,7 +2762,8 @@
             && !state.predictWeekOpened
             && !state.predictCupsOpened
             && !state.myWeekOpened
-            && !state.myCupsOpened;
+            && !state.myCupsOpened
+            && !state.myPredictionsNavOpened;
     }
 
     async function loadScoreModalH2h(match) {
@@ -3478,9 +3481,193 @@
             if (name === 'stats' && !state.chartLoaded) {
                 await loadPointsChart();
             }
+            if (name === 'my') {
+                resetProfileHomeView(false);
+                await loadProfileStats();
+            }
         } catch (e) {
             showToast(e.message, 'error');
         }
+    }
+
+    function resetProfileHomeView(showBack) {
+        const home = $('#profile-home');
+        if (home) home.classList.remove('hidden');
+        $('#my-weeks').classList.add('hidden');
+        $('#my-cups').classList.add('hidden');
+        $('#my-predictions').classList.add('hidden');
+        const review = $('#my-review-card');
+        if (review) review.classList.add('hidden');
+        state.myWeekOpened = false;
+        state.myCupsOpened = false;
+        state.myCupCompetition = null;
+        state.myPredictionsNavOpened = false;
+        if (!showBack) {
+            tg.BackButton.hide();
+        }
+    }
+
+    async function openMyPredictionsNav() {
+        const home = $('#profile-home');
+        if (home) home.classList.add('hidden');
+        $('#my-predictions').classList.add('hidden');
+        $('#my-cups').classList.add('hidden');
+        $('#my-weeks').classList.remove('hidden');
+        state.myPredictionsNavOpened = true;
+        state.myWeekOpened = false;
+        state.myCupsOpened = false;
+        state.myCupCompetition = null;
+        await loadWeeksGrid('#my-weeks', showMyWeek);
+        tg.BackButton.show();
+    }
+
+    function closeMyPredictionsNav() {
+        resetProfileHomeView(false);
+    }
+
+    function parsePercentWidth(percentStr) {
+        if (!percentStr) return 0;
+        const n = parseFloat(String(percentStr).replace('%', '').replace(',', '.'));
+        if (!Number.isFinite(n)) return 0;
+        return Math.max(0, Math.min(100, n));
+    }
+
+    function renderProfileTeamList(container, rows) {
+        container.innerHTML = '';
+        if (!rows || !rows.length) {
+            container.innerHTML = '<li class="empty-state">Пока мало матчей</li>';
+            return;
+        }
+        rows.forEach((row) => {
+            const li = document.createElement('li');
+            li.className = 'profile-team-row';
+            const logo = row.logo
+                ? '<img class="profile-team-logo" src="' + escapeHtml(row.logo) + '" alt="">'
+                : '<span class="profile-team-logo"></span>';
+            li.innerHTML =
+                logo +
+                '<div class="profile-team-main">' +
+                '<div class="profile-team-code">' + escapeHtml(row.teamCode) + '</div>' +
+                '<div class="profile-team-sub">' + escapeHtml(row.matches + ' матч. · exact ' + row.exactCount) + '</div>' +
+                '</div>' +
+                '<div class="profile-team-pts">' + escapeHtml(String(row.avgPoints)) + '</div>';
+            li.title = row.hint || '';
+            container.appendChild(li);
+        });
+    }
+
+    function renderProfileStats(data) {
+        $('#profile-login').textContent = data.login || 'Профиль';
+        $('#profile-week-label').textContent = data.weekLabel || ('Сезон ' + data.season);
+        $('#profile-meta').textContent =
+            'Сезон ' + (data.seasonPoints ?? 0) + ' очк. · тур ' + (data.currentWeekPoints ?? 0) + ' очк.' +
+            (data.finishedMatches ? ' · ' + data.predictedFinished + '/' + data.finishedMatches + ' с прогнозом' : '');
+
+        const bonus = $('#profile-bonus-chip');
+        if (data.bonusMatchLabel) {
+            bonus.classList.remove('hidden');
+            bonus.innerHTML = 'Бонус этого тура: <strong>' + escapeHtml(data.bonusMatchLabel) + '</strong>';
+        } else {
+            bonus.classList.add('hidden');
+            bonus.textContent = '';
+        }
+
+        const highlights = $('#profile-highlights');
+        highlights.innerHTML = '';
+        (data.highlights || []).forEach((h) => {
+            const cell = document.createElement('div');
+            cell.className = 'team-stat-cell';
+            cell.title = h.hint || '';
+            cell.innerHTML =
+                '<span class="team-stat-label">' + escapeHtml(h.label) + '</span>' +
+                '<span class="team-stat-value">' + escapeHtml(h.value) + '</span>';
+            highlights.appendChild(cell);
+        });
+
+        const breakdown = $('#profile-breakdown');
+        breakdown.innerHTML = '';
+        (data.breakdown || []).forEach((row) => {
+            const el = document.createElement('div');
+            el.className = 'profile-breakdown-row';
+            const width = parsePercentWidth(row.percent);
+            el.innerHTML =
+                '<div class="profile-breakdown-top">' +
+                '<span class="profile-breakdown-label">' + escapeHtml(row.label) + '</span>' +
+                '<span class="profile-breakdown-value">' + escapeHtml(row.count + ' · ' + row.percent) + '</span>' +
+                '</div>' +
+                '<div class="profile-breakdown-bar"><span style="width:' + width + '%"></span></div>' +
+                '<p class="profile-breakdown-desc">' + escapeHtml(row.description || '') + '</p>';
+            breakdown.appendChild(el);
+        });
+
+        const teamsSection = $('#profile-teams-section');
+        const hasTeams = (data.bestTeams && data.bestTeams.length) || (data.worstTeams && data.worstTeams.length);
+        teamsSection.classList.toggle('hidden', !hasTeams);
+        if (hasTeams) {
+            renderProfileTeamList($('#profile-best-teams'), data.bestTeams || []);
+            renderProfileTeamList($('#profile-worst-teams'), data.worstTeams || []);
+        }
+
+        const habitsSection = $('#profile-habits-section');
+        const habits = $('#profile-habits');
+        habits.innerHTML = '';
+        const habitRows = data.habits || [];
+        habitsSection.classList.toggle('hidden', !habitRows.length);
+        habitRows.forEach((h) => {
+            const el = document.createElement('div');
+            el.className = 'profile-habit-row';
+            el.innerHTML =
+                '<div class="profile-habit-top">' +
+                '<span class="profile-habit-label">' + escapeHtml(h.label) + '</span>' +
+                '<span class="profile-habit-value">' + escapeHtml(h.value) + '</span>' +
+                '</div>' +
+                '<p class="profile-habit-desc">' + escapeHtml(h.description || '') + '</p>';
+            habits.appendChild(el);
+        });
+
+        const weeksSection = $('#profile-weeks-section');
+        const weeks = $('#profile-weeks');
+        weeks.innerHTML = '';
+        const weekBits = [];
+        if (data.bestWeek) {
+            weekBits.push({
+                label: 'Лучший тур',
+                value: data.bestWeek.weekId + ' · ' + data.bestWeek.points + ' очк.',
+                description: data.bestWeek.description
+            });
+        }
+        if (data.worstWeek && (!data.bestWeek || data.worstWeek.weekId !== data.bestWeek.weekId || data.worstWeek.points !== data.bestWeek.points)) {
+            weekBits.push({
+                label: 'Слабый тур',
+                value: data.worstWeek.weekId + ' · ' + data.worstWeek.points + ' очк.',
+                description: data.worstWeek.description
+            });
+        }
+        weekBits.push({
+            label: 'Бонус-матчи',
+            value: data.bonusMatchCount
+                ? (data.bonusMatchCount + (data.bonusAvgPoints != null ? ' · ср. ' + data.bonusAvgPoints : ''))
+                : 'пока нет',
+            description: data.bonusHint || ''
+        });
+        weeksSection.classList.remove('hidden');
+        weekBits.forEach((h) => {
+            const el = document.createElement('div');
+            el.className = 'profile-habit-row';
+            el.innerHTML =
+                '<div class="profile-habit-top">' +
+                '<span class="profile-habit-label">' + escapeHtml(h.label) + '</span>' +
+                '<span class="profile-habit-value">' + escapeHtml(String(h.value)) + '</span>' +
+                '</div>' +
+                '<p class="profile-habit-desc">' + escapeHtml(h.description || '') + '</p>';
+            weeks.appendChild(el);
+        });
+    }
+
+    async function loadProfileStats() {
+        const data = await api('/profile/stats');
+        renderProfileStats(data);
+        state.profileStatsLoaded = true;
     }
 
     function renderCupCompetitionsGrid(containerId, cups, onSelect, onBack) {
@@ -3569,6 +3756,8 @@
 
     async function showMyCups(preloaded) {
         const cups = preloaded || await api('/cups');
+        const home = $('#profile-home');
+        if (home) home.classList.add('hidden');
         $('#my-weeks').classList.add('hidden');
         $('#my-predictions').classList.add('hidden');
         const grid = $('#my-cups');
@@ -3577,9 +3766,9 @@
         state.myCupsOpened = true;
         state.myWeekOpened = false;
         state.myCupCompetition = null;
+        state.myPredictionsNavOpened = true;
         renderCupCompetitionsGrid('#my-cups', cups, showMyCupCompetition, () => {
             closeMyCupNav();
-            tg.BackButton.hide();
         });
         tg.BackButton.show();
     }
@@ -3647,6 +3836,8 @@
         state.myWeekOpened = false;
         state.myCupsOpened = false;
         state.myCupCompetition = null;
+        state.myPredictionsNavOpened = true;
+        tg.BackButton.show();
     }
 
     function showPredictWeek(weekId) {
@@ -3660,11 +3851,15 @@
     }
 
     function showMyWeek(weekId) {
+        const home = $('#profile-home');
+        if (home) home.classList.add('hidden');
         $('#my-weeks').classList.add('hidden');
         const block = $('#my-predictions');
         block.classList.remove('hidden');
         state.myWeekOpened = true;
+        state.myPredictionsNavOpened = true;
         block.dataset.weekId = weekId;
+        delete block.dataset.competition;
         loadMyPredictions(weekId);
         tg.BackButton.show();
     }
@@ -3725,16 +3920,26 @@
             }
             if (state.myCupsOpened) {
                 closeMyCupNav();
-                tg.BackButton.hide();
                 return;
             }
-            $('#my-predictions').classList.add('hidden');
-            $('#my-weeks').classList.remove('hidden');
-            const review = $('#my-review-card');
-            if (review) review.classList.add('hidden');
-            state.myWeekOpened = false;
-            tg.BackButton.hide();
+            if (state.myWeekOpened) {
+                $('#my-predictions').classList.add('hidden');
+                $('#my-weeks').classList.remove('hidden');
+                const review = $('#my-review-card');
+                if (review) review.classList.add('hidden');
+                state.myWeekOpened = false;
+                tg.BackButton.show();
+                return;
+            }
+            closeMyPredictionsNav();
         });
+
+        const profileOpenPredictions = $('#profile-open-predictions');
+        if (profileOpenPredictions) {
+            profileOpenPredictions.addEventListener('click', () => {
+                openMyPredictionsNav().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
 
         $('#modal-close').addEventListener('click', closeScoreModal);
         const recommenderToggle = $('#betting-recommender-toggle');
@@ -3846,14 +4051,19 @@
             }
             if (state.myCupsOpened) {
                 closeMyCupNav();
-                tg.BackButton.hide();
                 return;
             }
             if (state.myWeekOpened) {
                 $('#my-predictions').classList.add('hidden');
                 $('#my-weeks').classList.remove('hidden');
+                const review = $('#my-review-card');
+                if (review) review.classList.add('hidden');
                 state.myWeekOpened = false;
-                tg.BackButton.hide();
+                tg.BackButton.show();
+                return;
+            }
+            if (state.myPredictionsNavOpened) {
+                closeMyPredictionsNav();
                 return;
             }
             tg.BackButton.hide();

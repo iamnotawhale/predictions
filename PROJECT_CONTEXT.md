@@ -265,6 +265,7 @@
 | Method | Path | Назначение |
 |--------|------|------------|
 | GET | `/profile` | Профиль, сезон, тур, `bettingRecommenderEnabled`, `admin`; для admin — ещё `dnsHint` |
+| GET | `/profile/stats` | Статистика прогнозов пользователя (exact%/исход, по командам, привычки, лучший тур; без сравнений с другими) |
 | POST | `/profile/betting-recommender` | Вкл/выкл рекомендатор `{ "enabled": true/false }` |
 | POST | `/admin/betting-recommender/refresh` | **Только `ADMIN_CHAT_ID`**: форс-пересчёт FootyStats + SoccerSTATS + рекомендаций (`?weekId=` опционально, иначе текущий тур; ~30–45с) |
 | GET | `/weeks` | Список туров |
@@ -333,7 +334,7 @@
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
 - Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
 - В `#score-modal` компактная кнопка `#modal-recommendation-section` (tip + λ + %); детали — в отдельной `#ai-modal` (heatmap 0–5, 1X2/BTTS/OU, топ-счета, таблица explanation). Только при включённом AI toggle. Distribution лежит в `explanation_json` (`ScoreDistribution`); после деплоя нужен refresh тура, чтобы матрица появилась у старых tips.
-- На **«Мои» / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
+- На **«Профиль» → Мои прогнозы / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
 - Картинка FT: `HtmlImageRenderer` RESULT (EPL + кубки с разными accent); строка `AI h:a` для EPL, если freeze есть.
 - Mini App кубки: цвета турниров на карточках; категория «Кубки» (карточки турниров, вся FT-история + матчи с сегодня и будущие); live-детали/составы/комментарии через ESPN summary по league slug; live Общий зачёт += provisional cup.
 - Утреннее уведомление «Сегодняшние матчи» / `todaypub`: HTML-карточка (EPL + кубки); отправляется и если в день только кубки.
@@ -367,7 +368,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - **Главная** (`screen-stats`): live-карточка, зачёт (Общий / `N тур`), график очков по неделям (EPL + кубки в снимке недели), таблица АПЛ, версия miniapp; в шапке ползунок **AI** (рекомендатор).
 - **Сегодня** (`screen-today`): матчи дня, счёт/старт, бейджи прогнозов.
 - **Прогноз** (`screen-predict`): выбор тура → список матчей → модалка прогноза.
-- **Мои** (`screen-my`): прогнозы тура + **Разбор тура**.
+- **Профиль** (`screen-my`): hero как у клуба + статистика сезона (`GET /profile/stats`, `UserPredictionStatsService`); кнопка **Мои прогнозы** → сетка туров / кубки / разбор как раньше.
 
 **Модалки:**
 - `#score-modal` — прогноз, odds 1/X/2, кнопка AI-рекомендации (если AI вкл.) → `#ai-modal`, кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
@@ -411,7 +412,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - Индивидуальный тотал команды: ESPN DraftKings propBets `Team Total Goals` (основная линия — самая «ровная» пара котировок, обычно 1.5).
 - В модалке прогноза показываются 1X2 из API матча.
 
-### Разбор тура («Мои»)
+### Разбор тура («Профиль» → Мои прогнозы)
 - `GET /weeks/{weekId}/review` → список матчей: факт, прогноз, очки, kickoff AI-счёт (`recommendedHome/Away`); заголовок «Разбор тура · N очк.».
 - Очки суммируются по всем матчам тура (включая `-1`), логика как в leaderboard.
 

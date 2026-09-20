@@ -32,6 +32,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileStatsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.StandingItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamProfileResponse;
@@ -68,6 +69,13 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
     ) {
         return miniAppService.profile(requireTelegramId(initData));
+    }
+
+    @GetMapping("/profile/stats")
+    public ProfileStatsResponse profileStats(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
+    ) {
+        return miniAppService.profileStats(requireTelegramId(initData));
     }
 
     @PostMapping(
