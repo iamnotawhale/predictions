@@ -5,15 +5,24 @@ import java.util.List;
 
 public record ExplanationBreakdown(
         List<ExplanationRow> rows,
-        List<String> notes
+        List<String> notes,
+        ScoreDistribution distribution
 ) {
     public ExplanationBreakdown {
         rows = rows != null ? List.copyOf(rows) : List.of();
         notes = notes != null ? List.copyOf(notes) : List.of();
     }
 
+    public ExplanationBreakdown(List<ExplanationRow> rows, List<String> notes) {
+        this(rows, notes, null);
+    }
+
     public static ExplanationBreakdown empty() {
-        return new ExplanationBreakdown(List.of(), List.of());
+        return new ExplanationBreakdown(List.of(), List.of(), null);
+    }
+
+    public ExplanationBreakdown withDistribution(ScoreDistribution distribution) {
+        return new ExplanationBreakdown(rows, notes, distribution);
     }
 
     public List<String> asLines() {

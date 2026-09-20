@@ -8,6 +8,7 @@ import zhigalin.predictions.recommender.model.ExplanationRow;
 import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
 import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
 import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ScoreDistribution;
 
 /**
  * Score recommender based on attack/defense strengths (with early-season shrinkage),
@@ -36,7 +37,8 @@ public final class PoissonScoreModel {
             double lambdaAway,
             double scoreProbability,
             ExplanationBreakdown explanation,
-            String summary
+            String summary,
+            ScoreDistribution distribution
     ) {
         public List<String> explanationLines() {
             return explanation != null ? explanation.asLines() : List.of();
@@ -206,6 +208,8 @@ public final class PoissonScoreModel {
                 ? probabilityOverLine(matrix, awayTeamTotal, TotalScope.AWAY)
                 : null;
 
+        ScoreDistribution distribution = ScoreDistribution.fromNormalizedMatrix(matrix);
+
         ExplanationBreakdown explanation = buildHumanExplanation(
                 homeCode,
                 awayCode,
@@ -238,7 +242,7 @@ public final class PoissonScoreModel {
                 bestHome,
                 bestAway,
                 bestProb
-        );
+        ).withDistribution(distribution);
 
         String summary = String.format(
                 Locale.US,
@@ -255,7 +259,8 @@ public final class PoissonScoreModel {
                 blendedAway,
                 bestProb,
                 explanation,
-                summary
+                summary,
+                distribution
         );
     }
 

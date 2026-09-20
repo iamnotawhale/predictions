@@ -1147,14 +1147,11 @@ html[data-switching] *::after {
     border-radius: 10px;
     background: var(--accent-a18);
     border: 1px solid var(--accent-a45);
+    font-family: var(--font-display);
     font-size: 18px;
     font-weight: 700;
     text-align: center;
-}
-
-.modal-recommendation-details {
-    padding: 0 14px 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--accent-lift);
 }
 
 .modal-recommendation-table-wrap {
@@ -1230,6 +1227,205 @@ html[data-switching] *::after {
     position: absolute;
     left: 0;
     color: var(--accent);
+}
+
+.ai-modal-sheet {
+    max-height: min(92vh, 900px);
+    overflow-y: auto;
+}
+
+.ai-modal-tip-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 0 6px;
+}
+
+.ai-modal-tip-score {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent-lift);
+    line-height: 1;
+}
+
+.ai-modal-tip-prob {
+    font-size: 14px;
+    color: var(--hint);
+}
+
+.ai-modal-note {
+    margin: 0 0 14px;
+    font-size: 11px;
+    color: var(--hint);
+    line-height: 1.3;
+}
+
+.ai-modal-section {
+    margin: 0 0 16px;
+}
+
+.ai-modal-section h4 {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--hint);
+    margin: 0 0 8px;
+}
+
+.ai-lambda-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.ai-lambda-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+}
+
+.ai-lambda-code {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--accent-lift);
+    font-family: var(--font-display);
+}
+
+.ai-lambda-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.ai-markets-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.ai-market-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+.ai-market-chip .ai-market-label {
+    font-size: 10px;
+    color: var(--hint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ai-market-chip .ai-market-pct {
+    font-size: 16px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.ai-market-chip .ai-market-odds {
+    font-size: 11px;
+    color: var(--hint);
+}
+
+.ai-markets-extra {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.ai-heatmap {
+    display: grid;
+    grid-template-columns: 28px repeat(6, minmax(0, 1fr));
+    gap: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.ai-heatmap-corner,
+.ai-heatmap-axis {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--hint);
+    min-height: 28px;
+}
+
+.ai-heatmap-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) calc(var(--heat, 0) * 1%), var(--surface));
+    border: 1px solid var(--border);
+    font-size: 9px;
+    line-height: 1.15;
+    color: var(--text);
+}
+
+.ai-heatmap-cell.is-mode {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent-a45);
+    font-weight: 700;
+}
+
+.ai-heatmap-cell .ai-heat-score {
+    font-size: 10px;
+    opacity: 0.85;
+}
+
+.ai-heatmap-cell .ai-heat-pct {
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.ai-top-scores {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ai-top-scores li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.ai-top-scores li.is-mode {
+    border-color: var(--accent-a45);
+    background: var(--accent-a12);
+}
+
+.ai-top-scores .ai-top-score {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.ai-top-scores .ai-top-pct {
+    color: var(--hint);
+    font-variant-numeric: tabular-nums;
 }
 
 .modal-h2h {

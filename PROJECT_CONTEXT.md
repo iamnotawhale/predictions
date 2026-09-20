@@ -318,7 +318,7 @@
 - Смешивание: статистика + xG/xGA (за матч) + **рынок 1X2 → λ** (при тонкой выборке вес рынка растёт).
 - Лёгкий nudge λ от SoccerSTATS (scored-first / lead / favourite PPG), dampen при thin sample.
 - **H2H** из таблицы `h2h` (до 20 последних встреч): soft blend в λ по средним голам (overall + сильнее когда текущий хозяин дома) и мягкий вес исходов W/D/L в матрице; в explanation — общая серия и серия «дома у хозяина».
-- Матрица Пуассона 0–5 с мягкими весами BTTS/CS/FTS/ничьи/Over-Under + SoccerSTATS (first-goal, lead, equalisers); при thin sample (≥0.55) form/season BTTS/CS/Over **отключаются**, иначе ранний сезон с 0% схлопывает все советы в 1:0.
+- Матрица Пуассона 0–5 с мягкими весами BTTS/CS/FTS/ничьи/Over-Under + SoccerSTATS (first-goal, lead, equalisers); при thin sample (≥0.55) form/season BTTS/CS/Over **отключаются**, иначе ранний сезон с 0% схлопывает все советы в 1:0. Нормализованная матрица + derived 1X2/BTTS/OU/topScores сохраняются в `explanation_json.distribution` и отдаются в insights (`MatchRecommendationResponse.distribution`).
 - Floor λ ~0.7+, иначе при λ&lt;1 mode всегда 0:0.
 - В explanation: ожидаемые голы, сила атаки/обороны словами, xG, форма, сезон, SoccerSTATS, H2H, букмекеры (%), самый вероятный счёт; без сырых λ/формул. Venue без матчей — «ещё не играли», а не overall под видом выезда. Парсер FootyStats сохраняет пустые ячейки Home/Away (раньше сдвиг колонок давал ложный away GF).
 
@@ -331,7 +331,7 @@
 **UI:**
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
 - Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
-- В `#score-modal` блок `#modal-recommendation-section` (между odds и сеткой счёта): **живой** рекомендованный счёт + explanation (только при включённом toggle).
+- В `#score-modal` компактная кнопка `#modal-recommendation-section` (tip + λ + %); детали — в отдельной `#ai-modal` (heatmap 0–5, 1X2/BTTS/OU, топ-счета, таблица explanation). Только при включённом AI toggle. Distribution лежит в `explanation_json` (`ScoreDistribution`); после деплоя нужен refresh тура, чтобы матрица появилась у старых tips.
 - На **«Мои» / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
 - Картинка FT: `HtmlImageRenderer` RESULT (EPL + кубки с разными accent); строка `AI h:a` для EPL, если freeze есть.
 - Mini App кубки: цвета турниров на карточках; категория «Кубки» (карточки турниров, вся FT-история + матчи с сегодня и будущие); live-детали/составы/комментарии через ESPN summary по league slug; live Общий зачёт += provisional cup.
@@ -369,7 +369,8 @@ psql … -f deploy/recommender-calibration-report.sql
 - **Мои** (`screen-my`): прогнозы тура + **Разбор тура**.
 
 **Модалки:**
-- `#score-modal` — прогноз, odds 1/X/2, блок рекомендации (если AI вкл.), кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
+- `#score-modal` — прогноз, odds 1/X/2, кнопка AI-рекомендации (если AI вкл.) → `#ai-modal`, кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
+- `#ai-modal` — Poisson-калькулятор style: λ, 1X2 + fair odds, BTTS/OU, heatmap взвешенной матрицы 0–5, топ-счета, «Почему так» (explanation rows/notes).
 - `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
 - `#team-modal`, `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
 
