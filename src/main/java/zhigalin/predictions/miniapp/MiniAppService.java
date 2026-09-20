@@ -74,6 +74,7 @@ import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.InjuryService;
 import zhigalin.predictions.service.api.InjuryService.InjuryInfo;
+import zhigalin.predictions.service.api.TeamLogoCacheService;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -85,8 +86,6 @@ import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.service.user.UserService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
-import zhigalin.predictions.util.EspnTeamLogos;
-import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
 public class MiniAppService {
@@ -129,6 +128,7 @@ public class MiniAppService {
     private final OddsService oddsService;
     private final ApiClient apiClient;
     private final InjuryService injuryService;
+    private final TeamLogoCacheService teamLogoCacheService;
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
@@ -145,6 +145,7 @@ public class MiniAppService {
             OddsService oddsService,
             ApiClient apiClient,
             InjuryService injuryService,
+            TeamLogoCacheService teamLogoCacheService,
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
@@ -159,6 +160,7 @@ public class MiniAppService {
         this.oddsService = oddsService;
         this.apiClient = apiClient;
         this.injuryService = injuryService;
+        this.teamLogoCacheService = teamLogoCacheService;
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
@@ -933,10 +935,10 @@ public class MiniAppService {
         String awayCode = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
         String homeLogo = match.getHomeTeamId() != null
                 ? teamLogoPath(match.getHomeTeamId())
-                : (match.getHomeLogoUrl() != null ? match.getHomeLogoUrl() : "");
+                : teamLogoCacheService.pathForRemote(match.getHomeLogoUrl());
         String awayLogo = match.getAwayTeamId() != null
                 ? teamLogoPath(match.getAwayTeamId())
-                : (match.getAwayLogoUrl() != null ? match.getAwayLogoUrl() : "");
+                : teamLogoCacheService.pathForRemote(match.getAwayLogoUrl());
         return new MatchItem(
                 match.getPublicId(),
                 0,
@@ -1256,18 +1258,8 @@ public class MiniAppService {
         return fallback;
     }
 
-    private static String teamLogoPath(int teamId) {
-        Team team = DaoUtil.TEAMS.get(teamId);
-        if (team != null) {
-            String espn = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(team.getCode()));
-            if (espn != null) {
-                return espn;
-            }
-            if (team.getLogo() != null && !team.getLogo().isBlank()) {
-                return team.getLogo();
-            }
-        }
-        return "/img/teams/" + teamId + ".webp";
+    private String teamLogoPath(int teamId) {
+        return teamLogoCacheService.pathForTeam(teamId);
     }
 
     private TeamMatchItem toTeamMatchItem(Match match) {

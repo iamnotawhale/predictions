@@ -279,7 +279,8 @@
 | GET | `/team/{teamCode}/matches` | Последние/ближайшие матчи команды |
 | GET | `/h2h/{homeCode}/{awayCode}` | Личные встречи |
 | GET | `/today` | Матчи сегодня |
-| GET | `/chart` | Данные графика очков по неделям (floored, с кубками) |
+| GET | `/logos/{teamId}.png` | Логотип клуба (публичный, кэш 30д; без Telegram auth) |
+| GET | `/logos/r/{hash}.png` | Прокси логотипа по URL (кубки) |
 | POST/DELETE | `/predictions` | Сохранить / удалить прогноз |
 | POST | `/client-log` | Клиентские логи на сервер |
 
@@ -450,7 +451,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - Telegram-карточки: `HtmlImageRenderer` (HTML/CSS → PNG через Playwright/Chrome); accent по competition, без `team_colors.json`.
 - Legacy `ImageRenderer` (AWT) ещё читает `team_colors.json` для цветных полос; bot/notification paths на него не ходят.
 - Miniapp live-питч: цвета формы из ESPN `rosters[].uniform.color` (`TeamFormationItem.kitColor`), fallback `#ffffff` / `#c0c0c0`.
-- **Логотипы клубов АПЛ:** miniapp — ESPN CDN (`EspnTeamLogos` / `teams.logo`); HTML-карточки встраивают лого как data URI с `media.api-sports.io` (с Odyssey ESPN CDN зависает на download → Playwright `load` timeout). Navigate: `domcontentloaded`. Кубки: `bonus_match.home/away_logo_url` (тоже через embed + короткий timeout).
+- **Логотипы клубов АПЛ:** miniapp отдаёт same-origin `/api/miniapp/logos/{teamId}.png` (`TeamLogoCacheService`: API-Football media → ESPN fallback, память + диск, warmup на старте; `Cache-Control: public, max-age=30d, immutable`). Кубки без EPL `team_id` — `/api/miniapp/logos/r/{hash}.png`. HTML-карточки по-прежнему встраивают data URI с `media.api-sports.io` (Playwright). Navigate: `domcontentloaded`.
 - Масштабирование логотипов с сохранением пропорций (padding).
 - Логотипы сезона 2026: `64.webp` (HUL), `1346.webp` (COV).
 

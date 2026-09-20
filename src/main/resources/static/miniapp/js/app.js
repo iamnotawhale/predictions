@@ -275,6 +275,41 @@
         delete state.apiCache[key];
     }
 
+    function preloadLogos(items) {
+        const urls = new Set();
+        (items || []).forEach((item) => {
+            if (!item) return;
+            if (item.homeLogo) urls.add(item.homeLogo);
+            if (item.awayLogo) urls.add(item.awayLogo);
+            if (item.logo) urls.add(item.logo);
+        });
+        urls.forEach((src) => {
+            if (!src || src.indexOf('/api/miniapp/logos/') !== 0) return;
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = src;
+        });
+    }
+
+    function setLogoSrc(img, src) {
+        if (!img) return;
+        if (!src) {
+            img.removeAttribute('src');
+            img.style.visibility = 'hidden';
+            return;
+        }
+        let tries = 0;
+        img.style.visibility = 'visible';
+        img.onerror = () => {
+            if (tries++ < 2) {
+                setTimeout(() => { img.src = src; }, 250 * tries);
+            } else {
+                img.style.visibility = 'hidden';
+            }
+        };
+        img.src = src;
+    }
+
     async function apiCached(path) {
         const cached = cacheGet(path);
         if (cached) return cached;
@@ -951,6 +986,7 @@
         processTodayScoreUpdates(data.matches, previousScores);
         renderHomeLiveModule(data.matches);
         renderTodayMatchesList(data.matches);
+        preloadLogos(data.matches);
         await refreshLeaderboardByMode();
         state.todayLoaded = true;
         scheduleTodayPolling();
@@ -1220,6 +1256,7 @@
             cacheDrop('/standings');
         }
         const rows = forceFresh ? await api('/standings') : await apiCached('/standings');
+        preloadLogos(rows);
         const tbody = $('#standings-body');
         tbody.innerHTML = '';
         rows.forEach(r => {
@@ -1292,6 +1329,7 @@
 
     async function loadPredictMatches(weekId) {
         const matches = await api('/weeks/' + weekId + '/matches');
+        preloadLogos(matches);
         $('#predict-week-title').textContent = weekId + ' тур';
         const list = $('#predict-match-list');
         list.innerHTML = '';
@@ -1363,14 +1401,8 @@
         setModalCenterRegular(match);
         $('#modal-home-code').textContent = match.homeCode || 'HOME';
         $('#modal-away-code').textContent = match.awayCode || 'AWAY';
-        const homeLogo = $('#modal-home-logo');
-        const awayLogo = $('#modal-away-logo');
-        homeLogo.src = match.homeLogo || '';
-        awayLogo.src = match.awayLogo || '';
-        homeLogo.onerror = () => { homeLogo.style.visibility = 'hidden'; };
-        awayLogo.onerror = () => { awayLogo.style.visibility = 'hidden'; };
-        homeLogo.style.visibility = 'visible';
-        awayLogo.style.visibility = 'visible';
+        setLogoSrc($('#modal-home-logo'), match.homeLogo || '');
+        setLogoSrc($('#modal-away-logo'), match.awayLogo || '');
         const oddsBlock = $('#modal-odds');
         if (match.oddHome != null && match.oddDraw != null && match.oddAway != null) {
             $('#odd-home').textContent = Number(match.oddHome).toFixed(2);
@@ -1458,18 +1490,8 @@
     function setLiveModalHeader(match) {
         $('#live-modal-home-code').textContent = match.homeCode || 'HOME';
         $('#live-modal-away-code').textContent = match.awayCode || 'AWAY';
-        const homeLogo = $('#live-modal-home-logo');
-        const awayLogo = $('#live-modal-away-logo');
-        if (homeLogo) {
-            homeLogo.src = match.homeLogo || '';
-            homeLogo.onerror = () => { homeLogo.style.visibility = 'hidden'; };
-            homeLogo.style.visibility = 'visible';
-        }
-        if (awayLogo) {
-            awayLogo.src = match.awayLogo || '';
-            awayLogo.onerror = () => { awayLogo.style.visibility = 'hidden'; };
-            awayLogo.style.visibility = 'visible';
-        }
+        setLogoSrc($('#live-modal-home-logo'), match.homeLogo || '');
+        setLogoSrc($('#live-modal-away-logo'), match.awayLogo || '');
         const center = $('#live-modal-center-main');
         const hasScore = match.homeScore != null && match.awayScore != null;
         if (center) {
