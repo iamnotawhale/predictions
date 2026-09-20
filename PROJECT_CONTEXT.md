@@ -47,7 +47,7 @@
 - `src/main/java/zhigalin/predictions/service/predict` — скоринг (`ScoringMode`), **`FlooredPointsService`** (скользящий пол), FT recalc.
 - `src/main/java/zhigalin/predictions/service/event` — матчи; **`BonusMatchSyncService`** (кубки ESPN); **`UserWeekBonusMatchService`** (персональный бонус тура).
 - `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: scrape FootyStats + SoccerSTATS → Poisson-модель → кэш в БД; single-flight refresh, batch writes.
-- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — eng.1 и cup leagues (`eng.fa`, `eng.league_cup`, `uefa.*`); **`EspnTeamTotalsClient`** — team total goals lines.
+- `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, API-Football, ESPN summary TTL 8с); **`EspnScoreboardClient`** — eng.1 и cup leagues (`eng.fa`, `eng.league_cup`, `uefa.*`); **`EspnTeamTotalsClient`** — team total goals lines; **`EspnTeamRosterService`** — season leaders. ESPN site JSON: хост **`site.web.api.espn.com`** (не `site.api` — Akamai с Odyssey часто даёт 403), UA `predictions-bot/1.0`.
 - `src/main/java/zhigalin/predictions/telegram/MatchMessageFormatter` — единый формат строк матча для `/today`, `/tour`, upcoming.
 - `src/main/java/zhigalin/predictions/util/TelegramMarkdownV2` — escape caption для Unirest `sendPhoto`.
 - `src/main/java/zhigalin/predictions/repository` — JDBC/DAO слой (узкие выборки матчей/прогнозов, batch `updatePoints`).

@@ -16,7 +16,7 @@ import zhigalin.predictions.model.v2.Scoreboard;
 public class EspnScoreboardClient {
 
     private static final Logger log = LoggerFactory.getLogger("server");
-    private static final String BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/";
+    private static final String BASE = "https://site.web.api.espn.com/apis/site/v2/sports/soccer/";
     public static final String LEAGUE_EPL = "eng.1";
     public static final List<String> CUP_LEAGUES = List.of(
             "eng.fa",
@@ -68,7 +68,10 @@ public class EspnScoreboardClient {
 
     private Scoreboard fetchScoreboardUrl(String url) {
         try {
-            HttpResponse<String> response = Unirest.get(url).asString();
+            HttpResponse<String> response = Unirest.get(url)
+                    .header("Accept", "application/json")
+                    .header("User-Agent", "predictions-bot/1.0")
+                    .asString();
             if (response.getStatus() != 200 || response.getBody() == null || response.getBody().isBlank()) {
                 log.warn("ESPN scoreboard empty response: status={} url={}", response.getStatus(), url);
                 return null;

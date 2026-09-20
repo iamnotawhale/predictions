@@ -141,7 +141,7 @@ public class InjuryService {
         try {
             HttpResponse<String> resp = Unirest.get(ESPN_INJURIES)
                     .header("Accept", "application/json")
-                    .header("User-Agent", "Mozilla/5.0")
+                    .header("User-Agent", "predictions-bot/1.0")
                     .asString();
             if (resp.getStatus() != 200 || resp.getBody() == null || resp.getBody().isBlank()) {
                 return List.of();
