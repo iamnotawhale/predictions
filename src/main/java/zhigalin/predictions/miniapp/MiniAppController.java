@@ -1,8 +1,10 @@
 package zhigalin.predictions.miniapp;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +37,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewResponse;
+import zhigalin.predictions.service.api.TeamLogoCacheService;
 
 @RestController
 @RequestMapping("/api/miniapp")
@@ -45,15 +48,18 @@ public class MiniAppController {
     private final TelegramWebAppAuthService authService;
     private final MiniAppService miniAppService;
     private final MiniAppProperties miniAppProperties;
+    private final TeamLogoCacheService teamLogoCacheService;
 
     public MiniAppController(
             TelegramWebAppAuthService authService,
             MiniAppService miniAppService,
-            MiniAppProperties miniAppProperties
+            MiniAppProperties miniAppProperties,
+            TeamLogoCacheService teamLogoCacheService
     ) {
         this.authService = authService;
         this.miniAppService = miniAppService;
         this.miniAppProperties = miniAppProperties;
+        this.teamLogoCacheService = teamLogoCacheService;
     }
 
     @GetMapping("/profile")
@@ -277,6 +283,31 @@ public class MiniAppController {
             return miniAppService.deleteBonusPrediction(telegramId, bonusMatchId);
         }
         return miniAppService.deletePrediction(telegramId, homeCode, awayCode);
+    }
+
+    /** Public (no Telegram auth) — used as {@code <img src>}; long-lived browser cache. */
+    @GetMapping(value = "/logos/{teamId}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> teamLogo(@PathVariable int teamId) {
+        byte[] bytes = teamLogoCacheService.bytesForTeam(teamId);
+        if (bytes == null || bytes.length == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(30, TimeUnit.DAYS).cachePublic().immutable())
+                .contentType(MediaType.IMAGE_PNG)
+                .body(bytes);
+    }
+
+    @GetMapping(value = "/logos/r/{hash}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> remoteLogo(@PathVariable String hash) {
+        byte[] bytes = teamLogoCacheService.bytesForRemoteHash(hash);
+        if (bytes == null || bytes.length == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(30, TimeUnit.DAYS).cachePublic().immutable())
+                .contentType(MediaType.IMAGE_PNG)
+                .body(bytes);
     }
 
     @ExceptionHandler(MiniAppException.class)
