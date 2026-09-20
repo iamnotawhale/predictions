@@ -39,6 +39,8 @@ public class ApiClient {
     private String urlAnimation;
     @Value("${bot.urlEditMessage}")
     private String urlEditMessage;
+    @Value("${bot.urlEditMessageMedia}")
+    private String urlEditMessageMedia;
 
     private final ObjectMapper mapper;
     private final ConcurrentHashMap<Integer, Map<Integer, List<Lineup>>> lineupsCache = new ConcurrentHashMap<>();
@@ -57,6 +59,14 @@ public class ApiClient {
     /** Name only; strip ESPN narrative after "with …" / "following …". */
     private static final Pattern GOAL_ASSIST =
             Pattern.compile("Assisted by\\s+(.+?)(?:\\s+(?:with|following)\\b.+?)?\\.");
+    /** ESPN own-goal line: "Own Goal by Player, Team. Home 1, Away 0." */
+    private static final Pattern OWN_GOAL_SCORER =
+            Pattern.compile("^Own Goal by\\s+(.+?),\\s*");
+    /** Score after the goal: "Goal! Home 2, Away 1." / "... Team. Home 2, Away 1." */
+    private static final Pattern GOAL_SCORE_AFTER =
+            Pattern.compile("^Goal!\\s+.+?\\s+(\\d+),\\s+.+?\\s+(\\d+)\\.");
+    private static final Pattern OWN_GOAL_SCORE_AFTER =
+            Pattern.compile("^Own Goal by\\s+.+?\\.\\s+.+?\\s+(\\d+),\\s+.+?\\s+(\\d+)\\.");
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
@@ -154,6 +164,39 @@ public class ApiClient {
         } catch (Exception e) {
             log.error("sendAnimation error: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * In-place replace of an existing animation (or other media) message.
+     * {@code media} uses {@code attach://animation} + multipart file field {@code animation}.
+     */
+    public boolean editMessageMediaAnimation(
+            String chatId, int messageId, String caption, String filePath, String replyMarkupJson
+    ) {
+        try {
+            caption = TelegramMarkdownV2.escape(caption);
+            File file = new File(filePath);
+            String mediaJson = mapper.writeValueAsString(Map.of(
+                    "type", "animation",
+                    "media", "attach://animation",
+                    "caption", caption != null ? caption : "",
+                    "parse_mode", "MarkdownV2"
+            ));
+            MultipartBody body = Unirest.post(urlEditMessageMedia)
+                    .header("accept", "application/json")
+                    .queryString("chat_id", chatId)
+                    .queryString("message_id", messageId)
+                    .field("media", mediaJson)
+                    .field("animation", file);
+            if (replyMarkupJson != null) {
+                body = body.field("reply_markup", replyMarkupJson);
+            }
+            HttpResponse<String> resp = body.asString();
+            return checkOk("editMessageMedia", resp);
+        } catch (Exception e) {
+            log.error("editMessageMedia error: {}", e.getMessage());
+            return false;
         }
     }
 
@@ -337,12 +380,13 @@ public class ApiClient {
             return null;
         }
         GoalScorer last = scorers.getLast();
-        return new LatestGoalInfo(last.scorer(), null);
+        return new LatestGoalInfo(last.scorer(), null, last.homeScore(), last.awayScore());
     }
 
     /**
      * Standing goal scorers from ESPN commentary (no assists).
-     * If commentary has more Goal! lines than {@code expectedTotal} (VAR overturn),
+     * Includes own goals ({@code Own Goal by …} → {@code Name (авт.)}).
+     * If commentary has more Goal!/OG lines than {@code expectedTotal} (VAR overturn),
      * keeps the earliest {@code expectedTotal} goals.
      */
     public List<GoalScorer> listGoalScorers(String espnEventId, int expectedTotal) {
@@ -370,9 +414,6 @@ public class ApiClient {
         for (int i = 0; i < commentary.size(); i++) {
             JsonNode item = commentary.get(i);
             String text = item.path("text").asText("").trim();
-            if (!text.startsWith("Goal!")) {
-                continue;
-            }
             LatestGoalInfo parsed = parseGoalCommentary(text);
             if (parsed == null || parsed.scorer() == null || parsed.scorer().isBlank()) {
                 continue;
@@ -392,7 +433,13 @@ public class ApiClient {
         List<GoalScorer> result = new ArrayList<>(limit);
         for (int i = 0; i < limit; i++) {
             GoalCommentaryEntry entry = goals.get(i);
-            result.add(new GoalScorer(entry.info().scorer(), entry.minute()));
+            LatestGoalInfo info = entry.info();
+            result.add(new GoalScorer(
+                    info.scorer(),
+                    entry.minute(),
+                    info.homeScore(),
+                    info.awayScore()
+            ));
         }
         return result;
     }
@@ -415,6 +462,26 @@ public class ApiClient {
     }
 
     LatestGoalInfo parseGoalCommentary(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Matcher ownGoalMatcher = OWN_GOAL_SCORER.matcher(text);
+        if (ownGoalMatcher.find()) {
+            String scorer = ownGoalMatcher.group(1).trim();
+            if (scorer.isEmpty()) {
+                return null;
+            }
+            int[] score = parseScoreAfter(text, OWN_GOAL_SCORE_AFTER);
+            return new LatestGoalInfo(
+                    scorer + " (авт.)",
+                    null,
+                    score != null ? score[0] : null,
+                    score != null ? score[1] : null
+            );
+        }
+        if (!text.startsWith("Goal!")) {
+            return null;
+        }
         Matcher scorerMatcher = GOAL_SCORER.matcher(text);
         if (!scorerMatcher.find()) {
             return null;
@@ -425,7 +492,21 @@ public class ApiClient {
         if (assistMatcher.find()) {
             assist = assistMatcher.group(1).trim();
         }
-        return new LatestGoalInfo(scorer, assist);
+        int[] score = parseScoreAfter(text, GOAL_SCORE_AFTER);
+        return new LatestGoalInfo(
+                scorer,
+                assist,
+                score != null ? score[0] : null,
+                score != null ? score[1] : null
+        );
+    }
+
+    private static int[] parseScoreAfter(String text, Pattern pattern) {
+        Matcher m = pattern.matcher(text);
+        if (!m.find()) {
+            return null;
+        }
+        return new int[]{Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2))};
     }
 
     private record CachedEspnSummary(JsonNode root, long fetchedAtMs) {
@@ -434,9 +515,21 @@ public class ApiClient {
     private record GoalCommentaryEntry(double timeValue, long sequence, LatestGoalInfo info, String minute) {
     }
 
-    public record LatestGoalInfo(String scorer, String assist) {
+    public record LatestGoalInfo(String scorer, String assist, Integer homeScore, Integer awayScore) {
     }
 
-    public record GoalScorer(String scorer, String minute) {
+    public record GoalScorer(String scorer, String minute, Integer homeScore, Integer awayScore) {
+        /** e.g. {@code 2:1 Haaland 74'} or {@code Salah 23'} if score unknown. */
+        public String formatForCaption() {
+            StringBuilder sb = new StringBuilder();
+            if (homeScore != null && awayScore != null) {
+                sb.append(homeScore).append(':').append(awayScore).append(' ');
+            }
+            sb.append(scorer != null ? scorer : "");
+            if (minute != null && !minute.isBlank()) {
+                sb.append(' ').append(minute);
+            }
+            return sb.toString().trim();
+        }
     }
 }

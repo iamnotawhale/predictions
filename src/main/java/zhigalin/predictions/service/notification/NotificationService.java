@@ -64,6 +64,8 @@ public class NotificationService {
 
     private final ConcurrentHashMap<String, Integer> liveScoreMessageIds = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> liveScoreLastTexts = new ConcurrentHashMap<>();
+    /** Keys whose current live chat message is an animation (edit via editMessageMedia). */
+    private final Set<String> liveScoreAnimationKeys = ConcurrentHashMap.newKeySet();
     private final NotificationDedupDao notificationDedupDao;
 
     public NotificationService(MatchService matchService,
@@ -179,6 +181,21 @@ public class NotificationService {
             api.sendPhoto(defaultChatId, "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен", path, null);
         }
         api.evictLineups(match.getPublicId());
+        removeLiveScoreNoise(match);
+    }
+
+    /** Deletes live score GIF/text for the match from the chat and clears local/DB ids. */
+    public void removeLiveScoreNoise(Match match) {
+        if (match == null) {
+            return;
+        }
+        Team home = DaoUtil.team(match.getHomeTeamId());
+        Team away = DaoUtil.team(match.getAwayTeamId());
+        String key = buildLiveScoreKey(match, home, away);
+        Integer messageId = resolveExistingLiveScoreMessageId(match, key, home, away);
+        if (messageId != null) {
+            api.deleteMessage(defaultChatId, messageId);
+        }
         matchService.updateLiveScoreMessageId(match.getPublicId(), null);
         clearLiveScoreState(match);
     }
@@ -208,10 +225,24 @@ public class NotificationService {
             return;
         }
         Integer existingMessageId = resolveExistingLiveScoreMessageId(match, key, home, away);
+        Integer gifMessageId = trySendOrEditGoalEventGif(
+                match, home, away, prevHome, prevAway, text, existingMessageId);
+        if (gifMessageId != null) {
+            if (existingMessageId != null && !existingMessageId.equals(gifMessageId)) {
+                api.deleteMessage(defaultChatId, existingMessageId);
+            }
+            liveScoreMessageIds.put(key, gifMessageId);
+            liveScoreAnimationKeys.add(key);
+            matchService.updateLiveScoreMessageId(match.getPublicId(), gifMessageId);
+            liveScoreLastTexts.put(key, text);
+            return;
+        }
+        liveScoreAnimationKeys.remove(key);
         boolean delivered = false;
         if (existingMessageId != null) {
             delivered = api.editMessageText(defaultChatId, existingMessageId, text, null);
             if (!delivered) {
+                api.deleteMessage(defaultChatId, existingMessageId);
                 liveScoreMessageIds.remove(key);
             }
         }
@@ -225,13 +256,20 @@ public class NotificationService {
         }
         if (delivered) {
             liveScoreLastTexts.put(key, text);
-            maybeSendGoalEventGif(match, home, away, prevHome, prevAway);
         }
     }
 
-    private void maybeSendGoalEventGif(Match match, Team home, Team away, Integer prevHome, Integer prevAway) {
+    private Integer trySendOrEditGoalEventGif(
+            Match match,
+            Team home,
+            Team away,
+            Integer prevHome,
+            Integer prevAway,
+            String caption,
+            Integer existingMessageId
+    ) {
         if (!goalGifRenderer.isEnabled()) {
-            return;
+            return null;
         }
         int ph = prevHome == null ? 0 : prevHome;
         int pa = prevAway == null ? 0 : prevAway;
@@ -240,7 +278,7 @@ public class NotificationService {
         int prevTotal = ph + pa;
         int nextTotal = nh + na;
         if (prevTotal == nextTotal) {
-            return;
+            return null;
         }
         boolean disallowed = nextTotal < prevTotal;
         String subtitle = disallowed ? "VAR  ·  offside" : resolveLatestScorerLabel(match, nextTotal);
@@ -256,12 +294,16 @@ public class NotificationService {
                     disallowed
             ));
             if (path == null) {
-                return;
+                return null;
             }
-            String caption = home.getCode() + " " + nh + ":" + na + " " + away.getCode();
-            api.sendAnimation(defaultChatId, caption, path, null);
+            if (existingMessageId != null
+                    && api.editMessageMediaAnimation(defaultChatId, existingMessageId, caption, path, null)) {
+                return existingMessageId;
+            }
+            return api.sendAnimation(defaultChatId, caption, path, null);
         } catch (Exception e) {
             log.warn("Goal GIF send failed: {}", e.getMessage());
+            return null;
         } finally {
             if (path != null) {
                 try {
@@ -314,9 +356,7 @@ public class NotificationService {
             if (!scorers.isEmpty()) {
                 text.append("\nГолы: ");
                 text.append(scorers.stream()
-                        .map(s -> s.minute() == null || s.minute().isBlank()
-                                ? s.scorer()
-                                : s.scorer() + " " + s.minute())
+                        .map(GoalScorer::formatForCaption)
                         .collect(Collectors.joining(", ")));
             }
         }
@@ -362,20 +402,24 @@ public class NotificationService {
         String primary = buildLiveScoreKey(match, home, away);
         liveScoreMessageIds.remove(primary);
         liveScoreLastTexts.remove(primary);
+        liveScoreAnimationKeys.remove(primary);
         if (match.getPublicId() != 0) {
             String publicKey = "pub:" + match.getPublicId();
             liveScoreMessageIds.remove(publicKey);
             liveScoreLastTexts.remove(publicKey);
+            liveScoreAnimationKeys.remove(publicKey);
         }
         if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
             String espnKey = "espn:" + match.getEspnId();
             liveScoreMessageIds.remove(espnKey);
             liveScoreLastTexts.remove(espnKey);
+            liveScoreAnimationKeys.remove(espnKey);
         }
         if (home != null && away != null) {
             String teamsKey = "teams:" + home.getCode() + "-" + away.getCode();
             liveScoreMessageIds.remove(teamsKey);
             liveScoreLastTexts.remove(teamsKey);
+            liveScoreAnimationKeys.remove(teamsKey);
         }
     }
 

@@ -36,6 +36,7 @@ bot:
   urlPhoto: https://api.telegram.org/bot${bot.token}/sendPhoto
   urlAnimation: https://api.telegram.org/bot${bot.token}/sendAnimation
   urlEditMessage: https://api.telegram.org/bot${bot.token}/editMessageText
+  urlEditMessageMedia: https://api.telegram.org/bot${bot.token}/editMessageMedia
 
 notification:
   goal-gif:

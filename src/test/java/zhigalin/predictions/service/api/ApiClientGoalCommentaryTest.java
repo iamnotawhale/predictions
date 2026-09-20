@@ -62,6 +62,92 @@ class ApiClientGoalCommentaryTest {
     }
 
     @Test
+    void parseGoalIncludesScoreAfter() {
+        LatestGoalInfo goal = api.parseGoalCommentary(
+                "Goal!  Manchester City 2, Liverpool 1. Erling Haaland (Manchester City) left footed shot.");
+        assertNotNull(goal);
+        assertEquals("Erling Haaland", goal.scorer());
+        assertEquals(2, goal.homeScore());
+        assertEquals(1, goal.awayScore());
+    }
+
+    @Test
+    void parseOwnGoalIncludesScoreAfter() {
+        LatestGoalInfo goal = api.parseGoalCommentary(
+                "Own Goal by Ashley Young, Everton. Everton 1, Brighton and Hove Albion 1.");
+        assertNotNull(goal);
+        assertEquals("Ashley Young (авт.)", goal.scorer());
+        assertEquals(1, goal.homeScore());
+        assertEquals(1, goal.awayScore());
+    }
+
+    @Test
+    void extractGoalScorersFormatsScorePerGoal() throws Exception {
+        JsonNode root = mapper.readTree("""
+                {
+                  "commentary": [
+                    {
+                      "sequence": 1,
+                      "text": "Goal!  Manchester City 0, Liverpool 1. Mohamed Salah (Liverpool) left footed shot.",
+                      "time": { "value": 23, "displayValue": "23'" }
+                    },
+                    {
+                      "sequence": 2,
+                      "text": "Goal!  Manchester City 1, Liverpool 1. Phil Foden (Manchester City) right footed shot.",
+                      "time": { "value": 61, "displayValue": "61'" }
+                    },
+                    {
+                      "sequence": 3,
+                      "text": "Goal!  Manchester City 2, Liverpool 1. Erling Haaland (Manchester City) header.",
+                      "time": { "value": 74, "displayValue": "74'" }
+                    }
+                  ]
+                }
+                """);
+        List<GoalScorer> scorers = api.extractGoalScorers(root, 3);
+        assertEquals(3, scorers.size());
+        assertEquals("0:1 Mohamed Salah 23'", scorers.get(0).formatForCaption());
+        assertEquals("1:1 Phil Foden 61'", scorers.get(1).formatForCaption());
+        assertEquals("2:1 Erling Haaland 74'", scorers.get(2).formatForCaption());
+    }
+
+    @Test
+    void parseOwnGoalScorer() {
+        LatestGoalInfo goal = api.parseGoalCommentary(
+                "Own Goal by Ashley Young, Everton. Everton 1, Brighton and Hove Albion 1.");
+        assertNotNull(goal);
+        assertEquals("Ashley Young (авт.)", goal.scorer());
+        assertNull(goal.assist());
+    }
+
+    @Test
+    void extractGoalScorersIncludesOwnGoals() throws Exception {
+        JsonNode root = mapper.readTree("""
+                {
+                  "commentary": [
+                    {
+                      "sequence": 1,
+                      "text": "Goal!  Brentford 1, West Ham United 0. Neal Maupay (Brentford) header.",
+                      "time": { "value": 12, "displayValue": "12'" }
+                    },
+                    {
+                      "sequence": 2,
+                      "text": "Own Goal by Konstantinos Mavropanos, West Ham United. Brentford 2, West Ham United 0.",
+                      "time": { "value": 55, "displayValue": "55'" }
+                    }
+                  ]
+                }
+                """);
+        List<GoalScorer> scorers = api.extractGoalScorers(root, 2);
+        assertEquals(2, scorers.size());
+        assertEquals("Neal Maupay", scorers.get(0).scorer());
+        assertEquals("1:0 Neal Maupay 12'", scorers.get(0).formatForCaption());
+        assertEquals("Konstantinos Mavropanos (авт.)", scorers.get(1).scorer());
+        assertEquals("2:0 Konstantinos Mavropanos (авт.) 55'", scorers.get(1).formatForCaption());
+        assertEquals("55'", scorers.get(1).minute());
+    }
+
+    @Test
     void extractGoalScorersKeepsEarliestWhenVarTrimsTotal() throws Exception {
         JsonNode root = mapper.readTree("""
                 {
