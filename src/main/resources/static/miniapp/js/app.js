@@ -2832,10 +2832,11 @@
                 + marketChipHtml('X', dist.draw)
                 + marketChipHtml('2', dist.awayWin);
             $('#ai-markets-extra').innerHTML =
-                marketChipHtml('BTTS', dist.btts)
-                + marketChipHtml('O1.5', dist.over15)
-                + marketChipHtml('O2.5', dist.over25)
-                + marketChipHtml('O3.5', dist.over35);
+                marketChipHtml('ОЗ', dist.btts)
+                + marketChipHtml('ТБ 0.5', dist.over05)
+                + marketChipHtml('ТБ 1.5', dist.over15)
+                + marketChipHtml('ТБ 2.5', dist.over25)
+                + marketChipHtml('ТБ 3.5', dist.over35);
             renderAiHeatmap(dist.matrix, recommendation.recommendedHome, recommendation.recommendedAway);
             renderAiTopScores(dist.topScores || [], recommendation.recommendedHome, recommendation.recommendedAway);
         } else {
