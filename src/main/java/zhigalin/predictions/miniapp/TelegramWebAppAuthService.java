@@ -74,7 +74,9 @@ public class TelegramWebAppAuthService {
             long authDate = Long.parseLong(authDateRaw.trim());
             long now = Instant.now().getEpochSecond();
             long age = now - authDate;
-            return age >= 0 && age <= maxAgeSeconds;
+            // Allow modest clock skew: Odyssey NTP may lag Telegram's auth_date.
+            long skewSeconds = Math.min(300L, Math.max(0L, maxAgeSeconds));
+            return age >= -skewSeconds && age <= maxAgeSeconds;
         } catch (NumberFormatException ex) {
             return false;
         }
