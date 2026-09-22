@@ -16,17 +16,24 @@ public class GenerateCommand implements Command {
     private final MatchService matchService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
+    private final long adminChatId;
 
     private static final String REGEX = "[^A-Za-z]";
 
-    public GenerateCommand(MatchService matchService, NotificationService notificationService, PanicSender panicSender) {
+    public GenerateCommand(MatchService matchService, NotificationService notificationService,
+                           PanicSender panicSender, long adminChatId) {
         this.matchService = matchService;
         this.notificationService = notificationService;
         this.panicSender = panicSender;
+        this.adminChatId = adminChatId;
     }
 
     @Override
     public void execute(Update update) throws FeedException, IOException, ParseException {
+        if (update.getMessage().getChatId() != adminChatId) {
+            return;
+        }
+
         Match match = getGenerateResult(update);
 
         if (match != null) {
