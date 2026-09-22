@@ -69,7 +69,7 @@ public class CommandContainer {
         menuCommand = new MenuCommand(sendBotMessageService);
         notificationPredictKeyboardCommand = new NotificationPredictKeyBoardCommand(sendBotMessageService);
         totalCommand = new TotalCommand(sendBotMessageService, predictionService);
-        this.generateCommand = new GenerateCommand(matchService, notificationService, panicSender);
+        this.generateCommand = new GenerateCommand(matchService, notificationService, panicSender, adminChatId);
         this.todayNotifyCommand = new TodayNotifyCommand(sendBotMessageService, notificationService, panicSender, adminChatId);
     }
 

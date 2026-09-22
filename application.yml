@@ -44,6 +44,9 @@ notification:
 
 chatId: ${ADMIN_CHAT_ID:}
 
+miniapp:
+  auth-max-age-seconds: ${MINIAPP_AUTH_MAX_AGE_SECONDS:86400}
+
 api:
   football:
     token: ${API_FOOTBALL_TOKEN:}

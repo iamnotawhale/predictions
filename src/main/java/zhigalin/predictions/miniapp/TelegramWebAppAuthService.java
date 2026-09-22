@@ -2,6 +2,7 @@ package zhigalin.predictions.miniapp;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -14,9 +15,13 @@ import org.springframework.stereotype.Service;
 public class TelegramWebAppAuthService {
 
     private final String botToken;
+    private final long maxAgeSeconds;
 
-    public TelegramWebAppAuthService(@Value("${bot.token}") String botToken) {
+    public TelegramWebAppAuthService(
+            @Value("${bot.token}") String botToken,
+            @Value("${miniapp.auth-max-age-seconds:86400}") long maxAgeSeconds) {
         this.botToken = botToken;
+        this.maxAgeSeconds = maxAgeSeconds;
     }
 
     public boolean isValid(String initData) {
@@ -39,6 +44,9 @@ public class TelegramWebAppAuthService {
         if (!hash.equals(computeHash(dataCheckString))) {
             return null;
         }
+        if (!isFresh(params.get("auth_date"))) {
+            return null;
+        }
         String userJson = params.get("user");
         if (userJson == null) {
             return null;
@@ -56,6 +64,20 @@ public class TelegramWebAppAuthService {
             return null;
         }
         return userJson.substring(valueStart, valueEnd).trim();
+    }
+
+    private boolean isFresh(String authDateRaw) {
+        if (authDateRaw == null || authDateRaw.isBlank()) {
+            return false;
+        }
+        try {
+            long authDate = Long.parseLong(authDateRaw.trim());
+            long now = Instant.now().getEpochSecond();
+            long age = now - authDate;
+            return age >= 0 && age <= maxAgeSeconds;
+        } catch (NumberFormatException ex) {
+            return false;
+        }
     }
 
     private String computeHash(String dataCheckString) {
