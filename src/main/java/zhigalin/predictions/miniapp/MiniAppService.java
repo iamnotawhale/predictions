@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import zhigalin.predictions.recommender.RecommendationInsight;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -365,7 +366,14 @@ public class MiniAppService {
                 notes,
                 snapshot.explanationLines(),
                 snapshot.summary(),
-                distribution
+                distribution,
+                distribution == null ? null : RecommendationInsight.build(
+                        toRawMatrix(distribution.matrix()),
+                        snapshot.recommendedHome(),
+                        snapshot.recommendedAway(),
+                        snapshot.expectedHomeGoals(),
+                        snapshot.expectedAwayGoals(),
+                        notes.stream().anyMatch(n -> n != null && n.startsWith("Основа прогноза")))
         );
     }
 

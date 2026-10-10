@@ -184,7 +184,9 @@ create table if not exists match_recommendation
     computed_at timestamp not null,
     kickoff_home integer,
     kickoff_away integer,
-    kickoff_frozen_at timestamp
+    kickoff_frozen_at timestamp,
+    shadow_home integer,
+    shadow_away integer
 );
 
 

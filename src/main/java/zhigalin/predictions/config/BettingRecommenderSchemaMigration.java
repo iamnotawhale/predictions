@@ -75,5 +75,10 @@ public class BettingRecommenderSchemaMigration {
                 ALTER TABLE match_recommendation
                     ADD COLUMN IF NOT EXISTS kickoff_frozen_at TIMESTAMP
                 """);
+        jdbcTemplate.execute("""
+                ALTER TABLE match_recommendation
+                    ADD COLUMN IF NOT EXISTS shadow_home INTEGER,
+                    ADD COLUMN IF NOT EXISTS shadow_away INTEGER
+                """);
     }
 }

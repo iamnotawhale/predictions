@@ -75,11 +75,23 @@ const EVENTS = [
   { minute: "52'", text: 'Yellow card for Moises Caicedo.', type: 'yellow-card', period: 2, fieldX: 0.4, fieldY: 0.3, field2X: null, field2Y: null, goalPositionY: null, teamName: 'Chelsea', shortText: 'Caicedo', playerName: 'Moises Caicedo' },
   { minute: "23'", text: 'Goal! Liverpool 1, Chelsea 0. Mohamed Salah scores.', type: 'goal', period: 1, fieldX: 0.1, fieldY: 0.45, field2X: null, field2Y: null, goalPositionY: 0.45, teamName: 'Liverpool', shortText: 'Salah', playerName: 'Mohamed Salah' },
 ];
+const pois = (l, n) => { const r = [Math.exp(-l)]; for (let k = 1; k < n; k++) r.push(r[k - 1] * l / k); return r; };
+const MATRIX = (() => { const h = pois(1.8, 6), a = pois(1.1, 6); const m = h.map((x) => a.map((y) => x * y)); const t = m.flat().reduce((x, y) => x + y, 0); return m.map((r) => r.map((v) => v / t)); })();
+const pts = (rh, ra, ph, pa) => (rh === ph && ra === pa ? 4 : rh - ra === ph - pa ? 2 : Math.sign(rh - ra) === Math.sign(ph - pa) ? 1 : -1);
+const BREAKDOWN = MATRIX.map((_, ph) => MATRIX.map((__, pa) => { const t = [0, 0, 0, 0]; MATRIX.forEach((row, h) => row.forEach((p, a) => { t[{ 4: 0, 2: 1, 1: 2, '-1': 3 }[pts(h, a, ph, pa)]] += p; })); return t; }));
+const EV = (t) => 4 * t[0] + 2 * t[1] + t[2] - t[3];
 const REC = {
-  recommendedHome: 2, recommendedAway: 1, expectedHomeGoals: 1.8, expectedAwayGoals: 1.1, scoreProbability: 0.12,
-  explanationRows: [{ metric: 'xG за матч', home: '1.9', away: '1.2' }, { metric: 'Пропущено', home: '0.8', away: '1.4' }],
-  explanationNotes: ['Хозяева сильнее дома'], explanationLines: ['Ожидаемый тотал 2.9'], summary: 'Небольшое преимущество хозяев',
-  distribution: { matrix: [[0.08, 0.07, 0.03], [0.12, 0.12, 0.05], [0.1, 0.1, 0.05], [0.05, 0.05, 0.03]], homeWin: 0.52, draw: 0.24, awayWin: 0.24, btts: 0.55, over05: 0.95, over15: 0.78, over25: 0.55, over35: 0.3, topScores: [{ home: 2, away: 1, probability: 0.12 }, { home: 1, away: 1, probability: 0.12 }, { home: 1, away: 0, probability: 0.1 }] },
+  recommendedHome: 2, recommendedAway: 1, expectedHomeGoals: 1.8, expectedAwayGoals: 1.1, scoreProbability: MATRIX[2][1],
+  explanationRows: [{ metric: 'Ожидаемые голы', home: '1.8', away: '1.1' }, { metric: 'Шанс победы', home: '52%', away: '24%' }, { metric: 'Атака', home: 'сильная', away: 'средняя' }, { metric: 'Оборона', home: 'средняя', away: 'дырявая' }, { metric: 'Сухие (форма)', home: '20%', away: '0%' }],
+  explanationNotes: ['Основа прогноза — коэффициенты букмекеров'], explanationLines: [], summary: '',
+  distribution: { matrix: MATRIX, homeWin: 0.52, draw: 0.24, awayWin: 0.24, btts: 0.55, over05: 0.95, over15: 0.78, over25: 0.55, over35: 0.3, topScores: [] },
+  insight: {
+    scoring: { exact: 4, diff: 2, outcome: 1, miss: -1 }, breakdown: BREAKDOWN, expectedPoints: EV(BREAKDOWN[2][1]), pointsChance: 1 - BREAKDOWN[2][1][3],
+    mostLikely: { home: 1, away: 1, probability: MATRIX[1][1], expectedPoints: EV(BREAKDOWN[1][1]) },
+    reasons: ['Букмекеры: победа хозяев 52%, ничья 24%, победа гостей 24%.', 'Ждём около 1.8 : 1.1 гола, тотал больше 2.5 — 55%.',
+      `Самый вероятный счёт 1:1 (${Math.round(MATRIX[1][1] * 100)}%), но 2:1 выгоднее: в среднем ${EV(BREAKDOWN[2][1]).toFixed(2)} очка против ${EV(BREAKDOWN[1][1]).toFixed(2)} — чаще попадает хотя бы в исход или разницу голов.`,
+      `Очки получим с шансом ${Math.round((1 - BREAKDOWN[2][1][3]) * 100)}%, точный счёт — ${Math.round(BREAKDOWN[2][1][0] * 100)}%.`],
+  },
 };
 const INSIGHTS = {
   homeForm: FORM, awayForm: FORM.slice().reverse(),
@@ -164,6 +176,13 @@ function svgLogo(code) {
   const modalScroll = page.locator('#score-modal .modal-sheet');
   await modalScroll.evaluate((el) => { el.scrollTop = el.scrollHeight; }); await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(OUT, `5b-match-modal-bottom-${THEME}.png`) });
+  await page.locator('#modal-recommendation-open').click({ force: true }).catch(() => {}); await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(OUT, `5c-ai-modal-${THEME}.png`) });
+  await page.locator('#ai-modal-heatmap-section').scrollIntoViewIfNeeded().catch(() => {});
+  await page.locator('.ai-heat-mode[data-mode="chance"]').click().catch(() => {});
+  await page.locator('.ai-heatmap-cell[data-h="1"][data-a="1"]').click().catch(() => {}); await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(OUT, `5d-ai-matrix-${THEME}.png`) });
+  await close('#ai-modal-close');
   await close('#modal-close');
   await items.nth(3).click(); await page.waitForTimeout(1200);
   await page.screenshot({ path: path.join(OUT, `7-cup-match-modal-${THEME}.png`) });

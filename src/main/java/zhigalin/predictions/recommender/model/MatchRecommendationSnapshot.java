@@ -16,8 +16,30 @@ public record MatchRecommendationSnapshot(
         Instant computedAt,
         Integer kickoffHome,
         Integer kickoffAway,
-        Instant kickoffFrozenAt
+        Instant kickoffFrozenAt,
+        Integer shadowHome,
+        Integer shadowAway
 ) {
+    public MatchRecommendationSnapshot(
+            int matchPublicId,
+            int weekId,
+            int recommendedHome,
+            int recommendedAway,
+            double expectedHomeGoals,
+            double expectedAwayGoals,
+            double scoreProbability,
+            ExplanationBreakdown explanation,
+            String summary,
+            Instant computedAt,
+            Integer kickoffHome,
+            Integer kickoffAway,
+            Instant kickoffFrozenAt
+    ) {
+        this(matchPublicId, weekId, recommendedHome, recommendedAway, expectedHomeGoals, expectedAwayGoals,
+                scoreProbability, explanation, summary, computedAt, kickoffHome, kickoffAway, kickoffFrozenAt,
+                null, null);
+    }
+
     public MatchRecommendationSnapshot(
             int matchPublicId,
             int weekId,

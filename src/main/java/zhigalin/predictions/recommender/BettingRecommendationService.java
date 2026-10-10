@@ -235,7 +235,12 @@ public class BettingRecommendationService {
                 result.scoreProbability(),
                 result.explanation(),
                 result.summary(),
-                Instant.now()
+                Instant.now(),
+                null,
+                null,
+                null,
+                result.shadowHome(),
+                result.shadowAway()
         ));
     }
 }

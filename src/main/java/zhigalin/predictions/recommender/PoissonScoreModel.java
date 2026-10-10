@@ -26,6 +26,10 @@ public final class PoissonScoreModel {
     private static final double SHRINK_K = 4.0;
     private static final double DEFAULT_HOME_AVG = 1.48;
     private static final double DEFAULT_AWAY_AVG = 1.25;
+    /** P(over line) assumed for a typical bookmaker total line (over-2.5 averaged 0.566 over 3 seasons). */
+    private static final double TYPICAL_OVER_PROBABILITY = 0.566;
+    /** Max share of the team-stats goal rates blended into the market-fitted rates (shape only, not who wins). */
+    private static final double STATS_SHAPE_WEIGHT = 0.15;
 
     private PoissonScoreModel() {
     }
@@ -38,7 +42,13 @@ public final class PoissonScoreModel {
             double scoreProbability,
             ExplanationBreakdown explanation,
             String summary,
-            ScoreDistribution distribution
+            ScoreDistribution distribution,
+            double expectedPoints,
+            int mostLikelyHome,
+            int mostLikelyAway,
+            double mostLikelyProbability,
+            Integer shadowHome,
+            Integer shadowAway
     ) {
         public List<String> explanationLines() {
             return explanation != null ? explanation.asLines() : List.of();
@@ -128,74 +138,102 @@ public final class PoissonScoreModel {
         double xgHome = blendPair(homeXgPerMatch, awayXgaPerMatch, leagueHome);
         double xgAway = blendPair(awayXgPerMatch, homeXgaPerMatch, leagueAway);
 
-        MarketLambdas marketLambdas = marketLambdas(market, leagueHome, leagueAway);
-
         double thinSample = thinSampleFactor(home, away);
-        double statsWeight = 0.55 - 0.25 * thinSample;
-        double xgWeight = 0.25;
-        double marketWeight = 0.20 + 0.25 * thinSample;
-        double weightSum = statsWeight + xgWeight + marketWeight;
 
-        double blendedHome = (
-                formulaHome * statsWeight
-                + xgHome * xgWeight
-                + marketLambdas.home() * marketWeight
-        ) / weightSum;
-        double blendedAway = (
-                formulaAway * statsWeight
-                + xgAway * xgWeight
-                + marketLambdas.away() * marketWeight
-        ) / weightSum;
-
-        blendedHome = applyHomeAdvantage(blendedHome, homeExt.homeAdvantage());
-        blendedHome = applyXptsNudge(blendedHome, homeExt.xPtsDelta());
-        blendedAway = applyXptsNudge(blendedAway, awayExt.xPtsDelta());
-        blendedHome = applySoccerStatsLambdaNudge(blendedHome, homeExt, true, thinSample);
-        blendedAway = applySoccerStatsLambdaNudge(blendedAway, awayExt, false, thinSample);
-        blendedHome = applyH2hLambda(blendedHome, h2h, true);
-        blendedAway = applyH2hLambda(blendedAway, h2h, false);
-
-        double[] withMatchTotal = applyMatchTotalNudge(blendedHome, blendedAway, matchOverUnder);
-        blendedHome = withMatchTotal[0];
-        blendedAway = withMatchTotal[1];
-        blendedHome = applyTeamTotalNudge(blendedHome, homeTeamTotal);
-        blendedAway = applyTeamTotalNudge(blendedAway, awayTeamTotal);
-
-        blendedHome = clampLambda(blendedHome);
-        blendedAway = clampLambda(blendedAway);
-
+        double blendedHome;
+        double blendedAway;
+        Integer shadowHome = null;
+        Integer shadowAway = null;
         double[][] matrix = new double[MAX_GOALS + 1][MAX_GOALS + 1];
         double total = 0;
-        for (int homeGoals = 0; homeGoals <= MAX_GOALS; homeGoals++) {
-            double pHome = poisson(homeGoals, blendedHome);
-            for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
-                double joint = pHome * poisson(awayGoals, blendedAway);
-                joint *= scoreWeight(homeGoals, awayGoals, home, away, homeExt, awayExt, thinSample);
-                joint *= soccerStatsScoreWeight(homeGoals, awayGoals, homeExt, awayExt, thinSample);
-                if (market != null) {
-                    joint *= marketScoreWeight(homeGoals, awayGoals, market);
+        if (market != null) {
+            // Market first: odds decide who is likely to win, the stats only shape the scoreline.
+            double leagueTotal = Math.max(2.5, Math.min(3.3, leagueHome + leagueAway));
+            double totalTarget = leagueTotal;
+            if (matchOverUnder != null && matchOverUnder > 0) {
+                totalTarget = 0.5 * leagueTotal
+                        + 0.5 * MarketScoreMatrix.totalMeanForOver(matchOverUnder, TYPICAL_OVER_PROBABILITY);
+            }
+            MarketScoreMatrix.Lambdas fit = MarketScoreMatrix.fit(market, totalTarget);
+            // Shadow pick: pure market (no stats/xG reshaping), logged to compare with the final tip later.
+            ScorePicker.Pick shadow = ScorePicker.bestByExpectedPoints(
+                    MarketScoreMatrix.calibrated(fit.home(), fit.away(), market, MAX_GOALS));
+            shadowHome = shadow.home();
+            shadowAway = shadow.away();
+            double statsHome = 0.7 * formulaHome + 0.3 * xgHome;
+            double statsAway = 0.7 * formulaAway + 0.3 * xgAway;
+            double w = STATS_SHAPE_WEIGHT * (1.0 - 0.6 * thinSample);
+            blendedHome = clampLambda((1 - w) * fit.home() + w * statsHome);
+            blendedAway = clampLambda((1 - w) * fit.away() + w * statsAway);
+            matrix = MarketScoreMatrix.calibrated(blendedHome, blendedAway, market, MAX_GOALS);
+            total = 1.0;
+        } else {
+            MarketLambdas marketLambdas = marketLambdas(market, leagueHome, leagueAway);
+
+            double statsWeight = 0.55 - 0.25 * thinSample;
+            double xgWeight = 0.25;
+            double marketWeight = 0.20 + 0.25 * thinSample;
+            double weightSum = statsWeight + xgWeight + marketWeight;
+
+            blendedHome = (
+                    formulaHome * statsWeight
+                    + xgHome * xgWeight
+                    + marketLambdas.home() * marketWeight
+            ) / weightSum;
+            blendedAway = (
+                    formulaAway * statsWeight
+                    + xgAway * xgWeight
+                    + marketLambdas.away() * marketWeight
+            ) / weightSum;
+
+            blendedHome = applyHomeAdvantage(blendedHome, homeExt.homeAdvantage());
+            blendedHome = applyXptsNudge(blendedHome, homeExt.xPtsDelta());
+            blendedAway = applyXptsNudge(blendedAway, awayExt.xPtsDelta());
+            blendedHome = applySoccerStatsLambdaNudge(blendedHome, homeExt, true, thinSample);
+            blendedAway = applySoccerStatsLambdaNudge(blendedAway, awayExt, false, thinSample);
+            blendedHome = applyH2hLambda(blendedHome, h2h, true);
+            blendedAway = applyH2hLambda(blendedAway, h2h, false);
+
+            double[] withMatchTotal = applyMatchTotalNudge(blendedHome, blendedAway, matchOverUnder);
+            blendedHome = withMatchTotal[0];
+            blendedAway = withMatchTotal[1];
+            blendedHome = applyTeamTotalNudge(blendedHome, homeTeamTotal);
+            blendedAway = applyTeamTotalNudge(blendedAway, awayTeamTotal);
+
+            blendedHome = clampLambda(blendedHome);
+            blendedAway = clampLambda(blendedAway);
+
+            for (int homeGoals = 0; homeGoals <= MAX_GOALS; homeGoals++) {
+                double pHome = poisson(homeGoals, blendedHome);
+                for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
+                    double joint = pHome * poisson(awayGoals, blendedAway);
+                    joint *= scoreWeight(homeGoals, awayGoals, home, away, homeExt, awayExt, thinSample);
+                    joint *= soccerStatsScoreWeight(homeGoals, awayGoals, homeExt, awayExt, thinSample);
+                    if (market != null) {
+                        joint *= marketScoreWeight(homeGoals, awayGoals, market);
+                    }
+                    joint *= h2hScoreWeight(homeGoals, awayGoals, h2h);
+                    matrix[homeGoals][awayGoals] = joint;
+                    total += joint;
                 }
-                joint *= h2hScoreWeight(homeGoals, awayGoals, h2h);
-                matrix[homeGoals][awayGoals] = joint;
-                total += joint;
             }
         }
 
         int bestHome = 0;
         int bestAway = 0;
-        double bestProb = -1;
+        double bestProb = 0;
+        ScorePicker.Pick pick = new ScorePicker.Pick(0, 0, 0, 0);
         if (total > 0) {
             for (int homeGoals = 0; homeGoals <= MAX_GOALS; homeGoals++) {
                 for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
-                    double normalized = matrix[homeGoals][awayGoals] / total;
-                    matrix[homeGoals][awayGoals] = normalized;
-                    if (normalized > bestProb) {
-                        bestProb = normalized;
-                        bestHome = homeGoals;
-                        bestAway = awayGoals;
-                    }
+                    matrix[homeGoals][awayGoals] /= total;
                 }
             }
+            ScorePicker.Pick likely = ScorePicker.mostLikely(matrix);
+            bestHome = likely.home();
+            bestAway = likely.away();
+            bestProb = likely.probability();
+            pick = ScorePicker.bestByExpectedPoints(matrix);
         }
 
         Double matchOverProb = matchOverUnder != null && matchOverUnder > 0
@@ -241,26 +279,39 @@ public final class PoissonScoreModel {
                 awayOverProb,
                 bestHome,
                 bestAway,
-                bestProb
+                bestProb,
+                pick.home(),
+                pick.away(),
+                pick.probability(),
+                pick.expectedPoints()
         ).withDistribution(distribution);
+        if (market != null) {
+            explanation = withMarketNote(explanation);
+        }
 
         String summary = String.format(
                 Locale.US,
                 "Ожидаемые голы %.1f : %.1f · шанс счёта %.0f%%",
                 blendedHome,
                 blendedAway,
-                bestProb * 100
+                pick.probability() * 100
         );
 
         return new Result(
-                bestHome,
-                bestAway,
+                pick.home(),
+                pick.away(),
                 blendedHome,
                 blendedAway,
-                bestProb,
+                pick.probability(),
                 explanation,
                 summary,
-                distribution
+                distribution,
+                pick.expectedPoints(),
+                bestHome,
+                bestAway,
+                bestProb,
+                shadowHome,
+                shadowAway
         );
     }
 
@@ -295,7 +346,11 @@ public final class PoissonScoreModel {
             Double awayOverProb,
             int bestHome,
             int bestAway,
-            double bestProb
+            double bestProb,
+            int pickHome,
+            int pickAway,
+            double pickProb,
+            double pickExpectedPoints
     ) {
         List<ExplanationRow> rows = new ArrayList<>();
         List<String> notes = new ArrayList<>();
@@ -363,6 +418,16 @@ public final class PoissonScoreModel {
                 awayOverProb
         );
 
+        if (pickHome != bestHome || pickAway != bestAway) {
+            notes.add(String.format(
+                    Locale.US,
+                    "Рекомендуем %d:%d (около %.0f%%) — в среднем даёт больше всего очков, ~%.1f за матч",
+                    pickHome,
+                    pickAway,
+                    pickProb * 100,
+                    pickExpectedPoints
+            ));
+        }
         notes.add(String.format(
                 Locale.US,
                 "Самый вероятный счёт — %d:%d (около %.0f%%)",
@@ -372,6 +437,12 @@ public final class PoissonScoreModel {
         ));
 
         return new ExplanationBreakdown(List.copyOf(rows), List.copyOf(notes));
+    }
+
+    private static ExplanationBreakdown withMarketNote(ExplanationBreakdown explanation) {
+        List<String> notes = new ArrayList<>(explanation.notes());
+        notes.add(0, "Основа прогноза — коэффициенты букмекеров; статистика команд лишь уточняет форму счёта");
+        return new ExplanationBreakdown(explanation.rows(), notes, explanation.distribution());
     }
 
     enum TotalScope {
