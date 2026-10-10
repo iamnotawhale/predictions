@@ -14,3 +14,7 @@ docker:
 dockerPush:
 	# TAB at the start of this line
 	docker push $(IMAGE):$(TAG)
+
+test-js:
+	node --test "src/test/js/*.test.js"
+.PHONY: test-js

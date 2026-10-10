@@ -3,6 +3,10 @@ services:
     restart: always
     image: imnotawhale/predicts:latest
     network_mode: host
+    environment:
+      # Team crests survive redeploys instead of being re-downloaded into the container's /tmp.
+      PREDICTIONS_LOGOS_CACHE_DIR: /app/logo-cache
     volumes:
       - ./application.yml:/app/application.yml
       - ./logs:/app/logs
+      - ./logo-cache:/app/logo-cache

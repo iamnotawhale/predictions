@@ -1,14 +1,8 @@
 package zhigalin.predictions.miniapp;
 
-import com.rometools.rome.feed.synd.SyndEntry;
-import com.rometools.rome.feed.synd.SyndFeed;
-import com.rometools.rome.io.SyndFeedInput;
-import com.rometools.rome.io.XmlReader;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.net.URL;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,12 +13,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import zhigalin.predictions.config.DeploymentInfoService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchRecommendationResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ExplanationStatRow;
@@ -42,7 +35,6 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.CrowdScoreBucket;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.H2hItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardEntry;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
-import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormationPlayerItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LineupPlayerItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveMatchDetailsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
@@ -52,7 +44,6 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchNewsItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.FormItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.InjuryItem;
-import zhigalin.predictions.miniapp.dto.MiniAppDtos.PlayerStatItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
@@ -98,7 +89,6 @@ import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.predict.UserPredictionStatsService;
 import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.service.user.UserService;
-import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
 
 @Service
@@ -106,34 +96,6 @@ public class MiniAppService {
     private static final Logger log = LoggerFactory.getLogger("server");
 
     private static final DateTimeFormatter KICKOFF = DateTimeFormatter.ofPattern("dd.MM HH:mm");
-    private static final DateTimeFormatter NEWS_TS = DateTimeFormatter.ofPattern("dd.MM HH:mm");
-    private static final String SPORTS_RU_TEAM_RSS = "https://www.sports.ru/stat/export/rss/taglenta.xml?id=";
-    private static final long TEAM_NEWS_CACHE_MS = 120_000L;
-    private static final Set<String> CLOSED_MATCH_STATUSES = Set.of(
-            "ft", "aet", "pen", "canc", "abd", "awrd", "wo"
-    );
-    private static final Map<String, Integer> TEAM_NEWS_TAG_IDS = Map.ofEntries(
-            Map.entry("ARS", 1685202),
-            Map.entry("AST", 1315275),
-            Map.entry("BOU", 5643539),
-            Map.entry("BRE", 63451855),
-            Map.entry("BRI", 5607747),
-            Map.entry("CHE", 1046674),
-            Map.entry("COV", 3612640),
-            Map.entry("CRY", 3006569),
-            Map.entry("EVE", 1300662),
-            Map.entry("FUL", 1347893),
-            Map.entry("HUL", 3096963),
-            Map.entry("IPS", 3779605),
-            Map.entry("LEE", 2793103),
-            Map.entry("LIV", 1046732),
-            Map.entry("MCI", 1328029),
-            Map.entry("MUN", 1046599),
-            Map.entry("NEW", 1062581),
-            Map.entry("NOT", 3057313),
-            Map.entry("SUN", 2682737),
-            Map.entry("TOT", 2682611)
-    );
 
     private final UserService userService;
     private final MatchService matchService;
@@ -153,7 +115,7 @@ public class MiniAppService {
     private final UserPredictionStatsService userPredictionStatsService;
     private final BonusMatchDao bonusMatchDao;
     private final String adminChatId;
-    private final ConcurrentHashMap<String, CachedTeamNews> teamNewsCache = new ConcurrentHashMap<>();
+    private final TeamNewsService teamNewsService;
 
     public MiniAppService(
             UserService userService,
@@ -173,6 +135,7 @@ public class MiniAppService {
             UserWeekBonusMatchService userWeekBonusMatchService,
             UserPredictionStatsService userPredictionStatsService,
             BonusMatchDao bonusMatchDao,
+            TeamNewsService teamNewsService,
             @Value("${chatId:}") String adminChatId
     ) {
         this.userService = userService;
@@ -192,6 +155,7 @@ public class MiniAppService {
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.userPredictionStatsService = userPredictionStatsService;
         this.bonusMatchDao = bonusMatchDao;
+        this.teamNewsService = teamNewsService;
         this.adminChatId = adminChatId == null ? "" : adminChatId.trim();
     }
 
@@ -337,7 +301,7 @@ public class MiniAppService {
         }
         List<FormItem> homeForm = buildRecentForm(match.getHomeTeamId(), 5);
         List<FormItem> awayForm = buildRecentForm(match.getAwayTeamId(), 5);
-        List<MatchNewsItem> news = loadMatchNews(match, 4);
+        List<MatchNewsItem> news = teamNewsService.loadMatchNews(match, 4);
         Team homeTeam = DaoUtil.team(match.getHomeTeamId());
         Team awayTeam = DaoUtil.team(match.getAwayTeamId());
         List<InjuryItem> injuries = toInjuryItems(injuryService.forTeams(
@@ -449,24 +413,24 @@ public class MiniAppService {
         if (match == null) {
             return emptyLiveDetails();
         }
-        boolean live = isLiveStatus(match.getStatus())
+        boolean live = MatchStatus.isLive(match.getStatus())
                        && match.getHomeTeamScore() != null
                        && match.getAwayTeamScore() != null;
         if (!live) {
             return emptyLiveDetails();
         }
         JsonNode summaryRoot = loadEspnSummaryRoot(match);
-        TeamFormationItem homeFormation = loadTeamFormation(summaryRoot, "home", teamCode(match.getHomeTeamId()));
-        TeamFormationItem awayFormation = loadTeamFormation(summaryRoot, "away", teamCode(match.getAwayTeamId()));
-        List<LineupPlayerItem> homeLineup = toLineupItemsFromFormation(homeFormation);
-        List<LineupPlayerItem> awayLineup = toLineupItemsFromFormation(awayFormation);
+        TeamFormationItem homeFormation = EspnSummaryParser.loadTeamFormation(summaryRoot, "home", teamCode(match.getHomeTeamId()));
+        TeamFormationItem awayFormation = EspnSummaryParser.loadTeamFormation(summaryRoot, "away", teamCode(match.getAwayTeamId()));
+        List<LineupPlayerItem> homeLineup = EspnSummaryParser.toLineupItemsFromFormation(homeFormation);
+        List<LineupPlayerItem> awayLineup = EspnSummaryParser.toLineupItemsFromFormation(awayFormation);
         if (homeLineup.isEmpty() && awayLineup.isEmpty()) {
             Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getPublicId());
             homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
             awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
         }
-        List<MatchEventItem> events = loadLiveEvents(summaryRoot);
-        List<MatchStatItem> matchStats = loadLiveStats(summaryRoot);
+        List<MatchEventItem> events = EspnSummaryParser.loadLiveEvents(summaryRoot);
+        List<MatchStatItem> matchStats = EspnSummaryParser.loadLiveStats(summaryRoot);
         return new LiveMatchDetailsResponse(
                 true,
                 homeLineup,
@@ -475,8 +439,8 @@ public class MiniAppService {
                 awayFormation,
                 events,
                 matchStats,
-                pitchColorFromFormation(homeFormation, "#ffffff"),
-                pitchColorFromFormation(awayFormation, "#c0c0c0"),
+                EspnSummaryParser.pitchColorFromFormation(homeFormation, "#ffffff"),
+                EspnSummaryParser.pitchColorFromFormation(awayFormation, "#c0c0c0"),
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
                 match.getStatus()
@@ -489,7 +453,7 @@ public class MiniAppService {
         if (match == null) {
             return emptyLiveDetails();
         }
-        boolean live = isLiveStatus(match.getStatus())
+        boolean live = MatchStatus.isLive(match.getStatus())
                        && match.getHomeTeamScore() != null
                        && match.getAwayTeamScore() != null;
         if (!live) {
@@ -498,12 +462,12 @@ public class MiniAppService {
         JsonNode summaryRoot = loadEspnSummaryRoot(match.getEspnId(), match.getCompetition());
         String homeCode = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "HOME");
         String awayCode = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "AWAY");
-        TeamFormationItem homeFormation = loadTeamFormation(summaryRoot, "home", homeCode);
-        TeamFormationItem awayFormation = loadTeamFormation(summaryRoot, "away", awayCode);
-        List<LineupPlayerItem> homeLineup = toLineupItemsFromFormation(homeFormation);
-        List<LineupPlayerItem> awayLineup = toLineupItemsFromFormation(awayFormation);
-        List<MatchEventItem> events = loadLiveEvents(summaryRoot);
-        List<MatchStatItem> matchStats = loadLiveStats(summaryRoot);
+        TeamFormationItem homeFormation = EspnSummaryParser.loadTeamFormation(summaryRoot, "home", homeCode);
+        TeamFormationItem awayFormation = EspnSummaryParser.loadTeamFormation(summaryRoot, "away", awayCode);
+        List<LineupPlayerItem> homeLineup = EspnSummaryParser.toLineupItemsFromFormation(homeFormation);
+        List<LineupPlayerItem> awayLineup = EspnSummaryParser.toLineupItemsFromFormation(awayFormation);
+        List<MatchEventItem> events = EspnSummaryParser.loadLiveEvents(summaryRoot);
+        List<MatchStatItem> matchStats = EspnSummaryParser.loadLiveStats(summaryRoot);
         return new LiveMatchDetailsResponse(
                 true,
                 homeLineup,
@@ -512,8 +476,8 @@ public class MiniAppService {
                 awayFormation,
                 events,
                 matchStats,
-                pitchColorFromFormation(homeFormation, "#ffffff"),
-                pitchColorFromFormation(awayFormation, "#c0c0c0"),
+                EspnSummaryParser.pitchColorFromFormation(homeFormation, "#ffffff"),
+                EspnSummaryParser.pitchColorFromFormation(awayFormation, "#c0c0c0"),
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
                 match.getStatus()
@@ -619,7 +583,7 @@ public class MiniAppService {
                     .comparing((MatchItem m) -> m.kickoff() == null ? "" : m.kickoff())
                     .thenComparingInt(MatchItem::publicId));
         }
-        boolean hasLive = items.stream().anyMatch(m -> isLiveStatus(m.status()));
+        boolean hasLive = items.stream().anyMatch(m -> MatchStatus.isLive(m.status()));
         return new TodayMatchesResponse(items, hasLive);
     }
 
@@ -656,14 +620,14 @@ public class MiniAppService {
         List<CrowdScoreBucket> top = scoreCounts.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .limit(5)
-                .map(e -> new CrowdScoreBucket(e.getKey(), e.getValue(), percent(e.getValue(), total)))
+                .map(e -> new CrowdScoreBucket(e.getKey(), e.getValue(), MiniAppFormat.percent(e.getValue(), total)))
                 .toList();
         return new CrowdMeterResponse(
                 matchPublicId,
                 total,
-                percent(homeWins, total),
-                percent(draws, total),
-                percent(awayWins, total),
+                MiniAppFormat.percent(homeWins, total),
+                MiniAppFormat.percent(draws, total),
+                MiniAppFormat.percent(awayWins, total),
                 top
         );
     }
@@ -688,7 +652,7 @@ public class MiniAppService {
             boolean hasPrediction = prediction != null
                     && prediction.getHomeTeamScore() != null
                     && prediction.getAwayTeamScore() != null;
-            Integer pts = resolveWeekReviewPoints(match, prediction);
+            Integer pts = PointsResolver.reviewPoints(match, prediction);
             if (pts != null) {
                 total += pts;
             }
@@ -709,28 +673,6 @@ public class MiniAppService {
             ));
         }
         return new WeekReviewResponse(weekId, total, items);
-    }
-
-    private Integer resolveWeekReviewPoints(Match match, Prediction prediction) {
-        boolean finished = isFinishedStatus(match.getStatus());
-        boolean liveLike = isLiveStatus(match.getStatus())
-                           || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
-                               && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
-        if (!finished && !liveLike) {
-            return null;
-        }
-        if (finished && prediction != null && prediction.getPoints() != null) {
-            return prediction.getPoints();
-        }
-        if (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null) {
-            return PredictionService.computePoints(
-                    match.getHomeTeamScore(),
-                    match.getAwayTeamScore(),
-                    prediction != null ? prediction.getHomeTeamScore() : null,
-                    prediction != null ? prediction.getAwayTeamScore() : null
-            );
-        }
-        return null;
     }
 
     public PointsChartResponse pointsChart(String telegramId) {
@@ -773,17 +715,7 @@ public class MiniAppService {
             basePlaceByTeam.put(standing.getTeamId(), basePlace++);
         }
 
-        Map<Integer, Match> liveMatchByTeam = new LinkedHashMap<>();
-        for (Match match : matchService.findOnlineMatches()) {
-            if (!isLiveStatus(match.getStatus())) {
-                continue;
-            }
-            if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
-                continue;
-            }
-            liveMatchByTeam.put(match.getHomeTeamId(), match);
-            liveMatchByTeam.put(match.getAwayTeamId(), match);
-        }
+        Map<Integer, Match> liveMatchByTeam = LiveTable.liveMatchByTeam(matchService.findOnlineMatches());
         boolean hasLive = !liveMatchByTeam.isEmpty();
 
         List<StandingItem> items = new ArrayList<>();
@@ -792,13 +724,13 @@ public class MiniAppService {
             Team team = DaoUtil.TEAMS.get(standing.getTeamId());
             int currentPlace = place++;
             int previousPlace = basePlaceByTeam.getOrDefault(standing.getTeamId(), currentPlace);
-            int placeDelta = hasLive ? previousPlace - currentPlace : 0;
+            int placeDelta = LiveTable.placeDelta(hasLive, previousPlace, currentPlace);
             Match liveMatch = liveMatchByTeam.get(standing.getTeamId());
             String liveScore = null;
             String liveResult = null;
             if (liveMatch != null) {
-                liveScore = liveScoreForTeam(liveMatch, standing.getTeamId());
-                liveResult = liveResultForTeam(liveMatch, standing.getTeamId());
+                liveScore = LiveTable.scoreForTeam(liveMatch, standing.getTeamId());
+                liveResult = LiveTable.resultForTeam(liveMatch, standing.getTeamId());
             }
             items.add(new StandingItem(
                     currentPlace,
@@ -818,30 +750,6 @@ public class MiniAppService {
             ));
         }
         return items;
-    }
-
-    static String liveScoreForTeam(Match match, int teamId) {
-        int home = match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore();
-        int away = match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore();
-        boolean isHome = match.getHomeTeamId() == teamId;
-        int mine = isHome ? home : away;
-        int theirs = isHome ? away : home;
-        return mine + ":" + theirs;
-    }
-
-    static String liveResultForTeam(Match match, int teamId) {
-        int home = match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore();
-        int away = match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore();
-        boolean isHome = match.getHomeTeamId() == teamId;
-        int mine = isHome ? home : away;
-        int theirs = isHome ? away : home;
-        if (mine > theirs) {
-            return "W";
-        }
-        if (mine < theirs) {
-            return "L";
-        }
-        return "D";
     }
 
     public TeamMatchesResponse teamMatches(String telegramId, String teamCode) {
@@ -936,60 +844,32 @@ public class MiniAppService {
         FootyStatsExtendedMetrics ext = fs != null ? fs.extendedOrEmpty() : FootyStatsExtendedMetrics.empty();
         TeamSeasonExtras espn = espnTeamSeasonStatsService.forInternalCode(teamCode);
 
-        Double xg = firstNonNull(espn.avgXg(), fs != null ? fs.xgOverall() : null);
-        Double xga = firstNonNull(espn.avgXga(), fs != null ? fs.xgaOverall() : null);
-        Double scoredPm = firstNonNull(ext.seasonScoredPerMatch(), fs != null ? fs.scoredOverall() : null);
-        Double concededPm = firstNonNull(ext.seasonConcededPerMatch(), fs != null ? fs.concededOverall() : null);
+        Double xg = MiniAppFormat.firstNonNull(espn.avgXg(), fs != null ? fs.xgOverall() : null);
+        Double xga = MiniAppFormat.firstNonNull(espn.avgXga(), fs != null ? fs.xgaOverall() : null);
+        Double scoredPm = MiniAppFormat.firstNonNull(ext.seasonScoredPerMatch(), fs != null ? fs.scoredOverall() : null);
+        Double concededPm = MiniAppFormat.firstNonNull(ext.seasonConcededPerMatch(), fs != null ? fs.concededOverall() : null);
         Integer cleanSheets = espn.cleanSheets();
         Double csPct = ext.seasonCsOverall();
 
         TeamSeasonStats stats = new TeamSeasonStats(
-                round1(xg),
-                round1(xga),
-                round1(scoredPm),
-                round1(concededPm),
-                roundPct(ext.seasonBttsOverall()),
-                roundPct(csPct),
-                roundPct(ext.over25Overall()),
-                round1(ext.homePpg()),
-                round1(ext.awayPpg()),
-                round1(espn.possessionPct()),
-                round1(espn.shotsPerMatch()),
-                round1(espn.shotsOnTargetPerMatch()),
+                MiniAppFormat.round1(xg),
+                MiniAppFormat.round1(xga),
+                MiniAppFormat.round1(scoredPm),
+                MiniAppFormat.round1(concededPm),
+                MiniAppFormat.roundPct(ext.seasonBttsOverall()),
+                MiniAppFormat.roundPct(csPct),
+                MiniAppFormat.roundPct(ext.over25Overall()),
+                MiniAppFormat.round1(ext.homePpg()),
+                MiniAppFormat.round1(ext.awayPpg()),
+                MiniAppFormat.round1(espn.possessionPct()),
+                MiniAppFormat.round1(espn.shotsPerMatch()),
+                MiniAppFormat.round1(espn.shotsOnTargetPerMatch()),
                 cleanSheets
         );
-        if (isSeasonStatsEmpty(stats)) {
+        if (stats.isEmpty()) {
             return null;
         }
         return stats;
-    }
-
-    private static boolean isSeasonStatsEmpty(TeamSeasonStats s) {
-        return s.xg() == null && s.xga() == null
-                && s.scoredPerMatch() == null && s.concededPerMatch() == null
-                && s.bttsPct() == null && s.csPct() == null && s.over25Pct() == null
-                && s.homePpg() == null && s.awayPpg() == null
-                && s.possessionPct() == null && s.shotsPerMatch() == null
-                && s.shotsOnTargetPerMatch() == null && s.cleanSheets() == null;
-    }
-
-    private static Double firstNonNull(Double a, Double b) {
-        return a != null ? a : b;
-    }
-
-    private static Double round1(Double v) {
-        if (v == null || v.isNaN() || v.isInfinite()) {
-            return null;
-        }
-        return Math.round(v * 10.0) / 10.0;
-    }
-
-    private static Double roundPct(Double v) {
-        if (v == null || v.isNaN() || v.isInfinite()) {
-            return null;
-        }
-        double pct = v <= 1.5 ? v * 100.0 : v;
-        return Math.round(pct * 10.0) / 10.0;
     }
 
     public List<H2hItem> h2h(String telegramId, String homeCode, String awayCode) {
@@ -1014,7 +894,7 @@ public class MiniAppService {
         }
         if (request.bonusMatchId() != null) {
             BonusMatch bonus = bonusMatchDao.findByPublicId(request.bonusMatchId());
-            if (!canPredictBonus(bonus)) {
+            if (!MatchStatus.canPredictBonus(bonus)) {
                 return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
             }
             predictionService.saveBonus(telegramId, bonus.getPublicId(), request.homeScore(), request.awayScore());
@@ -1023,7 +903,7 @@ public class MiniAppService {
         String home = request.homeCode().toUpperCase();
         String away = request.awayCode().toUpperCase();
         Match match = matchService.findByTeamCodes(home, away);
-        if (!canPredict(match)) {
+        if (!MatchStatus.canPredict(match)) {
             return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
         }
         boolean exists = predictionService.isExist(telegramId, match.getPublicId());
@@ -1041,7 +921,7 @@ public class MiniAppService {
         String home = homeCode.toUpperCase();
         String away = awayCode.toUpperCase();
         Match match = matchService.findByTeamCodes(home, away);
-        if (!canPredict(match)) {
+        if (!MatchStatus.canPredict(match)) {
             return new ActionResponse(false, "Время для удаления прогноза истекло.");
         }
         predictionService.deleteByUserTelegramIdAndTeams(telegramId, home, away);
@@ -1051,7 +931,7 @@ public class MiniAppService {
     public ActionResponse deleteBonusPrediction(String telegramId, int bonusMatchId) {
         requireUser(telegramId);
         BonusMatch bonus = bonusMatchDao.findByPublicId(bonusMatchId);
-        if (!canPredictBonus(bonus)) {
+        if (!MatchStatus.canPredictBonus(bonus)) {
             return new ActionResponse(false, "Время для удаления прогноза истекло.");
         }
         predictionService.deleteBonusByUserTelegramId(telegramId, bonusMatchId);
@@ -1072,14 +952,14 @@ public class MiniAppService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
         Long predictSecondsLeft = null;
-        if (until != null && canPredict(match)) {
+        if (until != null && MatchStatus.canPredict(match)) {
             predictSecondsLeft = java.time.Duration.between(now, until).getSeconds();
             if (predictSecondsLeft < 0) {
                 predictSecondsLeft = 0L;
             }
         }
         Long kickoffSecondsLeft = null;
-        if (match.getLocalDateTime() != null && isNotStartedStatus(match.getStatus())) {
+        if (match.getLocalDateTime() != null && MatchStatus.isNotStarted(match.getStatus())) {
             kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
         }
         return new MatchItem(
@@ -1095,7 +975,7 @@ public class MiniAppService {
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
                 match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
-                canPredict(match),
+                MatchStatus.canPredict(match),
                 hasPrediction,
                 prediction != null ? prediction.getHomeTeamScore() : null,
                 prediction != null ? prediction.getAwayTeamScore() : null,
@@ -1119,14 +999,14 @@ public class MiniAppService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
         Long predictSecondsLeft = null;
-        if (until != null && canPredictBonus(match)) {
+        if (until != null && MatchStatus.canPredictBonus(match)) {
             predictSecondsLeft = java.time.Duration.between(now, until).getSeconds();
             if (predictSecondsLeft < 0) {
                 predictSecondsLeft = 0L;
             }
         }
         Long kickoffSecondsLeft = null;
-        if (match.getLocalDateTime() != null && isNotStartedStatus(match.getStatus())) {
+        if (match.getLocalDateTime() != null && MatchStatus.isNotStarted(match.getStatus())) {
             kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
         }
         String homeCode = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
@@ -1150,7 +1030,7 @@ public class MiniAppService {
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
                 match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
-                canPredictBonus(match),
+                MatchStatus.canPredictBonus(match),
                 prediction != null,
                 prediction != null ? prediction.getHomeTeamScore() : null,
                 prediction != null ? prediction.getAwayTeamScore() : null,
@@ -1170,57 +1050,12 @@ public class MiniAppService {
         );
     }
 
-    private static boolean canPredictBonus(BonusMatch match) {
-        if (match == null || match.getLocalDateTime() == null) {
-            return false;
-        }
-        String status = match.getStatus();
-        if (status != null && CLOSED_MATCH_STATUSES.contains(status.toLowerCase())) {
-            return false;
-        }
-        return LocalDateTime.now().isBefore(match.getLocalDateTime().plusMinutes(5));
-    }
-
-    private static boolean isNotStartedStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return true;
-        }
-        return Set.of("ns", "pst", "tbd").contains(status.toLowerCase());
-    }
-
-    private static boolean isLiveStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return false;
-        }
-        String s = status.toLowerCase();
-        return !Set.of("ns", "ft", "aet", "pen", "pst", "canc", "abd", "awrd", "wo").contains(s);
-    }
-
-    /** In-play EPL match that feeds provisional week points (same gate as computeCurrentWeekProvisionalPoints). */
-    private static boolean isLiveLikeMatch(Match match) {
-        if (match == null) {
-            return false;
-        }
-        boolean finished = isFinishedStatus(match.getStatus());
-        return isLiveStatus(match.getStatus())
-               || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
-                   && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
-    }
-
     private boolean hasLiveEplInWeek(int weekId) {
-        return matchService.findAllByWeekId(weekId).stream().anyMatch(MiniAppService::isLiveLikeMatch);
+        return matchService.findAllByWeekId(weekId).stream().anyMatch(MatchStatus::isLiveLike);
     }
 
     private boolean hasLiveCupMatches() {
         return !bonusMatchDao.findOnline().isEmpty();
-    }
-
-    private static boolean isFinishedStatus(String status) {
-        return status != null && CLOSED_MATCH_STATUSES.contains(status.toLowerCase());
-    }
-
-    private static int percent(int part, int total) {
-        return total == 0 ? 0 : (int) Math.round(part * 100.0 / total);
     }
 
     /**
@@ -1284,7 +1119,7 @@ public class MiniAppService {
             });
             items.add(new CupCompetitionItem(
                     e.getKey(),
-                    competitionLabel(e.getKey()),
+                    MiniAppFormat.competitionLabel(e.getKey()),
                     has,
                     e.getValue().size()
             ));
@@ -1315,7 +1150,7 @@ public class MiniAppService {
             boolean hasPrediction = prediction != null
                     && prediction.getHomeTeamScore() != null
                     && prediction.getAwayTeamScore() != null;
-            Integer pts = resolveCupReviewPoints(match, prediction);
+            Integer pts = PointsResolver.cupReviewPoints(match, prediction);
             if (pts != null) {
                 total += pts;
             }
@@ -1336,44 +1171,7 @@ public class MiniAppService {
                     null
             ));
         }
-        return new CupReviewResponse(competition, competitionLabel(competition), total, items);
-    }
-
-    private Integer resolveCupReviewPoints(BonusMatch match, Prediction prediction) {
-        boolean finished = isFinishedStatus(match.getStatus());
-        boolean liveLike = isLiveStatus(match.getStatus())
-                           || (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null
-                               && !finished && !"ns".equalsIgnoreCase(String.valueOf(match.getStatus())));
-        if (!finished && !liveLike) {
-            return null;
-        }
-        if (finished && prediction != null && prediction.getPoints() != null) {
-            return prediction.getPoints();
-        }
-        if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
-            return null;
-        }
-        return PredictionService.computePoints(
-                ScoringMode.CUP,
-                match.getHomeTeamScore(),
-                match.getAwayTeamScore(),
-                prediction != null ? prediction.getHomeTeamScore() : null,
-                prediction != null ? prediction.getAwayTeamScore() : null
-        );
-    }
-
-    private static String competitionLabel(String competition) {
-        if (competition == null) {
-            return "Cup";
-        }
-        return switch (competition) {
-            case "eng.fa" -> "FA Cup";
-            case "eng.league_cup" -> "Carabao Cup";
-            case "uefa.champions" -> "UCL";
-            case "uefa.europa" -> "UEL";
-            case "uefa.europa.conf" -> "UECL";
-            default -> competition;
-        };
+        return new CupReviewResponse(competition, MiniAppFormat.competitionLabel(competition), total, items);
     }
 
     private Map<String, Integer> computeCurrentWeekProvisionalPoints(int weekId) {
@@ -1395,8 +1193,8 @@ public class MiniAppService {
                 .toList();
         for (Match match : weekMatches) {
             Map<Integer, Prediction> byUser = predictionsByMatch.getOrDefault(match.getPublicId(), Map.of());
-            boolean finished = isFinishedStatus(match.getStatus());
-            boolean liveLike = isLiveLikeMatch(match);
+            boolean finished = MatchStatus.isFinished(match.getStatus());
+            boolean liveLike = MatchStatus.isLiveLike(match);
             if (!finished && !liveLike) {
                 continue;
             }
@@ -1424,17 +1222,6 @@ public class MiniAppService {
             }
         }
         return FlooredPointsService.sumProvisional(ordered);
-    }
-
-    private static boolean canPredict(Match match) {
-        if (match == null || match.getLocalDateTime() == null) {
-            return false;
-        }
-        String status = match.getStatus();
-        if (status != null && CLOSED_MATCH_STATUSES.contains(status.toLowerCase())) {
-            return false;
-        }
-        return LocalDateTime.now().isBefore(match.getLocalDateTime().plusMinutes(5));
     }
 
     private static String teamCode(int teamId) {
@@ -1494,181 +1281,6 @@ public class MiniAppService {
                 .toList();
     }
 
-    private static List<LineupPlayerItem> toLineupItemsFromFormation(TeamFormationItem formation) {
-        if (formation == null || formation.starters() == null || formation.starters().isEmpty()) {
-            return List.of();
-        }
-        return formation.starters().stream()
-                .map(p -> new LineupPlayerItem(p.number(), p.name(), p.position()))
-                .toList();
-    }
-
-    private TeamFormationItem loadTeamFormation(JsonNode root, String side, String teamCode) {
-        if (root == null) {
-            return null;
-        }
-        JsonNode rosters = root.path("rosters");
-        if (!rosters.isArray()) {
-            return null;
-        }
-        for (JsonNode rosterNode : rosters) {
-            if (!side.equalsIgnoreCase(rosterNode.path("homeAway").asText(""))) {
-                continue;
-            }
-            String formation = rosterNode.path("formation").asText("").trim();
-            String kitColor = rosterNode.path("uniform").path("color").asText("").trim();
-            if (!kitColor.isBlank() && !kitColor.startsWith("#")) {
-                kitColor = "#" + kitColor;
-            }
-            List<FormationPlayerItem> starters = new ArrayList<>();
-            List<FormationPlayerItem> bench = new ArrayList<>();
-            JsonNode roster = rosterNode.path("roster");
-            if (roster.isArray()) {
-                for (JsonNode athleteNode : roster) {
-                    FormationPlayerItem player = toFormationPlayer(athleteNode);
-                    if (player == null) {
-                        continue;
-                    }
-                    if (player.starter()) {
-                        starters.add(player);
-                    } else {
-                        bench.add(player);
-                    }
-                }
-            }
-            starters.sort(Comparator.comparingInt(FormationPlayerItem::formationPlace));
-            if (starters.isEmpty() && formation.isBlank()) {
-                return null;
-            }
-            return new TeamFormationItem(side, teamCode, formation, kitColor, starters, bench);
-        }
-        return null;
-    }
-
-    private FormationPlayerItem toFormationPlayer(JsonNode athleteNode) {
-        JsonNode athlete = athleteNode.path("athlete");
-        String name = athlete.path("displayName").asText("").trim();
-        if (name.isBlank()) {
-            return null;
-        }
-        String lastName = athlete.path("lastName").asText("").trim();
-        if (lastName.isBlank()) {
-            lastName = shortLastName(name);
-        }
-        String shortName = athlete.path("shortName").asText("").trim();
-        if (shortName.isBlank()) {
-            shortName = lastName;
-        }
-        List<PlayerStatItem> stats = new ArrayList<>();
-        JsonNode statsNode = athleteNode.path("stats");
-        if (statsNode.isArray()) {
-            for (JsonNode stat : statsNode) {
-                String value = stat.path("displayValue").asText("").trim();
-                if (value.isBlank()) {
-                    continue;
-                }
-                stats.add(new PlayerStatItem(
-                        stat.path("name").asText(""),
-                        stat.path("displayName").asText(""),
-                        stat.path("abbreviation").asText(""),
-                        value
-                ));
-            }
-        }
-        String subPartnerId = "";
-        String subPartnerName = "";
-        if (athleteNode.path("subbedOut").asBoolean(false)) {
-            subPartnerId = athleteNode.path("subbedOutFor").path("athlete").path("id").asText("").trim();
-            subPartnerName = athleteNode.path("subbedOutFor").path("athlete").path("displayName").asText("").trim();
-        } else if (athleteNode.path("subbedIn").asBoolean(false)) {
-            subPartnerId = athleteNode.path("subbedInFor").path("athlete").path("id").asText("").trim();
-            subPartnerName = athleteNode.path("subbedInFor").path("athlete").path("displayName").asText("").trim();
-        }
-        return new FormationPlayerItem(
-                athlete.path("id").asText(""),
-                athleteNode.path("jersey").asInt(0),
-                name,
-                shortName,
-                lastName,
-                athleteNode.path("position").path("abbreviation").asText("").trim(),
-                athleteNode.path("position").path("displayName").asText("").trim(),
-                athleteNode.path("formationPlace").asInt(0),
-                athleteNode.path("starter").asBoolean(false),
-                athleteNode.path("subbedOut").asBoolean(false),
-                athleteNode.path("subbedIn").asBoolean(false),
-                subPartnerId,
-                subPartnerName,
-                jerseyImageUrl(athlete.path("jerseyImages")),
-                intStat(stats, "totalGoals"),
-                intStat(stats, "goalAssists"),
-                intStat(stats, "yellowCards"),
-                intStat(stats, "redCards"),
-                stats
-        );
-    }
-
-    private static final int JERSEY_THUMB_PX = 128;
-
-    private static String jerseyImageUrl(JsonNode images) {
-        if (!images.isArray()) {
-            return null;
-        }
-        String dark = null;
-        String any = null;
-        for (JsonNode image : images) {
-            String href = image.path("href").asText("").trim();
-            if (href.isBlank()) {
-                continue;
-            }
-            any = href;
-            JsonNode rel = image.path("rel");
-            if (rel.isArray()) {
-                for (JsonNode r : rel) {
-                    if ("dark".equalsIgnoreCase(r.asText(""))) {
-                        dark = href;
-                    }
-                }
-            }
-            if (href.contains("darkMode=true")) {
-                dark = href;
-            }
-        }
-        return withJerseyThumbSize(dark != null ? dark : any);
-    }
-
-    /**
-     * ESPN stitcher serves full 1440px jerseys (~200KB+); request a small thumb for formation dots.
-     */
-    static String withJerseyThumbSize(String href) {
-        if (href == null || href.isBlank()) {
-            return null;
-        }
-        String trimmed = href.trim();
-        if (trimmed.contains("width=") || trimmed.contains("height=")) {
-            return trimmed;
-        }
-        char sep = trimmed.indexOf('?') >= 0 ? '&' : '?';
-        return trimmed + sep + "width=" + JERSEY_THUMB_PX + "&height=" + JERSEY_THUMB_PX;
-    }
-
-    private static Integer intStat(List<PlayerStatItem> stats, String name) {
-        for (PlayerStatItem stat : stats) {
-            if (name.equals(stat.name())) {
-                try {
-                    return Integer.parseInt(stat.value());
-                } catch (NumberFormatException ignored) {
-                    return null;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static String shortLastName(String fullName) {
-        String[] parts = fullName.trim().split("\\s+");
-        return parts.length == 0 ? fullName : parts[parts.length - 1];
-    }
-
     private JsonNode loadEspnSummaryRoot(Match match) {
         if (match == null) {
             return null;
@@ -1688,218 +1300,6 @@ public class MiniAppService {
                     league, espnId, e.getMessage());
             return null;
         }
-    }
-
-    private List<MatchEventItem> loadLiveEvents(JsonNode root) {
-        if (root == null) {
-            return List.of();
-        }
-        try {
-            JsonNode commentary = root.path("commentary");
-            if (!commentary.isArray() || commentary.isEmpty()) {
-                return List.of();
-            }
-            List<LiveCommentaryEvent> parsed = new ArrayList<>();
-            for (int i = 0; i < commentary.size(); i++) {
-                JsonNode item = commentary.get(i);
-                String text = item.path("text").asText("").trim();
-                if (text.isBlank()) {
-                    continue;
-                }
-                String minute = item.path("time").path("displayValue").asText("").trim();
-                String type = item.path("play").path("type").path("type").asText("").trim();
-                if (type.isBlank()) {
-                    type = "comment";
-                }
-                if (shouldSkipCommentaryItem(text, type, minute)) {
-                    continue;
-                }
-                double timeValue = item.path("time").path("value").asDouble(-1d);
-                long sequence = item.path("sequence").asLong(i);
-                int period = item.path("play").path("period").path("number").asInt(0);
-                Double fieldX = item.path("play").path("fieldPositionX").isNumber()
-                        ? item.path("play").path("fieldPositionX").asDouble()
-                        : null;
-                Double fieldY = item.path("play").path("fieldPositionY").isNumber()
-                        ? item.path("play").path("fieldPositionY").asDouble()
-                        : null;
-                Double field2X = item.path("play").path("fieldPosition2X").isNumber()
-                        ? item.path("play").path("fieldPosition2X").asDouble()
-                        : null;
-                Double field2Y = item.path("play").path("fieldPosition2Y").isNumber()
-                        ? item.path("play").path("fieldPosition2Y").asDouble()
-                        : null;
-                Double goalPositionY = item.path("play").path("goalPositionY").isNumber()
-                        ? item.path("play").path("goalPositionY").asDouble()
-                        : null;
-                String teamName = item.path("play").path("team").path("displayName").asText("").trim();
-                String shortText = item.path("play").path("shortText").asText("").trim();
-                String playerName = extractPrimaryParticipantName(item.path("play"));
-                parsed.add(new LiveCommentaryEvent(
-                        period, timeValue, sequence, minute, text, type,
-                        fieldX, fieldY, field2X, field2Y, goalPositionY, teamName, shortText, playerName
-                ));
-            }
-            if (parsed.isEmpty()) {
-                return List.of();
-            }
-            parsed.sort(Comparator
-                    .comparingInt(LiveCommentaryEvent::period)
-                    .thenComparingDouble(LiveCommentaryEvent::timeValue)
-                    .thenComparingLong(LiveCommentaryEvent::sequence)
-                    .reversed());
-            return parsed.stream()
-                    .limit(22)
-                    .map(item -> new MatchEventItem(
-                            item.minute(),
-                            item.text(),
-                            item.type(),
-                            item.period() > 0 ? item.period() : null,
-                            item.fieldX(),
-                            item.fieldY(),
-                            item.field2X(),
-                            item.field2Y(),
-                            item.goalPositionY(),
-                            item.teamName(),
-                            item.shortText(),
-                            item.playerName()
-                    ))
-                    .toList();
-        } catch (Exception e) {
-            log.warn("MiniApp live commentary parse failed: error={}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private String extractPrimaryParticipantName(JsonNode play) {
-        JsonNode participants = play.path("participants");
-        if (!participants.isArray() || participants.isEmpty()) {
-            return "";
-        }
-        String displayName = participants.get(0).path("athlete").path("displayName").asText("").trim();
-        if (!displayName.isBlank()) {
-            return displayName;
-        }
-        String lastName = participants.get(0).path("athlete").path("lastName").asText("").trim();
-        return lastName;
-    }
-
-    private List<MatchStatItem> loadLiveStats(JsonNode root) {
-        if (root == null) {
-            return List.of();
-        }
-        JsonNode teams = root.path("boxscore").path("teams");
-        if (!teams.isArray() || teams.size() < 2) {
-            return List.of();
-        }
-        Map<String, String> homeStats = extractStatsMap(teams.get(0).path("statistics"));
-        Map<String, String> awayStats = extractStatsMap(teams.get(1).path("statistics"));
-        if (homeStats.isEmpty() && awayStats.isEmpty()) {
-            return List.of();
-        }
-        return List.of(
-                statPercent("possessionPct", "possession", "Владение", homeStats, awayStats),
-                stat("totalShots", "shotsTotal", "Удары", homeStats, awayStats),
-                stat("shotsOnTarget", null, "В створ", homeStats, awayStats),
-                stat("foulsCommitted", null, "Фолы", homeStats, awayStats),
-                stat("offsides", null, "Офсайды", homeStats, awayStats),
-                stat("wonCorners", "cornerKicks", "Угловые", homeStats, awayStats),
-                stat("yellowCards", null, "ЖК", homeStats, awayStats),
-                stat("redCards", null, "КК", homeStats, awayStats)
-        );
-    }
-
-    private MatchStatItem stat(String primaryKey, String fallbackKey, String label, Map<String, String> home, Map<String, String> away) {
-        return new MatchStatItem(
-                primaryKey,
-                label,
-                pickStatValue(home, primaryKey, fallbackKey),
-                pickStatValue(away, primaryKey, fallbackKey)
-        );
-    }
-
-    private MatchStatItem statPercent(String primaryKey, String fallbackKey, String label, Map<String, String> home, Map<String, String> away) {
-        return new MatchStatItem(
-                primaryKey,
-                label,
-                formatPercent(pickStatValue(home, primaryKey, fallbackKey)),
-                formatPercent(pickStatValue(away, primaryKey, fallbackKey))
-        );
-    }
-
-    private String pickStatValue(Map<String, String> map, String primaryKey, String fallbackKey) {
-        String value = map.get(primaryKey);
-        if (value == null || value.isBlank()) {
-            value = fallbackKey != null ? map.get(fallbackKey) : null;
-        }
-        return (value == null || value.isBlank()) ? "—" : value;
-    }
-
-    private String formatPercent(String value) {
-        if ("—".equals(value)) {
-            return value;
-        }
-        if (value.endsWith("%")) {
-            return value;
-        }
-        return value + "%";
-    }
-
-    private Map<String, String> extractStatsMap(JsonNode statsNode) {
-        Map<String, String> map = new LinkedHashMap<>();
-        if (!statsNode.isArray()) {
-            return map;
-        }
-        for (int i = 0; i < statsNode.size(); i++) {
-            JsonNode item = statsNode.get(i);
-            String name = item.path("name").asText("").trim();
-            if (name.isBlank()) {
-                continue;
-            }
-            String value = item.path("displayValue").asText("").trim();
-            if (value.isBlank()) {
-                value = item.path("value").asText("").trim();
-            }
-            if (!value.isBlank()) {
-                map.put(name, value);
-            }
-        }
-        return map;
-    }
-
-    private boolean shouldSkipCommentaryItem(String text, String type, String minute) {
-        String normalizedText = text.toLowerCase();
-        String normalizedType = type.toLowerCase();
-        if (normalizedText.contains("lineups are announced")) {
-            return true;
-        }
-        return minute.isBlank()
-                && (normalizedType.contains("period") || normalizedType.contains("kickoff"));
-    }
-
-    private record LiveCommentaryEvent(
-            int period,
-            double timeValue,
-            long sequence,
-            String minute,
-            String text,
-            String type,
-            Double fieldX,
-            Double fieldY,
-            Double field2X,
-            Double field2Y,
-            Double goalPositionY,
-            String teamName,
-            String shortText,
-            String playerName
-    ) {
-    }
-
-    private static String pitchColorFromFormation(TeamFormationItem formation, String fallback) {
-        if (formation != null && formation.kitColor() != null && !formation.kitColor().isBlank()) {
-            return formation.kitColor();
-        }
-        return fallback;
     }
 
     private List<FormItem> buildRecentForm(int teamId, int limit) {
@@ -1925,82 +1325,4 @@ public class MiniAppService {
         );
     }
 
-    private List<MatchNewsItem> loadMatchNews(Match match, int limit) {
-        if (match == null) {
-            return List.of();
-        }
-        try {
-            List<MatchNewsItem> news = new ArrayList<>();
-            Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
-            Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
-            if (home != null) {
-                news.addAll(loadTeamNews(home.getCode(), Math.max(limit, 3)));
-            }
-            if (away != null) {
-                news.addAll(loadTeamNews(away.getCode(), Math.max(limit, 3)));
-            }
-            news = news.stream()
-                    .filter(item -> item.title() != null && !item.title().isBlank())
-                    .collect(Collectors.collectingAndThen(
-                            Collectors.toMap(
-                                    MatchNewsItem::url,
-                                    item -> item,
-                                    (a, b) -> a,
-                                    LinkedHashMap::new
-                            ),
-                            map -> new ArrayList<>(map.values())
-                    ));
-            news.sort(Comparator.comparing(MatchNewsItem::publishedAt, Comparator.nullsLast(Comparator.reverseOrder())));
-            if (news.size() > limit) {
-                return news.subList(0, limit);
-            }
-            return news;
-        } catch (Exception e) {
-            log.warn("MiniApp match news load failed: matchId={}, error={}",
-                    match.getPublicId(), e.getMessage());
-            return List.of();
-        }
-    }
-
-    private List<MatchNewsItem> loadTeamNews(String teamCode, int limit) {
-        Integer tagId = TEAM_NEWS_TAG_IDS.get(teamCode);
-        if (tagId == null) {
-            return List.of();
-        }
-        long now = System.currentTimeMillis();
-        CachedTeamNews cached = teamNewsCache.get(teamCode);
-        if (cached != null && now - cached.cachedAtMs() <= TEAM_NEWS_CACHE_MS) {
-            return cached.news();
-        }
-        try {
-            URL source = new URL(SPORTS_RU_TEAM_RSS + tagId);
-            SyndFeed feed = new SyndFeedInput().build(new XmlReader(source));
-            List<MatchNewsItem> items = new ArrayList<>();
-            for (SyndEntry entry : feed.getEntries()) {
-                if (items.size() >= limit) {
-                    break;
-                }
-                String title = entry.getTitle() == null ? "" : entry.getTitle().trim();
-                String url = entry.getLink() == null ? "" : entry.getLink().trim();
-                if (title.isBlank() || url.isBlank()) {
-                    continue;
-                }
-                String published = "";
-                if (entry.getPublishedDate() != null) {
-                    published = LocalDateTime.ofInstant(entry.getPublishedDate().toInstant(), ZoneId.of(AppTimeZones.DISPLAY.getId()))
-                            .format(NEWS_TS);
-                }
-                items.add(new MatchNewsItem(title, url, published));
-            }
-            teamNewsCache.put(teamCode, new CachedTeamNews(now, items));
-            return items;
-        } catch (Exception e) {
-            log.warn("MiniApp team news load failed: teamCode={}, tagId={}, error={}",
-                    teamCode, tagId, e.getMessage());
-            return List.of();
-        }
-    }
-
-    private record CachedTeamNews(long cachedAtMs, List<MatchNewsItem> news) {
-    }
 }

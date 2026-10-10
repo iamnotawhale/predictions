@@ -2,6 +2,7 @@ package zhigalin.predictions.service.notification;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,8 +32,23 @@ class HtmlCardPreviewTest {
 
     private HtmlImageRenderer renderer;
 
+    private static boolean chromeAvailable() {
+        String env = System.getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
+        if (env != null && Files.isExecutable(Path.of(env))) {
+            return true;
+        }
+        for (String c : List.of("/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
+                "/usr/bin/chromium-browser", "/usr/bin/chromium")) {
+            if (Files.isExecutable(Path.of(c))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @BeforeEach
     void setUp() {
+        assumeTrue(chromeAvailable(), "no Chrome/Chromium found; skipping card preview");
         seedTeams();
         OddsService odds = mock(OddsService.class);
         when(odds.getOdd(anyInt())).thenReturn(new OddsService.Odd(2.10, 3.50, 3.40, 2.5, null, null));
@@ -82,7 +98,9 @@ class HtmlCardPreviewTest {
 
     @AfterEach
     void tearDown() {
-        renderer.shutdown();
+        if (renderer != null) {
+            renderer.shutdown();
+        }
     }
 
     @Test

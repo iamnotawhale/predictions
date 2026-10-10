@@ -4,12 +4,12 @@
   --bg2: #14111a;
   --bg3: #1c1824;
   --text: #e8dff5;
-  --hint: #9a8fb0;
+  --hint: #b4a9c9;
   --accent: #b08cff;
   --accent-lift: #c9b4ff;
   --accent-deep: #6b4fc4;
   --pl-deep: #37003c;
-  --line: rgba(176, 140, 255, 0.18);
+  --line: rgba(176, 140, 255, 0.28);
   --glow: rgba(176, 140, 255, 0.12);
   --radius: 12px;
   --font: "Manrope", system-ui, sans-serif;
@@ -698,3 +698,74 @@ html, body {
   color: var(--hint);
   opacity: 0.7;
 }
+
+/* ── Design pass: scale, hierarchy, contrast ───────────────────────────── */
+:root {
+  --surface: color-mix(in srgb, var(--bg2) 82%, var(--accent));
+  --surface-hi: color-mix(in srgb, var(--bg3) 70%, var(--accent));
+}
+
+.card { gap: 36px; }
+.card.card-narrow { padding-left: 72px; padding-right: 72px; }
+.card.card-narrow > .sheet,
+.card.card-narrow > .weekly-list,
+.card.card-narrow > .chart-wrap,
+.card.card-narrow > .predict-banner { width: min(936px, 100%); }
+
+.heading { font-size: 52px; line-height: 1.1; text-wrap: balance; text-shadow: 0 4px 32px color-mix(in srgb, var(--accent) 45%, transparent); }
+.sub { font-size: 26px; }
+.badge { font-size: 20px; padding: 10px 20px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+/* panels: accent hairline on top edge */
+.sheet, .chart-wrap {
+  background: linear-gradient(180deg, var(--surface-hi), var(--surface));
+  border-color: var(--line);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 0 48px var(--glow), inset 0 1px 0 color-mix(in srgb, var(--accent-lift) 35%, transparent);
+}
+
+.section-title { font-size: 24px; padding: 22px 32px 10px; }
+.match-row { grid-template-columns: 88px 1fr auto 1fr 88px; padding: 20px 28px; gap: 16px; }
+.match-row img { width: 72px; height: 72px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.45)); }
+.code { font-size: 42px; }
+.center-pill { font-size: 32px; min-width: 150px; padding: 12px 22px; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--accent) 16%, transparent); border-color: var(--line); color: #fff; }
+
+/* hero (full time / predict) */
+.hero { padding: 48px 44px; }
+.hero-side img { width: 156px; height: 156px; }
+.hero-side .code { font-size: 54px; }
+.score { font-size: 108px; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 6px 40px color-mix(in srgb, var(--accent) 55%, transparent); }
+.ai-line { font-size: 24px; padding: 6px 16px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text); }
+
+/* logo fallback: monogram-style disc instead of grey square */
+.stub {
+  width: 56px;
+  height: 56px;
+  display: block;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--accent) 45%, #2a2236), color-mix(in srgb, var(--accent-deep) 80%, #120e1a));
+  border: 2px solid color-mix(in srgb, var(--accent-lift) 40%, transparent);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+.match-row .stub { width: 72px; height: 72px; }
+.hero-side .stub { width: 156px; height: 156px; }
+.logo-sm.stub { width: 36px; height: 36px; border-width: 1px; }
+
+/* results list */
+.result-line { font-size: 26px; padding: 12px 18px; }
+.result-line .pts { font-size: 30px; }
+
+/* weekly leaderboard: podium tint */
+.weekly-row { padding: 18px 26px; grid-template-columns: 84px 1fr auto; border-radius: 14px; }
+.weekly-place { font-size: 36px; }
+.weekly-login { font-size: 36px; }
+.weekly-pts { font-size: 34px; font-variant-numeric: tabular-nums; }
+.weekly-row.p1 { background: linear-gradient(90deg, color-mix(in srgb, #ffd166 22%, var(--bg2)), var(--surface)); border-color: #ffd166; }
+.weekly-row.p1 .weekly-place { color: #ffd166; }
+.weekly-row.p2 { background: linear-gradient(90deg, color-mix(in srgb, #c8d0dc 16%, var(--bg2)), var(--surface)); border-color: #c8d0dc; }
+.weekly-row.p2 .weekly-place { color: #c8d0dc; }
+.weekly-row.p3 { background: linear-gradient(90deg, color-mix(in srgb, #d98c5f 18%, var(--bg2)), var(--surface)); border-color: #d98c5f; }
+.weekly-row.p3 .weekly-place { color: #d98c5f; }
+
+.predict-banner { font-size: 44px; padding: 24px 28px; }
+.foot { font-size: 16px; opacity: 0.85; bottom: 40px; }
