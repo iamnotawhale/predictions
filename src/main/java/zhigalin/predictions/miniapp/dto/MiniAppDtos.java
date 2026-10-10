@@ -1,6 +1,7 @@
 package zhigalin.predictions.miniapp.dto;
 
 import java.util.List;
+import zhigalin.predictions.recommender.RecommendationInsight;
 
 public final class MiniAppDtos {
 
@@ -212,7 +213,8 @@ public final class MiniAppDtos {
             List<String> explanationNotes,
             List<String> explanationLines,
             String summary,
-            ScoreDistributionDto distribution
+            ScoreDistributionDto distribution,
+            RecommendationInsight.Insight insight
     ) {
     }
 

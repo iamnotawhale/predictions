@@ -216,6 +216,8 @@
         apiCache: {},
         recommendationDetailsOpen: false,
         aiModalOpened: false,
+        aiMode: 'score',
+        aiCell: null,
         currentRecommendation: null
     };
 
@@ -2185,6 +2187,108 @@
         summaryEl.textContent = lambda + ' · tip ' + tipPct + '% · открыть матрицу';
     }
 
+    const AI_STAT_METRICS = ['Ожидаемые голы', 'Шанс победы', 'Атака', 'Оборона', 'xG / матч', 'Форма'];
+
+    function signedPoints(v) {
+        const n = Number(v);
+        return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(2).replace(/\.?0+$/, '');
+    }
+
+    function aiCellValue(mode, insight, h, a, p) {
+        const t = insight && insight.breakdown && insight.breakdown[h] && insight.breakdown[h][a];
+        if (mode === 'score' || !t) return p;
+        if (mode === 'chance') return 1 - t[3];
+        const s = insight.scoring;
+        return t[0] * s.exact + t[1] * s.diff + t[2] * s.outcome + t[3] * s.miss;
+    }
+
+    function aiCellLabel(mode, v) {
+        if (mode === 'points') return signedPoints(v);
+        return Math.round(v * 100) + '%';
+    }
+
+    function renderAiHeatmap(matrix, insight, rec, mode) {
+        const el = $('#ai-heatmap');
+        if (!el) return;
+        const size = 6;
+        let maxV = 0;
+        let minV = Infinity;
+        for (let h = 0; h < size; h++) {
+            for (let a = 0; a < size; a++) {
+                const v = aiCellValue(mode, insight, h, a, Number((matrix[h] || [])[a] || 0));
+                if (v > maxV) maxV = v;
+                if (v < minV) minV = v;
+            }
+        }
+        const lo = mode === 'points' ? Math.min(0, minV) : 0;
+        const modeScore = insight && insight.mostLikely;
+        const sel = state.aiCell;
+        let html = '<div class="ai-heatmap-corner" title="дома \\ в гостях"></div>';
+        for (let a = 0; a < size; a++) html += '<div class="ai-heatmap-axis">' + a + '</div>';
+        for (let h = 0; h < size; h++) {
+            html += '<div class="ai-heatmap-axis">' + h + '</div>';
+            for (let a = 0; a < size; a++) {
+                const p = Number((matrix[h] || [])[a] || 0);
+                const v = aiCellValue(mode, insight, h, a, p);
+                const heat = maxV > lo ? Math.round(((v - lo) / (maxV - lo)) * 70) : 0;
+                const isPick = h === rec.recommendedHome && a === rec.recommendedAway;
+                const isMode = modeScore && h === modeScore.home && a === modeScore.away;
+                const isSel = sel && sel.h === h && sel.a === a;
+                html += '<button type="button" class="ai-heatmap-cell'
+                    + (isPick ? ' is-pick' : '') + (isMode ? ' is-mode' : '') + (isSel ? ' is-selected' : '')
+                    + '" data-h="' + h + '" data-a="' + a + '" style="--heat:' + heat + '">'
+                    + '<span class="ai-heat-score">' + h + ':' + a + '</span>'
+                    + '<span class="ai-heat-pct">' + aiCellLabel(mode, v) + '</span>'
+                    + '</button>';
+            }
+        }
+        el.innerHTML = html;
+    }
+
+    function renderAiCellDetail(matrix, insight, h, a) {
+        const el = $('#ai-cell-detail');
+        if (!el) return;
+        const t = insight && insight.breakdown && insight.breakdown[h] && insight.breakdown[h][a];
+        if (!t) {
+            el.innerHTML = '';
+            return;
+        }
+        const s = insight.scoring;
+        const ev = t[0] * s.exact + t[1] * s.diff + t[2] * s.outcome + t[3] * s.miss;
+        const row = (cls, label, pts, p) => '<li class="' + cls + '"><span>' + label
+            + '</span><span>' + signedPoints(pts) + ' · <b>' + pctLabel(p) + '</b></span></li>';
+        el.innerHTML = '<div class="ai-cell-title">Если поставить <b>' + h + ':' + a + '</b></div>'
+            + '<ul class="ai-cell-tiers">'
+            + row('t-exact', 'Точный счёт', s.exact, t[0])
+            + row('t-diff', 'Та же разница голов', s.diff, t[1])
+            + row('t-outcome', 'Угадан исход', s.outcome, t[2])
+            + row('t-miss', 'Мимо', s.miss, t[3])
+            + '</ul>'
+            + '<div class="ai-cell-total">Шанс очков <b>' + pctLabel(1 - t[3])
+            + '</b> · в среднем <b>' + signedPoints(ev) + '</b> за матч</div>';
+    }
+
+    function renderAiPointsBar(insight, rec) {
+        const bar = $('#ai-points-bar');
+        const legend = $('#ai-points-legend');
+        const t = insight && insight.breakdown
+            && insight.breakdown[rec.recommendedHome] && insight.breakdown[rec.recommendedHome][rec.recommendedAway];
+        if (!t) {
+            bar.classList.add('hidden');
+            legend.classList.add('hidden');
+            return;
+        }
+        const s = insight.scoring;
+        const names = ['exact', 'diff', 'outcome', 'miss'];
+        const labels = ['точный', 'разница', 'исход', 'мимо'];
+        const pts = [s.exact, s.diff, s.outcome, s.miss];
+        bar.innerHTML = t.map((p, i) => '<span class="seg seg-' + names[i] + '" style="flex:' + Math.max(p, 0.001) + '"></span>').join('');
+        legend.innerHTML = t.map((p, i) => '<span class="leg"><i class="dot seg-' + names[i] + '"></i>'
+            + labels[i] + ' ' + signedPoints(pts[i]) + ' · <b>' + pctLabel(p) + '</b></span>').join('');
+        bar.classList.remove('hidden');
+        legend.classList.remove('hidden');
+    }
+
     function openAiModal() {
         const recommendation = state.currentRecommendation;
         const match = state.selectedMatch;
@@ -2193,57 +2297,63 @@
 
         const homeCode = (match && match.homeCode) || 'HOME';
         const awayCode = (match && match.awayCode) || 'AWAY';
+        const dist = recommendation.distribution;
+        const insight = recommendation.insight;
+        const hasMatrix = !!(dist && dist.matrix && dist.matrix.length);
+        const pickT = insight && insight.breakdown
+            && (insight.breakdown[recommendation.recommendedHome] || [])[recommendation.recommendedAway];
+
         $('#ai-modal-title').textContent = homeCode + ' — ' + awayCode;
         $('#ai-modal-tip-score').textContent =
             recommendation.recommendedHome + ':' + recommendation.recommendedAway;
-        $('#ai-modal-tip-prob').textContent =
-            'шанс tip ' + pctLabel(recommendation.scoreProbability);
-        $('#ai-lambda-home-code').textContent = homeCode;
-        $('#ai-lambda-away-code').textContent = awayCode;
-        $('#ai-lambda-home').textContent = Number(recommendation.expectedHomeGoals).toFixed(2);
-        $('#ai-lambda-away').textContent = Number(recommendation.expectedAwayGoals).toFixed(2);
+        $('#ai-modal-tip-prob').textContent = pickT
+            ? 'Очки получим с шансом ' + pctLabel(1 - pickT[3]) + ' · точный счёт ' + pctLabel(pickT[0])
+              + ' · в среднем ' + signedPoints(insight.expectedPoints) + ' за матч'
+            : 'Шанс точного счёта ' + pctLabel(recommendation.scoreProbability);
+        renderAiPointsBar(insight, recommendation);
 
-        const dist = recommendation.distribution;
+        const reasonsSection = $('#ai-modal-reasons-section');
+        const reasons = (insight && insight.reasons) || [];
+        const reasonsEl = $('#ai-reasons');
+        reasonsEl.innerHTML = '';
+        reasons.forEach((line) => {
+            const li = document.createElement('li');
+            li.textContent = line;
+            reasonsEl.appendChild(li);
+        });
+        reasonsSection.classList.toggle('hidden', !reasons.length);
+
         const marketsSection = $('#ai-modal-markets');
         const heatmapSection = $('#ai-modal-heatmap-section');
-        const topsSection = $('#ai-modal-tops-section');
-        const matrixNote = $('#ai-modal-matrix-note');
-
-        if (dist && dist.matrix && dist.matrix.length) {
-            if (matrixNote) matrixNote.classList.remove('hidden');
+        if (hasMatrix) {
             marketsSection.classList.remove('hidden');
             heatmapSection.classList.remove('hidden');
-            topsSection.classList.remove('hidden');
             $('#ai-markets-1x2').innerHTML =
                 marketChipHtml('1', dist.homeWin)
                 + marketChipHtml('X', dist.draw)
                 + marketChipHtml('2', dist.awayWin);
             $('#ai-markets-extra').innerHTML =
                 marketChipHtml('ОЗ', dist.btts)
-                + marketChipHtml('ТБ 0.5', dist.over05)
                 + marketChipHtml('ТБ 1.5', dist.over15)
                 + marketChipHtml('ТБ 2.5', dist.over25)
                 + marketChipHtml('ТБ 3.5', dist.over35);
-            renderAiHeatmap(dist.matrix, recommendation.recommendedHome, recommendation.recommendedAway);
-            renderAiTopScores(dist.topScores || [], recommendation.recommendedHome, recommendation.recommendedAway);
+            state.aiMode = 'score';
+            state.aiCell = { h: recommendation.recommendedHome, a: recommendation.recommendedAway };
+            $$('#ai-heat-modes .ai-heat-mode').forEach((b) => b.classList.toggle('is-active', b.dataset.mode === 'score'));
+            renderAiHeatmap(dist.matrix, insight, recommendation, state.aiMode);
+            renderAiCellDetail(dist.matrix, insight, state.aiCell.h, state.aiCell.a);
         } else {
-            if (matrixNote) matrixNote.classList.add('hidden');
             marketsSection.classList.add('hidden');
             heatmapSection.classList.add('hidden');
-            topsSection.classList.add('hidden');
             $('#ai-heatmap').innerHTML = '';
-            $('#ai-top-scores').innerHTML = '';
         }
 
-        const rows = recommendation.explanationRows || [];
-        const notes = recommendation.explanationNotes
-            || ((!rows.length && recommendation.explanationLines) ? recommendation.explanationLines : [])
-            || [];
+        const statsSection = $('#ai-modal-stats-section');
+        const rows = (recommendation.explanationRows || []).filter((r) => AI_STAT_METRICS.includes(r.metric));
         const tableWrap = $('#ai-modal-table-wrap');
-        const notesEl = $('#ai-modal-notes');
         if (rows.length) {
             let html = '<table class="modal-recommendation-table"><thead><tr>'
-                + '<th>Показатель</th>'
+                + '<th></th>'
                 + '<th class="col-side">' + escapeHtml(homeCode) + '</th>'
                 + '<th class="col-side">' + escapeHtml(awayCode) + '</th>'
                 + '</tr></thead><tbody>';
@@ -2254,66 +2364,35 @@
                     + '<td class="col-side">' + escapeHtml(row.away != null ? row.away : '—') + '</td>'
                     + '</tr>';
             });
-            html += '</tbody></table>';
-            tableWrap.innerHTML = html;
+            tableWrap.innerHTML = html + '</tbody></table>';
+            statsSection.classList.remove('hidden');
         } else {
             tableWrap.innerHTML = '';
+            statsSection.classList.add('hidden');
         }
-        notesEl.innerHTML = '';
-        notes.forEach((line) => {
-            const li = document.createElement('li');
-            li.textContent = line;
-            notesEl.appendChild(li);
-        });
 
         state.aiModalOpened = true;
         modal.classList.remove('hidden');
         tg.BackButton.show();
     }
 
-    function renderAiHeatmap(matrix, modeHome, modeAway) {
-        const el = $('#ai-heatmap');
-        if (!el) return;
-        let maxP = 0;
-        matrix.forEach((row) => {
-            (row || []).forEach((p) => {
-                if (p > maxP) maxP = p;
-            });
-        });
-        let html = '<div class="ai-heatmap-corner"></div>';
-        for (let a = 0; a <= 5; a++) {
-            html += '<div class="ai-heatmap-axis">' + a + '</div>';
-        }
-        for (let h = 0; h < matrix.length && h <= 5; h++) {
-            html += '<div class="ai-heatmap-axis">' + h + '</div>';
-            const row = matrix[h] || [];
-            for (let a = 0; a <= 5; a++) {
-                const p = Number(row[a] || 0);
-                const heat = maxP > 0 ? Math.round((p / maxP) * 70) : 0;
-                const isMode = h === modeHome && a === modeAway;
-                html += '<div class="ai-heatmap-cell' + (isMode ? ' is-mode' : '') + '" style="--heat:' + heat + '">'
-                    + '<span class="ai-heat-score">' + h + ':' + a + '</span>'
-                    + '<span class="ai-heat-pct">' + Math.round(p * 100) + '%</span>'
-                    + '</div>';
-            }
-        }
-        el.innerHTML = html;
-    }
-
-    function renderAiTopScores(tops, modeHome, modeAway) {
-        const el = $('#ai-top-scores');
-        if (!el) return;
-        if (!tops.length) {
-            el.innerHTML = '';
+    function onAiHeatmapInteraction(event) {
+        const recommendation = state.currentRecommendation;
+        const dist = recommendation && recommendation.distribution;
+        if (!dist || !dist.matrix) return;
+        const insight = recommendation.insight;
+        const modeBtn = event.target.closest('.ai-heat-mode');
+        const cell = event.target.closest('.ai-heatmap-cell');
+        if (modeBtn) {
+            state.aiMode = modeBtn.dataset.mode;
+            $$('#ai-heat-modes .ai-heat-mode').forEach((b) => b.classList.toggle('is-active', b === modeBtn));
+        } else if (cell) {
+            state.aiCell = { h: Number(cell.dataset.h), a: Number(cell.dataset.a) };
+        } else {
             return;
         }
-        el.innerHTML = tops.map((t) => {
-            const isMode = t.home === modeHome && t.away === modeAway;
-            return '<li class="' + (isMode ? 'is-mode' : '') + '">'
-                + '<span class="ai-top-score">' + t.home + ':' + t.away + '</span>'
-                + '<span class="ai-top-pct">' + pctLabel(t.probability) + '</span>'
-                + '</li>';
-        }).join('');
+        renderAiHeatmap(dist.matrix, insight, recommendation, state.aiMode);
+        renderAiCellDetail(dist.matrix, insight, state.aiCell.h, state.aiCell.a);
     }
 
     function closeAiModal(manageBackButton) {
@@ -3244,6 +3323,8 @@
         if (recommendationOpen) {
             recommendationOpen.addEventListener('click', openAiModal);
         }
+        const aiHeatSection = $('#ai-modal-heatmap-section');
+        if (aiHeatSection) aiHeatSection.addEventListener('click', onAiHeatmapInteraction);
         const aiModalClose = $('#ai-modal-close');
         if (aiModalClose) {
             aiModalClose.addEventListener('click', () => closeAiModal());

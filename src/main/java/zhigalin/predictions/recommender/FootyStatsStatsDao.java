@@ -155,8 +155,9 @@ public class FootyStatsStatsDao {
                             match_public_id, week_id,
                             recommended_home, recommended_away,
                             expected_home_goals, expected_away_goals,
-                            score_probability, explanation_json, computed_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            score_probability, explanation_json, computed_at,
+                            shadow_home, shadow_away
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT (match_public_id) DO UPDATE SET
                             week_id = EXCLUDED.week_id,
                             recommended_home = EXCLUDED.recommended_home,
@@ -165,7 +166,9 @@ public class FootyStatsStatsDao {
                             expected_away_goals = EXCLUDED.expected_away_goals,
                             score_probability = EXCLUDED.score_probability,
                             explanation_json = EXCLUDED.explanation_json,
-                            computed_at = EXCLUDED.computed_at
+                            computed_at = EXCLUDED.computed_at,
+                            shadow_home = EXCLUDED.shadow_home,
+                            shadow_away = EXCLUDED.shadow_away
                         """,
                 recommendations,
                 recommendations.size(),
@@ -188,6 +191,8 @@ public class FootyStatsStatsDao {
                     ps.setDouble(7, recommendation.scoreProbability());
                     ps.setString(8, explanationJson);
                     ps.setTimestamp(9, Timestamp.from(recommendation.computedAt()));
+                    ps.setObject(10, recommendation.shadowHome(), java.sql.Types.INTEGER);
+                    ps.setObject(11, recommendation.shadowAway(), java.sql.Types.INTEGER);
                 });
     }
 
@@ -331,7 +336,9 @@ public class FootyStatsStatsDao {
                     rs.getTimestamp("computed_at").toInstant(),
                     kickoffHome,
                     kickoffAway,
-                    frozenAt != null ? frozenAt.toInstant() : null
+                    frozenAt != null ? frozenAt.toInstant() : null,
+                    getNullableInt(rs, "shadow_home"),
+                    getNullableInt(rs, "shadow_away")
             );
         };
     }

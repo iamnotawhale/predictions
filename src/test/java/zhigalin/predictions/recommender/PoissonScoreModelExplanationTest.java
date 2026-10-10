@@ -88,7 +88,11 @@ class PoissonScoreModelExplanationTest {
                 null,
                 0,
                 1,
-                0.122
+                0.122,
+                0,
+                1,
+                0.122,
+                0.55
         );
 
         String joined = String.join("\n", explanation.asLines());
@@ -132,7 +136,11 @@ class PoissonScoreModelExplanationTest {
                 null, null, null, // over probs
                 1,
                 1,
-                0.1
+                0.1,
+                1,
+                1,
+                0.1,
+                0.2
         );
         String joined = String.join("\n", explanation.asLines());
         assertTrue(joined.contains("ещё недоступны"));
@@ -181,5 +189,38 @@ class PoissonScoreModelExplanationTest {
                 FootyStatsExtendedMetrics.empty(),
                 Instant.parse("2026-08-29T12:00:00Z")
         );
+    }
+
+    @Test
+    void whenThePickDiffersFromTheModeBothAreExplained() {
+        FootyStatsTeamSnapshot a = team("SUN", 1, 1, 1, 1, 1, 1);
+        FootyStatsTeamSnapshot b = team("ARS", 1, 1, 1, 1, 1, 1);
+        ExplanationBreakdown explanation = PoissonScoreModel.buildHumanExplanation(
+                "SUN", "ARS", 1.4, 1.3, 1.0, 1.0, 1.0, 1.0, 0.2,
+                null, null, null, null, a, b,
+                FootyStatsExtendedMetrics.empty(), FootyStatsExtendedMetrics.empty(),
+                null, null, null, null, null, null, null, null, null, null, null,
+                1, 1, 0.11,   // most likely score
+                1, 0, 0.10, 0.62 // recommended score, its probability and expected points
+        );
+        String joined = String.join("\n", explanation.asLines());
+        assertTrue(joined.contains("Рекомендуем 1:0 (около 10%)"));
+        assertTrue(joined.contains("~0.6 за матч"));
+        assertTrue(joined.contains("Самый вероятный счёт — 1:1 (около 11%)"));
+    }
+
+    @Test
+    void whenThePickIsTheModeThereIsNoSeparateRecommendationNote() {
+        FootyStatsTeamSnapshot a = team("SUN", 1, 1, 1, 1, 1, 1);
+        FootyStatsTeamSnapshot b = team("ARS", 1, 1, 1, 1, 1, 1);
+        ExplanationBreakdown explanation = PoissonScoreModel.buildHumanExplanation(
+                "SUN", "ARS", 1.4, 1.3, 1.0, 1.0, 1.0, 1.0, 0.2,
+                null, null, null, null, a, b,
+                FootyStatsExtendedMetrics.empty(), FootyStatsExtendedMetrics.empty(),
+                null, null, null, null, null, null, null, null, null, null, null,
+                1, 0, 0.12,
+                1, 0, 0.12, 0.7
+        );
+        assertFalse(String.join("\n", explanation.asLines()).contains("Рекомендуем"));
     }
 }

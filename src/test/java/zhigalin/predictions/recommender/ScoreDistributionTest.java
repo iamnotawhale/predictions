@@ -74,8 +74,10 @@ class ScoreDistributionTest {
 
         double tipCell = dist.matrix().get(result.recommendedHome()).get(result.recommendedAway());
         assertEquals(result.scoreProbability(), tipCell, 1e-9);
-        assertEquals(result.recommendedHome(), dist.topScores().getFirst().home());
-        assertEquals(result.recommendedAway(), dist.topScores().getFirst().away());
+        // the tip maximises expected points, so it need not be the single most likely score
+        assertEquals(result.mostLikelyHome(), dist.topScores().getFirst().home());
+        assertEquals(result.mostLikelyAway(), dist.topScores().getFirst().away());
+        assertTrue(result.scoreProbability() <= result.mostLikelyProbability() + 1e-12);
         assertTrue(result.explanation().distribution() != null);
     }
 
