@@ -137,7 +137,7 @@ function svgLogo(code) {
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: THEME });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: THEME, ...(process.env.VIDEO ? { recordVideo: { dir: path.join(OUT, 'video'), size: { width: 390, height: 844 } } } : {}) });
   const page = await ctx.newPage();
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url());

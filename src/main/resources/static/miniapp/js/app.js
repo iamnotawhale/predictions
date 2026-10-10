@@ -730,6 +730,9 @@
                 const awayCodeEl = alert.querySelector('.score-alert-away-code');
                 if (!scoreEl || !homeCodeEl || !awayCodeEl) return;
                 scoreEl.textContent = item.homeScore + '-' + item.awayScore;
+                scoreEl.classList.remove('score-bump');
+                void scoreEl.offsetWidth;
+                scoreEl.classList.add('score-bump');
                 if (item.highlightTeam === 'home' || item.highlightTeam === 'both') {
                     homeCodeEl.classList.add('goal-flash');
                 }
@@ -2236,7 +2239,7 @@
                 const isSel = sel && sel.h === h && sel.a === a;
                 html += '<button type="button" class="ai-heatmap-cell'
                     + (isPick ? ' is-pick' : '') + (isMode ? ' is-mode' : '') + (isSel ? ' is-selected' : '')
-                    + '" data-h="' + h + '" data-a="' + a + '" style="--heat:' + heat + '">'
+                    + '" data-h="' + h + '" data-a="' + a + '" style="--heat:' + heat + ';--i:' + (h + a) + '">'
                     + '<span class="ai-heat-score">' + h + ':' + a + '</span>'
                     + '<span class="ai-heat-pct">' + aiCellLabel(mode, v) + '</span>'
                     + '</button>';
@@ -2342,6 +2345,11 @@
             $$('#ai-heat-modes .ai-heat-mode').forEach((b) => b.classList.toggle('is-active', b.dataset.mode === 'score'));
             renderAiHeatmap(dist.matrix, insight, recommendation, state.aiMode);
             renderAiCellDetail(dist.matrix, insight, state.aiCell.h, state.aiCell.a);
+            const heatEl = $('#ai-heatmap');
+            heatEl.classList.remove('intro');
+            void heatEl.offsetWidth;
+            heatEl.classList.add('intro');
+            setTimeout(() => heatEl.classList.remove('intro'), 1200);
         } else {
             marketsSection.classList.add('hidden');
             heatmapSection.classList.add('hidden');
@@ -2836,10 +2844,20 @@
         }
     }
 
+    /** One-shot entrance animation (CSS .entering); removed so background re-renders do not replay it. */
+    function playEntrance(el) {
+        el.classList.remove('entering');
+        void el.offsetWidth;
+        el.classList.add('entering');
+        setTimeout(() => el.classList.remove('entering'), 900);
+    }
+
     async function showScreen(name) {
         $$('.screen').forEach(s => s.classList.remove('active'));
         $$('.nav-btn').forEach(b => b.classList.remove('active'));
-        $('#screen-' + name).classList.add('active');
+        const screenEl = $('#screen-' + name);
+        screenEl.classList.add('active');
+        playEntrance(screenEl);
         document.querySelector('[data-screen="' + name + '"]').classList.add('active');
         try {
             if (name === 'today' && !state.todayLoaded) {
