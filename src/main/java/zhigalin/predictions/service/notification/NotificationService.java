@@ -270,7 +270,10 @@ public class NotificationService {
             return null;
         }
         boolean disallowed = nextTotal < prevTotal;
-        String subtitle = disallowed ? "VAR  ·  offside" : resolveLatestScorerLabel(match, nextTotal);
+        GoalScorer latest = disallowed ? null : resolveLatestScorer(match, nextTotal);
+        String subtitle = disallowed ? "VAR  ·  offside" : scorerLabel(latest);
+        String minute = latest != null && latest.minute() != null && !latest.minute().isBlank()
+                ? latest.minute() : null;
         String path = null;
         try {
             path = goalGifRenderer.renderToTempFile(new GoalEventGifRenderer.Request(
@@ -280,7 +283,8 @@ public class NotificationService {
                     away.getCode(),
                     ph, pa, nh, na,
                     subtitle,
-                    disallowed
+                    disallowed,
+                    minute
             ));
             if (path == null) {
                 return null;
@@ -303,23 +307,26 @@ public class NotificationService {
         }
     }
 
-    private String resolveLatestScorerLabel(Match match, int expectedTotal) {
+    private GoalScorer resolveLatestScorer(Match match, int expectedTotal) {
         if (expectedTotal <= 0 || match.getEspnId() == null || match.getEspnId().isBlank()) {
             return null;
         }
         try {
             List<GoalScorer> scorers = api.listGoalScorers(match.getEspnId(), expectedTotal);
-            if (scorers.isEmpty()) {
-                return null;
-            }
-            GoalScorer last = scorers.get(scorers.size() - 1);
-            if (last.minute() == null || last.minute().isBlank()) {
-                return last.scorer();
-            }
-            return last.scorer() + "  " + last.minute();
+            return scorers.isEmpty() ? null : scorers.get(scorers.size() - 1);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String scorerLabel(GoalScorer last) {
+        if (last == null) {
+            return null;
+        }
+        if (last.minute() == null || last.minute().isBlank()) {
+            return last.scorer();
+        }
+        return last.scorer() + "  " + last.minute();
     }
 
     private String buildLiveScoreUpdateText(Match match, Team home, Team away, Integer prevHome, Integer prevAway) {

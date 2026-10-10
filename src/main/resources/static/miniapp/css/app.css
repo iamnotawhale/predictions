@@ -40,6 +40,8 @@
     --font: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-display: "Unbounded", "Manrope", system-ui, sans-serif;
     --ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-spring: cubic-bezier(0.34, 1.45, 0.5, 1);
+    --ease-wipe: cubic-bezier(0.77, 0, 0.18, 1);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.18);
     --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.42), 0 1px 4px rgba(0, 0, 0, 0.22);
     --shadow-glow: 0 0 24px var(--glow), 0 0 60px rgba(176, 140, 255, 0.04);
@@ -3074,3 +3076,152 @@ html[data-theme="light"] .standings-live-pill.win { background: rgba(37, 102, 64
 html[data-theme="light"] .standings-live-pill.draw { background: rgba(154, 106, 18, 0.16); color: #7a5200; }
 html[data-theme="light"] .standings-live-pill.lose { background: rgba(176, 58, 38, 0.14); color: #a02a1a; }
 html[data-theme="light"] .week-btn-cups { color: #2b55a6; }
+
+/* ───────────── Motion (broadcast feel): short, punchy, GPU-only (opacity/transform/clip-path) ───────────── */
+
+/* Screen + list entrance: JS adds .entering for ~0.8 s when a tab opens (not on background refreshes). */
+.screen.entering {
+    animation: screen-in 0.32s var(--ease) both;
+}
+
+.screen.entering .list-item {
+    animation: rise-in 0.5s var(--ease) both;
+}
+
+.screen.entering .list-item:nth-child(1) { animation-delay: 40ms; }
+.screen.entering .list-item:nth-child(2) { animation-delay: 95ms; }
+.screen.entering .list-item:nth-child(3) { animation-delay: 150ms; }
+.screen.entering .list-item:nth-child(4) { animation-delay: 205ms; }
+.screen.entering .list-item:nth-child(5) { animation-delay: 260ms; }
+.screen.entering .list-item:nth-child(n + 6) { animation-delay: 300ms; }
+
+@keyframes screen-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes rise-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Modals: backdrop fades in, the sheet springs up. */
+.modal:not(.hidden) {
+    animation: backdrop-in 0.3s ease both;
+}
+
+.modal:not(.hidden) .modal-sheet {
+    animation: sheet-up 0.5s var(--ease-spring) both;
+}
+
+@keyframes backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes sheet-up {
+    from { transform: translateY(40%); opacity: 0.4; }
+    to { transform: none; opacity: 1; }
+}
+
+/* Goal alert: wipe in like a TV lower-third, with a light sweep and a punch on the new score. */
+.score-alert {
+    position: relative;
+    overflow: hidden;
+    animation: alert-wipe 0.5s var(--ease-wipe) both;
+}
+
+.score-alert::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
+    transform: translateX(-120%);
+    animation: alert-sheen 0.9s 0.4s ease-out both;
+}
+
+.score-alert.closing {
+    animation: score-alert-out 0.3s ease forwards;
+}
+
+.score-alert-score.score-bump {
+    animation: score-bump 0.6s var(--ease-spring);
+}
+
+@keyframes alert-wipe {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes alert-sheen {
+    to { transform: translateX(120%); }
+}
+
+@keyframes score-bump {
+    0% { transform: scale(1.8); opacity: 0.2; }
+    60% { transform: scale(0.92); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+/* LIVE: a ping instead of nothing. */
+.badge.live::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 0 currentColor;
+    animation: live-ping 1.6s var(--ease) infinite;
+    vertical-align: 1px;
+}
+
+@keyframes live-ping {
+    0% { box-shadow: 0 0 0 0 rgba(232, 92, 74, 0.55); }
+    100% { box-shadow: 0 0 0 8px rgba(232, 92, 74, 0); }
+}
+
+/* Recommender modal: points bar fills in, matrix cells ripple out from 0:0 (intro only, not on every tap). */
+#ai-points-bar .seg {
+    transform-origin: left;
+    animation: bar-grow 0.7s var(--ease) both;
+}
+
+#ai-points-bar .seg:nth-child(2) { animation-delay: 90ms; }
+#ai-points-bar .seg:nth-child(3) { animation-delay: 180ms; }
+#ai-points-bar .seg:nth-child(4) { animation-delay: 270ms; }
+
+.ai-heatmap.intro .ai-heatmap-cell {
+    animation: cell-pop 0.45s var(--ease-spring) both;
+    animation-delay: calc(var(--i, 0) * 40ms + 150ms);
+}
+
+@keyframes bar-grow {
+    from { transform: scaleX(0); }
+    to { transform: none; }
+}
+
+@keyframes cell-pop {
+    from { opacity: 0; transform: scale(0.6); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Press feedback. */
+.nav-btn:active,
+.icon-btn:active,
+.btn-danger:active {
+    transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
