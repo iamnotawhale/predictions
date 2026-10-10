@@ -1388,7 +1388,7 @@ html[data-switching] *::after {
 .profile-cta {
     display: block;
     width: 100%;
-    margin: 16px 0 8px;
+    margin: 12px 0;
     padding: 14px 16px;
     border: 1px solid var(--accent-a45);
     border-radius: var(--radius);
@@ -2932,3 +2932,17 @@ html[data-theme="light"] .list-item.epl-predicted {
     background: rgba(114, 85, 187, 0.04);
 }
 
+
+/* ── Light theme: pastel-on-pastel chips were unreadable; use dark inks on the same tints ── */
+html[data-theme="light"] .pts { color: var(--accent-ink); }
+html[data-theme="light"] .badge-bonus { background: rgba(232, 168, 64, 0.30); color: #7a5200; }
+html[data-theme="light"] .badge-cup { background: rgba(61, 106, 232, 0.14); color: #2b55a6; }
+html[data-theme="light"] .badge-cup-fa { background: rgba(196, 58, 110, 0.14); color: #a3205a; }
+html[data-theme="light"] .badge-cup-carabao { background: rgba(26, 163, 106, 0.16); color: #0f6b46; }
+html[data-theme="light"] .badge-cup-ucl { background: rgba(61, 106, 232, 0.14); color: #1f46b8; }
+html[data-theme="light"] .badge-cup-uel { background: rgba(224, 112, 32, 0.16); color: #a14a0c; }
+html[data-theme="light"] .badge-cup-uecl { background: rgba(26, 170, 154, 0.16); color: #0b6b60; }
+html[data-theme="light"] .standings-live-pill.win { background: rgba(37, 102, 64, 0.14); color: #14662f; }
+html[data-theme="light"] .standings-live-pill.draw { background: rgba(154, 106, 18, 0.16); color: #7a5200; }
+html[data-theme="light"] .standings-live-pill.lose { background: rgba(176, 58, 38, 0.14); color: #a02a1a; }
+html[data-theme="light"] .week-btn-cups { color: #2b55a6; }

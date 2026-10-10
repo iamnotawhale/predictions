@@ -137,6 +137,14 @@ public final class MiniAppDtos {
             Double shotsOnTargetPerMatch,
             Integer cleanSheets
     ) {
+        public boolean isEmpty() {
+            return xg == null && xga == null
+                    && scoredPerMatch == null && concededPerMatch == null
+                    && bttsPct == null && csPct == null && over25Pct == null
+                    && homePpg == null && awayPpg == null
+                    && possessionPct == null && shotsPerMatch == null
+                    && shotsOnTargetPerMatch == null && cleanSheets == null;
+        }
     }
 
     public record TeamPlayerLeaderItem(

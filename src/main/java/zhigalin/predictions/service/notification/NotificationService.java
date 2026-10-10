@@ -62,10 +62,7 @@ public class NotificationService {
 
     private static final int[] REMINDER_MINUTES_BEFORE = {60, 40, 20};
 
-    private final ConcurrentHashMap<String, Integer> liveScoreMessageIds = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, String> liveScoreLastTexts = new ConcurrentHashMap<>();
-    /** Keys whose current live chat message is an animation (edit via editMessageMedia). */
-    private final Set<String> liveScoreAnimationKeys = ConcurrentHashMap.newKeySet();
+    private final LiveScoreState liveScoreState = new LiveScoreState();
     private final NotificationDedupDao notificationDedupDao;
 
     public NotificationService(MatchService matchService,
@@ -191,13 +188,13 @@ public class NotificationService {
         }
         Team home = DaoUtil.team(match.getHomeTeamId());
         Team away = DaoUtil.team(match.getAwayTeamId());
-        String key = buildLiveScoreKey(match, home, away);
-        Integer messageId = resolveExistingLiveScoreMessageId(match, key, home, away);
+        String key = liveScoreState.key(match, home, away);
+        Integer messageId = liveScoreState.existingMessageId(match, key, home, away);
         if (messageId != null) {
             api.deleteMessage(defaultChatId, messageId);
         }
         matchService.updateLiveScoreMessageId(match.getPublicId(), null);
-        clearLiveScoreState(match);
+        liveScoreState.clear(match, home, away);
     }
 
     public void sendWeeklyResults() {
@@ -219,43 +216,43 @@ public class NotificationService {
         if (home == null || away == null) {
             return;
         }
-        String key = buildLiveScoreKey(match, home, away);
+        String key = liveScoreState.key(match, home, away);
         String text = buildLiveScoreUpdateText(match, home, away, prevHome, prevAway);
-        if (text.equals(liveScoreLastTexts.get(key))) {
+        if (text.equals(liveScoreState.lastText(key))) {
             return;
         }
-        Integer existingMessageId = resolveExistingLiveScoreMessageId(match, key, home, away);
+        Integer existingMessageId = liveScoreState.existingMessageId(match, key, home, away);
         Integer gifMessageId = trySendOrEditGoalEventGif(
                 match, home, away, prevHome, prevAway, text, existingMessageId);
         if (gifMessageId != null) {
             if (existingMessageId != null && !existingMessageId.equals(gifMessageId)) {
                 api.deleteMessage(defaultChatId, existingMessageId);
             }
-            liveScoreMessageIds.put(key, gifMessageId);
-            liveScoreAnimationKeys.add(key);
+            liveScoreState.putMessageId(key, gifMessageId);
+            liveScoreState.markAnimation(key);
             matchService.updateLiveScoreMessageId(match.getPublicId(), gifMessageId);
-            liveScoreLastTexts.put(key, text);
+            liveScoreState.putLastText(key, text);
             return;
         }
-        liveScoreAnimationKeys.remove(key);
+        liveScoreState.unmarkAnimation(key);
         boolean delivered = false;
         if (existingMessageId != null) {
             delivered = api.editMessageText(defaultChatId, existingMessageId, text, null);
             if (!delivered) {
                 api.deleteMessage(defaultChatId, existingMessageId);
-                liveScoreMessageIds.remove(key);
+                liveScoreState.removeMessageId(key);
             }
         }
         if (!delivered) {
             Integer sentMessageId = api.sendMessageAndGetId(defaultChatId, text, null);
             if (sentMessageId != null) {
-                liveScoreMessageIds.put(key, sentMessageId);
+                liveScoreState.putMessageId(key, sentMessageId);
                 matchService.updateLiveScoreMessageId(match.getPublicId(), sentMessageId);
                 delivered = true;
             }
         }
         if (delivered) {
-            liveScoreLastTexts.put(key, text);
+            liveScoreState.putLastText(key, text);
         }
     }
 
@@ -363,78 +360,6 @@ public class NotificationService {
         return text.toString();
     }
 
-    private Integer resolveExistingLiveScoreMessageId(Match match, String primaryKey, Team home, Team away) {
-        Integer existing = liveScoreMessageIds.get(primaryKey);
-        if (existing != null) {
-            return existing;
-        }
-        if (match.getLiveScoreMessageId() != null) {
-            liveScoreMessageIds.put(primaryKey, match.getLiveScoreMessageId());
-            return match.getLiveScoreMessageId();
-        }
-        if (match.getPublicId() != 0) {
-            existing = liveScoreMessageIds.get("pub:" + match.getPublicId());
-            if (existing != null) {
-                liveScoreMessageIds.put(primaryKey, existing);
-                return existing;
-            }
-        }
-        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
-            existing = liveScoreMessageIds.get("espn:" + match.getEspnId());
-            if (existing != null) {
-                liveScoreMessageIds.put(primaryKey, existing);
-                return existing;
-            }
-        }
-        if (home != null && away != null) {
-            existing = liveScoreMessageIds.get("teams:" + home.getCode() + "-" + away.getCode());
-            if (existing != null) {
-                liveScoreMessageIds.put(primaryKey, existing);
-                return existing;
-            }
-        }
-        return null;
-    }
-
-    private void clearLiveScoreState(Match match) {
-        Team home = DaoUtil.team(match.getHomeTeamId());
-        Team away = DaoUtil.team(match.getAwayTeamId());
-        String primary = buildLiveScoreKey(match, home, away);
-        liveScoreMessageIds.remove(primary);
-        liveScoreLastTexts.remove(primary);
-        liveScoreAnimationKeys.remove(primary);
-        if (match.getPublicId() != 0) {
-            String publicKey = "pub:" + match.getPublicId();
-            liveScoreMessageIds.remove(publicKey);
-            liveScoreLastTexts.remove(publicKey);
-            liveScoreAnimationKeys.remove(publicKey);
-        }
-        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
-            String espnKey = "espn:" + match.getEspnId();
-            liveScoreMessageIds.remove(espnKey);
-            liveScoreLastTexts.remove(espnKey);
-            liveScoreAnimationKeys.remove(espnKey);
-        }
-        if (home != null && away != null) {
-            String teamsKey = "teams:" + home.getCode() + "-" + away.getCode();
-            liveScoreMessageIds.remove(teamsKey);
-            liveScoreLastTexts.remove(teamsKey);
-            liveScoreAnimationKeys.remove(teamsKey);
-        }
-    }
-
-    private String buildLiveScoreKey(Match match, Team home, Team away) {
-        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
-            return "espn:" + match.getEspnId();
-        }
-        if (match.getPublicId() != 0) {
-            return "pub:" + match.getPublicId();
-        }
-        String homeCode = home != null ? home.getCode() : String.valueOf(match.getHomeTeamId());
-        String awayCode = away != null ? away.getCode() : String.valueOf(match.getAwayTeamId());
-        return "teams:" + homeCode + "-" + awayCode;
-    }
-
     public void checkReminders() {
         LocalDateTime now = LocalDateTime.now();
         int horizonMinutes = REMINDER_MINUTES_BEFORE[0] + 1;
@@ -445,7 +370,7 @@ public class NotificationService {
         for (Match match : upcoming) {
             long minutesLeft = Duration.between(now, match.getLocalDateTime()).toMinutes();
             for (int reminderMinutes : REMINDER_MINUTES_BEFORE) {
-                if (!isReminderWindow(minutesLeft, reminderMinutes)) {
+                if (!ReminderCaption.isReminderWindow(minutesLeft, reminderMinutes)) {
                     continue;
                 }
                 Map<Integer, List<Lineup>> lineups = api.getLineupsFromEspnSummary(
@@ -516,10 +441,6 @@ public class NotificationService {
     }
 
     /** Окно для проверки раз в 30 с: напоминание «за N минут» срабатывает при N…N-1 мин до старта. */
-    private static boolean isReminderWindow(long minutesLeft, int reminderMinutes) {
-        return minutesLeft <= reminderMinutes && minutesLeft > reminderMinutes - 2;
-    }
-
     private Integer sendNotification(Notification notification, String imagePath) {
         log.info("Send notification");
         try {
@@ -565,12 +486,12 @@ public class NotificationService {
                 if (!homeLineup.isEmpty() || !awayLineup.isEmpty()) {
                     List<String> homeLineups = homeLineup.stream()
                             .sorted(lineupComparator)
-                            .map(this::getFormattedName)
+                            .map(ReminderCaption::formattedName)
                             .toList();
 
                     List<String> awayLineups = awayLineup.stream()
                             .sorted(lineupComparator)
-                            .map(this::getFormattedName)
+                            .map(ReminderCaption::formattedName)
                             .toList();
 
                     int maxLength = 0;
@@ -582,17 +503,17 @@ public class NotificationService {
 
                     caption.append("\n\n")
                             .append("`")
-                            .append(padRight(homeTeam, maxLength)).append("  ")
+                            .append(ReminderCaption.padRight(homeTeam, maxLength)).append("  ")
                             .append(awayTeam)
                             .append("`").append("\n");
                     for (int i = 0; i < homeLineups.size(); i++) {
                         String left = homeLineups.get(i);
                         String right = i < awayLineups.size() ? awayLineups.get(i) : "";
-                        caption.append("`").append(padRight(left, maxLength)).append("  ").append(right).append("`").append("\n");
+                        caption.append("`").append(ReminderCaption.padRight(left, maxLength)).append("  ").append(right).append("`").append("\n");
                     }
                 }
 
-                String text = trimCaption(caption.toString(), 900);
+                String text = ReminderCaption.trimCaption(caption.toString(), 900);
                 String replyMarkupJson = objectMapper.writeValueAsString(markup);
                 if (imagePath != null) {
                     return api.sendPhoto(chatId, text, imagePath, replyMarkupJson);
@@ -605,25 +526,4 @@ public class NotificationService {
         return null;
     }
 
-    private String getFormattedName(Lineup l) {
-        Player player = l.getPlayer();
-        String number = String.valueOf(player.getNumber());
-        if (player.getName().contains(" ")) {
-            String[] name = player.getName().split(" ");
-            return padRight(number + ". ", 4)  + name[name.length - 1];
-        } else {
-            return padRight(number + ". ", 4) + player.getName();
-        }
-    }
-
-    private static String trimCaption(String text, int maxLen) {
-        if (text == null || text.length() <= maxLen) {
-            return text;
-        }
-        return text.substring(0, maxLen - 1) + "…";
-    }
-
-    private static String padRight(String text, int length) {
-        return String.format("%-" + length + "s", text);
-    }
 }

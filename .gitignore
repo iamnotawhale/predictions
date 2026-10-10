@@ -47,3 +47,4 @@ deploy/ci/
 deploy/backup.env
 deploy/orchestrator.env
 scripts/data/
+logo-cache/

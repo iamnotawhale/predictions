@@ -1,4 +1,95 @@
 (function () {
+    const {
+        CACHE_TTL_MS,
+        CHART_COLORS,
+        FINISHED_STATUSES,
+        FORMATION_PLACE_ROWS,
+        LIVE_MODAL_POLL_MS,
+        LIVE_PRESTART_WINDOW_SECONDS,
+        MUTATION_RETRY_DELAYS_MS,
+        NOT_STARTED_STATUSES,
+        PITCH_NAME_PARTICLE,
+        PITCH_NON_PLAYER_TOKEN,
+        PLAYER_STAT_LABELS_RU,
+        PLAYER_STAT_PRIORITY,
+        TODAY_POLL_IDLE_MS,
+        TODAY_POLL_LIVE_MS,
+        allFormationPlayers,
+        buildFormationRows,
+        clamp,
+        competitionBadgeHtml,
+        competitionCssKey,
+        competitionShort,
+        countFormationSlots,
+        detectGoalHighlightTeam,
+        escapeHtml,
+        fairOdds,
+        fallbackFormationFromLineup,
+        fallbackFormationRows,
+        findLatestPitchEvent,
+        flipPitchPercent,
+        fmtStatNum,
+        fmtStatPct,
+        formDotClassByOutcome,
+        formDotClassByScores,
+        formatBenchLabel,
+        formationJerseyNumber,
+        formationPlaceSlots,
+        formationPlayerLabel,
+        formationPlayersById,
+        hasLiveOrSoonMatches,
+        hasSecondHalfActivity,
+        hexToRgba,
+        inferFormationKey,
+        injuryKindMeta,
+        isBlockedShotType,
+        isFinishedStatus,
+        isLiveModuleMatch,
+        isLiveNowMatch,
+        isMatchHalftimeBreak,
+        isNotStartedStatus,
+        isOffsideEventType,
+        isOnTargetShotType,
+        isPreLiveSoonMatch,
+        isRetryableStatus,
+        isShotEventType,
+        kickoffDateLabel,
+        kickoffSecondsLeft,
+        kickoffTimeLabel,
+        liveEventIcon,
+        livePitchEventKey,
+        mapEventToPitchCoords,
+        marketChipHtml,
+        matchScoreLabel,
+        matchStatusBadge,
+        niceChartStep,
+        normalizeKitColor,
+        normalizeOutcome,
+        normalizeStatus,
+        parseKickoffLabel,
+        parseLiveEventMinute,
+        parsePercentWidth,
+        pctLabel,
+        pitchOffsidePlayerFromText,
+        pitchPlayerLabel,
+        resolveEventPeriod,
+        resolveEventTeamSide,
+        resolveGoalLineX,
+        resolveOffsidePoints,
+        resolvePitchSlot,
+        resolveShotPoints,
+        rowsFromPlaceMap,
+        shortPlayerName,
+        shotTrajectoryStyle,
+        shouldFlipPitchY,
+        shouldMirrorPitchX,
+        sortMatchesByKickoff,
+        surnameFromPlayerName,
+        todayGroupKey,
+        todayGroupLabel,
+        todayScoreLabel,
+        todayStatusBadge
+    } = window.MiniApp;
     const hasTelegramWebApp = !!(window.Telegram && window.Telegram.WebApp);
     const tg = hasTelegramWebApp ? window.Telegram.WebApp : {
         initData: '',
@@ -84,15 +175,6 @@
         }
     }
 
-    const CHART_COLORS = ['#b08cff', '#5cb87a', '#d4604a', '#e8a840', '#64d4e0', '#ff8ec4'];
-    const TODAY_POLL_LIVE_MS = 10000;
-    const TODAY_POLL_IDLE_MS = 60000;
-    const LIVE_MODAL_POLL_MS = 10000;
-    const LIVE_PRESTART_WINDOW_SECONDS = 10 * 60;
-    const CACHE_TTL_MS = 45000;
-    const FINISHED_STATUSES = new Set(['ft', 'aet', 'pen', 'canc', 'abd', 'awrd', 'wo']);
-    const NOT_STARTED_STATUSES = new Set(['ns', 'pst', 'tbd']);
-
     const state = {
         profile: null,
         currentWeekId: null,
@@ -139,8 +221,6 @@
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
-
-    const MUTATION_RETRY_DELAYS_MS = [0, 600, 1500];
 
     function reportClientLog(level, event, details) {
         try {
@@ -195,24 +275,6 @@
 
     function sleep(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-
-    function hexToRgba(hex, alpha) {
-        if (!hex || typeof hex !== 'string') return 'rgba(255,255,255,' + alpha + ')';
-        const normalized = hex.replace('#', '');
-        const full = normalized.length === 3
-            ? normalized.split('').map(c => c + c).join('')
-            : normalized;
-        const intVal = Number.parseInt(full, 16);
-        if (!Number.isFinite(intVal)) return 'rgba(255,255,255,' + alpha + ')';
-        const r = (intVal >> 16) & 255;
-        const g = (intVal >> 8) & 255;
-        const b = intVal & 255;
-        return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
-    }
-
-    function isRetryableStatus(status) {
-        return status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
     }
 
     class ApiError extends Error {
@@ -448,100 +510,6 @@
         setTimeout(() => el.classList.add('hidden'), 2800);
     }
 
-    function normalizeStatus(status) {
-        return (status || '').toLowerCase();
-    }
-
-    function isNotStartedStatus(status) {
-        return NOT_STARTED_STATUSES.has(normalizeStatus(status));
-    }
-
-    function isFinishedStatus(status) {
-        return FINISHED_STATUSES.has(normalizeStatus(status));
-    }
-
-    function matchScoreLabel(m) {
-        if (m.hasPrediction && m.predictHome != null) {
-            return m.predictHome + ' : ' + m.predictAway;
-        }
-        if (m.status === 'ft' && m.homeScore != null) {
-            return m.homeScore + ' : ' + m.awayScore;
-        }
-        return m.kickoff || '—';
-    }
-
-    function matchStatusBadge(m) {
-        if (m.hasPrediction) return '<span class="badge predicted">прогноз</span>';
-        if (m.canPredict) return '<span class="badge">можно</span>';
-        if (m.status === 'ft') return '<span class="badge">завершён</span>';
-        return '<span class="badge live">' + (m.status || '') + '</span>';
-    }
-
-    function todayScoreLabel(m) {
-        const hasLiveScore = m.homeScore != null && m.awayScore != null && !isNotStartedStatus(m.status);
-        if (hasLiveScore) {
-            return m.homeScore + ' : ' + m.awayScore;
-        }
-        return m.kickoff || '—';
-    }
-
-    function todayStatusBadge(m) {
-        if (isFinishedStatus(m.status)) return '<span class="badge">завершён</span>';
-        if (m.homeScore != null && m.awayScore != null && !isNotStartedStatus(m.status)) {
-            return '<span class="badge live">' + (m.status || 'live') + '</span>';
-        }
-        if (m.canPredict) return '<span class="badge">можно</span>';
-        if (m.hasPrediction) return '<span class="badge predicted">прогноз</span>';
-        return '<span class="badge">' + (m.status || 'ожидание') + '</span>';
-    }
-
-    function parseKickoffLabel(label) {
-        const m = /^(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/.exec(String(label || '').trim());
-        if (!m) return Number.MAX_SAFE_INTEGER;
-        // month*1e6 + day*1e4 + hour*100 + minute — enough for same-season lists
-        return Number(m[2]) * 1e6 + Number(m[1]) * 1e4 + Number(m[3]) * 100 + Number(m[4]);
-    }
-
-    function sortMatchesByKickoff(matches) {
-        return (matches || []).slice().sort((a, b) => {
-            const sa = a.kickoffSecondsLeft;
-            const sb = b.kickoffSecondsLeft;
-            if (typeof sa === 'number' && typeof sb === 'number' && sa !== sb) {
-                return sa - sb;
-            }
-            const pa = parseKickoffLabel(a.kickoff);
-            const pb = parseKickoffLabel(b.kickoff);
-            if (pa !== pb) return pa - pb;
-            return (Number(a.publicId) || 0) - (Number(b.publicId) || 0);
-        });
-    }
-
-    function competitionCssKey(code) {
-        if (code === 'eng.fa') return 'fa';
-        if (code === 'eng.league_cup') return 'carabao';
-        if (code === 'uefa.champions') return 'ucl';
-        if (code === 'uefa.europa') return 'uel';
-        if (code === 'uefa.europa.conf') return 'uecl';
-        return 'cup';
-    }
-
-    function competitionShort(code) {
-        if (!code) return 'Cup';
-        if (code === 'eng.fa') return 'FA';
-        if (code === 'eng.league_cup') return 'Carabao';
-        if (code === 'uefa.champions') return 'UCL';
-        if (code === 'uefa.europa') return 'UEL';
-        if (code === 'uefa.europa.conf') return 'UECL';
-        return code;
-    }
-
-    function competitionBadgeHtml(m, dim) {
-        if (!m || !m.cup) return '';
-        const key = competitionCssKey(m.competition);
-        const cls = 'badge badge-cup badge-cup-' + key + (dim ? ' dim' : '');
-        return '<span class="' + cls + '">' + escapeHtml(competitionShort(m.competition)) + '</span>';
-    }
-
     function renderMatchItem(m, onClick) {
         const li = document.createElement('li');
         let cls = 'list-item';
@@ -562,24 +530,18 @@
         li.innerHTML =
             '<div class="list-item-main">' +
             '<div class="list-item-title">' +
-            '<span class="list-item-codes">' + m.homeCode + ' — ' + m.awayCode + '</span>' +
+            '<span class="list-item-codes">' + escapeHtml(m.homeCode) + ' — ' + escapeHtml(m.awayCode) + '</span>' +
             cupBadge +
             '</div>' +
-            '<div class="list-item-sub">' + (m.homeName || '') + ' vs ' + (m.awayName || '') + '</div>' +
+            '<div class="list-item-sub">' + escapeHtml(m.homeName) + ' vs ' + escapeHtml(m.awayName) + '</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
-            '<div class="score-pill">' + matchScoreLabel(m) + '</div>' +
+            '<div class="score-pill">' + escapeHtml(matchScoreLabel(m)) + '</div>' +
             metaBadges.join('') +
             matchStatusBadge(m) +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
-    }
-
-    function escapeHtml(s) {
-        return String(s || '').replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
     }
 
     function renderTeamMatchItem(m, onClick, kind) {
@@ -605,18 +567,6 @@
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
-    }
-
-    function kickoffTimeLabel(kickoff) {
-        if (!kickoff) return '—';
-        const m = String(kickoff).match(/(\d{1,2}:\d{2})\s*$/);
-        return m ? m[1] : kickoff;
-    }
-
-    function kickoffDateLabel(kickoff) {
-        if (!kickoff) return '';
-        const m = String(kickoff).match(/^(\d{1,2}\.\d{1,2})/);
-        return m ? m[1] : '';
     }
 
     function teamFormDotClass(match) {
@@ -653,28 +603,18 @@
         li.innerHTML =
             '<div class="list-item-main">' +
             '<div class="list-item-title">' +
-            '<span class="list-item-codes">' + m.homeCode + ' — ' + m.awayCode + '</span>' +
+            '<span class="list-item-codes">' + escapeHtml(m.homeCode) + ' — ' + escapeHtml(m.awayCode) + '</span>' +
             cupBadge +
             '</div>' +
-            '<div class="list-item-sub">' + (m.homeName || '') + ' vs ' + (m.awayName || '') + '</div>' +
+            '<div class="list-item-sub">' + escapeHtml(m.homeName) + ' vs ' + escapeHtml(m.awayName) + '</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
-            '<div class="score-pill">' + todayScoreLabel(m) + '</div>' +
+            '<div class="score-pill">' + escapeHtml(todayScoreLabel(m)) + '</div>' +
             todayStatusBadge(m) +
             metaBadges.join('') +
             '</div>';
         if (onClick) li.addEventListener('click', () => onClick(m));
         return li;
-    }
-
-    function todayGroupKey(m) {
-        if (m && m.cup) return 'cup:' + (m.competition || 'cup');
-        return 'week:' + (m.weekId != null ? m.weekId : '');
-    }
-
-    function todayGroupLabel(m) {
-        if (m && m.cup) return competitionShort(m.competition);
-        return (m.weekId != null ? m.weekId : '') + ' тур';
     }
 
     function renderTodayMatchesList(matches) {
@@ -699,32 +639,6 @@
         });
     }
 
-    function isLiveNowMatch(m) {
-        return !isFinishedStatus(m.status)
-            && !isNotStartedStatus(m.status)
-            && m.homeScore != null
-            && m.awayScore != null;
-    }
-
-    function kickoffSecondsLeft(m) {
-        if (!isNotStartedStatus(m.status)) return null;
-        if (typeof m.kickoffSecondsLeft === 'number') return m.kickoffSecondsLeft;
-        if (typeof m.predictSecondsLeft !== 'number') return null;
-        // legacy: predictSecondsLeft counted to kickoff + 5m
-        return m.predictSecondsLeft - 300;
-    }
-
-    function isPreLiveSoonMatch(m) {
-        const sec = kickoffSecondsLeft(m);
-        if (sec == null) return false;
-        if (sec <= 0) return true;
-        return sec <= LIVE_PRESTART_WINDOW_SECONDS;
-    }
-
-    function isLiveModuleMatch(m) {
-        return isLiveNowMatch(m) || isPreLiveSoonMatch(m);
-    }
-
     function openLiveModuleMatch(match) {
         if (isLiveNowMatch(match)) {
             openLiveMatchModal(match);
@@ -746,10 +660,6 @@
         card.classList.remove('hidden');
         list.innerHTML = '';
         liveMatches.forEach((m) => list.appendChild(renderTodayMatchItem(m, openLiveModuleMatch)));
-    }
-
-    function hasLiveOrSoonMatches(matches) {
-        return (matches || []).some(isLiveModuleMatch);
     }
 
     function enqueueScoreNotification(match, previousScore, highlightTeam) {
@@ -784,13 +694,13 @@
         const initialAway = hasPrevScore ? item.prevAwayScore : item.awayScore;
         alert.innerHTML =
             '<div class="score-alert-body">' +
-            '<img class="score-alert-logo" src="' + (item.homeLogo || '') + '" alt="' + item.homeCode + '" onerror="this.style.visibility=\'hidden\'">' +
+            '<img class="score-alert-logo" src="' + escapeHtml(item.homeLogo) + '" alt="' + escapeHtml(item.homeCode) + '" onerror="this.style.visibility=\'hidden\'">' +
             '<div class="score-alert-center">' +
-            '<span class="score-alert-code score-alert-home-code">' + item.homeCode + '</span>' +
+            '<span class="score-alert-code score-alert-home-code">' + escapeHtml(item.homeCode) + '</span>' +
             '<span class="score-alert-score">' + initialHome + '-' + initialAway + '</span>' +
-            '<span class="score-alert-code score-alert-away-code">' + item.awayCode + '</span>' +
+            '<span class="score-alert-code score-alert-away-code">' + escapeHtml(item.awayCode) + '</span>' +
             '</div>' +
-            '<img class="score-alert-logo" src="' + (item.awayLogo || '') + '" alt="' + item.awayCode + '" onerror="this.style.visibility=\'hidden\'">' +
+            '<img class="score-alert-logo" src="' + escapeHtml(item.awayLogo) + '" alt="' + escapeHtml(item.awayCode) + '" onerror="this.style.visibility=\'hidden\'">' +
             '</div>' +
             '<button class="score-alert-close" aria-label="Закрыть">&#10005;</button>';
 
@@ -828,21 +738,6 @@
         }
 
         setTimeout(close, 6000);
-    }
-
-    function detectGoalHighlightTeam(previousScore, nextScore) {
-        if (!previousScore || !nextScore) return null;
-        const [prevHome, prevAway] = previousScore.split(':').map(Number);
-        const [nextHome, nextAway] = nextScore.split(':').map(Number);
-        if (Number.isNaN(prevHome) || Number.isNaN(prevAway) || Number.isNaN(nextHome) || Number.isNaN(nextAway)) {
-            return null;
-        }
-        const homeScored = nextHome > prevHome;
-        const awayScored = nextAway > prevAway;
-        if (homeScored && awayScored) return 'both';
-        if (homeScored) return 'home';
-        if (awayScored) return 'away';
-        return null;
     }
 
     function processTodayScoreUpdates(matches, previousScoresByMatchId) {
@@ -993,7 +888,7 @@
                 '<span class="rank">' + (i + 1) + '</span>' +
                 '<div class="list-item-main">' +
                 '<div class="list-item-title">' +
-                '<span class="list-item-codes">' + e.login.toUpperCase() + '</span>' +
+                '<span class="list-item-codes">' + escapeHtml(e.login.toUpperCase()) + '</span>' +
                 liveMeta +
                 '</div>' +
                 '</div>' +
@@ -1063,24 +958,6 @@
 
     function startTodayPolling() {
         pollTodayMatchesForUpdates().catch(() => {});
-    }
-
-    function niceChartStep(range, targetTicks) {
-        const safeRange = Math.max(range, 1);
-        const rough = safeRange / Math.max(targetTicks, 2);
-        const pow = Math.pow(10, Math.floor(Math.log10(rough)));
-        const n = rough / pow;
-        let step;
-        if (n <= 1) step = 1;
-        else if (n <= 2) step = 2;
-        else if (n <= 5) step = 5;
-        else step = 10;
-        step = step * pow;
-        // Prefer multiples of 5 for point totals when the span is wide enough
-        if (safeRange >= 15 && step < 5) {
-            return 5;
-        }
-        return step;
     }
 
     function drawPointsChart(data) {
@@ -1224,7 +1101,7 @@
             li.className = isActive ? 'active' : 'muted';
             li.innerHTML =
                 '<span class="dot" style="background:' + CHART_COLORS[si % CHART_COLORS.length] + '"></span>' +
-                s.login.toUpperCase();
+                escapeHtml(s.login.toUpperCase());
             li.addEventListener('click', () => {
                 state.chartActiveLogin = (state.chartActiveLogin === s.login) ? null : s.login;
                 hideChartTooltip();
@@ -1332,8 +1209,8 @@
                 '<td class="standings-place"><span class="standings-place-inner">' + deltaHtml
                 + '<span class="standings-place-num">' + r.place + '</span></span></td>' +
                 '<td class="standings-club"><span class="club-cell">' +
-                '<img class="club-logo" src="' + (r.logo || '') + '" alt="' + (r.code || '') + '" onerror="this.style.visibility=\'hidden\'">' +
-                '<strong>' + r.code + '</strong>' +
+                '<img class="club-logo" src="' + escapeHtml(r.logo) + '" alt="' + escapeHtml(r.code) + '" onerror="this.style.visibility=\'hidden\'">' +
+                '<strong>' + escapeHtml(r.code) + '</strong>' +
                 livePill +
                 '</span></td>' +
                 '<td>' + r.played + '</td>' +
@@ -1422,7 +1299,7 @@
                     : '';
                 li.innerHTML =
                     '<div class="list-item-main">' +
-                    '<div class="list-item-title">' + item.homeCode + ' — ' + item.awayCode + '</div>' +
+                    '<div class="list-item-title">' + escapeHtml(item.homeCode) + ' — ' + escapeHtml(item.awayCode) + '</div>' +
                     '<div class="list-item-sub">факт ' + actual + ' · прогноз ' + pred + ai + '</div>' +
                     '</div>' +
                     '<span class="pts">' + pts + '</span>';
@@ -1610,38 +1487,6 @@
         renderLivePitchStats(data.matchStats || [], state.selectedMatch);
     }
 
-    function fallbackFormationFromLineup(side, teamCode, lineup) {
-        if (!lineup || !lineup.length) return null;
-        return {
-            side: side,
-            teamCode: teamCode,
-            formation: '',
-            kitColor: '',
-            starters: lineup.map((p, idx) => ({
-                id: side + '-' + idx,
-                number: p.number || 0,
-                name: p.name || '',
-                shortName: p.name || '',
-                lastName: (p.name || '').split(/\s+/).pop(),
-                position: p.position || '',
-                positionName: p.position || '',
-                formationPlace: idx + 1,
-                starter: true,
-                subbedOut: false,
-                subbedIn: false,
-                subPartnerId: '',
-                subPartnerName: '',
-                jerseyImage: null,
-                goals: null,
-                assists: null,
-                yellowCards: null,
-                redCards: null,
-                stats: []
-            })),
-            bench: []
-        };
-    }
-
     function updateFormationTabs(match, homeFormation, awayFormation) {
         const homeTab = $('#formation-tab-home');
         const awayTab = $('#formation-tab-away');
@@ -1665,152 +1510,6 @@
         updateFormationTabs(match, state.homeFormation, state.awayFormation);
         const formation = state.formationSide === 'away' ? state.awayFormation : state.homeFormation;
         renderFormationPitch(formation);
-    }
-
-    function allFormationPlayers(formation) {
-        return [...(formation?.starters || []), ...(formation?.bench || [])];
-    }
-
-    function formationPlayersById(formation) {
-        const byId = new Map();
-        allFormationPlayers(formation).forEach((p) => {
-            if (p.id) byId.set(String(p.id), p);
-        });
-        return byId;
-    }
-
-    function resolvePitchSlot(formation, starter, byId) {
-        const formationPlace = starter.formationPlace || 0;
-        if (!starter?.subbedOut) {
-            return { player: starter, isSubstitution: false, formationPlace };
-        }
-        let replacement = null;
-        if (starter.subPartnerId && byId.has(String(starter.subPartnerId))) {
-            replacement = byId.get(String(starter.subPartnerId));
-        } else {
-            replacement = allFormationPlayers(formation).find(
-                (p) => p.subbedIn && String(p.subPartnerId) === String(starter.id)
-            );
-        }
-        if (replacement) {
-            return { player: replacement, isSubstitution: true, formationPlace };
-        }
-        return { player: starter, isSubstitution: false, subbedOutOnly: true, formationPlace };
-    }
-
-    // Opta/ESPN formationPlace rows: attack → GK (top → bottom)
-    const FORMATION_PLACE_ROWS = {
-        '4-2-3-1': [[9], [11, 10, 7], [4, 8], [3, 6, 5, 2], [1]],
-        '4-3-3': [[11, 9, 7], [8, 10, 4], [3, 6, 5, 2], [1]],
-        '4-4-2': [[11, 9], [8, 10, 6, 7], [3, 5, 4, 2], [1]],
-        '4-1-4-1': [[9], [11, 8, 10, 7], [4], [3, 6, 5, 2], [1]],
-        '3-5-2': [[11, 9], [8, 10, 6], [2, 7, 3], [4, 5, 6], [1]],
-        '3-4-3': [[11, 9, 7], [8, 10], [2, 3], [4, 5, 6], [1]],
-        // ESPN 3-4-2-1: wide mids 2/3, CBs 4/5/6, AMs 10/11, striker 9 (not 3/5/4 + 11/7)
-        '3-4-2-1': [[9], [10, 11], [2, 7, 8, 3], [4, 5, 6], [1]],
-        '5-3-2': [[11, 9], [8, 10, 6], [3, 5, 4, 2, 7], [1]],
-        '5-4-1': [[9], [11, 8, 10, 7], [3, 5, 4, 2, 6], [1]],
-        '4-5-1': [[9], [11, 8, 10, 6, 7], [3, 5, 4, 2], [1]],
-        '4-3-2-1': [[9], [11, 7], [8, 10, 4], [3, 6, 5, 2], [1]],
-        '4-4-1-1': [[9], [10], [11, 8, 6, 7], [3, 5, 4, 2], [1]]
-    };
-
-    function inferFormationKey(formation) {
-        const key = (formation?.formation || '').trim();
-        if (FORMATION_PLACE_ROWS[key]) return key;
-        return '4-2-3-1';
-    }
-
-    function formationPlaceSlots(formation) {
-        const byId = formationPlayersById(formation);
-        const byPlace = new Map();
-        (formation?.starters || []).forEach((p) => {
-            const place = Number(p.formationPlace);
-            if (place > 0) {
-                byPlace.set(place, resolvePitchSlot(formation, p, byId));
-            }
-        });
-        return byPlace;
-    }
-
-    function rowsFromPlaceMap(byPlace, placeRows) {
-        return placeRows
-            .map((places) => places.map((place) => byPlace.get(Number(place))).filter(Boolean))
-            .filter((row) => row.length);
-    }
-
-    function countFormationSlots(rows) {
-        return (rows || []).reduce((n, row) => n + row.length, 0);
-    }
-
-    function buildFormationRows(formation) {
-        if (!formation || !formation.starters || !formation.starters.length) return [];
-        const byPlace = formationPlaceSlots(formation);
-        if (!byPlace.size) return [];
-        const key = inferFormationKey(formation);
-        const rows = rowsFromPlaceMap(byPlace, FORMATION_PLACE_ROWS[key]);
-        const starterCount = formation.starters.length;
-        if (rows.length && countFormationSlots(rows) >= starterCount) return rows;
-        return fallbackFormationRows(formation, byPlace);
-    }
-
-    function fallbackFormationRows(formation, byPlace) {
-        if (!byPlace) byPlace = formationPlaceSlots(formation);
-        const parts = String(formation.formation || '')
-            .split('-')
-            .map((n) => parseInt(n, 10))
-            .filter((n) => Number.isFinite(n) && n > 0);
-        if (!parts.length) {
-            return rowsFromPlaceMap(byPlace, FORMATION_PLACE_ROWS['4-2-3-1']);
-        }
-        const slots = (formation.starters || [])
-            .map((p) => ({
-                starter: p,
-                slot: byPlace.get(Number(p.formationPlace))
-            }))
-            .filter(({ slot }) => slot);
-        const gk = slots
-            .filter(({ starter }) => Number(starter.formationPlace) === 1 || /^G/i.test(starter.position || ''))
-            .map(({ slot }) => slot);
-        const rest = slots
-            .filter(({ starter }) => !(Number(starter.formationPlace) === 1 || /^G/i.test(starter.position || '')))
-            .sort((a, b) => (Number(a.starter.formationPlace) || 99) - (Number(b.starter.formationPlace) || 99))
-            .map(({ slot }) => slot);
-        const defenseToAttack = [];
-        let idx = 0;
-        parts.forEach((count) => {
-            defenseToAttack.push(rest.slice(idx, idx + count));
-            idx += count;
-        });
-        if (idx < rest.length) {
-            defenseToAttack.push(rest.slice(idx));
-        }
-        const rows = defenseToAttack.reverse().filter((row) => row.length);
-        if (gk.length) rows.push(gk);
-        return rows.length ? rows : rowsFromPlaceMap(byPlace, FORMATION_PLACE_ROWS['4-2-3-1']);
-    }
-
-    function formationPlayerLabel(player) {
-        return (player?.lastName || player?.shortName || player?.name || '').trim();
-    }
-
-    function formationJerseyNumber(player) {
-        const num = Number(player?.number);
-        if (Number.isFinite(num) && num > 0) return String(num);
-        const label = formationPlayerLabel(player);
-        return label ? label.charAt(0).toUpperCase() : '?';
-    }
-
-    function formatBenchLabel(player) {
-        const name = formationPlayerLabel(player);
-        if (!name) return null;
-        const parts = [];
-        const num = Number(player.number);
-        if (Number.isFinite(num) && num > 0) parts.push(String(num));
-        parts.push(name);
-        const pos = (player.position || '').trim();
-        if (pos && !/^SUB$/i.test(pos)) parts.push(pos);
-        return parts.join(' · ');
     }
 
     function setFormationLineupVisible(hasPitch, hasBench) {
@@ -1876,13 +1575,6 @@
         setFormationLineupVisible(true, renderFormationBench(formation));
     }
 
-    function normalizeKitColor(color) {
-        if (!color) return '';
-        const value = String(color).trim();
-        if (!value) return '';
-        return value.startsWith('#') ? value : ('#' + value);
-    }
-
     function createFormationPlayerButton(slot, kitColor) {
         const player = slot.player;
         const btn = document.createElement('button');
@@ -1922,8 +1614,8 @@
             (badges.length ? '<div class="formation-badges">' + badges.join('') + '</div>' : '') +
             subIcon +
             '<span class="formation-jersey' + (isGk ? ' is-gk' : '') + (hasImage ? ' has-image' : '') + '"' +
-            (jerseyStyle.length ? ' style="' + jerseyStyle.join(';') + '"' : '') + '>' +
-            (hasImage ? '' : formationJerseyNumber(player)) +
+            (jerseyStyle.length ? ' style="' + escapeHtml(jerseyStyle.join(';')) + '"' : '') + '>' +
+            (hasImage ? '' : escapeHtml(formationJerseyNumber(player))) +
             '</span>' +
             '<span class="formation-player-name">' + escapeHtml(formationPlayerLabel(player) || '?') + '</span>';
         btn.addEventListener('click', (e) => {
@@ -1932,39 +1624,6 @@
         });
         return btn;
     }
-
-    function escapeHtml(text) {
-        return String(text || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    const PLAYER_STAT_LABELS_RU = {
-        totalGoals: 'Голы',
-        goalAssists: 'Ассисты',
-        totalShots: 'Удары',
-        shotsOnTarget: 'В створ',
-        foulsCommitted: 'Фолы',
-        foulsSuffered: 'Фолы на игроке',
-        yellowCards: 'Жёлтые',
-        redCards: 'Красные',
-        offsides: 'Офсайды',
-        saves: 'Сейвы',
-        goalsConceded: 'Пропущено',
-        shotsFaced: 'Удары в створ',
-        ownGoals: 'Автоголы',
-        appearances: 'Выход на поле',
-        subIns: 'Замены'
-    };
-
-    const PLAYER_STAT_PRIORITY = [
-        'totalGoals', 'goalAssists', 'totalShots', 'shotsOnTarget',
-        'saves', 'goalsConceded', 'shotsFaced',
-        'foulsCommitted', 'foulsSuffered', 'offsides',
-        'yellowCards', 'redCards', 'ownGoals'
-    ];
 
     function openPlayerModal(player, kitColor) {
         const modal = $('#player-modal');
@@ -2075,9 +1734,9 @@
                 const row = document.createElement('div');
                 row.className = 'live-pitch-stats-row';
                 row.innerHTML =
-                    '<span class="home">' + (item.homeValue ?? '—') + '</span>' +
-                    '<span class="label">' + (item.label || '') + '</span>' +
-                    '<span class="away">' + (item.awayValue ?? '—') + '</span>';
+                    '<span class="home">' + escapeHtml(item.homeValue ?? '—') + '</span>' +
+                    '<span class="label">' + escapeHtml(item.label) + '</span>' +
+                    '<span class="away">' + escapeHtml(item.awayValue ?? '—') + '</span>';
                 body.appendChild(row);
             });
         }
@@ -2136,189 +1795,6 @@
         state.liveModalPollingTimerId = null;
     }
 
-    function parseLiveEventMinute(minute) {
-        const raw = (minute || '').trim();
-        if (!raw) return 0;
-        const match = raw.match(/^(\d+)/);
-        if (!match) return 0;
-        return parseInt(match[1], 10);
-    }
-
-    function hasSecondHalfActivity(events, match) {
-        if (parseLiveEventMinute(match?.status) >= 46) return true;
-        if (!events || !events.length) return false;
-        return events.some((e) => {
-            const text = (e.text || '').trim();
-            if (text.includes('Second Half begins') || text.startsWith('Начался второй тайм')) {
-                return true;
-            }
-            return parseLiveEventMinute(e.minute) >= 46;
-        });
-    }
-
-    function isMatchHalftimeBreak(match, events) {
-        const status = normalizeStatus(match?.status);
-        if (status === 'ht') return true;
-        const rawStatus = (match?.status || '').trim();
-        if (/^ht$/i.test(rawStatus)) return true;
-
-        if (hasSecondHalfActivity(events, match)) return false;
-
-        if (!events || !events.length) return false;
-        let firstHalfEnded = false;
-        let secondHalfStarted = false;
-        events.forEach((e) => {
-            const text = (e.text || '').trim();
-            if (text.includes('First Half ends') || text.startsWith('Перерыв,')) {
-                firstHalfEnded = true;
-            }
-            if (text.includes('Second Half begins') || text.startsWith('Начался второй тайм')) {
-                secondHalfStarted = true;
-            }
-        });
-        return firstHalfEnded && !secondHalfStarted;
-    }
-
-    function isShotEventType(type) {
-        const normalized = (type || '').toLowerCase();
-        return normalized.includes('goal') || normalized.includes('shot');
-    }
-
-    function isBlockedShotType(type) {
-        return (type || '').toLowerCase().includes('blocked');
-    }
-
-    function isOnTargetShotType(type) {
-        const normalized = (type || '').toLowerCase();
-        return normalized.includes('shot-on-target') || normalized.includes('save');
-    }
-
-    function resolveGoalLineX(event) {
-        if (Number.isFinite(event.field2X)) {
-            return event.field2X >= 50 ? 100 : 0;
-        }
-        if (Number.isFinite(event.fieldX)) {
-            return event.fieldX >= 50 ? 100 : 0;
-        }
-        return 100;
-    }
-
-    function flipPitchPercent(value) {
-        if (!Number.isFinite(value)) return value;
-        return 100 - value;
-    }
-
-    /**
-     * ESPN coords: attack toward x≈100; ends swap at half-time.
-     * Mirror X when (away XOR second half); flip Y in the complementary cases
-     * (home XOR 1st half, away XOR 2nd half).
-     */
-    function resolveEventPeriod(event) {
-        const period = Number(event?.period);
-        if (Number.isFinite(period) && period > 0) return period;
-        const minuteText = String(event?.minute || '');
-        const match = minuteText.match(/(\d+)/);
-        if (!match) return 1;
-        const minute = Number(match[1]);
-        return minute > 45 ? 2 : 1;
-    }
-
-    function shouldMirrorPitchX(event, match) {
-        const away = resolveEventTeamSide(match, event) === 'away';
-        const secondHalf = resolveEventPeriod(event) >= 2;
-        return away !== secondHalf;
-    }
-
-    function shouldFlipPitchY(event, match) {
-        return !shouldMirrorPitchX(event, match);
-    }
-
-    function mapEventToPitchCoords(event, match) {
-        if (!event) return event;
-        const mapped = Object.assign({}, event);
-        if (shouldMirrorPitchX(event, match)) {
-            mapped.fieldX = flipPitchPercent(event.fieldX);
-            mapped.field2X = flipPitchPercent(event.field2X);
-        }
-        if (shouldFlipPitchY(event, match)) {
-            mapped.fieldY = flipPitchPercent(event.fieldY);
-            mapped.field2Y = flipPitchPercent(event.field2Y);
-            mapped.goalPositionY = flipPitchPercent(event.goalPositionY);
-        }
-        return mapped;
-    }
-
-    function isOffsideEventType(type) {
-        return (type || '').toLowerCase().includes('offside');
-    }
-
-    function resolveOffsidePoints(event) {
-        const hasLine = Number.isFinite(event.fieldX) && Number.isFinite(event.fieldY);
-        const hasPlayer = Number.isFinite(event.field2X) && Number.isFinite(event.field2Y);
-        if (!hasLine || !hasPlayer) return null;
-        return {
-            line: { x: event.fieldX, y: event.fieldY },
-            player: { x: event.field2X, y: event.field2Y }
-        };
-    }
-
-    /**
-     * Shot points on pitch (after home/away mapping):
-     * Blocked: origin → fieldEnd (+ mid marker = blocker).
-     * On-target: origin → fieldEnd (= keeper) when present; else → goalmouth.
-     * Other: origin → goalmouth / fieldEnd (no mid).
-     * Offside: fieldStart = offside line, field2 = caught player (see resolveOffsidePoints).
-     */
-    function resolveShotPoints(event) {
-        const hasOrigin = Number.isFinite(event.fieldX) && Number.isFinite(event.fieldY);
-        if (!hasOrigin) return null;
-        const hasField2 = Number.isFinite(event.field2X) && Number.isFinite(event.field2Y);
-        const hasGoalY = Number.isFinite(event.goalPositionY);
-        const origin = { x: event.fieldX, y: event.fieldY };
-        let mid = null;
-        let end = null;
-
-        if (isBlockedShotType(event.type)) {
-            if (hasField2) {
-                mid = { x: event.field2X, y: event.field2Y };
-                end = mid;
-            }
-            return { origin, mid, end };
-        }
-
-        if (isOnTargetShotType(event.type)) {
-            // Save / on-target with fieldEnd: trail stops at keeper (do not continue past to goalmouth).
-            if (hasField2) {
-                mid = { x: event.field2X, y: event.field2Y };
-                end = mid;
-            } else if (hasGoalY) {
-                end = { x: resolveGoalLineX(event), y: event.goalPositionY };
-            }
-            return { origin, mid, end };
-        }
-
-        if (hasGoalY) {
-            end = { x: resolveGoalLineX(event), y: event.goalPositionY };
-        } else if (hasField2) {
-            end = { x: event.field2X, y: event.field2Y };
-        }
-
-        return { origin, mid: null, end };
-    }
-
-    function resolveEventTeamSide(match, event) {
-        const team = (event.teamName || '').trim().toLowerCase();
-        const home = (match?.homeName || '').trim().toLowerCase();
-        const away = (match?.awayName || '').trim().toLowerCase();
-        if (team && away && (team === away || away.includes(team) || team.includes(away))) {
-            return 'away';
-        }
-        if (team && home && (team === home || home.includes(team) || team.includes(home))) {
-            return 'home';
-        }
-        return 'home';
-    }
-
     function resolveEventTeamColor(match, event) {
         return resolveEventTeamSide(match, event) === 'away'
             ? (state.livePitchAwayColor || '#ffffff')
@@ -2331,70 +1807,6 @@
             : (state.livePitchAwayColor || '#ffffff');
     }
 
-    const PITCH_NON_PLAYER_TOKEN = /^(foul|goal|shot|blocked|save|woodwork|miss|missed|header|penalty|free|kick|card|yellow|red|corner|offside|var|substitution|sub|target|on|off|by|won|shown|awarded)$/i;
-    const PITCH_NAME_PARTICLE = /^(van|von|de|da|dos|del|della|di|der|den|la|le)$/i;
-
-    function surnameFromPlayerName(name) {
-        const cleaned = String(name || '')
-            .replace(/\s*\([^)]*\)\s*/g, ' ')
-            .replace(/[.,;:]+$/g, '')
-            .trim();
-        const parts = cleaned.split(/\s+/).filter(Boolean);
-        if (!parts.length) return '';
-        if (parts.length >= 2 && PITCH_NAME_PARTICLE.test(parts[parts.length - 2])) {
-            const compound = parts.slice(-2).join(' ');
-            if (!PITCH_NON_PLAYER_TOKEN.test(parts[parts.length - 1])) {
-                return compound;
-            }
-        }
-        const last = parts[parts.length - 1];
-        if (PITCH_NON_PLAYER_TOKEN.test(last)) return '';
-        return last;
-    }
-
-    function pitchOffsidePlayerFromText(event) {
-        for (const blob of [event.text || '', event.shortText || '']) {
-            const text = String(blob).trim();
-            if (!text) continue;
-            const caught = text.match(/\.\s*(.+?)\s+is caught offside\b/i);
-            if (caught) {
-                const name = surnameFromPlayerName(caught[1]);
-                if (name) return name;
-            }
-        }
-        return '';
-    }
-
-    function pitchPlayerLabel(event) {
-        if (isOffsideEventType(event.type)) {
-            const fromText = pitchOffsidePlayerFromText(event);
-            if (fromText) return fromText;
-        }
-
-        // Prefer ESPN play.participants[0].athlete.displayName from backend.
-        const fromParticipant = surnameFromPlayerName(event.playerName || '');
-        if (fromParticipant) return fromParticipant;
-
-        // Fallback: shortText like "Dango Ouattara Foul" / full commentary text.
-        for (const blob of [event.shortText || '', event.text || '']) {
-            let text = String(blob).trim();
-            if (!text) continue;
-            text = text.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-            const byMatch = text.match(/\bby\s+(.+?)(?:\s*[.!]|$)/i);
-            if (byMatch) {
-                const name = surnameFromPlayerName(byMatch[1]);
-                if (name) return name;
-            }
-            text = text
-                .replace(/\s+(foul|shot(\s+(on|off)\s+target)?|blocked(\s+shot)?|goal|save|woodwork|miss(ed)?|header|penalty|offside).*$/i, '')
-                .replace(/^(foul|free\s*kick|offside|corner|goal|penalty|save)\b[\s.:-]*/i, '')
-                .trim();
-            const name = surnameFromPlayerName(text);
-            if (name) return name;
-        }
-        return '';
-    }
-
     function pitchEventLabel(event) {
         const minute = event.minute || 'live';
         const typeLabel = prettyLiveEventType(event.type);
@@ -2403,23 +1815,6 @@
             return (minute + ' ' + player + ' · ' + typeLabel).trim();
         }
         return (minute + ' ' + typeLabel).trim();
-    }
-
-    function livePitchEventKey(event) {
-        const fx = Number.isFinite(event.fieldX) ? event.fieldX.toFixed(1) : '';
-        const fy = Number.isFinite(event.fieldY) ? event.fieldY.toFixed(1) : '';
-        return [
-            event.type || '',
-            event.shortText || '',
-            event.text || '',
-            event.playerName || '',
-            fx,
-            fy
-        ].join('|');
-    }
-
-    function findLatestPitchEvent(events) {
-        return (events || []).find((e) => Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY)) || null;
     }
 
     function syncLatestPitchEvent(events) {
@@ -2432,17 +1827,6 @@
             state.lastSeenLatestPitchEventKey = latestKey;
         }
         return latest;
-    }
-
-    function shotTrajectoryStyle(type) {
-        const normalized = (type || '').toLowerCase();
-        // Goal: solid. All other shot trails (on/off target, block, woodwork): dashed.
-        if (normalized.includes('goal') && !normalized.includes('own')) return 'solid';
-        if (normalized.includes('blocked')) return 'dashed';
-        if (normalized.includes('shot-on-target')) return 'dashed';
-        if (normalized.includes('off-target') || normalized.includes('woodwork')) return 'dashed';
-        if (normalized.includes('shot') || normalized.includes('save')) return 'dashed';
-        return 'solid';
     }
 
     function shouldShowLivePitchMarker(match, events) {
@@ -2638,11 +2022,11 @@
                 row.classList.add('pitch-selected');
             }
             const icon = liveEventIcon(e.type);
-            const minute = e.minute ? '<span>' + e.minute + '</span>' : '<span>live</span>';
+            const minute = e.minute ? '<span>' + escapeHtml(e.minute) + '</span>' : '<span>live</span>';
             const translatedText = translateLiveEventText(e.text || '', e.type);
             row.innerHTML =
                 '<div class="h2h-item-head"><span>' + icon + '</span>' + minute + '</div>' +
-                '<div class="h2h-item-score">' + translatedText + '</div>';
+                '<div class="h2h-item-score">' + escapeHtml(translatedText) + '</div>';
             if (Number.isFinite(e.fieldX) && Number.isFinite(e.fieldY)) {
                 row.classList.add('pitch-selectable');
                 row.addEventListener('click', () => {
@@ -2694,34 +2078,6 @@
                 labelEl.style.maxWidth = maxWidth + 'px';
             }
         }
-    }
-
-    function clamp(value, min, max) {
-        const num = Number(value);
-        if (!Number.isFinite(num)) return min;
-        if (num < min) return min;
-        if (num > max) return max;
-        return num;
-    }
-
-    function liveEventIcon(type) {
-        const t = (type || '').toLowerCase();
-        if (t.includes('goal')) return '⚽';
-        if (t.includes('penalty')) return '🅿️';
-        if (t.includes('yellow')) return '🟨';
-        if (t.includes('red')) return '🟥';
-        if (t.includes('sub')) return '🔁';
-        if (t.includes('offside')) return '🏳️';
-        if (t.includes('foul')) return '✋';
-        if (t.includes('shot-on-target')) return '🎯';
-        if (t.includes('shot-blocked')) return '🧱';
-        if (t.includes('shot-off-target')) return '↗️';
-        if (t.includes('shot-hit-woodwork') || t.includes('woodwork')) return '🪵';
-        if (t.includes('corner-awarded')) return '🚩';
-        if (t.includes('save')) return '🥅';
-        if (t.includes('var')) return '📺';
-        if (t.includes('kickoff') || t.includes('period')) return '🕒';
-        return '•';
     }
 
     function closeScoreModal(clearSelection) {
@@ -2827,23 +2183,6 @@
             + Number(recommendation.expectedAwayGoals).toFixed(1);
         const tipPct = Math.round(Number(recommendation.scoreProbability || 0) * 100);
         summaryEl.textContent = lambda + ' · tip ' + tipPct + '% · открыть матрицу';
-    }
-
-    function fairOdds(p) {
-        if (!p || p <= 0) return '—';
-        return (1 / p).toFixed(2);
-    }
-
-    function pctLabel(p) {
-        return Math.round(Number(p || 0) * 100) + '%';
-    }
-
-    function marketChipHtml(label, p) {
-        return '<div class="ai-market-chip">'
-            + '<span class="ai-market-label">' + escapeHtml(label) + '</span>'
-            + '<span class="ai-market-pct">' + pctLabel(p) + '</span>'
-            + '<span class="ai-market-odds">' + fairOdds(p) + '</span>'
-            + '</div>';
     }
 
     function openAiModal() {
@@ -3033,34 +2372,15 @@
         newsItems.forEach((item) => {
             const row = document.createElement('a');
             row.className = 'h2h-item modal-news-item';
-            row.href = item.url;
+            row.href = /^https?:\/\//i.test(item.url || '') ? item.url : '#';
             row.target = '_blank';
             row.rel = 'noopener noreferrer';
-            const published = item.publishedAt ? ('<span class="modal-news-time">' + item.publishedAt + '</span>') : '';
+            const published = item.publishedAt ? ('<span class="modal-news-time">' + escapeHtml(item.publishedAt) + '</span>') : '';
             row.innerHTML =
-                '<span class="modal-news-title">' + item.title + '</span>' +
+                '<span class="modal-news-title">' + escapeHtml(item.title) + '</span>' +
                 published;
             container.appendChild(row);
         });
-    }
-
-    function injuryKindMeta(kind) {
-        switch ((kind || '').toLowerCase()) {
-            case 'injury':
-                return { symbol: '✕', title: 'травма', cls: 'modal-injury-kind--injury' };
-            case 'suspension':
-                return { symbol: '▮', title: 'дисквалификация', cls: 'modal-injury-kind--suspension' };
-            case 'doubt':
-                return { symbol: '?', title: 'под вопросом', cls: 'modal-injury-kind--doubt' };
-            default:
-                return { symbol: '–', title: 'отсутствие', cls: 'modal-injury-kind--other' };
-        }
-    }
-
-    function shortPlayerName(name) {
-        if (!name) return '';
-        const parts = String(name).trim().split(/\s+/);
-        return parts[parts.length - 1] || name;
     }
 
     function renderModalPrematch(injuries, homeLineup, awayLineup, match) {
@@ -3149,30 +2469,11 @@
         return html;
     }
 
-    function normalizeOutcome(outcome) {
-        const value = (outcome || '').toUpperCase();
-        if (value === 'W' || value === 'L' || value === 'D') return value;
-        return 'D';
-    }
-
-    function formDotClassByOutcome(outcome) {
-        const value = normalizeOutcome(outcome);
-        if (value === 'W') return 'form-dot-win';
-        if (value === 'L') return 'form-dot-loss';
-        return 'form-dot-draw';
-    }
-
-    function formDotClassByScores(teamScore, oppScore) {
-        if (teamScore > oppScore) return 'form-dot-win';
-        if (teamScore < oppScore) return 'form-dot-loss';
-        return 'form-dot-draw';
-    }
-
     function renderH2hList(containerSelector, items, errorMessage) {
         const container = $(containerSelector);
         if (!container) return;
         if (errorMessage) {
-            container.innerHTML = '<p class="empty-state">' + errorMessage + '</p>';
+            container.innerHTML = '<p class="empty-state">' + escapeHtml(errorMessage) + '</p>';
             return;
         }
         if (!items || !items.length) {
@@ -3185,10 +2486,10 @@
             row.className = 'h2h-item';
             row.innerHTML =
                 '<div class="h2h-item-head">' +
-                '<span>' + (h.leagueName || 'Лига') + '</span>' +
-                '<span>' + (h.kickoff || '') + '</span>' +
+                '<span>' + escapeHtml(h.leagueName || 'Лига') + '</span>' +
+                '<span>' + escapeHtml(h.kickoff) + '</span>' +
                 '</div>' +
-                '<div class="h2h-item-score">' + h.homeCode + ' ' + (h.homeScore ?? '-') + ' : ' + (h.awayScore ?? '-') + ' ' + h.awayCode + '</div>';
+                '<div class="h2h-item-score">' + escapeHtml(h.homeCode) + ' ' + (h.homeScore ?? '-') + ' : ' + (h.awayScore ?? '-') + ' ' + escapeHtml(h.awayCode) + '</div>';
             container.appendChild(row);
         });
     }
@@ -3273,7 +2574,7 @@
             $('#team-profile-meta').textContent = e.message || 'Ошибка';
             $('#team-stats-section').classList.add('hidden');
             $('#team-stats-grid').innerHTML = '';
-            $('#team-last-list').innerHTML = '<li class="empty-state">' + (e.message || 'Ошибка') + '</li>';
+            $('#team-last-list').innerHTML = '<li class="empty-state">' + escapeHtml(e.message || 'Ошибка') + '</li>';
             $('#team-next-list').innerHTML = '<li class="empty-state">—</li>';
         }
     }
@@ -3315,19 +2616,6 @@
             + '<span class="team-stat-value">' + escapeHtml(c.value) + '</span>'
             + '</div>'
         ).join('');
-    }
-
-    function fmtStatNum(v) {
-        if (v == null || Number.isNaN(Number(v))) return null;
-        const n = Number(v);
-        return Number.isInteger(n) ? String(n) : n.toFixed(1);
-    }
-
-    function fmtStatPct(v) {
-        if (v == null || Number.isNaN(Number(v))) return null;
-        const n = Number(v);
-        const shown = n <= 1.5 ? n * 100 : n;
-        return (Math.round(shown * 10) / 10) + '%';
     }
 
     function renderTeamLeaders(leaders) {
@@ -3523,13 +2811,6 @@
 
     function closeMyPredictionsNav() {
         resetProfileHomeView(false);
-    }
-
-    function parsePercentWidth(percentStr) {
-        if (!percentStr) return 0;
-        const n = parseFloat(String(percentStr).replace('%', '').replace(',', '.'));
-        if (!Number.isFinite(n)) return 0;
-        return Math.max(0, Math.min(100, n));
     }
 
     function renderProfileTeamList(container, rows) {
@@ -3809,7 +3090,7 @@
                     const pts = item.points == null ? '—' : String(item.points);
                     li.innerHTML =
                         '<div class="list-item-main">' +
-                        '<div class="list-item-title">' + item.homeCode + ' — ' + item.awayCode + '</div>' +
+                        '<div class="list-item-title">' + escapeHtml(item.homeCode) + ' — ' + escapeHtml(item.awayCode) + '</div>' +
                         '<div class="list-item-sub">факт ' + actual + ' · прогноз ' + pred + '</div>' +
                         '</div>' +
                         '<span class="pts">' + pts + '</span>';

@@ -53,11 +53,6 @@ public class HtmlImageRenderer {
     private static final int WIDTH = 1080;
     private static final int HEIGHT = 1080;
     private static final long RENDER_TIMEOUT_MS = 45_000L;
-    private static final int LOGO_CONNECT_TIMEOUT_MS = 2_000;
-    private static final int LOGO_SOCKET_TIMEOUT_MS = 3_000;
-
-    /** Remote logo URL → data URI (or "" after failed fetch). Avoids Playwright waiting on ESPN CDN. */
-    private static final ConcurrentHashMap<String, String> LOGO_DATA_URI_CACHE = new ConcurrentHashMap<>();
 
     private final PanicSender panicSender;
     private final MatchService matchService;
@@ -103,7 +98,7 @@ public class HtmlImageRenderer {
         if (list == null || list.isEmpty()) {
             return null;
         }
-        return renderHtml(buildTodayHtml(toTodayCard(list)), "epl");
+        return renderHtml(CardHtml.buildTodayHtml(toTodayCard(list)), "epl");
     }
 
     public String createReminderImage(int matchPublicId, int homeTeamId, int awayTeamId, String kickoff) {
@@ -114,7 +109,7 @@ public class HtmlImageRenderer {
             int matchPublicId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
     ) {
         ReminderCard card = buildReminderCard(matchPublicId, homeTeamId, awayTeamId, kickoff, weekBonus);
-        return renderHtml(buildReminderHtml(card), card.accent());
+        return renderHtml(CardHtml.buildReminderHtml(card), card.accent());
     }
 
     public String createResultImage(
@@ -135,13 +130,13 @@ public class HtmlImageRenderer {
                 badge != null ? badge : "FULL TIME",
                 nzCode(homeCode, homeTeamId),
                 nzCode(awayCode, awayTeamId),
-                resolveLogoSrc(homeTeamId, homeLogoUrl),
-                resolveLogoSrc(awayTeamId, awayLogoUrl),
+                CardLogos.resolveLogoSrc(homeTeamId, homeLogoUrl),
+                CardLogos.resolveLogoSrc(awayTeamId, awayLogoUrl),
                 score != null ? score : "-:-",
                 aiKickoffScore,
                 toResultLines(results)
         );
-        return renderHtml(buildResultHtml(card), card.accent());
+        return renderHtml(CardHtml.buildResultHtml(card), card.accent());
     }
 
     public String createEplResultImage(
@@ -180,7 +175,7 @@ public class HtmlImageRenderer {
             String shortLogin = login.length() >= 3 ? login.substring(0, 3) : login;
             rows.add(new WeeklyRow(place++, shortLogin.toUpperCase(Locale.ROOT), e.getValue() != null ? e.getValue() : 0));
         }
-        return renderHtml(buildWeeklyHtml(new WeeklyCard(weekId, rows)), "epl");
+        return renderHtml(CardHtml.buildWeeklyHtml(new WeeklyCard(weekId, rows)), "epl");
     }
 
     public String createYourPredictImage(Match match, String predictScore) {
@@ -195,13 +190,13 @@ public class HtmlImageRenderer {
         YourPredictCard card = new YourPredictCard(
                 home != null ? home.getCode() : "?",
                 away != null ? away.getCode() : "?",
-                resolveLogoSrc(match.getHomeTeamId(), null),
-                resolveLogoSrc(match.getAwayTeamId(), null),
+                CardLogos.resolveLogoSrc(match.getHomeTeamId(), null),
+                CardLogos.resolveLogoSrc(match.getAwayTeamId(), null),
                 "WEEK " + match.getWeekId(),
                 kickoff,
                 predictScore != null ? predictScore : "-:-"
         );
-        return renderHtml(buildYourPredictHtml(card), "epl");
+        return renderHtml(CardHtml.buildYourPredictHtml(card), "epl");
     }
 
     /** Embed a chart PNG (already rendered) into the shared card chrome. */
@@ -210,7 +205,7 @@ public class HtmlImageRenderer {
             return null;
         }
         String dataUri = "data:image/png;base64," + Base64.getEncoder().encodeToString(chartPngBytes);
-        return renderHtml(buildChartHtml(dataUri), "epl");
+        return renderHtml(CardHtml.buildChartHtml(dataUri), "epl");
     }
 
     private ReminderCard buildReminderCard(
@@ -234,8 +229,8 @@ public class HtmlImageRenderer {
             for (int i = 0; i < Math.min(8, h2h != null ? h2h.size() : 0); i++) {
                 HeadToHead row = h2h.get(i);
                 h2hChips.add(new H2hChip(
-                        resolveLogoSrc(row.getHomeTeamId(), null),
-                        resolveLogoSrc(row.getAwayTeamId(), null),
+                        CardLogos.resolveLogoSrc(row.getHomeTeamId(), null),
+                        CardLogos.resolveLogoSrc(row.getAwayTeamId(), null),
                         row.getHomeTeamScore() + ":" + row.getAwayTeamScore()
                 ));
             }
@@ -245,8 +240,8 @@ public class HtmlImageRenderer {
                 "PREDICT",
                 home != null ? home.getCode() : "?",
                 away != null ? away.getCode() : "?",
-                resolveLogoSrc(homeTeamId, null),
-                resolveLogoSrc(awayTeamId, null),
+                CardLogos.resolveLogoSrc(homeTeamId, null),
+                CardLogos.resolveLogoSrc(awayTeamId, null),
                 kickoff != null ? kickoff : "--:--",
                 odd != null ? formatOdd(odd.home()) : "—",
                 odd != null ? formatOdd(odd.draw()) : "—",
@@ -272,7 +267,7 @@ public class HtmlImageRenderer {
             String score = isHome
                     ? m.getHomeTeamScore() + ":" + m.getAwayTeamScore()
                     : m.getAwayTeamScore() + ":" + m.getHomeTeamScore();
-            chips.add(new FormChip(resolveLogoSrc(opponentId, null), score));
+            chips.add(new FormChip(CardLogos.resolveLogoSrc(opponentId, null), score));
             if (chips.size() >= 5) {
                 break;
             }
@@ -329,8 +324,8 @@ public class HtmlImageRenderer {
         return new TodayRow(
                 displayCode(mr, true),
                 displayCode(mr, false),
-                resolveLogoSrc(mr.homeTeamId(), mr.homeLogoUrl()),
-                resolveLogoSrc(mr.awayTeamId(), mr.awayLogoUrl()),
+                CardLogos.resolveLogoSrc(mr.homeTeamId(), mr.homeLogoUrl()),
+                CardLogos.resolveLogoSrc(mr.awayTeamId(), mr.awayLogoUrl()),
                 kickoff
         );
     }
@@ -370,236 +365,6 @@ public class HtmlImageRenderer {
 
     public static String competitionBadge(String competition) {
         return cupSectionTitle(competition) + " · FULL TIME";
-    }
-
-    private String buildTodayHtml(TodayCard card) {
-        StringBuilder sections = new StringBuilder();
-        for (TodaySection section : card.sections()) {
-            sections.append("<section class=\"sheet\">");
-            sections.append("<h2 class=\"section-title\">").append(escape(section.title())).append("</h2>");
-            for (TodayRow row : section.rows()) {
-                sections.append("<div class=\"match-row\">")
-                        .append(img(row.homeLogoSrc()))
-                        .append("<div class=\"code home\">").append(escape(row.homeCode())).append("</div>")
-                        .append("<div class=\"center-pill\">").append(escape(row.kickoff())).append("</div>")
-                        .append("<div class=\"code away\">").append(escape(row.awayCode())).append("</div>")
-                        .append(img(row.awayLogoSrc()))
-                        .append("</div>");
-            }
-            sections.append("</section>");
-        }
-        return shell("epl",
-                "<div class=\"badge\">TODAY</div>"
-                + "<h1 class=\"heading\">Сегодняшние матчи</h1>"
-                + sections
-                + "<div class=\"foot\">predictions</div>",
-                "card-narrow");
-    }
-
-    private String buildReminderHtml(ReminderCard card) {
-        StringBuilder h2h = new StringBuilder("<div class=\"h2h-grid\">");
-        if (card.h2h().isEmpty()) {
-            h2h.append("<div class=\"hint-empty\">нет данных</div>");
-        } else {
-            for (H2hChip chip : card.h2h()) {
-                h2h.append("<div class=\"h2h-chip\">")
-                        .append(imgSm(chip.homeLogoSrc()))
-                        .append("<span class=\"chip-score\">").append(escape(chip.score())).append("</span>")
-                        .append(imgSm(chip.awayLogoSrc()))
-                        .append("</div>");
-            }
-        }
-        h2h.append("</div>");
-
-        StringBuilder formHome = new StringBuilder("<div class=\"form-col\">");
-        for (FormChip chip : card.homeForm()) {
-            formHome.append(formChipHtml(chip, false));
-        }
-        if (card.homeForm().isEmpty()) {
-            formHome.append("<div class=\"hint-empty\">—</div>");
-        }
-        formHome.append("</div>");
-
-        StringBuilder formAway = new StringBuilder("<div class=\"form-col form-col-away\">");
-        for (FormChip chip : card.awayForm()) {
-            formAway.append(formChipHtml(chip, true));
-        }
-        if (card.awayForm().isEmpty()) {
-            formAway.append("<div class=\"hint-empty\">—</div>");
-        }
-        formAway.append("</div>");
-
-        return shell(card.accent(),
-                "<div class=\"card-inner reminder\">"
-                + "<div class=\"badge\">" + escape(card.badge()) + "</div>"
-                + "<h1 class=\"heading heading-sm\">Не проставлен прогноз"
-                + (card.weekBonus() ? "<span class=\"badge-bonus reminder-bonus\">бонус</span>" : "")
-                + "</h1>"
-                + "<div class=\"block-label\">head to head</div>"
-                + h2h
-                + "<div class=\"match-banner\">"
-                + imgClass(card.homeLogoSrc(), "banner-logo")
-                + "<div class=\"match-bar sheet\">"
-                + "<span class=\"code\">" + escape(card.homeCode()) + "</span>"
-                + "<span class=\"kick\">" + escape(card.kickoff()) + "</span>"
-                + "<span class=\"code\">" + escape(card.awayCode()) + "</span>"
-                + "</div>"
-                + imgClass(card.awayLogoSrc(), "banner-logo")
-                + "</div>"
-                + "<div class=\"form-band\">"
-                + formHome
-                + "<div class=\"block-label form-mid-label\">last 5</div>"
-                + formAway
-                + "</div>"
-                + "<div class=\"odds odds-compact\">"
-                + oddCell("1", card.homeOdd()) + oddCell("X", card.drawOdd()) + oddCell("2", card.awayOdd())
-                + "</div>"
-                + "</div>"
-                + "<div class=\"foot\">predictions</div>");
-    }
-
-    private static String formChipHtml(FormChip chip, boolean awaySide) {
-        StringBuilder sb = new StringBuilder("<div class=\"form-chip\">");
-        if (awaySide) {
-            sb.append("<span class=\"chip-score\">").append(escape(chip.score())).append("</span>")
-                    .append(imgSm(chip.opponentLogoSrc()));
-        } else {
-            sb.append(imgSm(chip.opponentLogoSrc()))
-                    .append("<span class=\"chip-score\">").append(escape(chip.score())).append("</span>");
-        }
-        sb.append("</div>");
-        return sb.toString();
-    }
-
-    private static String imgSm(String src) {
-        if (src == null || src.isBlank()) {
-            return "<div class=\"logo-sm stub\"></div>";
-        }
-        return "<img class=\"logo-sm\" src=\"" + escapeAttr(src) + "\" alt=\"\"/>";
-    }
-
-    private static String imgClass(String src, String cssClass) {
-        if (src == null || src.isBlank()) {
-            return "<div class=\"" + cssClass + " stub\"></div>";
-        }
-        return "<img class=\"" + cssClass + "\" src=\"" + escapeAttr(src) + "\" alt=\"\"/>";
-    }
-
-    private String buildResultHtml(ResultCard card) {
-        StringBuilder results = new StringBuilder();
-        for (ResultLine line : card.results()) {
-            results.append("<div class=\"result-line")
-                    .append(line.weekBonus() ? " week-bonus" : "")
-                    .append("\"><span class=\"result-who\">")
-                    .append(escape(line.login())).append(" ")
-                    .append(escape(line.predict()));
-            if (line.weekBonus()) {
-                results.append("<span class=\"badge-bonus\">бонус</span>");
-            }
-            results.append("</span><span class=\"pts\">").append(line.points()).append("</span></div>");
-        }
-        String ai = card.aiKickoffScore() != null && !card.aiKickoffScore().isBlank()
-                ? "<div class=\"ai-line\">AI " + escape(card.aiKickoffScore()) + "</div>"
-                : "";
-        return shell(card.accent(),
-                "<div class=\"badge\">" + escape(card.badge()) + "</div>"
-                + "<h1 class=\"heading\">Матч окончен</h1>"
-                + "<div class=\"sheet hero\">"
-                + "<div class=\"hero-side\">" + img(card.homeLogoSrc())
-                + "<div class=\"code\">" + escape(card.homeCode()) + "</div></div>"
-                + "<div class=\"hero-center\"><div class=\"score\">" + escape(card.score()) + "</div>" + ai + "</div>"
-                + "<div class=\"hero-side\">" + img(card.awayLogoSrc())
-                + "<div class=\"code\">" + escape(card.awayCode()) + "</div></div>"
-                + "</div>"
-                + (results.isEmpty() ? "" : "<div class=\"sheet\"><div class=\"results\">" + results + "</div></div>")
-                + "<div class=\"foot\">predictions</div>",
-                "card-narrow");
-    }
-
-    private String buildWeeklyHtml(WeeklyCard card) {
-        StringBuilder rows = new StringBuilder("<div class=\"weekly-list\">");
-        for (WeeklyRow row : card.rows()) {
-            String placeClass = row.place() <= 3 ? " p" + row.place() : "";
-            rows.append("<div class=\"weekly-row").append(placeClass).append("\">")
-                    .append("<div class=\"weekly-place\">").append(row.place()).append("</div>")
-                    .append("<div class=\"weekly-login\">").append(escape(row.login())).append("</div>")
-                    .append("<div class=\"weekly-pts\">").append(row.points()).append("</div>")
-                    .append("</div>");
-        }
-        rows.append("</div>");
-        return shell("epl",
-                "<div class=\"badge\">WEEK " + card.weekId() + "</div>"
-                + "<h1 class=\"heading\">Результаты " + card.weekId() + " тура</h1>"
-                + rows
-                + "<div class=\"foot\">predictions</div>",
-                "card-narrow");
-    }
-
-    private String buildYourPredictHtml(YourPredictCard card) {
-        return shell("epl",
-                "<div class=\"badge\">" + escape(card.weekLabel()) + "</div>"
-                + "<h1 class=\"heading\">Твой прогноз</h1>"
-                + "<p class=\"sub\">kickoff " + escape(card.kickoff()) + "</p>"
-                + "<div class=\"sheet hero\">"
-                + "<div class=\"hero-side\">" + img(card.homeLogoSrc())
-                + "<div class=\"code\">" + escape(card.homeCode()) + "</div></div>"
-                + "<div class=\"hero-center\"><div class=\"score\">" + escape(card.predictScore()) + "</div></div>"
-                + "<div class=\"hero-side\">" + img(card.awayLogoSrc())
-                + "<div class=\"code\">" + escape(card.awayCode()) + "</div></div>"
-                + "</div>"
-                + "<div class=\"predict-banner\">Сохранено</div>"
-                + "<div class=\"foot\">predictions</div>",
-                "card-narrow");
-    }
-
-    private String buildChartHtml(String chartDataUri) {
-        return shell("epl",
-                "<div class=\"badge\">CHART</div>"
-                + "<h1 class=\"heading\">Очки по неделям</h1>"
-                + "<div class=\"chart-wrap\"><img src=\"" + escapeAttr(chartDataUri) + "\" alt=\"chart\"/></div>"
-                + "<div class=\"foot\">predictions</div>",
-                "card-narrow");
-    }
-
-    private static String oddCell(String label, String val) {
-        return "<div class=\"odd-cell\"><div class=\"label\">" + label + "</div><div class=\"val\">"
-               + escape(val) + "</div></div>";
-    }
-
-    private static String img(String src) {
-        if (src == null || src.isBlank()) {
-            return "<div style=\"width:56px;height:56px;border-radius:8px;background:rgba(255,255,255,.08)\"></div>";
-        }
-        return "<img src=\"" + escapeAttr(src) + "\" alt=\"\"/>";
-    }
-
-    private String shell(String accent, String body) {
-        return shell(accent, body, null);
-    }
-
-    private String shell(String accent, String body, String layoutClass) {
-        String css;
-        try {
-            css = readClasspath("notification-cards/base.css");
-        } catch (Exception e) {
-            css = "body{background:#0b0910;color:#fff;font-family:sans-serif}";
-        }
-        String extra = (layoutClass != null && !layoutClass.isBlank()) ? (" " + layoutClass.trim()) : "";
-        return """
-                <!DOCTYPE html>
-                <html lang="ru">
-                <head>
-                  <meta charset="utf-8"/>
-                  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-                  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-                  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Manrope:wght@500;600;700&family=Unbounded:wght@600;700&display=swap" rel="stylesheet"/>
-                  <style>%s</style>
-                </head>
-                <body>
-                  <div class="card%s" data-accent="%s">%s</div>
-                </body>
-                </html>
-                """.formatted(css, extra, escapeAttr(accent), body);
     }
 
     private String renderHtml(String html, String accentForLog) {
@@ -683,120 +448,6 @@ public class HtmlImageRenderer {
         return null;
     }
 
-    static String resolveLogoSrc(Integer teamId, String remoteUrl) {
-        // EPL: API-Football media CDN (ESPN CDN hangs mid-download from Odyssey).
-        if (teamId != null) {
-            String af = embedRemoteLogo("https://media.api-sports.io/football/teams/" + teamId + ".png");
-            if (!af.isBlank()) {
-                return af;
-            }
-            Team team = DaoUtil.TEAMS.get(teamId);
-            if (team != null) {
-                String espn = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(team.getCode()));
-                if (espn != null) {
-                    String embedded = embedRemoteLogo(espn);
-                    if (!embedded.isBlank()) {
-                        return embedded;
-                    }
-                }
-            }
-            String data = classpathImageDataUri("static/img/teams/" + teamId + ".webp");
-            if (data == null) {
-                data = classpathImageDataUri("static/img/teams/" + teamId + ".png");
-            }
-            if (data != null) {
-                return data;
-            }
-        }
-        if (remoteUrl != null && !remoteUrl.isBlank()) {
-            return embedRemoteLogo(remoteUrl);
-        }
-        return "";
-    }
-
-    /**
-     * Fetch remote logo into a data URI so Playwright never blocks on ESPN CDN (often stalls on Odyssey).
-     * Failures are cached as empty to avoid repeated timeouts.
-     */
-    static String embedRemoteLogo(String url) {
-        if (url == null || url.isBlank()) {
-            return "";
-        }
-        if (url.startsWith("data:")) {
-            return url;
-        }
-        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
-            return url;
-        }
-        String cached = LOGO_DATA_URI_CACHE.get(url);
-        if (cached != null) {
-            return cached;
-        }
-        String embedded = fetchLogoDataUri(url);
-        LOGO_DATA_URI_CACHE.put(url, embedded);
-        return embedded;
-    }
-
-    private static String fetchLogoDataUri(String url) {
-        try {
-            HttpResponse<byte[]> resp = Unirest.get(url)
-                    .header("User-Agent", "Mozilla/5.0")
-                    .header("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
-                    .connectTimeout(LOGO_CONNECT_TIMEOUT_MS)
-                    .socketTimeout(LOGO_SOCKET_TIMEOUT_MS)
-                    .asBytes();
-            if (resp.getStatus() != 200 || resp.getBody() == null || resp.getBody().length == 0) {
-                log.warn("Logo fetch failed status={} url={}", resp.getStatus(), url);
-                return "";
-            }
-            String mime = contentTypeToMime(resp.getHeaders().getFirst("Content-Type"), url);
-            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(resp.getBody());
-        } catch (Exception e) {
-            log.warn("Logo fetch error url={}: {}", url, e.getMessage());
-            return "";
-        }
-    }
-
-    private static String contentTypeToMime(String contentType, String url) {
-        if (contentType != null && !contentType.isBlank()) {
-            String mime = contentType.split(";")[0].trim().toLowerCase(Locale.ROOT);
-            if (mime.startsWith("image/")) {
-                return mime;
-            }
-        }
-        String lower = url.toLowerCase(Locale.ROOT);
-        if (lower.contains(".webp")) {
-            return "image/webp";
-        }
-        if (lower.contains(".svg")) {
-            return "image/svg+xml";
-        }
-        return "image/png";
-    }
-
-    private static String classpathImageDataUri(String path) {
-        try {
-            ClassPathResource res = new ClassPathResource(path);
-            if (!res.exists()) {
-                return null;
-            }
-            try (InputStream in = res.getInputStream()) {
-                byte[] bytes = in.readAllBytes();
-                String mime = path.endsWith(".webp") ? "image/webp" : "image/png";
-                return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
-            }
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static String readClasspath(String path) throws Exception {
-        ClassPathResource res = new ClassPathResource(path);
-        try (InputStream in = res.getInputStream()) {
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
-    }
-
     private static String nzCode(String code, Integer teamId) {
         if (code != null && !code.isBlank()) {
             return code;
@@ -812,16 +463,5 @@ public class HtmlImageRenderer {
 
     private static String formatOdd(double v) {
         return String.format(Locale.US, "%.2f", v);
-    }
-
-    private static String escape(String s) {
-        if (s == null) {
-            return "";
-        }
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    }
-
-    private static String escapeAttr(String s) {
-        return escape(s).replace("\"", "&quot;");
     }
 }
