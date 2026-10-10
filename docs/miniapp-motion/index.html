@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mini App motion — broadcast</title>
+<style>
+:root{--accent:#b08cff;--accent-lift:#c9b4ff;--accent-deep:#6b4fc4;--bg:#0b0910;--bg2:#14111a;--bg3:#1c1824;--text:#e8dff5;--hint:#9a8fb0;
+--border:rgba(176,140,255,.14);--success:#5cb87a;
+--ease-out:cubic-bezier(.23,1,.32,1);--ease-spring:cubic-bezier(.34,1.45,.5,1);--ease-wipe:cubic-bezier(.77,0,.18,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:14px/1.4 Manrope,system-ui,sans-serif;padding:16px;max-width:520px;margin:0 auto}
+h1{font-size:18px;margin-bottom:4px}p.lead{color:var(--hint);margin-bottom:18px;font-size:12px}
+section{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px}
+h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--hint);margin-bottom:4px}
+.note{font-size:12px;color:var(--hint);margin-bottom:10px}
+button.play{background:var(--accent);color:#140e22;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;margin-top:10px}
+.stage{position:relative;overflow:hidden;border-radius:10px;background:var(--bg);border:1px solid var(--border);padding:12px;min-height:120px}
+
+/* 1. list stagger */
+.row{display:flex;justify-content:space-between;padding:10px 12px;margin-bottom:6px;border-radius:8px;background:var(--bg3);border:1px solid var(--border)}
+.stage.go .row{animation:rise .5s var(--ease-out) both;animation-delay:calc(var(--i)*55ms)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* 2. sheet */
+.sheet-stage{height:210px;padding:0}
+.backdrop{position:absolute;inset:0;background:rgba(5,3,10,.6);opacity:0;backdrop-filter:blur(0)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg3);border-top:1px solid var(--accent);border-radius:16px 16px 0 0;padding:16px;transform:translateY(100%)}
+.sheet b{display:block;font-size:22px;color:var(--accent-lift);margin-bottom:4px}
+.sheet-stage.go .backdrop{animation:fade .35s ease forwards}
+.sheet-stage.go .sheet{animation:sheetUp .55s var(--ease-spring) forwards}
+@keyframes fade{to{opacity:1;backdrop-filter:blur(3px)}}
+@keyframes sheetUp{to{transform:none}}
+
+/* 3. goal lower third */
+.l3{position:relative;height:64px;border-radius:10px;overflow:hidden;background:linear-gradient(100deg,#2a1b4d,#37003c);display:flex;align-items:center;gap:12px;padding:0 14px;clip-path:inset(0 100% 0 0)}
+.l3::before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%)}
+.l3 .tag{background:var(--accent);color:#140e22;font-weight:800;font-size:11px;padding:3px 8px;transform:skewX(-12deg);letter-spacing:.06em}
+.l3 .t{font-weight:800;font-size:16px;opacity:0}
+.l3 .sc{font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.14);padding:2px 10px;border-radius:6px;opacity:0}
+.stage.go .l3{animation:wipeIn .55s var(--ease-wipe) forwards}
+.stage.go .l3::before{animation:sheen .9s .45s ease-out forwards}
+.stage.go .l3 .t{animation:slideIn .4s .35s var(--ease-out) forwards}
+.stage.go .l3 .sc{animation:punch .6s .55s var(--ease-spring) forwards}
+@keyframes wipeIn{to{clip-path:inset(0 0 0 0)}}
+@keyframes sheen{to{transform:translateX(120%)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+@keyframes punch{0%{opacity:0;transform:scale(1.9)}60%{opacity:1;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
+
+/* 4. score roll */
+.roll{display:flex;align-items:center;gap:10px;font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}
+.digit{height:1.2em;line-height:1.2em;overflow:hidden;width:.7em;text-align:center}
+.digit span{display:block;transition:transform .6s var(--ease-spring)}
+.digit.next span{transform:translateY(-100%)}
+.roll .dash{color:var(--hint)}
+
+/* 5. bars + matrix */
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px}
+.bar i{flex:var(--w);background:var(--c);transform:scaleX(0);transform-origin:left}
+.stage.go .bar i{animation:grow .7s var(--ease-out) forwards;animation-delay:calc(var(--k)*90ms)}
+@keyframes grow{to{transform:none}}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:12px}
+.grid div{aspect-ratio:1.3;border-radius:5px;background:color-mix(in srgb,var(--accent) calc(var(--h)*1%),var(--bg3));opacity:0;transform:scale(.6)}
+.stage.go .grid div{animation:pop .45s var(--ease-spring) forwards;animation-delay:calc((var(--r) + var(--c2))*45ms)}
+@keyframes pop{to{opacity:1;transform:none}}
+
+/* 6. live pulse + confirm */
+.live{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:12px;letter-spacing:.08em}
+.live i{width:9px;height:9px;border-radius:50%;background:#ff4d5e;position:relative}
+.live i::after{content:"";position:absolute;inset:0;border-radius:50%;background:#ff4d5e;animation:ping 1.6s var(--ease-out) infinite}
+@keyframes ping{from{opacity:.7;transform:scale(1)}to{opacity:0;transform:scale(3.2)}}
+.save{display:inline-flex;align-items:center;gap:8px;margin-left:16px;background:var(--accent);color:#140e22;border-radius:8px;padding:9px 16px;font-weight:800;position:relative;overflow:hidden}
+.save svg{width:0;height:16px;transition:width .3s var(--ease-spring)}
+.stage.go .save{animation:savePop .5s var(--ease-spring);background:var(--success)}
+.stage.go .save svg{width:16px}
+@keyframes savePop{40%{transform:scale(1.08)}}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
+</style></head><body>
+<h1>Mini App · motion в стиле broadcast</h1>
+<p class="lead">Короткие «эфирные» анимации: шторка-вайп, быстрый punch на счёте, каскад. Нажимайте «Проиграть».</p>
+
+<section><h2>1 · Появление списка</h2><div class="note">Элементы выезжают каскадом по 55 мс.</div>
+<div class="stage" id="s1"><div class="row" style="--i:0"><span>LIV — CHE</span><b>2:1</b></div><div class="row" style="--i:1"><span>ARS — TOT</span><b>1:1</b></div><div class="row" style="--i:2"><span>MCI — NEW</span><b>3:0</b></div><div class="row" style="--i:3"><span>MUN — AST</span><b>0:2</b></div></div>
+<button class="play" data-t="s1">Проиграть</button></section>
+
+<section><h2>2 · Шторка (модалка)</h2><div class="note">Лёгкая пружина вместо резкого появления + размытие фона.</div>
+<div class="stage sheet-stage" id="s2"><div class="row" style="margin:12px"><span>LIV — CHE</span><b>18.10</b></div><div class="backdrop"></div><div class="sheet"><b>2:1</b>Очки получим с шансом 53%</div></div>
+<button class="play" data-t="s2">Проиграть</button></section>
+
+<section><h2>3 · Гол: плашка как в трансляции</h2><div class="note">Вайп слева, блик, «удар» счёта.</div>
+<div class="stage" id="s3"><div class="l3"><span class="tag">ГОЛ</span><span class="t">LIV</span><span class="sc">2 : 1</span><span class="t">CHE</span></div></div>
+<button class="play" data-t="s3">Проиграть</button></section>
+
+<section><h2>4 · Обновление счёта</h2><div class="note">Цифра «прокручивается» как на табло.</div>
+<div class="stage"><div class="roll"><div class="digit" id="d1"><span>1<br>2</span></div><span class="dash">:</span><div class="digit"><span>1</span></div></div></div>
+<button class="play" id="roll">Забили!</button></section>
+
+<section><h2>5 · Полоса очков и матрица</h2><div class="note">Сегменты «наливаются», ячейки волной от 0:0.</div>
+<div class="stage" id="s5"><div class="bar"><i style="--w:.1;--c:#2fbf71;--k:0"></i><i style="--w:.14;--c:#7ccf5a;--k:1"></i><i style="--w:.3;--c:#e8b83c;--k:2"></i><i style="--w:.47;--c:#8a8f99;--k:3"></i></div><div class="grid" id="g"></div></div>
+<button class="play" data-t="s5">Проиграть</button></section>
+
+<section><h2>6 · LIVE и подтверждение</h2><div class="note">Пульс вместо мигания; кнопка «сохранено» с пружиной.</div>
+<div class="stage" id="s6"><span class="live"><i></i>LIVE 67'</span><span class="save">Сохранить<svg viewBox="0 0 16 16" fill="none" stroke="#0b0910" stroke-width="2.5"><path d="M2 8.5l4 4 8-9"/></svg></span></div>
+<button class="play" data-t="s6">Проиграть</button></section>
+<script>
+const g=document.getElementById('g');for(let r=0;r<4;r++)for(let c=0;c<6;c++){const d=document.createElement('div');d.style.cssText=`--h:${Math.max(6,70-(r*9+c*11))};--r:${r};--c2:${c}`;g.appendChild(d)}
+function replay(el){el.classList.remove('go');void el.offsetWidth;el.classList.add('go')}
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>replay(document.getElementById(b.dataset.t)));
+document.getElementById('roll').onclick=()=>{const d=document.getElementById('d1');d.classList.remove('next');void d.offsetWidth;d.classList.add('next')};
+addEventListener('load',()=>document.querySelectorAll('.stage').forEach(replay));
+</script></body></html>

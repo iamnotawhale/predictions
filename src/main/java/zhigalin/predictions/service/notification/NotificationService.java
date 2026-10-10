@@ -352,6 +352,8 @@ public class NotificationService {
         return text.toString();
     }
 
+    private static final int REMINDER_VISIBLE_AFTER_KICKOFF_MINUTES = 5;
+
     public void checkReminders() {
         LocalDateTime now = LocalDateTime.now();
         int horizonMinutes = REMINDER_MINUTES_BEFORE[0] + 1;
@@ -429,6 +431,24 @@ public class NotificationService {
                             user.getId(), match.getPublicId(), reminderMinutes, messageId);
                 }
             }
+        }
+        deleteExpiredReminders();
+    }
+
+    /** Prediction window closes 5 minutes after kickoff; a reminder asking to predict is stale after that. */
+    private void deleteExpiredReminders() {
+        for (NotificationDedupDao.ExpiredReminder reminder
+                : notificationDedupDao.findExpiredReminders(REMINDER_VISIBLE_AFTER_KICKOFF_MINUTES)) {
+            User user = DaoUtil.USERS.values().stream()
+                    .filter(u -> u.getId() == reminder.userId())
+                    .findFirst()
+                    .orElse(null);
+            if (user != null && user.getTelegramId() != null && !user.getTelegramId().isBlank()) {
+                api.deleteMessage(user.getTelegramId(), reminder.messageId());
+            }
+            // Mark even when Telegram refuses (message already gone / older than 48h) so we do not retry forever.
+            notificationDedupDao.markReminderMessageDeleted(
+                    reminder.userId(), reminder.matchPublicId(), reminder.reminderMinutes());
         }
     }
 

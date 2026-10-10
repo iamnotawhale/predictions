@@ -16,6 +16,10 @@ public class NotificationReminderSchemaMigration {
                     ALTER TABLE notification_reminder_sent
                     ADD COLUMN IF NOT EXISTS telegram_message_id integer
                     """);
+            jdbcTemplate.execute("""
+                    ALTER TABLE notification_reminder_sent
+                    ADD COLUMN IF NOT EXISTS message_deleted_at timestamp
+                    """);
             log.info("notification_reminder_sent.telegram_message_id ensured");
         } catch (Exception e) {
             log.error("Failed to migrate notification_reminder_sent: {}", e.getMessage());
