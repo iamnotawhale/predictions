@@ -10,6 +10,16 @@ import org.junit.jupiter.api.Test;
 
 class CardHtmlTest {
 
+    @org.junit.jupiter.api.BeforeEach
+    void classicByDefault() {
+        CardHtml.useStyle("classic");
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void restoreDefault() {
+        CardHtml.useStyle(CardHtml.DEFAULT_STYLE);
+    }
+
     private static int count(String haystack, String needle) {
         int n = 0;
         for (int i = haystack.indexOf(needle); i >= 0; i = haystack.indexOf(needle, i + 1)) {
@@ -28,10 +38,10 @@ class CardHtmlTest {
     @Test
     void shellWrapsBodyWithAccentAndLayoutClass() {
         String html = CardHtml.shell("eng.fa", "<p>x</p>", "card-narrow");
-        assertTrue(html.contains("<div class=\"card card-narrow\" data-accent=\"eng.fa\"><p>x</p></div>"));
+        assertTrue(html.contains("<div class=\"card card-narrow\" data-accent=\"eng.fa\" data-style=\"classic\"><p>x</p></div>"));
         assertTrue(html.contains("<style>"));
         assertTrue(html.contains("--accent"), "base.css should be inlined");
-        assertTrue(CardHtml.shell("epl", "b").contains("<div class=\"card\" data-accent=\"epl\">"));
+        assertTrue(CardHtml.shell("epl", "b").contains("<div class=\"card\" data-accent=\"epl\" data-style=\"classic\">"));
     }
 
     @Test
@@ -42,11 +52,12 @@ class CardHtmlTest {
     @Test
     void todayCardRendersOneRowPerMatchAndStubsForMissingLogos() {
         TodayCard card = new TodayCard(List.of(
-                new TodaySection("WEEK 5", List.of(
+                new TodaySection("WEEK 5", "epl", List.of(
                         new TodayRow("MCI", "ARS", "", "data:image/png;base64,AAAA", "17:30"),
                         new TodayRow("LIV", "CHE", "", "", "20:00")))));
         String html = CardHtml.buildTodayHtml(card);
         assertEquals(2, count(html, "class=\"match-row\""));
+        assertTrue(html.contains("<section class=\"sheet\" data-accent=\"epl\">"));
         assertTrue(html.contains("WEEK 5"));
         assertTrue(html.contains(">17:30<"));
         assertEquals(3, count(html, "class=\"stub\""));
@@ -114,9 +125,56 @@ class CardHtmlTest {
         assertFalse(html.contains("<A>"));
     }
 
+
     @Test
-    void chartCardEmbedsDataUri() {
-        String html = CardHtml.buildChartHtml("data:image/png;base64,QUJD");
-        assertTrue(html.contains("<img src=\"data:image/png;base64,QUJD\""));
+    void styleIsEmittedAndUnknownNamesFallBackToDefault() {
+        try {
+            CardHtml.useStyle("PAPER");
+            assertTrue(CardHtml.shell("epl", "x").contains("data-style=\"paper\""));
+            CardHtml.useStyle("nonsense");
+            assertEquals(CardHtml.DEFAULT_STYLE, CardHtml.style());
+            CardHtml.useStyle(null);
+            assertEquals(CardHtml.DEFAULT_STYLE, CardHtml.style());
+            for (String name : CardHtml.STYLES) {
+                CardHtml.useStyle(name);
+                assertTrue(CardHtml.shell("epl", "x").contains("data-style=\"" + name + "\""));
+            }
+        } finally {
+            CardHtml.useStyle("classic");
+        }
+    }
+
+    @Test
+    void everyNonClassicStyleHasCssRules() {
+        String css = CardHtml.shell("epl", "x");
+        for (String name : CardHtml.STYLES) {
+            if (!"classic".equals(name)) {
+                assertTrue(css.contains(".card[data-style=\"" + name + "\"]"), name);
+            }
+        }
+    }
+
+    private static TodayCard day(int sections, int rowsEach) {
+        List<TodayRow> rows = java.util.stream.IntStream.range(0, rowsEach)
+                .mapToObj(i -> new TodayRow("AAA", "BBB", "", "", "20:00")).toList();
+        return new TodayCard(java.util.stream.IntStream.range(0, sections)
+                .mapToObj(i -> new TodaySection("S" + i, "epl", rows)).toList());
+    }
+
+    @Test
+    void todayDensityGrowsTighterAsTheDayGetsLonger() {
+        assertEquals("", CardHtml.todayDensity(day(1, 3)));
+        assertEquals("", CardHtml.todayDensity(day(2, 2)));
+        assertEquals("density-compact", CardHtml.todayDensity(day(2, 3)));
+        assertEquals("density-compact", CardHtml.todayDensity(day(3, 2)));
+        assertEquals("density-tight", CardHtml.todayDensity(day(2, 4)));
+        assertEquals("density-tight", CardHtml.todayDensity(day(5, 2)));
+        assertEquals("density-tight", CardHtml.todayDensity(day(2, 10)));
+    }
+
+    @Test
+    void todayCardCarriesTheDensityClass() {
+        assertTrue(CardHtml.buildTodayHtml(day(5, 2)).contains("card card-narrow density-tight"));
+        assertTrue(CardHtml.buildTodayHtml(day(1, 1)).contains("class=\"card card-narrow\""));
     }
 }

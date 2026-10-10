@@ -378,27 +378,6 @@ public class MatchDao {
         }
     }
 
-    public Match findOnlineMatchByTeamId(int teamId) {
-        LocalDateTime now = LocalDateTime.now();
-        try {
-            String sql = """
-                    SELECT *
-                    FROM match
-                    WHERE local_date_time BETWEEN :from AND :to
-                    AND (home_team_id = :teamId OR away_team_id = :teamId)
-                    """;
-            MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue("teamId", teamId);
-            parameters.addValue("from", now.minusMinutes(140));
-            parameters.addValue("to", now.plusMinutes(20));
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, parameters, new MatchMapper()));
-        } catch (Exception e) {
-            panicSender.sendPanic("Error finding online match by team id", e);
-            serverLogger.error(e.getMessage());
-            return null;
-        }
-    }
-
     public List<Match> findAllByCurrentWeek() {
         try {
             String sql = """

@@ -3,19 +3,58 @@ package zhigalin.predictions.service.notification;
 import static zhigalin.predictions.service.notification.CardRenderModels.*;
 
 import java.io.InputStream;
+import java.util.List;
 import java.nio.charset.StandardCharsets;
 import org.springframework.core.io.ClassPathResource;
 
 /** Pure HTML builders for notification cards (no I/O except loading the shared stylesheet). */
 final class CardHtml {
 
+    /** Card looks selectable at runtime; see {@code notification-cards/styles.css}. */
+    static final List<String> STYLES = List.of("classic", "broadcast", "paper", "pitch");
+
+    /** Used until {@link CardStyleSettings} applies the configured / stored choice. */
+    static final String DEFAULT_STYLE = "broadcast";
+
+    private static volatile String style = DEFAULT_STYLE;
+
     private CardHtml() {
+    }
+
+    /** Unknown names fall back to {@link #DEFAULT_STYLE}. */
+    static void useStyle(String name) {
+        String n = name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT);
+        style = STYLES.contains(n) ? n : DEFAULT_STYLE;
+    }
+
+    static String style() {
+        return style;
+    }
+
+    /** Pixels available for sections inside the 1080px card, after badge, heading and footer. */
+    private static final int TODAY_BUDGET_PX = 660;
+
+    /**
+     * Picks a layout density so any realistic day fits the fixed-height card:
+     * {@code ""} (roomy), {@code "density-compact"} or {@code "density-tight"}.
+     * Per-size heights mirror the CSS in base.css.
+     */
+    static String todayDensity(TodayCard card) {
+        int sections = card.sections().size();
+        int rows = card.sections().stream().mapToInt(sec -> sec.rows().size()).sum();
+        if (sections * 98 + rows * 112 <= TODAY_BUDGET_PX) {
+            return "";
+        }
+        if (sections * 62 + rows * 68 <= TODAY_BUDGET_PX) {
+            return "density-compact";
+        }
+        return "density-tight";
     }
 
     static String buildTodayHtml(TodayCard card) {
         StringBuilder sections = new StringBuilder();
         for (TodaySection section : card.sections()) {
-            sections.append("<section class=\"sheet\">");
+            sections.append("<section class=\"sheet\" data-accent=\"").append(escapeAttr(section.accent())).append("\">");
             sections.append("<h2 class=\"section-title\">").append(escape(section.title())).append("</h2>");
             for (TodayRow row : section.rows()) {
                 sections.append("<div class=\"match-row\">")
@@ -33,7 +72,7 @@ final class CardHtml {
                 + "<h1 class=\"heading\">Сегодняшние матчи</h1>"
                 + sections
                 + "<div class=\"foot\">predictions</div>",
-                "card-narrow");
+                ("card-narrow " + todayDensity(card)).trim());
     }
 
     static String buildReminderHtml(ReminderCard card) {
@@ -192,15 +231,6 @@ final class CardHtml {
                 "card-narrow");
     }
 
-    static String buildChartHtml(String chartDataUri) {
-        return shell("epl",
-                "<div class=\"badge\">CHART</div>"
-                + "<h1 class=\"heading\">Очки по неделям</h1>"
-                + "<div class=\"chart-wrap\"><img src=\"" + escapeAttr(chartDataUri) + "\" alt=\"chart\"/></div>"
-                + "<div class=\"foot\">predictions</div>",
-                "card-narrow");
-    }
-
     private static String oddCell(String label, String val) {
         return "<div class=\"odd-cell\"><div class=\"label\">" + label + "</div><div class=\"val\">"
                + escape(val) + "</div></div>";
@@ -220,7 +250,7 @@ final class CardHtml {
     static String shell(String accent, String body, String layoutClass) {
         String css;
         try {
-            css = readClasspath("notification-cards/base.css");
+            css = readClasspath("notification-cards/base.css") + "\n" + readClasspath("notification-cards/styles.css");
         } catch (Exception e) {
             css = "body{background:#0b0910;color:#fff;font-family:sans-serif}";
         }
@@ -236,10 +266,10 @@ final class CardHtml {
                   <style>%s</style>
                 </head>
                 <body>
-                  <div class="card%s" data-accent="%s">%s</div>
+                  <div class="card%s" data-accent="%s" data-style="%s">%s</div>
                 </body>
                 </html>
-                """.formatted(css, extra, escapeAttr(accent), body);
+                """.formatted(css, extra, escapeAttr(accent), style, body);
     }
 
     static String readClasspath(String path) throws Exception {

@@ -2,7 +2,6 @@ package zhigalin.predictions.service.event;
 
 import java.util.Comparator;
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -70,13 +69,6 @@ public class HeadToHeadService {
 
     public List<HeadToHead> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode) {
         return headToHeadDao.getH2hByTeamsCode(homeTeamCode, awayTeamCode).stream()
-                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
-                .limit(H2H_LIMIT)
-                .toList();
-    }
-
-    public List<HeadToHead> findAllByMatch(Match match) {
-        return headToHeadDao.getAllByTeamsIds(match.getHomeTeamId(), match.getAwayTeamId()).stream()
                 .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
                 .limit(H2H_LIMIT)
                 .toList();

@@ -9,7 +9,8 @@ public final class CardRenderModels {
 
     public record TodayCard(List<TodaySection> sections) {}
 
-    public record TodaySection(String title, List<TodayRow> rows) {}
+    /** One block of the day card; {@code accent} is the competition key ("epl", "eng.fa", "uefa.champions", ...). */
+    public record TodaySection(String title, String accent, List<TodayRow> rows) {}
 
     public record TodayRow(
             String homeCode,
@@ -41,9 +42,6 @@ public final class CardRenderModels {
 
     /** One H2H entry: both crests + score. */
     public record H2hChip(String homeLogoSrc, String awayLogoSrc, String score) {}
-
-    @Deprecated
-    public record FormDot(String result, boolean homeSide) {}
 
     public record ResultCard(
             String accent,

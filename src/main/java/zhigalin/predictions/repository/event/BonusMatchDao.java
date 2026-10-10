@@ -6,7 +6,6 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,22 +113,6 @@ public class BonusMatchDao {
         }
     }
 
-    public BonusMatch findByCompetitionAndEspnId(String competition, String espnId) {
-        try {
-            String sql = """
-                    SELECT * FROM bonus_match
-                    WHERE competition = :competition AND espn_id = :espnId
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("competition", competition)
-                    .addValue("espnId", espnId);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(
-                    sql, params, new BonusMatchMapper()));
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     public List<BonusMatch> findAllByDate(LocalDate date) {
         try {
             String sql = """
@@ -195,25 +178,6 @@ public class BonusMatchDao {
                     .addValue("competition", competition)
                     .addValue("fromDate", fromDate)
                     .addValue("seasonStart", seasonStart);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, params, new BonusMatchMapper()));
-        } catch (Exception e) {
-            panicSender.sendPanic("Error find bonus_match by competition", e);
-            return List.of();
-        }
-    }
-
-    public List<BonusMatch> findByCompetitionFrom(String competition, LocalDate fromDate) {
-        try {
-            String sql = """
-                    SELECT * FROM bonus_match
-                    WHERE competition = :competition
-                      AND CAST(local_date_time AS DATE) >= :fromDate
-                    ORDER BY local_date_time, public_id
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("competition", competition)
-                    .addValue("fromDate", fromDate);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, params, new BonusMatchMapper()));
         } catch (Exception e) {
@@ -334,25 +298,6 @@ public class BonusMatchDao {
                             "seasonStart",
                             zhigalin.predictions.service.DataInitService.seasonStartDate()),
                     new BonusMatchMapper()));
-        } catch (Exception e) {
-            return List.of();
-        }
-    }
-
-    public List<BonusMatch> findUpcoming(int withinMinutes) {
-        try {
-            String sql = """
-                    SELECT * FROM bonus_match
-                    WHERE status = 'ns'
-                      AND local_date_time BETWEEN :from AND :to
-                    ORDER BY local_date_time, public_id
-                    """;
-            LocalDateTime now = LocalDateTime.now();
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("from", now)
-                    .addValue("to", now.plusMinutes(withinMinutes));
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, params, new BonusMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }

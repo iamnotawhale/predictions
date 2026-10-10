@@ -24,10 +24,6 @@ public class TelegramWebAppAuthService {
         this.maxAgeSeconds = maxAgeSeconds;
     }
 
-    public boolean isValid(String initData) {
-        return parseUserId(initData) != null;
-    }
-
     public String parseUserId(String initData) {
         if (initData == null || initData.isBlank()) {
             return null;

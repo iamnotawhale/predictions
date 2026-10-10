@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import kong.unirest.HttpResponse;
@@ -372,15 +371,6 @@ public class ApiClient {
                     league, espnEventId, e.getMessage());
             return null;
         }
-    }
-
-    public LatestGoalInfo findLatestGoalInfo(String espnEventId) {
-        List<GoalScorer> scorers = listGoalScorers(espnEventId, Integer.MAX_VALUE);
-        if (scorers.isEmpty()) {
-            return null;
-        }
-        GoalScorer last = scorers.getLast();
-        return new LatestGoalInfo(last.scorer(), null, last.homeScore(), last.awayScore());
     }
 
     /**
