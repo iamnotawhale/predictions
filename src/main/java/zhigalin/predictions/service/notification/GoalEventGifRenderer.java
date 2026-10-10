@@ -43,6 +43,7 @@ public class GoalEventGifRenderer {
     private static final Color TEAM_AWAY = new Color(220, 72, 92);
 
     private final TeamLogoCacheService logoCache;
+    private GoalSceneVideoRenderer videoRenderer;
     private final boolean enabled;
     private final BufferedImage staticBg;
     private final Font fontBadge;
@@ -65,6 +66,12 @@ public class GoalEventGifRenderer {
         this.fontScore = loadFont(40f, true);
     }
 
+    /** Optional: HTML scene + ffmpeg renderer, preferred over the Java GIF when available. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setVideoRenderer(GoalSceneVideoRenderer videoRenderer) {
+        this.videoRenderer = videoRenderer;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -79,13 +86,28 @@ public class GoalEventGifRenderer {
             int nextHome,
             int nextAway,
             String subtitle,
-            boolean disallowed
+            boolean disallowed,
+            String minute
     ) {
+        public Request(
+                int homeTeamId, int awayTeamId, String homeCode, String awayCode,
+                int prevHome, int prevAway, int nextHome, int nextAway,
+                String subtitle, boolean disallowed
+        ) {
+            this(homeTeamId, awayTeamId, homeCode, awayCode, prevHome, prevAway, nextHome, nextAway,
+                    subtitle, disallowed, null);
+        }
     }
 
     public String renderToTempFile(Request req) {
         if (!enabled || req == null) {
             return null;
+        }
+        if (videoRenderer != null && videoRenderer.isAvailable()) {
+            String video = videoRenderer.render(req);
+            if (video != null) {
+                return video;
+            }
         }
         try {
             BufferedImage homeLogo = loadLogo(req.homeTeamId(), req.homeCode());

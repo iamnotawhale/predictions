@@ -393,6 +393,34 @@ public class HtmlImageRenderer {
         }
     }
 
+    /**
+     * Runs {@code work} on a fresh page of the shared headless browser (one render at a time).
+     * Returns null when the browser is busy for too long or the work fails.
+     */
+    <T> T withPage(int width, int height, java.util.function.Function<Page, T> work) {
+        boolean acquired = false;
+        try {
+            acquired = renderGate.tryAcquire(RENDER_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            if (!acquired) {
+                log.warn("Page render timed out waiting for gate");
+                return null;
+            }
+            ensureBrowser();
+            try (var context = browser.newContext(new Browser.NewContextOptions()
+                    .setViewportSize(width, height)
+                    .setDeviceScaleFactor(1.0))) {
+                return work.apply(context.newPage());
+            }
+        } catch (Exception e) {
+            log.error("Page render failed: {}", e.getMessage());
+            return null;
+        } finally {
+            if (acquired) {
+                renderGate.release();
+            }
+        }
+    }
+
     private synchronized void ensureBrowser() {
         if (browser != null) {
             return;

@@ -241,7 +241,7 @@ public class MiniAppService {
     public List<MatchItem> weekMatches(String telegramId, int weekId) {
         User user = requireUser(telegramId);
         List<Match> matches = matchService.findAllByWeekId(weekId);
-        oddsService.ensureFresh(matches);
+        oddsService.refreshAsyncIfStale(matches);
         Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
                 telegramId,
                 matches.stream().map(Match::getPublicId).toList()
@@ -277,7 +277,7 @@ public class MiniAppService {
         requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match != null) {
-            oddsService.ensureFresh(List.of(match));
+            oddsService.refreshAsyncIfStale(List.of(match));
         }
         Prediction prediction = predictionService.getByUserTelegramIdAndTeams(
                 telegramId, homeCode.toUpperCase(), awayCode.toUpperCase()
@@ -567,7 +567,7 @@ public class MiniAppService {
     public TodayMatchesResponse todayMatches(String telegramId) {
         User user = requireUser(telegramId);
         List<Match> matches = matchService.findAllByTodayDate();
-        oddsService.ensureFresh(matches);
+        oddsService.refreshAsyncIfStale(matches);
         Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
                 telegramId,
                 matches.stream().map(Match::getPublicId).toList()
