@@ -463,50 +463,6 @@ public class PredictionDao {
         }
     }
 
-    public List<Points> getAllPointsByWeekId(int weekId) {
-        try {
-            String sql = """
-                    SELECT u.login as login, sum(points) as value
-                    FROM predict
-                    JOIN users u ON user_id = u.id
-                    JOIN match m ON match_id = m.public_id
-                    JOIN weeks w ON m.week_id = w.id
-                    WHERE w.id = :weekId
-                    GROUP BY login
-                    """;
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("weekId", weekId);
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PointsMapper()));
-        } catch (Exception e) {
-            panicSender.sendPanic("Error get all points by week id", e);
-            serverLogger.error(e.getMessage());
-            return List.of();
-        }
-    }
-
-    public List<MatchPrediction> getPredictionsByUserAndWeek(int userId, int weekId) {
-        try {
-            String sql = """
-                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
-                           m.status, m.week_id, m.local_date_time,
-                           p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
-                    FROM match m
-                    JOIN predict p ON m.public_id = p.match_id
-                    WHERE m.week_id = :weekId AND user_id = :userId
-                    """;
-
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("weekId", weekId);
-            params.addValue("userId", userId);
-
-            return namedParameterJdbcTemplate.query(sql, params, new MatchPredictionMapper());
-        } catch (Exception e) {
-            panicSender.sendPanic("Error get predictions by user id and week id", e);
-            serverLogger.error(e.getMessage());
-            return List.of();
-        }
-    }
-
     public boolean isExist(int userId, int matchId) {
         try {
             String sql = """

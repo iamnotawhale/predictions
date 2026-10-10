@@ -105,10 +105,27 @@ class HtmlCardPreviewTest {
 
     @Test
     void generatePreviewCards() throws Exception {
-        Path outDir = Path.of("target/preview-cards");
+        try {
+            for (String style : CardHtml.STYLES) {
+                CardHtml.useStyle(style);
+                Path dir = Path.of("target/preview-cards");
+                renderAll("classic".equals(style) ? dir : dir.resolve(style));
+            }
+        } finally {
+            CardHtml.useStyle(CardHtml.DEFAULT_STYLE);
+        }
+    }
+
+    private void renderAll(Path outDir) throws Exception {
         Files.createDirectories(outDir);
 
         String today = renderer.createTodayMatchesImage(List.of(
+                new MatchRecord(50, 33, 7, LocalDateTime.of(2026, 9, 17, 17, 30), 1001, null, null, null, null, null),
+                new MatchRecord(47, 66, 7, LocalDateTime.of(2026, 9, 17, 20, 0), 1002, null, null, null, null, null),
+                cup(50, null, "eng.fa", "MCI", "ARS", null, null,
+                        LocalDateTime.of(2026, 9, 17, 20, 45), 401914100),
+                cup(null, null, "uefa.champions", "RMA", "BAY", null, null,
+                        LocalDateTime.of(2026, 9, 17, 22, 0), 401914101),
                 cup(50, null, "eng.league_cup", "MCI", "NOR",
                         "https://a.espncdn.com/i/teamlogos/soccer/500/382.png",
                         "https://a.espncdn.com/i/teamlogos/soccer/500/381.png",

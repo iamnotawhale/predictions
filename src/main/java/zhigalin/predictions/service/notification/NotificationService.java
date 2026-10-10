@@ -10,9 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +21,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import zhigalin.predictions.model.event.BonusMatch;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.event.Player;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.predict.Prediction;
@@ -116,11 +113,6 @@ public class NotificationService {
             return true;
         }
         return false;
-    }
-
-    /** Build PNG for the date without sending (EPL + cups). */
-    public String renderTodayMatchesImage(LocalDate date) {
-        return htmlImages.createTodayMatchesImage(buildTodayMatchRecords(date, matchService.findAllByDate(date)));
     }
 
     private List<MatchRecord> buildTodayMatchRecords(LocalDate date, List<Match> eplMatches) {

@@ -1,29 +1,23 @@
 package zhigalin.predictions.service.notification;
 
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import jakarta.annotation.PreDestroy;
-import kong.unirest.HttpResponse;
-import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
@@ -38,8 +32,6 @@ import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.odds.OddsService.Odd;
 import zhigalin.predictions.util.DaoUtil;
-import zhigalin.predictions.util.EspnTeamLogos;
-import zhigalin.predictions.util.TeamCodeMapper;
 
 import static zhigalin.predictions.service.notification.CardRenderModels.*;
 
@@ -62,6 +54,7 @@ public class HtmlImageRenderer {
 
     @Value("${notification.cards.chromeExecutable:}")
     private String chromeExecutable;
+
 
     private volatile Playwright playwright;
     private volatile Browser browser;
@@ -199,15 +192,6 @@ public class HtmlImageRenderer {
         return renderHtml(CardHtml.buildYourPredictHtml(card), "epl");
     }
 
-    /** Embed a chart PNG (already rendered) into the shared card chrome. */
-    public String createChartImage(byte[] chartPngBytes) {
-        if (chartPngBytes == null || chartPngBytes.length == 0) {
-            return null;
-        }
-        String dataUri = "data:image/png;base64," + Base64.getEncoder().encodeToString(chartPngBytes);
-        return renderHtml(CardHtml.buildChartHtml(dataUri), "epl");
-    }
-
     private ReminderCard buildReminderCard(
             int matchPublicId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
     ) {
@@ -302,6 +286,7 @@ public class HtmlImageRenderer {
                 .collect(Collectors.groupingBy(MatchRecord::weekId, LinkedHashMap::new, Collectors.toList()))
                 .forEach((weekId, rows) -> sections.add(new TodaySection(
                         "WEEK " + (weekId != null ? weekId : "?"),
+                        "epl",
                         rows.stream().map(HtmlImageRenderer::toTodayRow).toList()
                 )));
         cups.stream()
@@ -312,6 +297,7 @@ public class HtmlImageRenderer {
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .forEach(e -> sections.add(new TodaySection(
                         cupSectionTitle(e.getKey()),
+                        competitionAccent(e.getKey()),
                         e.getValue().stream().map(HtmlImageRenderer::toTodayRow).toList()
                 )));
         return new TodayCard(sections);
@@ -453,11 +439,6 @@ public class HtmlImageRenderer {
             return code;
         }
         Team t = teamId != null ? DaoUtil.TEAMS.get(teamId) : null;
-        return t != null && t.getCode() != null ? t.getCode() : "?";
-    }
-
-    private static String codeOf(int teamId) {
-        Team t = DaoUtil.TEAMS.get(teamId);
         return t != null && t.getCode() != null ? t.getCode() : "?";
     }
 

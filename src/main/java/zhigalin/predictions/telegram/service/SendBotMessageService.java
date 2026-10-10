@@ -6,13 +6,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
@@ -58,19 +55,6 @@ public class SendBotMessageService {
     }
 
     @SneakyThrows
-    public void sendAlertDeletingKeyboard(String chatId, String callbackId, String message) {
-        deletePreviousMessage(chatId);
-
-        AnswerCallbackQuery query = new AnswerCallbackQuery();
-        query.setCallbackQueryId(callbackId);
-        query.setText(message);
-        query.setShowAlert(true);
-        query.setCacheTime(10);
-
-        bot.execute(query);
-    }
-
-    @SneakyThrows
     public void sendPredictKeyBoard(String chatId, String message, String homeTeam, String awayTeam, Prediction prediction) {
         deletePreviousMessage(chatId);
         bot.execute(createMessage(chatId, message, createPredictKeyBoard(homeTeam, awayTeam, prediction)));
@@ -93,7 +77,6 @@ public class SendBotMessageService {
         deletePreviousMessage(chatId);
         bot.execute(createMessage(chatId, message, createPredictTourUsersKeyBoard(matchPredictions)));
     }
-
 
     @SneakyThrows
     public void sendMessageWithMatchesKeyboard(List<Match> matches, List<Integer> predictableMatches, String chatId, String message) {

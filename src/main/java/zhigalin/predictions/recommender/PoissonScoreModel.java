@@ -901,51 +901,6 @@ public final class PoissonScoreModel {
         return String.format(Locale.US, "%.0f%%", value);
     }
 
-    private static void appendH2hLines(List<String> lines, H2hStats h2h, String homeCode) {
-        List<ExplanationRow> rows = new ArrayList<>();
-        List<String> notes = new ArrayList<>();
-        appendH2hRows(rows, notes, h2h, homeCode);
-        lines.addAll(new ExplanationBreakdown(rows, notes).asLines());
-    }
-
-    private static void appendSoccerStatsLines(
-            List<String> lines,
-            FootyStatsExtendedMetrics home,
-            FootyStatsExtendedMetrics away,
-            String homeCode,
-            String awayCode
-    ) {
-        List<ExplanationRow> rows = new ArrayList<>();
-        appendSoccerStatsRows(rows, home, away);
-        lines.addAll(new ExplanationBreakdown(rows, List.of()).asLines());
-    }
-
-    private static void appendFormLines(
-            List<String> lines,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsExtendedMetrics homeExt,
-            FootyStatsExtendedMetrics awayExt
-    ) {
-        List<ExplanationRow> rows = new ArrayList<>();
-        appendFormRows(rows, home, away, homeExt, awayExt);
-        lines.addAll(new ExplanationBreakdown(rows, List.of()).asLines());
-    }
-
-    private static void appendSeasonLines(
-            List<String> lines,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsExtendedMetrics homeExt,
-            FootyStatsExtendedMetrics awayExt,
-            String homeCode,
-            String awayCode
-    ) {
-        List<ExplanationRow> rows = new ArrayList<>();
-        appendSeasonRows(rows, home, away, homeExt, awayExt);
-        lines.addAll(new ExplanationBreakdown(rows, List.of()).asLines());
-    }
-
     private static double soccerStatsScoreWeight(
             int homeGoals,
             int awayGoals,

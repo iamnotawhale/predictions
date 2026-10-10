@@ -2,7 +2,6 @@ package zhigalin.predictions.service.predict;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,7 +14,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.BonusMatch;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.model.predict.Points;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.BonusMatchDao;
@@ -75,10 +73,6 @@ public class PredictionService {
 
     public List<MatchPrediction> findAllByUserId(int userId) {
         return predictionDao.findAllByUserId(userId);
-    }
-
-    public void deleteById(int userId, int matchPublicId) {
-        predictionDao.delete(userId, matchPublicId);
     }
 
     public void deleteByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {

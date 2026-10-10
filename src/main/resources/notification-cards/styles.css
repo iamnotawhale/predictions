@@ -1,0 +1,168 @@
+/*
+ * Selectable card styles. Applied by [data-style] on .card; "classic" (default) uses base.css only.
+ * Switch with notification.cards.style = classic | broadcast | paper | pitch.
+ * Each style overrides the colour tokens first (most panels derive from them) and then fixes the
+ * few hard-coded surfaces.
+ */
+
+/* ───────────── broadcast: TV score-bug — solid slabs, hard edges, one loud accent ───────────── */
+.card[data-style="broadcast"] {
+  --bg: #060a14; --bg2: #0d1426; --bg3: #131c35;
+  --text: #f4f7ff; --hint: #9fb0d4; --line: rgba(255, 255, 255, 0.14); --glow: rgba(0, 0, 0, 0);
+  --radius: 4px;
+  background:
+    linear-gradient(115deg, transparent 0 58%, color-mix(in srgb, var(--accent) 22%, transparent) 58% 60%, transparent 60%),
+    linear-gradient(115deg, transparent 0 64%, color-mix(in srgb, var(--accent) 12%, transparent) 64% 70%, transparent 70%),
+    linear-gradient(180deg, #0a1020 0%, #060a14 100%);
+}
+.card[data-style="broadcast"] { color: var(--text); }
+.card[data-style="broadcast"]::before { opacity: 0.18; }
+.card[data-style="broadcast"] .badge {
+  border: 0; border-radius: 2px; color: #060a14; background: var(--accent-lift);
+  transform: skewX(-12deg); padding: 8px 22px; font-weight: 700;
+}
+.card[data-style="broadcast"] .heading {
+  font-size: 54px; letter-spacing: 0.02em; text-shadow: none; position: relative; padding-bottom: 18px;
+}
+.card[data-style="broadcast"] .heading::after {
+  content: ""; position: absolute; left: 50%; bottom: 0; width: 120px; height: 6px;
+  transform: translateX(-50%) skewX(-20deg); background: var(--accent);
+}
+.card[data-style="broadcast"] .sheet,
+.card[data-style="broadcast"] .weekly-row {
+  background: linear-gradient(180deg, #131c35, #0d1426);
+  border: 0; border-left: 8px solid var(--accent); border-radius: var(--radius);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+.card[data-style="broadcast"] .section-title { color: var(--accent-lift); font-size: 22px; letter-spacing: 0.2em; }
+/* One shared band: dark → competition colour → dark (recomputed per section via its own --accent). */
+.card[data-style="broadcast"],
+.card[data-style="broadcast"] [data-accent] {
+  --bar-gradient: linear-gradient(90deg, #0d1426 0%, color-mix(in srgb, var(--accent) 48%, #0d1426) 50%, #0d1426 100%);
+}
+.card[data-style="broadcast"] .center-pill {
+  background: transparent; color: #fff; border: 0; border-radius: 0; font-weight: 700; letter-spacing: 0.04em;
+}
+.card[data-style="broadcast"] .match-row {
+  background: var(--bar-gradient); border-top: 0; border-radius: 4px; margin: 6px 22px; padding: 12px 18px;
+}
+.card[data-style="broadcast"].density-compact .match-row { margin: 4px 22px; padding: 6px 18px; }
+.card[data-style="broadcast"].density-tight .match-row { margin: 3px 20px; padding: 2px 16px; }
+.card[data-style="broadcast"] .hero { padding: 40px 36px; background: var(--bar-gradient); }
+.card[data-style="broadcast"] .hero-center .score {
+  color: #fff; text-shadow: 0 4px 24px rgba(0, 0, 0, 0.45); line-height: 1;
+}
+.card[data-style="broadcast"] .ai-line { background: transparent; border: 1px solid var(--line); border-radius: 2px; }
+.card[data-style="broadcast"] .result-line { border-radius: 2px; background: rgba(255,255,255,0.05); border-color: transparent; }
+.card[data-style="broadcast"] .result-line .pts,
+.card[data-style="broadcast"] .weekly-pts { color: var(--accent-lift); }
+.card[data-style="broadcast"] .weekly-row.p1 { background: linear-gradient(90deg, color-mix(in srgb, #ffd166 28%, #0d1426), #0d1426); border-left-color: #ffd166; }
+.card[data-style="broadcast"] .weekly-row.p2 { border-left-color: #c8d0dc; }
+.card[data-style="broadcast"] .weekly-row.p3 { border-left-color: #d98c5f; }
+.card[data-style="broadcast"] .match-bar { background: var(--bar-gradient); border-radius: 4px; }
+.card[data-style="broadcast"] .odd-cell { border-radius: 2px; border-color: var(--line); background: rgba(255,255,255,0.05); }
+.card[data-style="broadcast"] .predict-banner { background: var(--accent); color: #060a14; border: 0; border-radius: 2px; }
+
+/* ───────────── paper: matchday programme — warm paper, ink outlines, hard shadows ───────────── */
+.card[data-style="paper"] {
+  --bg: #f3ede1; --bg2: #ffffff; --bg3: #ffffff;
+  --text: #15121a; --hint: #5d5668; --line: #15121a; --glow: rgba(0, 0, 0, 0);
+  --radius: 14px;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent) 14%, transparent) 0 18%, transparent 19%),
+    radial-gradient(circle at 92% 96%, color-mix(in srgb, var(--accent) 10%, transparent) 0 22%, transparent 23%),
+    #f3ede1;
+  color: var(--text);
+}
+.card[data-style="paper"][data-accent="epl"], .card[data-style="paper"] [data-accent="epl"] { --accent: #6b3fd4; --accent-lift: #4d28a8; --accent-deep: #37003c; }
+.card[data-style="paper"][data-accent="eng.fa"], .card[data-style="paper"] [data-accent="eng.fa"] { --accent: #c2335f; --accent-lift: #a3204a; --accent-deep: #6e1634; }
+.card[data-style="paper"][data-accent="eng.league_cup"], .card[data-style="paper"] [data-accent="eng.league_cup"] { --accent: #12945c; --accent-lift: #0b6e44; --accent-deep: #085f3e; }
+.card[data-style="paper"][data-accent="uefa.champions"], .card[data-style="paper"] [data-accent="uefa.champions"] { --accent: #2f59d9; --accent-lift: #1d3fa8; --accent-deep: #102464; }
+.card[data-style="paper"][data-accent="uefa.europa"], .card[data-style="paper"] [data-accent="uefa.europa"] { --accent: #d9731a; --accent-lift: #a85408; --accent-deep: #82340a; }
+.card[data-style="paper"][data-accent="uefa.europa.conf"], .card[data-style="paper"] [data-accent="uefa.europa.conf"] { --accent: #14a395; --accent-lift: #0b7468; --accent-deep: #05645c; }
+.card[data-style="paper"]::before { background-image: none; }
+.card[data-style="paper"]::after { opacity: 0.05; mix-blend-mode: multiply; }
+.card[data-style="paper"] .badge {
+  color: var(--text); background: var(--accent); border: 2px solid var(--text); border-radius: 999px;
+  box-shadow: 4px 4px 0 var(--text); color: #fff; font-weight: 700;
+}
+.card[data-style="paper"] .heading { color: var(--text); text-shadow: none; font-size: 54px; }
+.card[data-style="paper"] .sub { color: var(--hint); }
+.card[data-style="paper"] .sheet,
+.card[data-style="paper"] .weekly-row {
+  background: #fff; border: 3px solid var(--text); border-radius: var(--radius);
+  box-shadow: 8px 8px 0 var(--text);
+}
+.card[data-style="paper"] .section-title { color: var(--accent-lift); }
+.card[data-style="paper"] .match-row { border-top: 2px solid rgba(21, 18, 26, 0.12); }
+.card[data-style="paper"] .code { color: var(--text); }
+.card[data-style="paper"] .center-pill {
+  background: var(--accent); color: #fff; border: 2px solid var(--text); box-shadow: 3px 3px 0 var(--text);
+}
+.card[data-style="paper"] .score { color: var(--text); text-shadow: none; }
+.card[data-style="paper"] .ai-line { background: color-mix(in srgb, var(--accent) 16%, #fff); color: var(--text); border: 2px solid var(--text); }
+.card[data-style="paper"] .result-line { background: #faf6ee; border: 2px solid rgba(21, 18, 26, 0.18); color: var(--text); }
+.card[data-style="paper"] .result-line .pts,
+.card[data-style="paper"] .weekly-pts { color: var(--accent-lift); }
+.card[data-style="paper"] .weekly-place { color: var(--text); }
+.card[data-style="paper"] .weekly-login { color: var(--text); }
+.card[data-style="paper"] .weekly-row.p1 { background: #ffe9a8; }
+.card[data-style="paper"] .weekly-row.p2 { background: #e8ecf2; }
+.card[data-style="paper"] .weekly-row.p3 { background: #f6d9c4; }
+.card[data-style="paper"] .weekly-row.p1 .weekly-place,
+.card[data-style="paper"] .weekly-row.p2 .weekly-place,
+.card[data-style="paper"] .weekly-row.p3 .weekly-place { color: var(--text); }
+.card[data-style="paper"] .match-bar { background: var(--accent); border: 3px solid var(--text); box-shadow: 6px 6px 0 var(--text); }
+.card[data-style="paper"] .match-bar .code,
+.card[data-style="paper"] .match-bar .kick { color: #fff; }
+.card[data-style="paper"] .odd-cell { background: #fff; border: 2px solid var(--text); box-shadow: 3px 3px 0 var(--text); border-radius: 10px; }
+.card[data-style="paper"] .odd-cell .val, .card[data-style="paper"] .odd-cell .label { color: var(--text); }
+.card[data-style="paper"] .block-label, .card[data-style="paper"] .chip-score, .card[data-style="paper"] .hint-empty { color: var(--text); }
+.card[data-style="paper"] .predict-banner { background: var(--accent); color: #fff; border: 3px solid var(--text); box-shadow: 6px 6px 0 var(--text); }
+.card[data-style="paper"] .foot { color: var(--hint); opacity: 1; }
+.card[data-style="paper"] .logo-sm, .card[data-style="paper"] .banner-logo, .card[data-style="paper"] .hero-side img { filter: none; opacity: 1; }
+.card[data-style="paper"] .stub { background: #e4dcc9; border-color: var(--text); box-shadow: none; }
+.card[data-style="paper"] .badge-bonus { background: #ffc83d; color: #15121a; border: 2px solid #15121a; }
+
+/* ───────────── pitch: deep turf, white chalk lines, gold for points ───────────── */
+.card[data-style="pitch"] {
+  --bg: #07210f; --bg2: #0c3a1e; --bg3: #11502a;
+  --text: #f6fff8; --hint: #b9d9c4; --line: rgba(255, 255, 255, 0.28); --glow: rgba(255, 255, 255, 0.05);
+  --radius: 18px;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(255, 255, 255, 0.10), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 90px, rgba(0, 0, 0, 0.06) 90px 180px),
+    linear-gradient(180deg, #0f5a2c 0%, #083d1d 55%, #052a14 100%);
+}
+.card[data-style="pitch"] { color: var(--text); }
+.card[data-style="pitch"]::before {
+  background-image: none; opacity: 1; mask-image: none;
+  border: 3px solid rgba(255, 255, 255, 0.22); inset: 24px; border-radius: 6px;
+}
+.card[data-style="pitch"] .badge { color: #052a14; background: #ffd166; border: 0; border-radius: 999px; font-weight: 700; }
+.card[data-style="pitch"] .heading { text-shadow: 0 4px 24px rgba(0, 0, 0, 0.45); font-size: 52px; }
+.card[data-style="pitch"] .sheet,
+.card[data-style="pitch"] .weekly-row {
+  background: rgba(255, 255, 255, 0.09); border: 2px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); backdrop-filter: blur(2px);
+}
+.card[data-style="pitch"] .section-title { color: #ffd166; }
+.card[data-style="pitch"] .center-pill { background: rgba(0, 0, 0, 0.30); border: 2px solid var(--line); color: #fff; }
+.card[data-style="pitch"] .score { color: #ffd166; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.5); }
+.card[data-style="pitch"] .ai-line { background: rgba(0, 0, 0, 0.30); color: var(--text); }
+.card[data-style="pitch"] .result-line { background: rgba(0, 0, 0, 0.22); border-color: rgba(255, 255, 255, 0.16); }
+.card[data-style="pitch"] .result-line .pts,
+.card[data-style="pitch"] .weekly-pts { color: #ffd166; }
+.card[data-style="pitch"] .weekly-place { color: #ffd166; }
+.card[data-style="pitch"] .weekly-row.p1 { background: linear-gradient(90deg, rgba(255, 209, 102, 0.30), rgba(255, 255, 255, 0.09)); border-color: #ffd166; }
+.card[data-style="pitch"] .weekly-row.p2 { border-color: #dfe6ee; }
+.card[data-style="pitch"] .weekly-row.p3 { border-color: #e0a07a; }
+.card[data-style="pitch"] .match-bar { background: rgba(0, 0, 0, 0.35); border: 2px solid var(--line); border-radius: 999px; }
+.card[data-style="pitch"] .odd-cell { background: rgba(0, 0, 0, 0.25); border-color: var(--line); }
+.card[data-style="pitch"] .predict-banner { background: #ffd166; color: #052a14; border: 0; }
+.card[data-style="pitch"] .foot { color: var(--hint); opacity: 0.9; }
+.card[data-style="pitch"] .stub { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
+
+/* compact reminder heading must beat the per-style heading size */
+.card[data-style] .heading.heading-sm { font-size: 44px; padding-bottom: 0; }
+.card[data-style="broadcast"] .heading.heading-sm::after { display: none; }

@@ -5,6 +5,7 @@ import java.util.Map;
 
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
+import zhigalin.predictions.service.notification.CardStyleSettings;
 import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -40,11 +41,13 @@ public class CommandContainer {
     private final Command totalCommand;
     private final Command generateCommand;
     private final Command todayNotifyCommand;
+    private final Command cardStyleCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
                             PredictionService predictionService, PanicSender panicSender, String botChatId,
-                            NotificationService notificationService, long adminChatId) {
+                            NotificationService notificationService, long adminChatId,
+                            CardStyleSettings cardStyleSettings) {
         commandMap = new HashMap<>();
         commandMap.put(TODAY.getName(), new TodayMatchesCommand(sendBotMessageService, matchService, botChatId));
         commandMap.put(START.getName(), new StartCommand(sendBotMessageService));
@@ -71,6 +74,11 @@ public class CommandContainer {
         totalCommand = new TotalCommand(sendBotMessageService, predictionService);
         this.generateCommand = new GenerateCommand(matchService, notificationService, panicSender, adminChatId);
         this.todayNotifyCommand = new TodayNotifyCommand(sendBotMessageService, notificationService, panicSender, adminChatId);
+        this.cardStyleCommand = new CardStyleCommand(sendBotMessageService, cardStyleSettings, adminChatId);
+    }
+
+    public Command retrieveCardStyleCommand() {
+        return cardStyleCommand;
     }
 
     public Command retrieveCommand(String commandIdentifier) {

@@ -44,6 +44,8 @@ class HtmlImageRendererModelTest {
                 epl(3, 5, d.plusHours(1))));
         List<String> titles = card.sections().stream().map(s -> s.title()).toList();
         assertEquals(List.of("WEEK 5", "WEEK 4", "CARABAO", "UEL"), titles);
+        assertEquals(List.of("epl", "epl", "eng.league_cup", "uefa.europa"),
+                card.sections().stream().map(s -> s.accent()).toList());
         // sections follow earliest kickoff, so week 5 (13:00) precedes week 4 (15:00)
         assertEquals(1, card.sections().get(0).rows().size());
         assertEquals(2, card.sections().get(1).rows().size());

@@ -19,8 +19,8 @@ import javax.imageio.ImageIO;
 import javax.imageio.stream.ImageOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 
 @Service
@@ -32,7 +32,6 @@ public class GoalEventGifRenderer {
     private static final int FPS = 10;
     private static final double DURATION = 3.5;
     private static final Color ACCENT = new Color(176, 140, 255);
-    private static final Color ACCENT_LIFT = new Color(201, 180, 255);
     private static final Color HINT = new Color(154, 143, 176);
     private static final Color WHITE = Color.WHITE;
     private static final Color GOAL_FLASH = new Color(255, 230, 120);
@@ -428,11 +427,6 @@ public class GoalEventGifRenderer {
         int tw = fm.stringWidth(code);
         g.setColor(color);
         g.drawString(code, x + (boxW - tw) / 2, baseline);
-    }
-
-    private void drawCenteredCode(Graphics2D g, String code, int x, int y, int boxW, Color color) {
-        FontMetrics fm = g.getFontMetrics();
-        drawCenteredCodeAtBaseline(g, code, x, y + fm.getAscent(), boxW, color);
     }
 
     private void drawScore(

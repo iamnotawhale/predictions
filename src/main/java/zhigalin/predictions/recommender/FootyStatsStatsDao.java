@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -145,10 +144,6 @@ public class FootyStatsStatsDao {
                 teamCode
         );
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
-    }
-
-    public void saveRecommendation(MatchRecommendationSnapshot recommendation) {
-        saveRecommendations(List.of(recommendation));
     }
 
     public void saveRecommendations(List<MatchRecommendationSnapshot> recommendations) {

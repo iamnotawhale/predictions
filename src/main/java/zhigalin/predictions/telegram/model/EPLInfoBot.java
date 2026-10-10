@@ -25,6 +25,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.service.DataInitService;
+import zhigalin.predictions.service.notification.CardStyleSettings;
 import zhigalin.predictions.service.notification.HtmlImageRenderer;
 import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.event.HeadToHeadService;
@@ -68,7 +69,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                       MatchService matchService, TeamService teamService,
                       HeadToHeadService headToHeadService, DataInitService dataInitService,
                       PredictionService predictionService, PanicSender panicSender, NotificationService notificationService,
-                      HtmlImageRenderer htmlImageRenderer) {
+                      HtmlImageRenderer htmlImageRenderer, CardStyleSettings cardStyleSettings) {
         super(token);
         this.name = name;
         this.sendBotMessageService = new SendBotMessageService(this, htmlImageRenderer, webAppUrl);
@@ -80,7 +81,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
             // admin commands disabled until ADMIN_CHAT_ID / chatId is set
         }
         this.commandContainer = new CommandContainer(sendBotMessageService, matchService, teamService,
-                headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService, adminId);
+                headToHeadService, dataInitService, predictionService, panicSender, botChatId, notificationService, adminId, cardStyleSettings);
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -154,7 +155,9 @@ public class EPLInfoBot extends TelegramLongPollingBot {
 
     private void handleTextMessage(Update update, Long chatId, Integer messageId, String message) throws FeedException, IOException, ParseException {
         messageToDelete.clear();
-        if (message.contains("menu")) {
+        if (message.startsWith("/cardstyle")) {
+            commandContainer.retrieveCardStyleCommand().execute(update);
+        } else if (message.contains("menu")) {
             commandContainer.retrieveMenuCommand().execute(update);
         } else if (message.contains("update")) {
             String[] array = message.split("[^A-Za-z0-9]");
