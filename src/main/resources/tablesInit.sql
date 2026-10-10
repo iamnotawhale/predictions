@@ -138,6 +138,9 @@ create table if not exists notification_reminder_sent
 alter table notification_reminder_sent
     add column if not exists telegram_message_id integer;
 
+alter table notification_reminder_sent
+    add column if not exists message_deleted_at timestamp;
+
 alter table users
     add column if not exists betting_recommender_enabled boolean default false;
 

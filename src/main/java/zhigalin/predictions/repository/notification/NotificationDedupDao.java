@@ -108,4 +108,50 @@ public class NotificationDedupDao {
             serverLogger.warn("saveReminderTelegramMessageId: {}", e.getMessage());
         }
     }
+
+    /** A sent reminder whose Telegram message should disappear once predictions are closed. */
+    public record ExpiredReminder(int userId, int matchPublicId, int reminderMinutes, int messageId) {
+    }
+
+    /** Reminders still visible in chat for matches whose prediction window (kickoff + graceMinutes) is over. */
+    public List<ExpiredReminder> findExpiredReminders(int graceMinutes) {
+        try {
+            String sql = """
+                    SELECT r.user_id, r.match_public_id, r.reminder_minutes, r.telegram_message_id
+                    FROM notification_reminder_sent r
+                    JOIN match m ON m.public_id = r.match_public_id
+                    WHERE r.telegram_message_id IS NOT NULL
+                      AND r.message_deleted_at IS NULL
+                      AND m.local_date_time + make_interval(mins => :grace) < NOW()
+                    """;
+            return namedParameterJdbcTemplate.query(
+                    sql,
+                    new MapSqlParameterSource("grace", graceMinutes),
+                    (rs, rowNum) -> new ExpiredReminder(
+                            rs.getInt("user_id"),
+                            rs.getInt("match_public_id"),
+                            rs.getInt("reminder_minutes"),
+                            rs.getInt("telegram_message_id"))
+            );
+        } catch (Exception e) {
+            serverLogger.warn("findExpiredReminders: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    public void markReminderMessageDeleted(int userId, int matchPublicId, int reminderMinutes) {
+        try {
+            namedParameterJdbcTemplate.update("""
+                    UPDATE notification_reminder_sent
+                    SET message_deleted_at = NOW()
+                    WHERE user_id = :userId AND match_public_id = :matchPublicId
+                      AND reminder_minutes = :reminderMinutes
+                    """, new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("matchPublicId", matchPublicId)
+                    .addValue("reminderMinutes", reminderMinutes));
+        } catch (Exception e) {
+            serverLogger.warn("markReminderMessageDeleted: {}", e.getMessage());
+        }
+    }
 }
