@@ -32,6 +32,18 @@ jobs:
           java-version: '21'
           cache: maven
 
+      - name: Set up Node (Mini App JS tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Java unit tests
+        # Card preview test needs Chrome + network (it only writes preview PNGs), so it is not a gate.
+        run: mvn -B test -Dtest='!HtmlCardPreviewTest'
+
+      - name: Mini App JS tests
+        run: node --test "src/test/js/*.test.js"
+
       - name: Build jar
         run: mvn -B -DskipTests package
 
