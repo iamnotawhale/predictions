@@ -44,7 +44,14 @@ public class OddsService {
     private volatile long lastRefreshAtMs = 0L;
 
     /** In-memory cache; persisted odds are loaded from DB on startup and after fetch. */
-    private final Map<Integer, Odd> oddsCache = new HashMap<>();
+    private final Map<Integer, Odd> oddsCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private final java.util.concurrent.atomic.AtomicBoolean asyncRefreshRunning = new java.util.concurrent.atomic.AtomicBoolean();
+    private final java.util.concurrent.ExecutorService refreshExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "odds-refresh");
+        t.setDaemon(true);
+        return t;
+    });
 
     public OddsService(
             PanicSender panicSender,
@@ -235,6 +242,31 @@ public class OddsService {
         }
         oddsInit2(matches);
         lastRefreshAtMs = now;
+    }
+
+    /**
+     * Same staleness rule as {@link #ensureFresh}, but never blocks the caller: the ESPN fetch (one request per day of the
+     * range) runs on a background thread and the response uses the odds already cached. For Mini App list endpoints.
+     */
+    public void refreshAsyncIfStale(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastRefreshAtMs < REFRESH_INTERVAL_MS || !asyncRefreshRunning.compareAndSet(false, true)) {
+            return;
+        }
+        lastRefreshAtMs = now;
+        List<Match> snapshot = List.copyOf(matches);
+        refreshExecutor.execute(() -> {
+            long t0 = System.nanoTime();
+            try {
+                oddsInit2(snapshot);
+            } finally {
+                log.info("Odds background refresh took {} ms", (System.nanoTime() - t0) / 1_000_000);
+                asyncRefreshRunning.set(false);
+            }
+        });
     }
 
     private void storeOdd(int publicId, Odd odd) {
