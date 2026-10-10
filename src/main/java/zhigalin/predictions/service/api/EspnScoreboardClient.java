@@ -2,6 +2,7 @@ package zhigalin.predictions.service.api;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.Scoreboard;
 
 @Component
@@ -26,6 +28,7 @@ public class EspnScoreboardClient {
             "uefa.europa.conf"
     );
     private static final DateTimeFormatter ESPN_DAY = DateTimeFormatter.BASIC_ISO_DATE;
+    private static final int MAX_RANGE_DAYS = 14;
 
     private final ObjectMapper mapper;
 
@@ -60,10 +63,27 @@ public class EspnScoreboardClient {
             start = end;
             end = tmp;
         }
-        String dates = start.equals(end)
-                ? ESPN_DAY.format(start)
-                : ESPN_DAY.format(start) + "-" + ESPN_DAY.format(end);
-        return fetchScoreboardUrl(BASE + leagueSlug + "/scoreboard?dates=" + dates);
+        if (start.equals(end)) {
+            return fetchScoreboardUrl(BASE + leagueSlug + "/scoreboard?dates=" + ESPN_DAY.format(start));
+        }
+        Scoreboard merged = null;
+        List<Event> events = new ArrayList<>();
+        for (LocalDate d = start; !d.isAfter(end) && d.isBefore(start.plusDays(MAX_RANGE_DAYS)); d = d.plusDays(1)) {
+            Scoreboard day = fetchScoreboardUrl(BASE + leagueSlug + "/scoreboard?dates=" + ESPN_DAY.format(d));
+            if (day == null) {
+                continue;
+            }
+            if (merged == null) {
+                merged = day;
+            }
+            if (day.getEvents() != null) {
+                events.addAll(day.getEvents());
+            }
+        }
+        if (merged != null) {
+            merged.setEvents(events);
+        }
+        return merged;
     }
 
     private Scoreboard fetchScoreboardUrl(String url) {
