@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import com.microsoft.playwright.Page;
@@ -30,7 +31,9 @@ public class GoalSceneVideoRenderer {
     private static final Logger log = LoggerFactory.getLogger("server");
     static final int SIZE = 480;
     static final int FPS = 25;
-    static final double DURATION = 3.2;
+    static final double DURATION = 9.0;
+    static final List<String> LOGO_MOTIONS = List.of(
+            "settle", "float", "breathe", "tilt", "pendulum", "shimmer", "drift-in-out");
     private static final String SCENE = "/notification-cards/goal-scene.html";
 
     private final HtmlImageRenderer html;
@@ -96,6 +99,8 @@ public class GoalSceneVideoRenderer {
         c.put("subtitle", req.subtitle() == null ? "" : req.subtitle());
         c.put("minute", req.minute() == null ? "" : req.minute());
         c.put("disallowed", req.disallowed());
+        c.put("logo", !req.disallowed());
+        c.put("logoMotion", LOGO_MOTIONS.get(ThreadLocalRandom.current().nextInt(LOGO_MOTIONS.size())));
         return c;
     }
 
