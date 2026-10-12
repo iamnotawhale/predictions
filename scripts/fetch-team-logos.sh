@@ -9,7 +9,7 @@ OUT="$(cd "$(dirname "$0")/.." && pwd)/src/main/resources/static/img/teams"
 IDS=("$@")
 if [ ${#IDS[@]} -eq 0 ]; then
   # ARS AST BOU BRE BHA BUR CHE CRY EVE FUL LEE LIV MCI MUN NEW NFO SUN TOT WHU WOL
-  IDS=(42 66 35 55 51 44 49 52 45 36 63 40 50 33 34 65 746 47 48 39)
+  IDS=(42 66 35 55 51 44 49 52 45 36 63 40 50 33 34 65 746 47 48 39 1346)
 fi
 mkdir -p "$OUT"
 ok=0; fail=0

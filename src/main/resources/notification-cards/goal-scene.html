@@ -1,89 +1,217 @@
-<!doctype html><html><head><meta charset="utf-8"><link rel="preconnect" href="https://fonts.googleapis.com"/><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Manrope:wght@500;700;800&family=Unbounded:wght@600;700&display=swap" rel="stylesheet"/><style>
-:root{--a:#b08cff;--al:#c9b4ff;--ad:#6b4fc4;--hot:#ffd166;--bg:#070b16;--bg2:#0d1426;--w:#fff}
-body.no{--a:#ff5a6e;--al:#ffb0ba;--ad:#8c1f2e;--hot:#ff8a98}
+<!doctype html><html><head><meta charset="utf-8"><link rel="preconnect" href="https://fonts.googleapis.com"/><link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/><style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:480px;height:480px;overflow:hidden;background:var(--bg);font-family:"Manrope","DejaVu Sans",sans-serif;color:var(--w)}
-.stage{position:relative;width:480px;height:480px;overflow:hidden;background:
- radial-gradient(ellipse 80% 55% at 50% -10%,color-mix(in srgb,var(--a) 30%,transparent),transparent 70%),
- radial-gradient(ellipse 60% 40% at 100% 100%,color-mix(in srgb,var(--a) 14%,transparent),transparent 55%),var(--bg)}
-.grid{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px;opacity:.7;animation:gridmove 2.8s linear both}
-@keyframes gridmove{from{transform:translateY(0)}to{transform:translateY(40px)}}
-/* wipe slabs */
-.slab{position:absolute;top:-20px;bottom:-20px;width:70%;left:-80%;transform:skewX(-18deg);background:linear-gradient(90deg,var(--ad),var(--a));animation:slab 0.9s cubic-bezier(.77,0,.18,1) both}
-.slab.s2{background:var(--w);width:18%;animation:slab2 0.9s .05s cubic-bezier(.77,0,.18,1) both}
-@keyframes slab{0%{left:-80%}50%{left:15%}100%{left:130%}}
-@keyframes slab2{0%{left:-40%}50%{left:30%}100%{left:140%}}
-.flash{position:absolute;inset:0;background:var(--hot);opacity:0;animation:flash .5s .38s ease-out both}
-@keyframes flash{0%{opacity:.55}100%{opacity:0}}
-/* stinger */
-.title{position:absolute;left:0;right:0;top:34px;text-align:center;font-weight:900;font-size:92px;letter-spacing:.04em;font-style:italic;transform-origin:50% 60%;
- text-shadow:0 0 30px color-mix(in srgb,var(--a) 70%,transparent),0 4px 0 var(--ad);animation:title 2.8s both}
-.title span{display:inline-block;animation:letter .5s both;animation-delay:calc(.45s + var(--i)*70ms)}
-@keyframes letter{from{opacity:0;transform:translateY(40px) skewX(-14deg) scale(1.4)}to{opacity:1;transform:none}}
-@keyframes title{0%,15%{opacity:0}16%{opacity:1}78%{opacity:1;transform:scale(1)}100%{opacity:1;transform:scale(.72) translateY(-22px)}}
-.rule{position:absolute;left:60px;right:60px;top:148px;height:4px;background:var(--hot);transform:scaleX(0);transform-origin:left;animation:rule .6s .85s cubic-bezier(.23,1,.32,1) both,rule2 .5s 2.1s ease-in both}
-@keyframes rule{to{transform:scaleX(1)}}@keyframes rule2{from{opacity:1}to{opacity:0}}
-/* scorebug — same hero slab as the broadcast result card */
-.bug{position:absolute;left:24px;right:24px;top:180px;height:120px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;padding:0 12px;
- border-left:8px solid var(--a);border-radius:4px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.5);
- background:linear-gradient(90deg,#0d1426 0%,color-mix(in srgb,var(--a) 48%,#0d1426) 50%,#0d1426 100%);
- transform:translateY(40px);opacity:0;animation:bug .6s 1s cubic-bezier(.34,1.3,.5,1) both}
-@keyframes bug{to{transform:none;opacity:1}}
-.team{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative}
-.logo img{width:100%;height:100%;object-fit:contain}
-.logo{width:52px;height:52px;border-radius:50%;background:#fff;color:#0d1426;display:flex;align-items:center;justify-content:center;font-family:"Unbounded",sans-serif;font-weight:700;font-size:19px;flex:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
-.code{font-family:"Unbounded",sans-serif;font-weight:700;font-size:22px;letter-spacing:.02em}
-.team.scorer .logo{animation:logoPop .6s 1.7s cubic-bezier(.34,1.6,.5,1) both}
-@keyframes logoPop{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
-.mid{position:relative;display:flex;align-items:center;justify-content:center;gap:2px;font-family:"Unbounded",sans-serif;font-weight:700;font-size:58px;line-height:1;color:#fff;font-variant-numeric:tabular-nums;padding:0 8px}
-.digit{height:66px;overflow:hidden;width:42px;text-align:center}
-.reel{display:flex;flex-direction:column}
-.reel b{height:66px;line-height:66px;font-weight:700}
-.reel.roll{animation:roll .55s 1.7s cubic-bezier(.34,1.5,.5,1) both}
-@keyframes roll{from{transform:translateY(0)}to{transform:translateY(-66px)}}
-.punch{animation:punch .5s 1.7s cubic-bezier(.34,1.6,.5,1) both}
-@keyframes punch{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
-.sep{opacity:.9;margin:0 -2px}
-.bug::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.28) 50%,transparent 65%);transform:translateX(-120%);animation:sheen .9s 1.75s ease-out both;pointer-events:none}
-@keyframes sheen{to{transform:translateX(120%)}}
-/* ticker line */
-.scorer-line{position:absolute;left:24px;right:24px;top:318px;height:38px;display:flex;align-items:center;gap:12px;padding-left:10px}
-.scorer-line .tag{background:var(--hot);color:#060a14;font-weight:900;font-size:14px;line-height:1;padding:8px 14px;transform:skewX(-12deg);letter-spacing:.08em;animation:tag .4s 2.0s cubic-bezier(.23,1,.32,1) both}
-.scorer-line .nm{font-weight:800;font-size:19px;letter-spacing:.03em;animation:nm .45s 2.1s cubic-bezier(.23,1,.32,1) both}
-@keyframes tag{from{opacity:0;transform:translateX(-30px) skewX(-12deg)}to{opacity:1;transform:skewX(-12deg)}}
-@keyframes nm{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
-.live{position:absolute;left:24px;top:22px;font-weight:900;font-size:13px;letter-spacing:.14em;display:flex;align-items:center;gap:8px;opacity:0;animation:fadein .3s .2s both}
-.live i{width:9px;height:9px;border-radius:50%;background:#ff4d5e;animation:blink 1s infinite}
-@keyframes blink{50%{opacity:.3}}@keyframes fadein{to{opacity:1}}
-.strike{position:absolute;left:0;right:0;top:50%;height:6px;margin-top:-3px;background:#ff5a6e;transform:scaleX(0);transform-origin:left;animation:strike .35s 1.65s cubic-bezier(.23,1,.32,1) both}
-@keyframes strike{to{transform:scaleX(1)}}
-body.no .title{font-size:70px;top:52px}
+html,body{width:480px;height:480px;overflow:hidden;background:#07090d;color:#f4f1ea;font-family:"Space Grotesk","DejaVu Sans",sans-serif}
+.abs{position:absolute}
+.fill{position:absolute;inset:0}
+.bg{background:radial-gradient(120% 80% at 70% 0%,rgba(109,31,224,.22),transparent 55%),radial-gradient(90% 70% at 0% 100%,rgba(183,148,246,.08),transparent 50%),linear-gradient(165deg,#0b0e14 0%,#07090d 48%,#05070a 100%)}
+.motif{position:absolute;inset:0;width:100%;height:100%}
+.title{position:absolute;left:0;right:0;text-align:center;font-family:"Sora",sans-serif;font-weight:800;letter-spacing:-.03em;line-height:1;white-space:nowrap}
+.title span{display:inline-block}
+.card{position:absolute;left:24px;right:24px;top:186px;height:124px;border-radius:24px;overflow:hidden;background:rgba(12,16,26,.78);border:1px solid rgba(255,255,255,.1);box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.hl{position:absolute;inset:0}
+.content{position:absolute;inset:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 14px}
+.crest{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.45));justify-self:center}
+.score{position:relative;display:flex;align-items:center;justify-content:center;font-family:"Sora",sans-serif;font-weight:800;font-size:60px;color:#fff}
+.digit{height:70px;width:44px;overflow:hidden;position:relative}
+.digit div{transform-origin:top}
+.digit span{display:block;height:70px;line-height:70px;text-align:center}
+.colon{width:16px;height:70px;line-height:70px;text-align:center;opacity:.85}
+.symbol{position:absolute;width:240px;height:240px;object-fit:contain;filter:grayscale(1) contrast(1.15) brightness(1.1)}
+.tag{position:absolute;left:24px;top:326px;display:flex;align-items:center;gap:12px}
+.pill{font-family:"Sora",sans-serif;font-weight:800;font-size:13px;letter-spacing:.1em;padding:7px 13px;border-radius:999px}
+.sub{font-family:"Sora",sans-serif;font-weight:600;font-size:18px;color:#f4f1ea}
+.live{position:absolute;left:24px;top:22px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;letter-spacing:.16em}
+.dot{width:8px;height:8px;border-radius:50%;background:#ff4d5e;box-shadow:0 0 10px #ff4d5e}
+.glow{position:absolute;width:420px;height:420px;left:30px;top:60px;border-radius:50%;filter:blur(70px)}
+.rule{position:absolute;left:60px;right:60px;top:156px;height:2px}
+.dim{position:absolute;inset:0;background:#000;pointer-events:none}
 </style></head><body>
-<div class="stage" id="st"><div class="grid"></div>
-<div class="live"><i></i><span id="lv">LIVE</span></div>
-<div class="title" id="ti"></div><div class="rule"></div>
-<div class="bug">
- <div class="team home" id="th"><div class="logo" id="lh"></div><div class="code" id="ch"></div></div>
- <div class="mid"><div class="digit"><div class="reel" id="rh"></div></div><span class="sep">:</span><div class="digit"><div class="reel" id="ra"></div></div><div class="strike" id="sk" style="display:none"></div></div>
- <div class="team away" id="ta"><div class="logo" id="la"></div><div class="code" id="ca"></div></div>
+<div class="fill bg"></div>
+<div class="glow" id="glow"></div>
+<div class="fill" id="shake">
+  <div class="live" id="live"><i class="dot"></i><span id="liveText">LIVE</span></div>
+  <div class="title" id="title"></div>
+  <div class="rule" id="rule"></div>
+  <div class="card" id="card">
+    <div class="motif" id="bugMotif"></div>
+    <div class="hl" id="hl"><div class="motif" id="hlMotif"></div></div>
+    <img class="symbol" id="symbol" alt="">
+    <div class="content">
+      <img class="crest" id="crestH" alt="">
+      <div class="score">
+        <div class="digit" id="dH"><div id="rH"></div></div>
+        <span class="colon">:</span>
+        <div class="digit" id="dA"><div id="rA"></div></div>
+      </div>
+      <img class="crest" id="crestA" alt="">
+    </div>
+  </div>
+  <div class="tag" id="tag"><span class="pill" id="pill"></span><span class="sub" id="sub"></span></div>
 </div>
-<div class="scorer-line"><span class="tag" id="tg"></span><span class="nm" id="nm"></span></div>
-<div class="flash"></div><div class="slab"></div><div class="slab s2"></div>
-</div>
+<div class="dim" id="dim" style="opacity:0"></div>
 <script>
-function setup(c){
- document.body.className=c.disallowed?'no':'';
- const word=c.disallowed?'NO GOAL':'GOAL';
- ti.innerHTML=[...word].map((ch,i)=>`<span style="--i:${i}">${ch===' '?'&nbsp;':ch}</span>`).join('');
- lv.textContent=(c.disallowed?'LIVE · VAR':'LIVE')+(c.minute?' · '+c.minute:'');
- ch.textContent=c.home;ca.textContent=c.away;
- for(const [el,src,code] of [[lh,c.homeLogo,c.home],[la,c.awayLogo,c.away]]){
-  if(src){el.innerHTML='<img alt="">';el.firstChild.src=src;el.style.background='transparent';el.style.filter='drop-shadow(0 6px 14px rgba(0,0,0,.45))'}else{el.textContent=code[0]}}
- tg.textContent=c.disallowed?'VAR':'GOAL';nm.textContent=c.subtitle;
- const [ph,pa,nh,na]=[c.prev[0],c.prev[1],c.next[0],c.next[1]];
- rh.innerHTML=`<b>${ph}</b><b>${nh}</b>`;ra.innerHTML=`<b>${pa}</b><b>${na}</b>`;
- if(c.disallowed){sk.style.display='block'; if(nh!==ph) rh.classList.add('roll'); if(na!==pa) ra.classList.add('roll'); (nh!==ph?rh:ra).parentElement.classList.add('punch');}
- else{ if(nh!==ph){rh.classList.add('roll');th.classList.add('scorer')} if(na!==pa){ra.classList.add('roll');ta.classList.add('scorer')}}
- window.seek=t=>document.getAnimations().forEach(a=>{a.pause();a.currentTime=t*1000});
+const TEAMS = {"ARS": {"p": "#DB0007", "s": "#FFFFFF", "m": "barry", "e": "sweep"}, "AST": {"p": "#670E36", "s": "#95BFE5", "m": "diagonal", "e": "rise"}, "BOU": {"p": "#DA291C", "s": "#101010", "m": "stripes", "e": "split"}, "BRE": {"p": "#E30613", "s": "#FFFFFF", "m": "stripes", "e": "drop"}, "BRI": {"p": "#0057B8", "s": "#FFFFFF", "m": "chevron", "e": "iris"}, "CHE": {"p": "#034694", "s": "#FFFFFF", "m": "diagonal", "e": "sweep"}, "COV": {"p": "#59CBE8", "s": "#FFFFFF", "m": "hoops", "e": "rise"}, "CRY": {"p": "#1B458F", "s": "#C4122E", "m": "bendy", "e": "split"}, "EVE": {"p": "#003399", "s": "#FFFFFF", "m": "barry", "e": "iris"}, "FUL": {"p": "#CC0000", "s": "#FFFFFF", "m": "diagonal", "e": "sweep"}, "HUL": {"p": "#F5A12A", "s": "#000000", "m": "chevron", "e": "drop"}, "IPS": {"p": "#3A64A3", "s": "#FFFFFF", "m": "bendy", "e": "rise"}, "LEE": {"p": "#FFCD00", "s": "#1D428A", "m": "chevron", "e": "drop"}, "LIV": {"p": "#C8102E", "s": "#00B2A9", "m": "chevron", "e": "split"}, "MCI": {"p": "#6CABDD", "s": "#1C2C5B", "m": "diagonal", "e": "sweep"}, "MUN": {"p": "#DA291C", "s": "#FBE122", "m": "stripes", "e": "rise"}, "NEW": {"p": "#241F20", "s": "#FFFFFF", "m": "stripes", "e": "iris"}, "NOT": {"p": "#DD0000", "s": "#FFFFFF", "m": "barry", "e": "split"}, "SUN": {"p": "#EB172B", "s": "#FFFFFF", "m": "stripes", "e": "drop"}, "TOT": {"p": "#132257", "s": "#FFFFFF", "m": "chevron", "e": "sweep"}, "WES": {"p": "#7A263A", "s": "#1BB1E7", "m": "hoops", "e": "iris"}};
+const HIT = 1.8;
+const clamp01 = x => Math.min(1, Math.max(0, x));
+const span = (t, from, len) => { const x = clamp01((t - from) / len); return 1 - Math.pow(1 - x, 4); };
+const lerp = (t, a, b, ya, yb) => ya + (yb - ya) * clamp01((t - a) / (b - a));
+const $ = id => document.getElementById(id);
+const teamOf = code => TEAMS[code] || { p: "#8b5cf6", s: "#ffffff", m: "diagonal", e: "sweep" };
+const isLight = hex => { const n = parseInt(hex.slice(1), 16); return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 150; };
+
+const MOTIFS = {
+  stripes: (c) => Array.from({ length: 12 }, (_, i) => `<rect x="${i * 40 + 8}" y="-20" width="20" height="520" fill="${c}"/>`),
+  diagonal: (c) => Array.from({ length: 16 }, (_, i) => `<rect x="${i * 36 - 200}" y="-80" width="14" height="640" fill="${c}" transform="rotate(-28 240 240)"/>`),
+  halves: (c) => [`<rect x="0" y="0" width="240" height="480" fill="${c}"/>`],
+  sash: (c) => [`<polygon points="-20,330 500,110 500,190 -20,410" fill="${c}"/>`],
+  cross: (c) => [`<rect x="190" y="-20" width="100" height="520" fill="${c}"/>`, `<rect x="-20" y="190" width="520" height="100" fill="${c}"/>`],
+  ring: (c) => [60, 120, 180, 240].map(r => `<circle cx="240" cy="240" r="${r}" fill="none" stroke="${c}" stroke-width="14"/>`),
+  chevron: (c) => Array.from({ length: 6 }, (_, i) => `<polyline points="-20,${i * 90 + 60} 240,${i * 90} 500,${i * 90 + 60}" fill="none" stroke="${c}" stroke-width="22"/>`),
+  hoops: (c) => Array.from({ length: 6 }, (_, i) => `<rect x="-20" y="${i * 80 + 10}" width="520" height="34" fill="${c}"/>`),
+  bendy: (c) => Array.from({ length: 5 }, (_, i) => `<rect x="${i * 120 - 200}" y="-120" width="60" height="720" fill="${c}" transform="rotate(-45 240 240)"/>`),
+  barry: (c) => Array.from({ length: 3 }, (_, i) => `<rect x="-20" y="${i * 160 + 60}" width="520" height="80" fill="${c}"/>`),
+};
+const motifSvg = (kind, color, opacity) => `<svg class="motif" viewBox="0 0 480 480" preserveAspectRatio="none" style="opacity:${opacity}">${(MOTIFS[kind] || MOTIFS.diagonal)(color).join("")}</svg>`;
+
+const clipFor = (entry, p) => {
+  switch (entry) {
+    case "sweep": return `inset(0 ${(1 - p) * 100}% 0 0)`;
+    case "split": return `inset(0 ${(1 - p) * 50}% 0 ${(1 - p) * 50}%)`;
+    case "drop": return `inset(0 0 ${(1 - p) * 100}% 0)`;
+    case "rise": return `inset(${(1 - p) * 100}% 0 0 0)`;
+    default: return `circle(${p * 75}% at 50% 50%)`;
+  }
+};
+
+const digitStack = () => Array.from({ length: 10 }, (_, n) => `<span>${n}</span>`).join("");
+
+const LOGO_MOTION = {
+  settle: (p) => ({ o: 0.32 * lerp(p, 0.8, 1, 1, 0), t: `translateY(${-220 * (1 - span(p, 0, 1))}px)` }),
+  float: (p) => ({ o: 0.3, t: `translateY(${18 * Math.sin(2 * Math.PI * 1.5 * p)}px)` }),
+  breathe: (p) => ({ o: 0.25, t: `scale(${1 + 0.08 * Math.sin(2 * Math.PI * p)})` }),
+  tilt: (p) => ({ o: 0.3, t: `rotate(${8 * Math.sin(2 * Math.PI * p)}deg) scale(1.05)` }),
+  pendulum: (p) => ({ o: 0.3, t: `translateX(${50 * Math.sin(2 * Math.PI * p)}px) rotate(${18 * Math.sin(2 * Math.PI * p)}deg)` }),
+  shimmer: (p) => ({ o: 0.18 + 0.16 * Math.sin(2 * Math.PI * p), t: "scale(1.05)" }),
+  "drift-in-out": (p) => ({ o: 0.32 * Math.sin(Math.PI * p), t: `translateX(${-220 + 440 * p}px)` }),
+};
+
+let C = null;
+
+function setup(c) {
+  C = c;
+  const scoringHome = c.next[0] !== c.prev[0];
+  const scorer = teamOf(scoringHome ? c.home : c.away);
+  const tint = c.disallowed ? "#ff5a6e" : scorer.p;
+  C.scorer = scorer;
+  C.scoringHome = scoringHome;
+  C.logoMode = !c.disallowed && !!c.logo;
+  C.motion = LOGO_MOTION[c.logoMotion] ? c.logoMotion : "float";
+
+  $("liveText").textContent = c.disallowed ? "LIVE · VAR" : "LIVE";
+  $("glow").style.background = tint;
+
+  const word = c.disallowed ? "NO GOAL" : "GOAL";
+  $("title").style.top = (c.disallowed ? 74 : 40) + "px";
+  $("title").style.fontSize = (c.disallowed ? 66 : 96) + "px";
+  $("title").innerHTML = [...word].map(ch => `<span>${ch === " " ? "&nbsp;" : ch}</span>`).join("");
+  $("title").querySelectorAll("span").forEach(s => { s.dataset.fade = "1"; });
+
+  $("crestH").src = c.homeLogo || "";
+  $("crestA").src = c.awayLogo || "";
+  $("rH").innerHTML = digitStack();
+  $("rA").innerHTML = digitStack();
+
+  $("bugMotif").innerHTML = motifSvg(scorer.m, scorer.p, 0.1);
+  $("hlMotif").innerHTML = motifSvg(scorer.m, scorer.s, 0.22);
+
+  $("pill").textContent = c.disallowed ? "VAR" : "GOAL";
+  $("pill").style.background = c.disallowed ? "#ff8a98" : scorer.p;
+  $("pill").style.color = c.disallowed || isLight(scorer.p) ? "#060a14" : "#ffffff";
+  $("pill").style.boxShadow = `0 0 0 1px ${scorer.s}`;
+  $("sub").textContent = c.subtitle || "";
+
+  const logoSrc = scoringHome ? c.homeLogo : c.awayLogo;
+  const symbol = $("symbol");
+  symbol.src = C.logoMode && logoSrc ? logoSrc : "";
+  symbol.style.display = C.logoMode && logoSrc ? "block" : "none";
+  window.seek(0);
 }
+
+window.seek = function (t) {
+  if (!C) return;
+  const c = C;
+  const scorer = c.scorer;
+  const hit = t >= HIT;
+  const hitT = t - HIT;
+
+  const pulseV = t < HIT ? 0 : t < HIT + 0.467 ? lerp(t, HIT, HIT + 0.467, 0, 1) : lerp(t, HIT + 0.467, HIT + 2.0, 1, 0.45);
+
+  const dim = c.disallowed ? lerp(t, HIT + 1.2, HIT + 2.667, 0, 1) : 0;
+  const bugIn = span(t, 0.933, 0.867);
+  const shakeAmp = c.disallowed ? 2.2 : 5;
+  const shake = hit && hitT < 0.533 ? Math.sin(hitT * 33) * shakeAmp * (1 - hitT / 0.533) : 0;
+  $("shake").style.transform = `translate(${shake}px, 0px)`;
+
+  $("glow").style.opacity = (0.22 + pulseV * 0.28).toFixed(3);
+  $("dim").style.opacity = (dim * 0.25).toFixed(3);
+
+  $("live").style.opacity = span(t, 0.133, 0.467).toFixed(3);
+  $("rule").style.top = (c.disallowed ? 176 : 156) + "px";
+  $("rule").style.background = `linear-gradient(90deg, transparent, ${c.disallowed ? "#ff5a6e" : scorer.p}, transparent)`;
+  $("rule").style.transform = `scaleX(${span(t, 0.533, 1.0).toFixed(4)})`;
+  $("rule").style.opacity = (1 - dim * 0.6).toFixed(3);
+
+  const titleOut = lerp(t, 3.8, 4.8, 1, 0.7);
+  const titleShift = lerp(t, 3.8, 4.8, 0, -34);
+  $("title").style.transform = `translateY(${titleShift}px) scale(${titleOut})`;
+  $("title").style.opacity = titleOut.toFixed(3);
+  $("title").style.textShadow = `0 0 36px ${hit && !c.disallowed ? scorer.p : "rgba(183,148,246,.6)"}`;
+  document.querySelectorAll("#title span").forEach((s, i) => {
+    const d = span(t, 0.2 + i * 0.0667, 0.733);
+    s.style.opacity = d.toFixed(3);
+    s.style.transform = `translateY(${((1 - d) * 26).toFixed(2)}px)`;
+    s.style.filter = `blur(${((1 - d) * 6).toFixed(2)}px)`;
+  });
+
+  const card = $("card");
+  card.style.transform = `translateY(${((1 - bugIn) * 34).toFixed(2)}px)`;
+  card.style.opacity = bugIn.toFixed(3);
+  card.style.filter = `blur(${((1 - bugIn) * 8).toFixed(2)}px) saturate(${(1 - dim * 0.8).toFixed(3)}) brightness(${(1 - dim * 0.3).toFixed(3)})`;
+  card.style.borderColor = `rgba(255,255,255,${(0.1 + pulseV * 0.12).toFixed(3)})`;
+  card.style.boxShadow = `0 24px 60px rgba(0,0,0,.5), 0 0 ${(30 * pulseV).toFixed(1)}px ${c.disallowed ? "#ff5a6e" : scorer.p}55`;
+
+  const reveal = span(t, HIT, 0.867);
+  const hl = $("hl");
+  hl.style.clipPath = hit ? clipFor(scorer.e, reveal) : "inset(0 100% 0 0)";
+  hl.style.background = `linear-gradient(90deg, ${scorer.p}, ${scorer.p}99)`;
+  hl.style.opacity = c.disallowed ? (0.55 * (1 - dim)).toFixed(3) : "0.85";
+
+  const odo = span(t, HIT + 0.067, 0.867);
+  const shownH = c.prev[0] + (c.next[0] - c.prev[0]) * odo;
+  const shownA = c.prev[1] + (c.next[1] - c.prev[1]) * odo;
+  $("rH").style.transform = `translateY(${(-shownH * 70).toFixed(2)}px)`;
+  $("rA").style.transform = `translateY(${(-shownA * 70).toFixed(2)}px)`;
+  $("dH").style.filter = Math.abs(Math.sin(Math.PI * odo)) > 0.02 ? `blur(${(Math.sin(Math.PI * odo) * 2).toFixed(2)}px)` : "none";
+  $("dA").style.filter = $("dH").style.filter;
+
+  const crestScale = hit ? 1 + Math.sin(reveal * Math.PI) * 0.12 : 1;
+  $("crestH").style.transform = `scale(${c.scoringHome === false ? 1 : crestScale.toFixed(4)})`;
+  $("crestA").style.transform = `scale(${c.scoringHome === true ? 1 : crestScale.toFixed(4)})`;
+
+  const sym = $("symbol");
+  if (C.logoMode) {
+    const inT = span(t, 0.867, 0.467);
+    const outT = lerp(t, 2.133, 2.8, 1, 0);
+    const p = clamp01((t - 0.867) / (2.8 - 0.867));
+    const m = LOGO_MOTION[C.motion](p);
+    sym.style.opacity = (m.o * inT * outT).toFixed(3);
+    sym.style.transform = `translate(-50%, -50%) ${m.t}`;
+    sym.style.left = "50%";
+    sym.style.top = "50%";
+  }
+
+  const tagIn = span(t, HIT + 0.267, 0.733);
+  $("tag").style.opacity = tagIn.toFixed(3);
+  $("tag").style.transform = `translateX(${((1 - tagIn) * -18).toFixed(2)}px)`;
+};
 </script></body></html>

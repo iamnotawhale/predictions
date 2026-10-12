@@ -271,9 +271,11 @@ public class NotificationService {
         }
         boolean disallowed = nextTotal < prevTotal;
         GoalScorer latest = disallowed ? null : resolveLatestScorer(match, nextTotal);
-        String subtitle = disallowed ? "VAR  ·  offside" : scorerLabel(latest);
-        String minute = latest != null && latest.minute() != null && !latest.minute().isBlank()
-                ? latest.minute() : null;
+        String minute = disallowed ? liveClock(match)
+                : latest != null && latest.minute() != null && !latest.minute().isBlank() ? latest.minute() : null;
+        String subtitle = disallowed
+                ? "VAR  ·  offside" + (minute == null ? "" : "  " + minute)
+                : scorerLabel(latest);
         String path = null;
         try {
             path = goalGifRenderer.renderToTempFile(new GoalEventGifRenderer.Request(
@@ -317,6 +319,11 @@ public class NotificationService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String liveClock(Match match) {
+        String status = match.getStatus();
+        return status != null && status.matches("\\d+'?(\\+\\d+'?)?") ? status : null;
     }
 
     private static String scorerLabel(GoalScorer last) {
