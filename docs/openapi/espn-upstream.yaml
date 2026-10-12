@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: ESPN endpoints used by predictions
+  version: 1.0.0
+  description: |
+    Неофициальные (недокументированные) эндпоинты ESPN, которые вызывает приложение.
+    Могут меняться без предупреждения. Диапазон дат в scoreboard (`dates=A-B`) с 10 октября 2026 отвечает 400;
+    используется запрос по одному дню. Клиенты: EspnScoreboardClient, ApiClient, InjuryService,
+    EspnTeamRosterService, EspnTeamSeasonStatsService, EspnTeamTotalsClient, EspnTeamLogos.
+servers:
+  - url: https://site.web.api.espn.com
+    description: "site.web (основной, не site.api: Akamai часто отдаёт 403)"
+  - url: https://sports.core.api.espn.com
+    description: core API (статистика сезона, propBets)
+  - url: https://a.espncdn.com
+    description: CDN логотипов
+paths:
+  /apis/site/v2/sports/soccer/{league}/scoreboard:
+    get:
+      summary: Матчи лиги (с коэффициентами в competitions[].odds)
+      description: Используется OddsService (1X2, тотал), DataInitService (live и FT), BonusMatchSyncService (кубки). Отправляется User-Agent predictions-bot/1.0.
+      parameters:
+        - {name: league, in: path, required: true, schema: {type: string, enum: [eng.1, eng.fa, eng.league_cup, uefa.champions, uefa.europa, uefa.europa.conf]}}
+        - name: dates
+          in: query
+          required: false
+          description: "YYYYMMDD (один день). Диапазон YYYYMMDD-YYYYMMDD даёт 400."
+          schema: {type: string, example: "20261010"}
+      responses:
+        "200": {description: Scoreboard, content: {application/json: {schema: {type: object}}}}
+        "400": {description: Диапазон дат не поддерживается}
+  /apis/site/v2/sports/soccer/{league}/summary:
+    get:
+      summary: Детали матча (составы, статистика, события, rosters)
+      description: ApiClient.espnSummary, live-details. TTL 8 с.
+      parameters:
+        - {name: league, in: path, required: true, schema: {type: string, default: eng.1}}
+        - {name: event, in: query, required: true, schema: {type: string, description: ESPN event id}}
+      responses:
+        "200": {description: Summary, content: {application/json: {schema: {type: object}}}}
+  /apis/site/v2/sports/soccer/eng.1/teams/{teamId}/roster:
+    get:
+      summary: Состав команды (EspnTeamRosterService, season leaders)
+      parameters:
+        - {name: teamId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Roster, content: {application/json: {schema: {type: object}}}}
+  /apis/site/v2/sports/soccer/eng.1/injuries:
+    get:
+      summary: Травмы и дисквалификации АПЛ (InjuryService)
+      responses:
+        "200": {description: Injuries, content: {application/json: {schema: {type: object}}}}
+  /v2/sports/soccer/leagues/eng.1/seasons/{season}/types/1/teams/{teamId}/statistics:
+    get:
+      summary: Командная статистика сезона (владение, удары, сухие матчи, xG, TTL 6 ч)
+      parameters:
+        - {name: season, in: path, required: true, schema: {type: integer, example: 2026}}
+        - {name: teamId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Statistics, content: {application/json: {schema: {type: object}}}}
+  /v2/sports/soccer/leagues/eng.1/events/{eventId}/competitions/{competitionId}/odds/100/propBets:
+    get:
+      summary: Тоталы команд (propBets «Team Total Goals»), EspnTeamTotalsClient
+      parameters:
+        - {name: eventId, in: path, required: true, schema: {type: string}}
+        - {name: competitionId, in: path, required: true, schema: {type: string}}
+        - {name: lang, in: query, required: false, schema: {type: string, default: en}}
+        - {name: region, in: query, required: false, schema: {type: string, default: us}}
+        - {name: page, in: query, required: false, schema: {type: integer}}
+      responses:
+        "200": {description: PropBets, content: {application/json: {schema: {type: object}}}}
+  /i/teamlogos/soccer/500/{espnTeamId}.png:
+    get:
+      summary: Логотип команды (EspnTeamLogos, CardLogos)
+      parameters:
+        - {name: espnTeamId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: PNG, content: {image/png: {schema: {type: string, format: binary}}}}

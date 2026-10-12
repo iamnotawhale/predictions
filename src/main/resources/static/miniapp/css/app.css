@@ -1317,6 +1317,20 @@ html[data-switching] *::after {
     border-bottom: none;
 }
 
+.profile-team-row {
+    cursor: pointer;
+}
+
+.profile-team-row:active {
+    opacity: 0.7;
+}
+
+.profile-team-match-date {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--hint);
+}
+
 .profile-team-logo {
     width: 22px;
     height: 22px;
@@ -1697,6 +1711,15 @@ html[data-switching] *::after {
     line-height: 1.35;
 }
 
+.ai-hero-meta {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--accent-a45);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--hint);
+}
+
 .ai-points-bar {
     display: flex;
     height: 10px;
@@ -1803,7 +1826,6 @@ html[data-switching] *::after {
 
 .ai-key:first-child { margin-left: 0; }
 .ai-key-pick { border: 2px solid var(--accent); }
-.ai-key-mode { border: 2px dashed var(--hint); }
 
 .ai-cell-detail {
     margin-top: 10px;
@@ -1957,10 +1979,6 @@ html[data-switching] *::after {
     padding: 0;
     font-family: inherit;
     cursor: pointer;
-}
-
-.ai-heatmap-cell.is-mode {
-    border: 2px dashed var(--hint);
 }
 
 .ai-heatmap-cell.is-pick {
@@ -2787,6 +2805,17 @@ html[data-switching] *::after {
     box-shadow: var(--shadow-md);
 }
 
+.toast {
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.toast.visible {
+    opacity: 1;
+    transform: none;
+}
+
 .toast.error {
     border-color: var(--danger);
     color: var(--danger);
@@ -3062,6 +3091,18 @@ html[data-theme="light"] .list-item.epl-predicted {
     background: rgba(114, 85, 187, 0.04);
 }
 
+/* Stat cells and profile rows are drawn with faint white, which vanishes on a white sheet. */
+html[data-theme="light"] .team-stat-cell,
+html[data-theme="light"] .profile-breakdown-row,
+html[data-theme="light"] .profile-habit-row {
+    border-color: var(--border);
+    background: var(--surface);
+}
+
+html[data-theme="light"] .profile-breakdown-bar {
+    background: var(--surface);
+}
+
 
 /* ── Light theme: pastel-on-pastel chips were unreadable; use dark inks on the same tints ── */
 html[data-theme="light"] .pts { color: var(--accent-ink); }
@@ -3095,6 +3136,33 @@ html[data-theme="light"] .week-btn-cups { color: #2b55a6; }
 .screen.entering .list-item:nth-child(5) { animation-delay: 260ms; }
 .screen.entering .list-item:nth-child(n + 6) { animation-delay: 300ms; }
 
+/* Tour opened inside a screen: lighter and quicker than the tab entrance, since it repeats more often. */
+.list.entering > .list-item {
+    animation: screen-in 0.24s var(--ease) both;
+}
+
+.list.entering > .list-item:nth-child(2) { animation-delay: 30ms; }
+.list.entering > .list-item:nth-child(3) { animation-delay: 60ms; }
+.list.entering > .list-item:nth-child(4) { animation-delay: 90ms; }
+.list.entering > .list-item:nth-child(5) { animation-delay: 120ms; }
+.list.entering > .list-item:nth-child(n + 6) { animation-delay: 150ms; }
+
+/* Profile stats arrive after the tab opens: sections cascade in, quality bars fill from the left. */
+#profile-home.entering .profile-section {
+    animation: screen-in 0.24s var(--ease) both;
+}
+
+#profile-home.entering .profile-section:nth-of-type(2) { animation-delay: 40ms; }
+#profile-home.entering .profile-section:nth-of-type(3) { animation-delay: 80ms; }
+#profile-home.entering .profile-section:nth-of-type(4) { animation-delay: 120ms; }
+#profile-home.entering .profile-section:nth-of-type(n + 5) { animation-delay: 160ms; }
+
+#profile-home.entering .profile-breakdown-bar > span {
+    transform-origin: left;
+    animation: bar-grow 0.6s var(--ease) both;
+    animation-delay: 120ms;
+}
+
 @keyframes screen-in {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: none; }
@@ -3112,6 +3180,35 @@ html[data-theme="light"] .week-btn-cups { color: #2b55a6; }
 
 .modal:not(.hidden) .modal-sheet {
     animation: sheet-up 0.5s var(--ease-spring) both;
+}
+
+/* Closing: the sheet leaves the way it came. .hidden is set at once (state stays truthful), .closing keeps it painted for the exit. */
+.modal.hidden.closing {
+    display: flex !important;
+    pointer-events: none;
+    animation: backdrop-out 0.2s var(--ease) both;
+}
+
+.modal.hidden.closing .modal-sheet {
+    animation: sheet-down 0.2s var(--ease) both;
+}
+
+@keyframes backdrop-out {
+    to { opacity: 0; }
+}
+
+@keyframes sheet-down {
+    to { transform: translateY(100%); }
+}
+
+/* Saved prediction: the card's score settles in once the sheet clears. */
+.score-pill.score-saved {
+    animation: score-saved 0.2s var(--ease) 0.12s both;
+}
+
+@keyframes score-saved {
+    from { opacity: 0.4; transform: scale(0.96); }
+    to { opacity: 1; transform: none; }
 }
 
 @keyframes backdrop-in {

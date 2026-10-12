@@ -266,6 +266,28 @@ public class FootyStatsStatsDao {
         return result;
     }
 
+    public List<int[]> findFrozenTipResultsForCurrentSeason() {
+        return jdbcTemplate.query(
+                """
+                        SELECT mr.kickoff_home, mr.kickoff_away, m.home_team_score, m.away_team_score
+                        FROM match_recommendation mr
+                        JOIN match m ON m.public_id = mr.match_public_id
+                        JOIN weeks w ON w.id = mr.week_id
+                        WHERE mr.kickoff_frozen_at IS NOT NULL
+                          AND mr.kickoff_home IS NOT NULL
+                          AND mr.kickoff_away IS NOT NULL
+                          AND m.status = 'ft'
+                          AND m.home_team_score IS NOT NULL
+                          AND m.away_team_score IS NOT NULL
+                          AND w.season_id = (SELECT season_id FROM weeks WHERE is_current LIMIT 1)
+                        """,
+                (rs, rowNum) -> new int[]{
+                        rs.getInt("kickoff_home"), rs.getInt("kickoff_away"),
+                        rs.getInt("home_team_score"), rs.getInt("away_team_score")
+                }
+        );
+    }
+
     public void deleteUnfrozenRecommendationsForWeek(int weekId) {
         jdbcTemplate.update(
                 "DELETE FROM match_recommendation WHERE week_id = ? AND kickoff_frozen_at IS NULL",

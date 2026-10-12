@@ -381,6 +381,7 @@
             <div id="ai-modal-tip-prob" class="ai-hero-sub"></div>
             <div id="ai-points-bar" class="ai-points-bar hidden"></div>
             <div id="ai-points-legend" class="ai-points-legend hidden"></div>
+            <div id="ai-modal-meta" class="ai-hero-meta hidden"></div>
         </div>
         <section id="ai-modal-reasons-section" class="ai-modal-section hidden">
             <h4>Почему так</h4>
@@ -389,13 +390,11 @@
         <section id="ai-modal-heatmap-section" class="ai-modal-section hidden">
             <h4>Матрица счетов</h4>
             <div id="ai-heat-modes" class="ai-heat-modes" role="tablist">
-                <button type="button" class="ai-heat-mode is-active" data-mode="score">Шанс счёта</button>
-                <button type="button" class="ai-heat-mode" data-mode="chance">Шанс очков</button>
-                <button type="button" class="ai-heat-mode" data-mode="points">Очки в среднем</button>
+                <button type="button" class="ai-heat-mode is-active" data-mode="points">Очки в среднем</button>
+                <button type="button" class="ai-heat-mode" data-mode="score">Шанс счёта</button>
             </div>
             <div id="ai-heatmap" class="ai-heatmap" aria-label="Матрица счетов"></div>
-            <div class="ai-heat-legend"><span class="ai-key ai-key-pick"></span> рекомендация
-                <span class="ai-key ai-key-mode"></span> самый вероятный</div>
+            <div class="ai-heat-legend"><span class="ai-key ai-key-pick"></span> рекомендация</div>
             <div id="ai-cell-detail" class="ai-cell-detail"></div>
         </section>
         <section id="ai-modal-markets" class="ai-modal-section hidden">
@@ -406,6 +405,28 @@
         <section id="ai-modal-stats-section" class="ai-modal-section hidden">
             <h4>Команды</h4>
             <div id="ai-modal-table-wrap" class="modal-recommendation-table-wrap"></div>
+        </section>
+    </div>
+</div>
+
+<div id="profile-team-modal" class="modal hidden">
+    <div class="modal-sheet team-modal-sheet">
+        <button id="profile-team-modal-close" class="icon-btn icon-btn-floating" aria-label="Закрыть">&#10005;</button>
+        <div class="team-profile-hero">
+            <img id="profile-team-logo" class="team-profile-logo" alt="">
+            <div class="team-profile-hero-text">
+                <div id="profile-team-code" class="team-profile-code">—</div>
+                <h3 id="profile-team-name" class="team-profile-name">Команда</h3>
+                <p id="profile-team-meta" class="team-profile-meta"></p>
+            </div>
+        </div>
+        <section id="profile-team-summary-section" class="modal-h2h team-stats-section hidden">
+            <h4>Очки за матч в среднем</h4>
+            <div id="profile-team-summary" class="team-stats-grid"></div>
+        </section>
+        <section class="modal-h2h">
+            <h4>Прогнозы по матчам</h4>
+            <ul id="profile-team-matches" class="list"></ul>
         </section>
     </div>
 </div>

@@ -1,0 +1,263 @@
+openapi: 3.0.3
+info:
+  title: predictions Mini App API
+  version: 1.0.0
+  description: |
+    REST API Telegram Mini App (`/api/miniapp`). Большинство эндпоинтов требуют заголовок
+    `X-Telegram-Init-Data` (подпись Telegram WebApp); без него или при неверной подписи сервер отвечает ошибкой.
+    Схемы ответов описаны общими объектами; точные поля DTO см. `src/main/java/zhigalin/predictions/miniapp/dto/MiniAppDtos.java`.
+servers:
+  - url: https://predicts.duckdns.org
+    description: Прод (odyssey, или VPS при failover)
+security:
+  - telegramInitData: []
+paths:
+  /api/miniapp/profile:
+    get:
+      summary: Профиль пользователя, сезон, текущий тур
+      responses:
+        "200": {description: ProfileResponse, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/profile/stats:
+    get:
+      summary: Статистика пользователя
+      responses:
+        "200": {description: ProfileStatsResponse, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/profile/team/{teamCode}:
+    get:
+      summary: Прогнозы пользователя на матчи команды, совет ИИ и средние очки остальных
+      parameters:
+        - {name: teamCode, in: path, required: true, schema: {type: string, example: MCI}}
+      responses:
+        "200": {description: ProfileTeamPredictionsResponse, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+        "404": {description: Команда не найдена}
+  /api/miniapp/profile/betting-recommender:
+    post:
+      summary: Включить или выключить рекомендатор для пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/BettingRecommenderRequest"}
+      responses:
+        "200": {description: ActionResponse, content: {application/json: {schema: {$ref: "#/components/schemas/ActionResponse"}}}}
+  /api/miniapp/admin/betting-recommender/refresh:
+    post:
+      summary: Принудительный пересчёт FootyStats, SoccerSTATS и рекомендаций (только ADMIN_CHAT_ID, 30–45 с)
+      parameters:
+        - {name: weekId, in: query, required: false, schema: {type: integer}}
+      responses:
+        "200": {description: ActionResponse, content: {application/json: {schema: {$ref: "#/components/schemas/ActionResponse"}}}}
+  /api/miniapp/weeks:
+    get:
+      summary: Список туров
+      responses:
+        "200": {description: Список туров, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Object"}}}}}
+  /api/miniapp/weeks/{weekId}/matches:
+    get:
+      summary: Матчи тура
+      parameters:
+        - {name: weekId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Матчи тура, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Object"}}}}}
+  /api/miniapp/weeks/{weekId}/my-predictions:
+    get:
+      summary: Прогнозы текущего пользователя за тур
+      parameters:
+        - {name: weekId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Прогнозы, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Object"}}}}}
+  /api/miniapp/weeks/{weekId}/review:
+    get:
+      summary: Разбор тура (прогнозы, очки, рекомендации при kickoff)
+      parameters:
+        - {name: weekId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Разбор тура, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/match/{homeCode}/{awayCode}:
+    get:
+      summary: Один матч по кодам команд
+      parameters:
+        - {name: homeCode, in: path, required: true, schema: {type: string, example: ARS}}
+        - {name: awayCode, in: path, required: true, schema: {type: string, example: CHE}}
+      responses:
+        "200": {description: MatchItem, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/match/{homeCode}/{awayCode}/insights:
+    get:
+      summary: Инсайты матча (форма, новости, травмы, составы, рекомендация и распределение счётов)
+      parameters:
+        - {name: homeCode, in: path, required: true, schema: {type: string}}
+        - {name: awayCode, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Инсайты, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/match/{homeCode}/{awayCode}/live-details:
+    get:
+      summary: Live-детали матча (ESPN summary)
+      parameters:
+        - {name: homeCode, in: path, required: true, schema: {type: string}}
+        - {name: awayCode, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Live-детали, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/match/{matchId}/crowd:
+    get:
+      summary: Распределение прогнозов пользователей по матчу
+      parameters:
+        - {name: matchId, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Распределение, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/leaderboard:
+    get:
+      summary: Общий зачёт или зачёт тура
+      parameters:
+        - {name: weekId, in: query, required: false, schema: {type: integer}}
+      responses:
+        "200": {description: Таблица, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/standings:
+    get:
+      summary: Таблица АПЛ с учётом live-счёта
+      responses:
+        "200": {description: Таблица, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Object"}}}}}
+  /api/miniapp/team/{teamCode}:
+    get:
+      summary: Профиль команды
+      parameters:
+        - {name: teamCode, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Профиль команды, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/team/{teamCode}/matches:
+    get:
+      summary: Последние 5 и ближайшие 5 матчей команды
+      parameters:
+        - {name: teamCode, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Матчи команды, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/h2h/{homeCode}/{awayCode}:
+    get:
+      summary: Личные встречи команд
+      parameters:
+        - {name: homeCode, in: path, required: true, schema: {type: string}}
+        - {name: awayCode, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: H2H, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/today:
+    get:
+      summary: Матчи сегодня (EPL и кубки)
+      responses:
+        "200": {description: Матчи, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/cups:
+    get:
+      summary: Кубковые турниры
+      responses:
+        "200": {description: Турниры, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/cups/{competition}/matches:
+    get:
+      summary: Матчи кубкового турнира
+      parameters:
+        - {name: competition, in: path, required: true, schema: {type: string, example: uefa.champions}}
+      responses:
+        "200": {description: Матчи, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/cups/{competition}/review:
+    get:
+      summary: Разбор кубкового турнира
+      parameters:
+        - {name: competition, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Разбор, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/cups/match/{publicId}/live-details:
+    get:
+      summary: Live-детали кубкового матча
+      parameters:
+        - {name: publicId, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Live-детали, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/chart:
+    get:
+      summary: График очков пользователя
+      responses:
+        "200": {description: PointsChartResponse, content: {application/json: {schema: {$ref: "#/components/schemas/Object"}}}}
+  /api/miniapp/predictions:
+    post:
+      summary: Сохранить прогноз на матч (EPL или кубок)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PredictRequest"}
+      responses:
+        "200": {description: ActionResponse, content: {application/json: {schema: {$ref: "#/components/schemas/ActionResponse"}}}}
+    delete:
+      summary: Удалить прогноз (по кодам команд или bonusMatchId)
+      parameters:
+        - {name: homeCode, in: query, required: false, schema: {type: string}}
+        - {name: awayCode, in: query, required: false, schema: {type: string}}
+        - {name: bonusMatchId, in: query, required: false, schema: {type: integer}}
+      responses:
+        "200": {description: ActionResponse, content: {application/json: {schema: {$ref: "#/components/schemas/ActionResponse"}}}}
+  /api/miniapp/client-log:
+    post:
+      summary: Лог из браузера Mini App (пишется в серверный журнал, без авторизации обязательной)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ClientLogRequest"}
+      responses:
+        "200": {description: ActionResponse, content: {application/json: {schema: {$ref: "#/components/schemas/ActionResponse"}}}}
+  /api/miniapp/logos/{teamId}.png:
+    get:
+      summary: Логотип клуба АПЛ (кэш 30 дней)
+      security: []
+      parameters:
+        - {name: teamId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: PNG, content: {image/png: {schema: {type: string, format: binary}}}}
+        "404": {description: Логотипа нет}
+  /api/miniapp/logos/r/{hash}.png:
+    get:
+      summary: Прокси логотипа по URL (кубки)
+      security: []
+      parameters:
+        - {name: hash, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: PNG, content: {image/png: {schema: {type: string, format: binary}}}}
+        "404": {description: Логотипа нет}
+components:
+  securitySchemes:
+    telegramInitData:
+      type: apiKey
+      in: header
+      name: X-Telegram-Init-Data
+  schemas:
+    Object:
+      type: object
+      description: Объект из MiniAppDtos.java; поля см. в DTO
+      additionalProperties: true
+    ActionResponse:
+      type: object
+      required: [ok, message]
+      properties:
+        ok: {type: boolean}
+        message: {type: string}
+        predictHome: {type: integer, nullable: true}
+        predictAway: {type: integer, nullable: true}
+    BettingRecommenderRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: {type: boolean}
+    PredictRequest:
+      type: object
+      required: [homeScore, awayScore]
+      properties:
+        homeCode: {type: string, description: "код команды (EPL)"}
+        awayCode: {type: string}
+        homeScore: {type: integer}
+        awayScore: {type: integer}
+        bonusMatchId: {type: integer, nullable: true, description: "для кубкового матча"}
+    ClientLogRequest:
+      type: object
+      properties:
+        level: {type: string, enum: [INFO, WARN, ERROR]}
+        event: {type: string, maxLength: 80}
+        details: {type: string, maxLength: 400}
+        href: {type: string, maxLength: 300}
+        userAgent: {type: string, maxLength: 200}

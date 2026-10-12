@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.BettingRecommenderRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
@@ -76,6 +77,14 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
     ) {
         return miniAppService.profileStats(requireTelegramId(initData));
+    }
+
+    @GetMapping("/profile/team/{teamCode}")
+    public ProfileTeamPredictionsResponse profileTeamPredictions(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String teamCode
+    ) {
+        return miniAppService.profileTeamPredictions(requireTelegramId(initData), teamCode);
     }
 
     @PostMapping(

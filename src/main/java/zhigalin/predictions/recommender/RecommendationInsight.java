@@ -153,8 +153,6 @@ public final class RecommendationInsight {
                             + "чаще попадает хотя бы в исход или разницу голов.",
                     mode.home(), mode.away(), pct(mode.probability()), ph, pa, pickEv, mode.expectedPoints()));
         }
-        out.add(String.format(Locale.US, "Очки получим с шансом %s, точный счёт — %s.",
-                pct(pick.pointsChance()), pct(pick.exact())));
         return out;
     }
 

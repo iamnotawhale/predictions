@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import zhigalin.predictions.config.DeploymentInfoService;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchRecommendationResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ExplanationStatRow;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ScoreDistributionDto;
@@ -373,7 +374,10 @@ public class MiniAppService {
                         snapshot.recommendedAway(),
                         snapshot.expectedHomeGoals(),
                         snapshot.expectedAwayGoals(),
-                        notes.stream().anyMatch(n -> n != null && n.startsWith("Основа прогноза")))
+                        notes.stream().anyMatch(n -> n != null && n.startsWith("Основа прогноза"))),
+                snapshot.computedAt() != null ? snapshot.computedAt().toEpochMilli() : null,
+                snapshot.kickoffFrozenAt() != null ? snapshot.kickoffFrozenAt().toEpochMilli() : null,
+                bettingRecommendationService.seasonTrackRecord()
         );
     }
 
@@ -770,13 +774,21 @@ public class MiniAppService {
         );
     }
 
-    public TeamProfileResponse teamProfile(String telegramId, String teamCode) {
-        requireUser(telegramId);
+    public ProfileTeamPredictionsResponse profileTeamPredictions(String telegramId, String teamCode) {
+        return userPredictionStatsService.teamPredictions(requireUser(telegramId), requireTeam(teamCode));
+    }
+
+    private static Team requireTeam(String teamCode) {
         String normalizedCode = teamCode.toUpperCase();
-        Team team = DaoUtil.TEAMS.values().stream()
+        return DaoUtil.TEAMS.values().stream()
                 .filter(t -> normalizedCode.equals(t.getCode()))
                 .findFirst()
                 .orElseThrow(() -> new MiniAppException(404, "Команда не найдена"));
+    }
+
+    public TeamProfileResponse teamProfile(String telegramId, String teamCode) {
+        requireUser(telegramId);
+        Team team = requireTeam(teamCode);
 
         List<TeamMatchItem> lastMatches = matchService.findLastFinishedByTeamId(team.getPublicId(), 5).stream()
                 .map(this::toTeamMatchItem)
