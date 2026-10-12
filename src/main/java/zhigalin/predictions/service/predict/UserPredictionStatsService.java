@@ -13,12 +13,15 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileBreakdownRow;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileHabitRow;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileHighlight;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileStatsResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamQualityRow;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileWeekHighlight;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
+import zhigalin.predictions.recommender.FootyStatsStatsDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 import zhigalin.predictions.service.event.MatchService;
@@ -35,17 +38,109 @@ public class UserPredictionStatsService {
     private final MatchService matchService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final TeamLogoCacheService teamLogoCacheService;
+    private final FootyStatsStatsDao footyStatsStatsDao;
+
+    private static final java.time.format.DateTimeFormatter KICKOFF_DAY =
+            java.time.format.DateTimeFormatter.ofPattern("dd.MM");
 
     public UserPredictionStatsService(
             PredictionService predictionService,
             MatchService matchService,
             UserWeekBonusMatchService userWeekBonusMatchService,
-            TeamLogoCacheService teamLogoCacheService
+            TeamLogoCacheService teamLogoCacheService,
+            FootyStatsStatsDao footyStatsStatsDao
     ) {
         this.predictionService = predictionService;
         this.matchService = matchService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.teamLogoCacheService = teamLogoCacheService;
+        this.footyStatsStatsDao = footyStatsStatsDao;
+    }
+
+    public ProfileTeamPredictionsResponse teamPredictions(User user, Team team) {
+        int userId = user.getId();
+        String teamCode = team.getCode();
+        List<MatchPrediction> forTeam = predictionService.findAllByUserId(userId).stream()
+                .filter(mp -> mp.match() != null && mp.prediction() != null)
+                .filter(mp -> teamCode.equals(code(mp.match().getHomeTeamId()))
+                        || teamCode.equals(code(mp.match().getAwayTeamId())))
+                .filter(mp -> mp.prediction().getHomeTeamScore() != null && mp.prediction().getAwayTeamScore() != null)
+                .toList();
+        List<Integer> ids = forTeam.stream().map(mp -> mp.match().getPublicId()).toList();
+        Map<Integer, int[]> aiTips = footyStatsStatsDao.findKickoffScoresByMatchIds(ids);
+        Map<Integer, int[]> others = predictionService.othersPointsByMatchIds(ids, userId);
+
+        List<ProfileTeamPredictionItem> items = new ArrayList<>();
+        int pointsSum = 0;
+        int pointsN = 0;
+        int aiSum = 0;
+        int aiN = 0;
+        int othersSum = 0;
+        int othersN = 0;
+        for (MatchPrediction mp : forTeam) {
+            Match match = mp.match();
+            Prediction pred = mp.prediction();
+            boolean finished = isFinished(match.getStatus());
+            boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
+                    userId, match.getWeekId(), match.getPublicId());
+            Integer rh = match.getHomeTeamScore();
+            Integer ra = match.getAwayTeamScore();
+            Integer ph = pred.getHomeTeamScore();
+            Integer pa = pred.getAwayTeamScore();
+            boolean scored = finished && classify(rh, ra, ph, pa) != Bucket.NO_BET;
+            Integer pts = null;
+            if (scored) {
+                ScoringMode mode = weekBonus ? ScoringMode.EPL_WEEK_BONUS : ScoringMode.EPL;
+                pts = pred.getPoints() != null ? pred.getPoints() : PredictionService.computePoints(mode, rh, ra, ph, pa);
+                pointsSum += pts;
+                pointsN++;
+            }
+            int[] ai = aiTips.get(match.getPublicId());
+            Integer aiPts = null;
+            if (ai != null && scored) {
+                aiPts = PredictionService.computePoints(ScoringMode.EPL, rh, ra, ai[0], ai[1]);
+                aiSum += aiPts;
+                aiN++;
+            }
+            int[] o = scored ? others.get(match.getPublicId()) : null;
+            Double othersAvg = null;
+            int othersCount = 0;
+            if (o != null && o[1] > 0) {
+                othersAvg = round1(o[0] / (double) o[1]);
+                othersCount = o[1];
+                othersSum += o[0];
+                othersN += o[1];
+            }
+            items.add(new ProfileTeamPredictionItem(
+                    match.getPublicId(),
+                    code(match.getHomeTeamId()),
+                    code(match.getAwayTeamId()),
+                    match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF_DAY) : null,
+                    finished,
+                    weekBonus,
+                    finished ? rh : null,
+                    finished ? ra : null,
+                    ph,
+                    pa,
+                    pts,
+                    ai != null ? ai[0] : null,
+                    ai != null ? ai[1] : null,
+                    aiPts,
+                    othersAvg,
+                    othersCount
+            ));
+        }
+        return new ProfileTeamPredictionsResponse(
+                teamCode,
+                team.getName() != null ? team.getName() : teamCode,
+                teamLogoCacheService.pathForTeam(team.getPublicId()),
+                pointsN,
+                pointsN == 0 ? null : round1(pointsSum / (double) pointsN),
+                aiN,
+                aiN == 0 ? null : round1(aiSum / (double) aiN),
+                othersN == 0 ? null : round1(othersSum / (double) othersN),
+                items
+        );
     }
 
     public ProfileStatsResponse build(User user) {

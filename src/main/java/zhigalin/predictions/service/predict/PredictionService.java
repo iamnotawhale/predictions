@@ -71,6 +71,10 @@ public class PredictionService {
         return predictionDao.findAllByWeekId(weekId);
     }
 
+    public java.util.Map<Integer, int[]> othersPointsByMatchIds(java.util.Collection<Integer> matchIds, int excludeUserId) {
+        return predictionDao.findOthersPointsByMatchIds(matchIds, excludeUserId);
+    }
+
     public List<MatchPrediction> findAllByUserId(int userId) {
         return predictionDao.findAllByUserId(userId);
     }

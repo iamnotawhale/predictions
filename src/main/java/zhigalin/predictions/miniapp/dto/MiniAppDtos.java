@@ -2,6 +2,7 @@ package zhigalin.predictions.miniapp.dto;
 
 import java.util.List;
 import zhigalin.predictions.recommender.RecommendationInsight;
+import zhigalin.predictions.recommender.model.TipTrackRecord;
 
 public final class MiniAppDtos {
 
@@ -214,7 +215,10 @@ public final class MiniAppDtos {
             List<String> explanationLines,
             String summary,
             ScoreDistributionDto distribution,
-            RecommendationInsight.Insight insight
+            RecommendationInsight.Insight insight,
+            Long computedAtMs,
+            Long frozenAtMs,
+            TipTrackRecord track
     ) {
     }
 
@@ -422,6 +426,39 @@ public final class MiniAppDtos {
     }
 
     public record ProfileBreakdownRow(String label, int count, String percent, String description) {
+    }
+
+    public record ProfileTeamPredictionItem(
+            int matchPublicId,
+            String homeCode,
+            String awayCode,
+            String kickoff,
+            boolean finished,
+            boolean weekBonus,
+            Integer homeScore,
+            Integer awayScore,
+            Integer predictHome,
+            Integer predictAway,
+            Integer points,
+            Integer aiHome,
+            Integer aiAway,
+            Integer aiPoints,
+            Double othersAvgPoints,
+            int othersCount
+    ) {
+    }
+
+    public record ProfileTeamPredictionsResponse(
+            String teamCode,
+            String teamName,
+            String logo,
+            int matches,
+            Double avgPoints,
+            int aiMatches,
+            Double aiAvgPoints,
+            Double othersAvgPoints,
+            List<ProfileTeamPredictionItem> items
+    ) {
     }
 
     public record ProfileTeamQualityRow(

@@ -17,9 +17,12 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
 import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
+import zhigalin.predictions.recommender.model.TipTrackRecord;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
+import zhigalin.predictions.service.predict.PredictionService;
+import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.util.DaoUtil;
 
 @Service
@@ -29,7 +32,10 @@ public class BettingRecommendationService {
 
     private final FootyStatsScraperService scraperService;
     private final SoccerStatsScraperService soccerStatsScraperService;
+    private static final long TRACK_RECORD_TTL_MS = 10 * 60 * 1000L;
+
     private final FootyStatsStatsDao statsDao;
+    private volatile CachedTrackRecord trackRecordCache;
     private final MatchService matchService;
     private final OddsService oddsService;
     private final HeadToHeadService headToHeadService;
@@ -151,6 +157,34 @@ public class BettingRecommendationService {
 
     public Optional<MatchRecommendationSnapshot> recommendationForMatch(int matchPublicId) {
         return statsDao.findRecommendation(matchPublicId);
+    }
+
+    public TipTrackRecord seasonTrackRecord() {
+        CachedTrackRecord cached = trackRecordCache;
+        long now = System.currentTimeMillis();
+        if (cached != null && now - cached.fetchedAtMs() < TRACK_RECORD_TTL_MS) {
+            return cached.value();
+        }
+        TipTrackRecord value = computeTrackRecord(statsDao.findFrozenTipResultsForCurrentSeason());
+        trackRecordCache = new CachedTrackRecord(value, now);
+        return value;
+    }
+
+    static TipTrackRecord computeTrackRecord(List<int[]> rows) {
+        int total = 0;
+        int exact = 0;
+        for (int[] r : rows) {
+            int points = PredictionService.computePoints(ScoringMode.EPL, r[2], r[3], r[0], r[1]);
+            total += points;
+            if (points == 4) {
+                exact++;
+            }
+        }
+        double avg = rows.isEmpty() ? 0.0 : (double) total / rows.size();
+        return new TipTrackRecord(rows.size(), avg, exact);
+    }
+
+    private record CachedTrackRecord(TipTrackRecord value, long fetchedAtMs) {
     }
 
     /** Freeze live recommendation into kickoff_* once (no-op if already frozen or missing). */

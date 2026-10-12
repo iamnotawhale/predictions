@@ -195,6 +195,9 @@
         chartData: null,
         chartActiveLogin: null,
         chartNodes: [],
+        chartRevealed: false,
+        chartRevealStart: null,
+        chartAnimId: null,
         todayLoaded: false,
         todayHasLive: false,
         todaySnapshotInitialized: false,
@@ -216,7 +219,7 @@
         apiCache: {},
         recommendationDetailsOpen: false,
         aiModalOpened: false,
-        aiMode: 'score',
+        aiMode: 'points',
         aiCell: null,
         currentRecommendation: null
     };
@@ -506,10 +509,38 @@
 
     function showToast(msg, type) {
         const el = $('#toast');
+        clearTimeout(state.toastHideTimer);
+        clearTimeout(state.toastRemoveTimer);
         el.textContent = msg;
         el.className = 'toast ' + (type || '');
-        el.classList.remove('hidden');
-        setTimeout(() => el.classList.add('hidden'), 2800);
+        void el.offsetWidth;
+        el.classList.add('visible');
+        state.toastHideTimer = setTimeout(() => {
+            el.classList.remove('visible');
+            state.toastRemoveTimer = setTimeout(() => el.classList.add('hidden'), MODAL_EXIT_MS);
+        }, 2800);
+    }
+
+    function hideModal(modal) {
+        if (!modal || modal.classList.contains('hidden')) return;
+        modal.classList.add('hidden', 'closing');
+        clearTimeout(modal.closeTimer);
+        modal.closeTimer = setTimeout(() => modal.classList.remove('closing'), MODAL_EXIT_MS);
+    }
+
+    function matchKey(m) {
+        return m.homeCode + '-' + m.awayCode + (m.bonusMatchId != null ? '-' + m.bonusMatchId : '');
+    }
+
+    function flashSavedScore() {
+        const key = state.pendingScoreFlash;
+        state.pendingScoreFlash = null;
+        if (!key) return;
+        const pill = document.querySelector('.screen.active .list-item[data-match-key="' + CSS.escape(key) + '"] .score-pill');
+        if (!pill) return;
+        pill.classList.remove('score-saved');
+        void pill.offsetWidth;
+        pill.classList.add('score-saved');
     }
 
     function renderMatchItem(m, onClick) {
@@ -526,6 +557,7 @@
             cls += ' needs-predict';
         }
         li.className = cls;
+        li.dataset.matchKey = matchKey(m);
         const metaBadges = [];
         if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус</span>');
         const cupBadge = m.cup ? competitionBadgeHtml(m, !!m.hasPrediction) : '';
@@ -594,6 +626,7 @@
             cls += ' needs-predict';
         }
         li.className = cls;
+        li.dataset.matchKey = matchKey(m);
         const metaBadges = [];
         if (m.weekBonus) metaBadges.push('<span class="badge badge-bonus">бонус</span>');
         if (!m.hasPrediction && m.canPredict && !m.cup) {
@@ -965,10 +998,22 @@
         pollTodayMatchesForUpdates().catch(() => {});
     }
 
+    const CHART_REVEAL_MS = 900;
+    const MODAL_EXIT_MS = 200;
+
+    function chartRevealAllowed() {
+        if (state.chartRevealed) return false;
+        return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
     function drawPointsChart(data) {
         const canvas = $('#points-chart');
         const ctx = canvas.getContext('2d');
         state.chartData = data;
+        if (state.chartAnimId) {
+            cancelAnimationFrame(state.chartAnimId);
+            state.chartAnimId = null;
+        }
         const dpr = window.devicePixelRatio || 1;
         const width = canvas.parentElement.clientWidth || 320;
         const height = 200;
@@ -1028,6 +1073,11 @@
         const yAt = (v) => pad.top + plotH - ((v - axisMin) / yRange) * plotH;
 
         const isMajor = (tick) => Math.abs(tick / majorStep - Math.round(tick / majorStep)) < 1e-6;
+        const hasActiveSeries = !!state.chartActiveLogin;
+
+        const paint = (progress) => {
+        ctx.clearRect(0, 0, width, height);
+        const reach = progress * (weekCount - 1);
         for (let tick = axisMin; tick <= axisMax + 1e-6; tick += minorStep) {
             const y = yAt(tick);
             const major = isMajor(tick);
@@ -1054,7 +1104,6 @@
             ctx.fillText(String(w), xAt(i), height - 8);
         });
 
-        const hasActiveSeries = !!state.chartActiveLogin;
         const nodes = [];
         data.series.forEach((s, si) => {
             const color = CHART_COLORS[si % CHART_COLORS.length];
@@ -1065,12 +1114,19 @@
             let started = false;
             ctx.beginPath();
             s.points.forEach((p, i) => {
-                if (p == null) {
+                if (p == null || i > Math.ceil(reach)) {
                     started = false;
                     return;
                 }
-                const x = xAt(i);
-                const y = yAt(p);
+                let x = xAt(i);
+                let y = yAt(p);
+                if (i > reach && i > 0 && s.points[i - 1] != null) {
+                    const f = reach - (i - 1);
+                    x = xAt(i - 1) + (x - xAt(i - 1)) * f;
+                    y = yAt(s.points[i - 1]) + (y - yAt(s.points[i - 1])) * f;
+                } else if (i > reach) {
+                    return;
+                }
                 if (!started) {
                     ctx.moveTo(x, y);
                     started = true;
@@ -1080,7 +1136,7 @@
             });
             ctx.stroke();
             s.points.forEach((p, i) => {
-                if (p == null) return;
+                if (p == null || i > reach + 1e-6) return;
                 const x = xAt(i);
                 const y = yAt(p);
                 ctx.beginPath();
@@ -1097,6 +1153,23 @@
             });
         });
         state.chartNodes = nodes;
+        };
+
+        if (chartRevealAllowed() && weekCount > 1) {
+            state.chartRevealStart = performance.now();
+        }
+        state.chartRevealed = true;
+        const revealStart = state.chartRevealStart;
+        if (revealStart != null && performance.now() - revealStart < CHART_REVEAL_MS) {
+            const step = (now) => {
+                const t = Math.min(1, (now - revealStart) / CHART_REVEAL_MS);
+                paint(t);
+                state.chartAnimId = t < 1 ? requestAnimationFrame(step) : null;
+            };
+            step(performance.now());
+        } else {
+            paint(1);
+        }
 
         const legend = $('#chart-legend');
         legend.innerHTML = '';
@@ -1258,7 +1331,7 @@
         });
     }
 
-    async function loadPredictMatches(weekId) {
+    async function loadPredictMatches(weekId, animate) {
         const matches = await api('/weeks/' + weekId + '/matches');
         preloadLogos(matches);
         $('#predict-week-title').textContent = weekId + ' тур';
@@ -1270,13 +1343,14 @@
             return;
         }
         ordered.forEach(m => list.appendChild(renderMatchItem(m, openScoreModal)));
+        if (animate) playEntrance(list);
     }
 
-    async function loadMyPredictions(weekId) {
-        await loadWeekReview(weekId);
+    async function loadMyPredictions(weekId, animate) {
+        await loadWeekReview(weekId, animate);
     }
 
-    async function loadWeekReview(weekId) {
+    async function loadWeekReview(weekId, animate) {
         const card = $('#my-review-card');
         const list = $('#my-review-list');
         const title = $('#my-review-title');
@@ -1310,6 +1384,7 @@
                     '<span class="pts">' + pts + '</span>';
                 list.appendChild(li);
             });
+            if (animate) playEntrance(list);
         } catch (_) {
             card.classList.add('hidden');
         }
@@ -1700,8 +1775,7 @@
     }
 
     function closePlayerModal() {
-        const modal = $('#player-modal');
-        if (modal) modal.classList.add('hidden');
+        hideModal($('#player-modal'));
     }
 
     function syncTodayMatchScores(match) {
@@ -2087,8 +2161,8 @@
 
     function closeScoreModal(clearSelection) {
         closeAiModal(false);
-        const modal = $('#score-modal');
-        if (modal) modal.classList.add('hidden');
+        hideModal($('#score-modal'));
+        flashSavedScore();
         if (clearSelection !== false) {
             state.selectedMatch = null;
             state.currentRecommendation = null;
@@ -2103,8 +2177,7 @@
         hideLivePitchStatsOverlay(false);
         resetLivePitchMarker();
         closePlayerModal();
-        const modal = $('#live-modal');
-        if (modal) modal.classList.add('hidden');
+        hideModal($('#live-modal'));
         if (clearSelection !== false) {
             state.selectedMatch = null;
         }
@@ -2118,6 +2191,7 @@
         return scoreHidden
             && !isLiveModalOpen()
             && !state.teamModalOpened
+            && !state.profileTeamModalOpened
             && !state.h2hModalOpened
             && !state.aiModalOpened
             && !state.predictWeekOpened
@@ -2200,7 +2274,6 @@
     function aiCellValue(mode, insight, h, a, p) {
         const t = insight && insight.breakdown && insight.breakdown[h] && insight.breakdown[h][a];
         if (mode === 'score' || !t) return p;
-        if (mode === 'chance') return 1 - t[3];
         const s = insight.scoring;
         return t[0] * s.exact + t[1] * s.diff + t[2] * s.outcome + t[3] * s.miss;
     }
@@ -2224,7 +2297,6 @@
             }
         }
         const lo = mode === 'points' ? Math.min(0, minV) : 0;
-        const modeScore = insight && insight.mostLikely;
         const sel = state.aiCell;
         let html = '<div class="ai-heatmap-corner" title="дома \\ в гостях"></div>';
         for (let a = 0; a < size; a++) html += '<div class="ai-heatmap-axis">' + a + '</div>';
@@ -2235,10 +2307,9 @@
                 const v = aiCellValue(mode, insight, h, a, p);
                 const heat = maxV > lo ? Math.round(((v - lo) / (maxV - lo)) * 70) : 0;
                 const isPick = h === rec.recommendedHome && a === rec.recommendedAway;
-                const isMode = modeScore && h === modeScore.home && a === modeScore.away;
                 const isSel = sel && sel.h === h && sel.a === a;
                 html += '<button type="button" class="ai-heatmap-cell'
-                    + (isPick ? ' is-pick' : '') + (isMode ? ' is-mode' : '') + (isSel ? ' is-selected' : '')
+                    + (isPick ? ' is-pick' : '') + (isSel ? ' is-selected' : '')
                     + '" data-h="' + h + '" data-a="' + a + '" style="--heat:' + heat + ';--i:' + (h + a) + '">'
                     + '<span class="ai-heat-score">' + h + ':' + a + '</span>'
                     + '<span class="ai-heat-pct">' + aiCellLabel(mode, v) + '</span>'
@@ -2292,6 +2363,42 @@
         legend.classList.remove('hidden');
     }
 
+    function matchesWord(n) {
+        const m10 = n % 10;
+        const m100 = n % 100;
+        if (m10 === 1 && m100 !== 11) return 'матч';
+        if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'матча';
+        return 'матчей';
+    }
+
+    function aiFreshnessLabel(rec) {
+        if (rec.frozenAtMs) return 'Зафиксирован при старте матча';
+        if (!rec.computedAtMs) return '';
+        const at = new Date(rec.computedAtMs);
+        const now = new Date();
+        const time = String(at.getHours()).padStart(2, '0') + ':' + String(at.getMinutes()).padStart(2, '0');
+        const dayDiff = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            - new Date(at.getFullYear(), at.getMonth(), at.getDate())) / 86400000);
+        const day = dayDiff === 0 ? 'сегодня'
+            : dayDiff === 1 ? 'вчера'
+            : String(at.getDate()).padStart(2, '0') + '.' + String(at.getMonth() + 1).padStart(2, '0');
+        return 'Пересчитан ' + day + ' в ' + time;
+    }
+
+    function aiTrackLabel(track) {
+        if (!track || !track.matches) return '';
+        return 'Советы за сезон: в среднем ' + signedPoints(track.avgPoints) + ' за матч · '
+            + track.matches + ' ' + matchesWord(track.matches) + ', точных ' + track.exact;
+    }
+
+    function renderAiMeta(rec) {
+        const el = $('#ai-modal-meta');
+        if (!el) return;
+        const lines = [aiFreshnessLabel(rec), aiTrackLabel(rec.track)].filter(Boolean);
+        el.innerHTML = lines.map((l) => '<div>' + escapeHtml(l) + '</div>').join('');
+        el.classList.toggle('hidden', !lines.length);
+    }
+
     function openAiModal() {
         const recommendation = state.currentRecommendation;
         const match = state.selectedMatch;
@@ -2314,6 +2421,7 @@
               + ' · в среднем ' + signedPoints(insight.expectedPoints) + ' за матч'
             : 'Шанс точного счёта ' + pctLabel(recommendation.scoreProbability);
         renderAiPointsBar(insight, recommendation);
+        renderAiMeta(recommendation);
 
         const reasonsSection = $('#ai-modal-reasons-section');
         const reasons = (insight && insight.reasons) || [];
@@ -2340,9 +2448,9 @@
                 + marketChipHtml('ТБ 1.5', dist.over15)
                 + marketChipHtml('ТБ 2.5', dist.over25)
                 + marketChipHtml('ТБ 3.5', dist.over35);
-            state.aiMode = 'score';
+            state.aiMode = 'points';
             state.aiCell = { h: recommendation.recommendedHome, a: recommendation.recommendedAway };
-            $$('#ai-heat-modes .ai-heat-mode').forEach((b) => b.classList.toggle('is-active', b.dataset.mode === 'score'));
+            $$('#ai-heat-modes .ai-heat-mode').forEach((b) => b.classList.toggle('is-active', b.dataset.mode === 'points'));
             renderAiHeatmap(dist.matrix, insight, recommendation, state.aiMode);
             renderAiCellDetail(dist.matrix, insight, state.aiCell.h, state.aiCell.a);
             const heatEl = $('#ai-heatmap');
@@ -2404,8 +2512,7 @@
     }
 
     function closeAiModal(manageBackButton) {
-        const modal = $('#ai-modal');
-        if (modal) modal.classList.add('hidden');
+        hideModal($('#ai-modal'));
         state.aiModalOpened = false;
         if (manageBackButton !== false && shouldHideBackButton()) {
             tg.BackButton.hide();
@@ -2759,8 +2866,91 @@
             .catch((e) => renderH2hList('#h2h-modal-content', [], e.message || 'Ошибка загрузки'));
     }
 
+    function signedAvg(v) {
+        if (v == null) return '—';
+        return (v > 0 ? '+' : '') + String(v);
+    }
+
+    function renderProfileTeamPredictions(data) {
+        $('#profile-team-name').textContent = data.teamName || data.teamCode;
+        setLogoSrc($('#profile-team-logo'), data.logo || '');
+        $('#profile-team-meta').textContent = data.matches
+            ? data.matches + ' ' + matchesWord(data.matches) + ' с вашим прогнозом'
+            : 'Завершённых матчей с вашим прогнозом пока нет';
+
+        const summary = $('#profile-team-summary');
+        const cells = [['Вы', data.avgPoints], ['ИИ', data.aiAvgPoints], ['Остальные', data.othersAvgPoints]];
+        summary.innerHTML = cells.map(([label, v]) =>
+            '<div class="team-stat-cell"><span class="team-stat-label">' + label + '</span>'
+            + '<span class="team-stat-value">' + escapeHtml(signedAvg(v)) + '</span></div>').join('');
+        $('#profile-team-summary-section').classList.toggle('hidden', !data.matches);
+
+        const list = $('#profile-team-matches');
+        list.innerHTML = '';
+        if (!data.items || !data.items.length) {
+            list.innerHTML = '<li class="empty-state">Прогнозов на матчи этой команды нет</li>';
+            return;
+        }
+        data.items.forEach((item) => {
+            const li = document.createElement('li');
+            li.className = 'list-item review-item';
+            li.style.cursor = 'default';
+            const parts = [];
+            parts.push(item.finished ? 'счёт ' + item.homeScore + ':' + item.awayScore : 'ещё не сыгран');
+            parts.push('ваш ' + item.predictHome + ':' + item.predictAway);
+            if (item.aiHome != null && item.aiAway != null) {
+                parts.push('ИИ ' + item.aiHome + ':' + item.aiAway
+                    + (item.aiPoints != null ? ' (' + signedAvg(item.aiPoints) + ')' : ''));
+            }
+            if (item.othersAvgPoints != null) {
+                parts.push('остальные ' + signedAvg(item.othersAvgPoints));
+            }
+            const title = escapeHtml(item.homeCode) + ' — ' + escapeHtml(item.awayCode)
+                + (item.kickoff ? ' <span class="profile-team-match-date">· ' + escapeHtml(item.kickoff) + '</span>' : '')
+                + (item.weekBonus ? ' <span class="badge badge-bonus">бонус</span>' : '');
+            li.innerHTML =
+                '<div class="list-item-main">' +
+                '<div class="list-item-title">' + title + '</div>' +
+                '<div class="list-item-sub">' + escapeHtml(parts.join(' · ')) + '</div>' +
+                '</div>' +
+                '<span class="pts">' + (item.points == null ? '—' : escapeHtml(signedAvg(item.points))) + '</span>';
+            list.appendChild(li);
+        });
+        playEntrance(list);
+    }
+
+    async function openProfileTeamModal(teamCode) {
+        if (!teamCode) return;
+        state.profileTeamModalOpened = true;
+        $('#profile-team-code').textContent = teamCode;
+        $('#profile-team-name').textContent = teamCode;
+        $('#profile-team-meta').textContent = 'Загрузка…';
+        setLogoSrc($('#profile-team-logo'), '');
+        $('#profile-team-summary-section').classList.add('hidden');
+        $('#profile-team-matches').innerHTML = '<li class="empty-state">Загрузка…</li>';
+        $('#profile-team-modal').classList.remove('hidden');
+        tg.BackButton.show();
+        try {
+            const data = await api('/profile/team/' + encodeURIComponent(teamCode));
+            if (!state.profileTeamModalOpened) return;
+            renderProfileTeamPredictions(data);
+        } catch (e) {
+            $('#profile-team-meta').textContent = '';
+            $('#profile-team-matches').innerHTML = '<li class="empty-state">Не удалось загрузить</li>';
+            showToast(e.message, 'error');
+        }
+    }
+
+    function closeProfileTeamModal() {
+        hideModal($('#profile-team-modal'));
+        state.profileTeamModalOpened = false;
+        if (shouldHideBackButton()) {
+            tg.BackButton.hide();
+        }
+    }
+
     function closeTeamModal() {
-        $('#team-modal').classList.add('hidden');
+        hideModal($('#team-modal'));
         state.teamModalOpened = false;
         if (shouldHideBackButton()) {
             tg.BackButton.hide();
@@ -2768,7 +2958,7 @@
     }
 
     function closeH2hModal() {
-        $('#h2h-modal').classList.add('hidden');
+        hideModal($('#h2h-modal'));
         state.h2hModalOpened = false;
         if (shouldHideBackButton()) {
             tg.BackButton.hide();
@@ -2805,6 +2995,7 @@
                 }
             }
             showToast(res.message || 'Прогноз сохранён', 'success');
+            state.pendingScoreFlash = matchKey(match);
             tg.HapticFeedback?.notificationOccurred('success');
             applyPredictionToScoreModal(match, homeScore, awayScore);
             await refreshAfterPredictionChange();
@@ -2812,6 +3003,7 @@
             const verified = await verifyPredictionSaved(match, homeScore, awayScore);
             if (verified) {
                 showToast('Прогноз сохранён (подтверждено на сервере)', 'success');
+                state.pendingScoreFlash = matchKey(match);
                 tg.HapticFeedback?.notificationOccurred('success');
                 applyPredictionToScoreModal(match, homeScore, awayScore);
                 await refreshAfterPredictionChange();
@@ -2936,6 +3128,7 @@
                 '</div>' +
                 '<div class="profile-team-pts">' + escapeHtml(avgLabel) + '</div>';
             li.title = row.hint || '';
+            li.addEventListener('click', () => openProfileTeamModal(row.teamCode));
             container.appendChild(li);
         });
     }
@@ -3050,6 +3243,7 @@
     async function loadProfileStats() {
         const data = await api('/profile/stats');
         renderProfileStats(data);
+        playEntrance($('#profile-home'));
         state.profileStatsLoaded = true;
     }
 
@@ -3229,7 +3423,7 @@
         block.classList.remove('hidden');
         state.predictWeekOpened = true;
         block.dataset.weekId = weekId;
-        loadPredictMatches(weekId);
+        loadPredictMatches(weekId, true);
         tg.BackButton.show();
     }
 
@@ -3243,7 +3437,7 @@
         state.myPredictionsNavOpened = true;
         block.dataset.weekId = weekId;
         delete block.dataset.competition;
-        loadMyPredictions(weekId);
+        loadMyPredictions(weekId, true);
         tg.BackButton.show();
     }
 
@@ -3350,6 +3544,7 @@
         $('#live-modal-close').addEventListener('click', closeLiveMatchModal);
         $('#modal-delete').addEventListener('click', deletePrediction);
         $('#team-modal-close').addEventListener('click', closeTeamModal);
+        $('#profile-team-modal-close').addEventListener('click', closeProfileTeamModal);
         $('#h2h-modal-close').addEventListener('click', closeH2hModal);
         wireMatchHeaderTeamTaps();
         const playerModalClose = $('#player-modal-close');
@@ -3394,6 +3589,10 @@
             }
             if (state.teamModalOpened) {
                 closeTeamModal();
+                return;
+            }
+            if (state.profileTeamModalOpened) {
+                closeProfileTeamModal();
                 return;
             }
             if (isLiveModalOpen()) {

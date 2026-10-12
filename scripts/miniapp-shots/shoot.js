@@ -56,6 +56,15 @@ const API = {
   '/leaderboard': { weekId: null, title: 'Общий зачёт', liveActive: true, entries: users.map((u, i) => ({ login: u, points: 84 - i * 9, provisionalPoints: 84 - i * 9 + (i === 1 ? 3 : 0), liveDelta: i === 1 ? 3 : 0 })) },
   '/standings': TEAMS.map((t, i) => ({ place: i + 1, code: t[0], name: t[1], logo: logo(t[0]), played: 7, won: 6 - (i >> 1), drawn: 1, lost: i >> 1, goalsFor: 18 - i, goalsAgainst: 5 + i, points: 19 - i * 1, placeDelta: i === 3 ? 1 : i === 4 ? -1 : 0, liveScore: i === 0 ? '1:0' : null, liveResult: i === 0 ? 'W' : null })),
   '/chart': { weeks: [1, 2, 3, 4, 5, 6, 7], series: users.map((u, i) => ({ login: u, label: u, points: [8, 17, 30, 41, 50, 66, 84].map((p) => Math.round(p * (1 - i * 0.1))) })) },
+  '/profile/team/MCI': {
+    teamCode: 'MCI', teamName: 'Manchester City', logo: logo('MCI'), matches: 3, avgPoints: 2.3, aiMatches: 3, aiAvgPoints: 1.3, othersAvgPoints: 0.8,
+    items: [
+      { matchPublicId: 9001, homeCode: 'MCI', awayCode: 'ARS', kickoff: '18.10', finished: false, weekBonus: false, homeScore: null, awayScore: null, predictHome: 2, predictAway: 1, points: null, aiHome: 1, aiAway: 1, aiPoints: null, othersAvgPoints: null, othersCount: 0 },
+      { matchPublicId: 9002, homeCode: 'LIV', awayCode: 'MCI', kickoff: '11.10', finished: true, weekBonus: true, homeScore: 0, awayScore: 3, predictHome: 1, predictAway: 2, points: 3, aiHome: 1, aiAway: 2, aiPoints: 1, othersAvgPoints: 0.5, othersCount: 4 },
+      { matchPublicId: 9003, homeCode: 'MCI', awayCode: 'TOT', kickoff: '04.10', finished: true, weekBonus: false, homeScore: 2, awayScore: 0, predictHome: 2, predictAway: 0, points: 4, aiHome: 2, aiAway: 1, aiPoints: 1, othersAvgPoints: 1.8, othersCount: 4 },
+      { matchPublicId: 9004, homeCode: 'BHA', awayCode: 'MCI', kickoff: '27.09', finished: true, weekBonus: false, homeScore: 1, awayScore: 1, predictHome: 0, predictAway: 2, points: -1, aiHome: 1, aiAway: 2, aiPoints: -1, othersAvgPoints: 0.3, othersCount: 3 },
+    ],
+  },
   '/weeks/7/matches': matches.slice(0, 5),
   '/weeks/7/review': { weekId: 7, totalPoints: 9, items: matches.slice(0, 2).map((m) => ({ publicId: m.publicId, homeCode: m.homeCode, awayCode: m.awayCode, status: m.status, homeScore: m.homeScore, awayScore: m.awayScore, predictHome: m.predictHome, predictAway: m.predictAway, points: m.points, hasPrediction: true })) },
 };
@@ -84,13 +93,13 @@ const REC = {
   recommendedHome: 2, recommendedAway: 1, expectedHomeGoals: 1.8, expectedAwayGoals: 1.1, scoreProbability: MATRIX[2][1],
   explanationRows: [{ metric: 'Ожидаемые голы', home: '1.8', away: '1.1' }, { metric: 'Шанс победы', home: '52%', away: '24%' }, { metric: 'Атака', home: 'сильная', away: 'средняя' }, { metric: 'Оборона', home: 'средняя', away: 'дырявая' }, { metric: 'Сухие (форма)', home: '20%', away: '0%' }],
   explanationNotes: ['Основа прогноза — коэффициенты букмекеров'], explanationLines: [], summary: '',
+  computedAtMs: Date.now() - 42 * 60 * 1000, frozenAtMs: null, track: { matches: 38, avgPoints: 0.42, exact: 4 },
   distribution: { matrix: MATRIX, homeWin: 0.52, draw: 0.24, awayWin: 0.24, btts: 0.55, over05: 0.95, over15: 0.78, over25: 0.55, over35: 0.3, topScores: [] },
   insight: {
     scoring: { exact: 4, diff: 2, outcome: 1, miss: -1 }, breakdown: BREAKDOWN, expectedPoints: EV(BREAKDOWN[2][1]), pointsChance: 1 - BREAKDOWN[2][1][3],
     mostLikely: { home: 1, away: 1, probability: MATRIX[1][1], expectedPoints: EV(BREAKDOWN[1][1]) },
     reasons: ['Букмекеры: победа хозяев 52%, ничья 24%, победа гостей 24%.', 'Ждём около 1.8 : 1.1 гола, тотал больше 2.5 — 55%.',
-      `Самый вероятный счёт 1:1 (${Math.round(MATRIX[1][1] * 100)}%), но 2:1 выгоднее: в среднем ${EV(BREAKDOWN[2][1]).toFixed(2)} очка против ${EV(BREAKDOWN[1][1]).toFixed(2)} — чаще попадает хотя бы в исход или разницу голов.`,
-      `Очки получим с шансом ${Math.round((1 - BREAKDOWN[2][1][3]) * 100)}%, точный счёт — ${Math.round(BREAKDOWN[2][1][0] * 100)}%.`],
+      `Самый вероятный счёт 1:1 (${Math.round(MATRIX[1][1] * 100)}%), но 2:1 выгоднее: в среднем ${EV(BREAKDOWN[2][1]).toFixed(2)} очка против ${EV(BREAKDOWN[1][1]).toFixed(2)} — чаще попадает хотя бы в исход или разницу голов.`],
   },
 };
 const INSIGHTS = {
@@ -167,6 +176,9 @@ function svgLogo(code) {
     await page.waitForTimeout(1200);
     await shot(name);
   }
+  await page.locator('#profile-teams-list .profile-team-row').first().click(); await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(OUT, `4b-profile-team-${THEME}.png`) });
+  await page.click('#profile-team-modal-close'); await page.waitForTimeout(400);
   // --- modals & sub-screens ---
   const close = async (sel) => { await page.click(sel).catch(() => {}); await page.waitForTimeout(300); };
   await page.click('.nav-btn[data-screen="today"]'); await page.waitForTimeout(800);
@@ -179,7 +191,7 @@ function svgLogo(code) {
   await page.locator('#modal-recommendation-open').click({ force: true }).catch(() => {}); await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(OUT, `5c-ai-modal-${THEME}.png`) });
   await page.locator('#ai-modal-heatmap-section').scrollIntoViewIfNeeded().catch(() => {});
-  await page.locator('.ai-heat-mode[data-mode="chance"]').click().catch(() => {});
+  await page.locator('.ai-heat-mode[data-mode="score"]').click().catch(() => {});
   await page.locator('.ai-heatmap-cell[data-h="1"][data-a="1"]').click().catch(() => {}); await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(OUT, `5d-ai-matrix-${THEME}.png`) });
   await close('#ai-modal-close');

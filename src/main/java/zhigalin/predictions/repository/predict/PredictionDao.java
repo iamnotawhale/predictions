@@ -322,6 +322,30 @@ public class PredictionDao {
         }
     }
 
+    public java.util.Map<Integer, int[]> findOthersPointsByMatchIds(java.util.Collection<Integer> matchIds, int excludeUserId) {
+        java.util.Map<Integer, int[]> result = new java.util.HashMap<>();
+        if (matchIds == null || matchIds.isEmpty()) {
+            return result;
+        }
+        String sql = """
+                SELECT match_id, COUNT(*) AS n, SUM(points) AS s
+                FROM predict
+                WHERE match_id IN (:ids)
+                  AND user_id <> :userId
+                  AND points IS NOT NULL
+                  AND home_team_score IS NOT NULL
+                  AND away_team_score IS NOT NULL
+                GROUP BY match_id
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("ids", matchIds);
+        params.addValue("userId", excludeUserId);
+        namedParameterJdbcTemplate.query(sql, params, rs -> {
+            result.put(rs.getInt("match_id"), new int[]{rs.getInt("s"), rs.getInt("n")});
+        });
+        return result;
+    }
+
     public List<MatchPrediction> findAllByUserId(int userId) {
         try {
             String sql = """

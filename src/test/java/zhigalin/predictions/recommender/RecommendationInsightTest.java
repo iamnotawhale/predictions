@@ -1,6 +1,7 @@
 package zhigalin.predictions.recommender;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,6 @@ class RecommendationInsightTest {
         String all = String.join("\n", ins.reasons());
         assertTrue(all.contains("Коэффициентов пока нет"));
         assertTrue(all.contains("Самый вероятный счёт"));
-        assertTrue(all.contains("Очки получим с шансом"));
+        assertFalse(all.contains("Очки получим с шансом"));
     }
 }
