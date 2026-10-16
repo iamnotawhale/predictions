@@ -158,6 +158,7 @@
 - RPO ≈ до 2 часов (интервал таймера). Ручной прогон: `./deploy/backup-to-vps.sh`.
 
 ### Оркестратор (на VPS, не на primary)
+- **Отключить failover полностью** (только Odyssey): на VPS `sudo deploy/disable-vps-failover.sh` — stop+disable `predictions-orchestrator.timer`, stop `predicts`/`caddy`, `state=odyssey`, `AUTO_FAILOVER=false`, `AUTO_FAILBACK=false`. Бэкап primary→VPS можно оставить (jar/дамп для ручного восстановления).
 - Скрипт: `deploy/orchestrator.sh`.
 - Unit/timer: `deploy/predictions-orchestrator.service` + `deploy/predictions-orchestrator.timer` (каждые **10 минут**).
 - Конфиг: `deploy/orchestrator.env` (gitignore; пример `orchestrator.env.example`).
@@ -217,6 +218,7 @@
 | `predictions-backup.service` / `.timer` | Таймер бэкапа на primary (2ч) |
 | `orchestrator.sh` | Health + авто failover/failback + Telegram (на VPS) |
 | `predictions-orchestrator.service` / `.timer` | Таймер оркестратора на VPS (10 мин) |
+| `disable-vps-failover.sh` | Выключить авто-failover на VPS (только Odyssey) |
 | `failover-to-vps.sh` | Аварийный старт прода на VPS |
 | `failback-to-odyssey.sh` | Возврат прода на primary |
 | `backup.env.example` / `orchestrator.env.example` | Шаблоны конфигов (реальные `*.env` в gitignore) |
