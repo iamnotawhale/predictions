@@ -8,8 +8,6 @@ on:
       - 'pom.xml'
       - 'application.yml'
       - 'application-prod.yml'
-      - 'deploy/predicts.service'
-      - 'deploy/upload-jar.sh'
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [master]
@@ -52,33 +50,15 @@ jobs:
       - name: Build jar
         run: mvn -B -DskipTests package
 
-      - name: Upload jar
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: actions/upload-artifact@v4
-        with:
-          name: predictions-jar
-          path: target/predictions-1.0.0.jar
-          if-no-files-found: error
-          retention-days: 7
-
   deploy:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 75
     concurrency:
       group: deploy-prod
       cancel-in-progress: false
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download jar
-        uses: actions/download-artifact@v4
-        with:
-          name: predictions-jar
-          path: target
-
       - name: Prepare SSH
         env:
           SSH_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
@@ -104,47 +84,27 @@ jobs:
             IdentityFile ~/.ssh/prod_key
             IdentitiesOnly yes
             StrictHostKeyChecking accept-new
+            ServerAliveInterval 30
+            ServerAliveCountMax 6
           EOF
           chmod 600 ~/.ssh/config
 
-      - name: Deploy jar with rollback
+      - name: Request build on odyssey and wait
         env:
-          PROD_APP_DIR: ${{ secrets.PROD_APP_DIR }}
-          PROD_USER: ${{ secrets.PROD_USER }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          APP_DIR="${PROD_APP_DIR:?}"
-          DEPLOY_USER="${PROD_USER:?}"
-          JAR=target/predictions-1.0.0.jar
-          test -s "$JAR"
-          sed -e "s|REPLACE_USER|${DEPLOY_USER}|g" \
-              -e "s|/path/to/predictions|${APP_DIR}|g" \
-              deploy/predicts.service > /tmp/predicts.service
-
-          healthy() {
-            ssh prod 'for i in $(seq 1 30); do
-              if systemctl is-active --quiet predicts && curl -sf -o /dev/null http://127.0.0.1:8080/miniapp/; then
-                echo "healthy after ${i} checks"; exit 0
-              fi
-              sleep 3
-            done
-            exit 1'
-          }
-
-          ssh prod "sudo systemctl stop predicts 2>/dev/null || true; mkdir -p '${APP_DIR}/target' '${APP_DIR}/deploy'"
-          ssh prod "if test -f '${APP_DIR}/target/predictions-1.0.0.jar'; then cp -a '${APP_DIR}/target/predictions-1.0.0.jar' '${APP_DIR}/target/predictions-1.0.0.jar.bak'; fi"
-          scp "$JAR" "prod:${APP_DIR}/target/predictions-1.0.0.jar.new"
-          scp /tmp/predicts.service "prod:${APP_DIR}/deploy/predicts.service"
-          ssh prod "mv -f '${APP_DIR}/target/predictions-1.0.0.jar.new' '${APP_DIR}/target/predictions-1.0.0.jar' && unzip -tq '${APP_DIR}/target/predictions-1.0.0.jar' >/dev/null"
-          ssh prod "sudo install -m 644 '${APP_DIR}/deploy/predicts.service' /etc/systemd/system/predicts.service && sudo systemctl daemon-reload && sudo systemctl reset-failed predicts 2>/dev/null || true; sudo systemctl start predicts || true"
-
-          if healthy; then
-            echo "deploy ok"
-            exit 0
-          fi
-
-          echo "health check failed, rolling back"
-          ssh prod "sudo systemctl stop predicts 2>/dev/null || true; if test -f '${APP_DIR}/target/predictions-1.0.0.jar.bak'; then cp -a '${APP_DIR}/target/predictions-1.0.0.jar.bak' '${APP_DIR}/target/predictions-1.0.0.jar'; fi; sudo systemctl start predicts || true" || true
-          ssh prod 'journalctl -u predicts -n 60 --no-pager' || true
-          healthy && echo "rollback healthy" || echo "rollback NOT healthy: prod is down"
-          exit 1
+          ssh prod "mkdir -p ~/.local/state/predicts-build && rm -f ~/.local/state/predicts-build/failed && echo '$SHA' > ~/.local/state/predicts-build/requested && sudo -n systemctl start --no-block predicts-deploy.service"
+          deadline=$(( $(date +%s) + 3600 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            state=$(ssh prod 'cd ~/.local/state/predicts-build && printf "installed=%s failed=%s status=%s unit=%s" "$(cat installed 2>/dev/null)" "$(cat failed 2>/dev/null)" "$(cat status 2>/dev/null)" "$(systemctl is-active predicts-deploy.service)"')
+            echo "$state"
+            case "$state" in
+              *"installed=$SHA"*) echo "deployed $SHA"; exit 0 ;;
+              *"failed=$SHA"*) echo "deploy failed, see odyssey log"; exit 1 ;;
+              *"status=waiting"*) echo "отложено до конца матча: odyssey установит коммит после игр"; exit 0 ;;
+            esac
+            if [[ "$state" == *"unit=failed"* ]]; then echo "unit failed"; exit 1; fi
+            sleep 30
+          done
+          echo "timed out waiting for odyssey"; exit 1

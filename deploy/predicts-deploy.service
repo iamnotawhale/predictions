@@ -1,0 +1,11 @@
+[Unit]
+Description=Build and install the requested predictions commit on this host
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=REPLACE_USER
+WorkingDirectory=/home/REPLACE_USER
+ExecStart=/home/REPLACE_USER/predictions/deploy/server-deploy.sh
+TimeoutStartSec=infinity
