@@ -193,17 +193,20 @@
   - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, JDBC через SSH-туннель (см. `scripts/ssh-tunnel-prod-db.sh`) и автоподхватом `optional:file:./deploy/local-https.properties`.
 - Локально только бот: `./scripts/run-bot-only.sh`
 - Ручная сборка: `mvn package -DskipTests`
-- Деплой: GitHub Actions (`.github/workflows/ci.yml`). Job `build` запускает тесты Java и Mini App JS, собирает jar и грузит artifact `predictions-jar`. Job `deploy` (только `push` в `master`, если `build` зелёный) ставит jar на odyssey по SSH и проверяет `systemctl is-active` и `http://127.0.0.1:8080/miniapp/` (30×3 с). При провале возвращает `predictions-1.0.0.jar.bak`, перезапускает прод и снова проверяет здоровье; если и откат нездоров, job красный и прод лежит.
-  - Секреты (Settings → Secrets → Actions): `PROD_SSH_PRIVATE_KEY`, `PROD_HOST`, `PROD_SSH_PORT`, `PROD_USER`, `PROD_APP_DIR`. Заполнить: `./deploy/setup-github-actions-secrets.sh` (нужен `gh auth login`). Ключ CI локально (не в git): `deploy/ci/`.
-  - Почему не pull с odyssey: artifact GitHub отдаёт около 50 КБ/с, jar 240 МБ (из них 198 МБ — `driver-bundle` Playwright). Установка заняла бы часы. SSH-push из CI занимает около минуты.
-  - Ручной прогон: Actions → CI → Run workflow (только `workflow_dispatch` без deploy-job) или `gh run rerun <id>` для повтора деплоя.
-  - Аварийный деплой с ноутбука по LAN: `./deploy/upload-jar.sh` (нужны `sudo` для `systemctl` и `install`).
+- Деплой (сборка на odyssey): push в `master` → job `build` в `ci.yml` (тесты Java и Mini App JS) → job `deploy` по SSH пишет sha коммита в `~/.local/state/predicts-build/requested` и запускает `predicts-deploy.service` (`deploy/server-deploy.sh`), затем опрашивает статус (до часа).
+  - На odyssey скрипт работает из стабильной копии `~/predictions/deploy/server-deploy.sh` (ставится вручную из git: `git show <sha>:deploy/server-deploy.sh`). Клон для сборки: `~/predictions-src` (git, без токена, публичный репозиторий). JDK для сборки: `~/jdk/jdk-21.0.12.1+1`. Maven-кэш `~/.m2` переносится с ноутбука по LAN (`rsync`), потому что Maven Central с odyssey отдаёт около 50 КБ/с.
+  - Скрипт: блокировка, ожидание, пока не идут матчи в `eng.1` и кубках (`eng.fa`, `eng.league_cup`, `uefa.champions`, `uefa.europa`, `uefa.europa.conf`), проверка, что sha есть в `origin/master`, `checkout`, `mvnw package` (nice/ionice), `unzip -tq`, охрана по матчам повторно перед остановкой, замена jar с `.bak`, проверка `/miniapp/` и строки `Started PredictionsApplication` после момента старта. При провале — откат на `.bak`, маркер `failed`, алерт в Telegram.
+  - Статусы в `~/.local/state/predicts-build/status`: idle, waiting, building, installing, failed. Маркеры `installed`, `failed`, `requested`.
+  - Health check не доказывает рендер карточек: `/miniapp/` 200 и строка запуска не проверяют драйвер Playwright.
+  - `predicts.service` ставится из шаблона только вручную; `deploy/predicts.service` и `deploy/upload-jar.sh` не входят в `paths:` CI.
+  - Ручной прогон: `gh run rerun <id>` или `ssh odyssey 'echo <sha> > ~/.local/state/predicts-build/requested && sudo systemctl start --no-block predicts-deploy.service'`.
 ### Скрипты (`deploy/`)
 | Скрипт / unit | Назначение |
 |---------------|------------|
 | `upload-jar.sh` | Аварийный деплой с ноутбука по LAN: локальная сборка + scp jar + restart `predicts` |
 | `setup-github-actions-secrets.sh` | Запись GitHub Actions secrets из `deploy.env` + CI-ключа |
-| `predicts.service` | Шаблон systemd unit приложения |
+| `predicts.service` | Шаблон systemd unit приложения (ставится вручную, не CI) |
+| `server-deploy.sh` + `predicts-deploy.service` | Сборка коммита на odyssey по запросу из CI, охрана по матчам, откат |
 | `Caddyfile` / `caddy.service` | HTTPS reverse-proxy к приложению |
 | `backup-to-vps.sh` | Дамп БД + jar/env → VPS standby |
 | `predictions-backup.service` / `.timer` | Таймер бэкапа на primary (2ч) |
