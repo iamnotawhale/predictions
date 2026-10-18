@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -355,13 +356,14 @@ public class HtmlImageRenderer {
 
     private String renderHtml(String html, String accentForLog) {
         boolean acquired = false;
+        Path dir = null;
         try {
             acquired = renderGate.tryAcquire(RENDER_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             if (!acquired) {
                 log.warn("HTML card render timed out waiting for gate ({})", accentForLog);
                 return null;
             }
-            Path dir = Files.createTempDirectory("notif-card-");
+            dir = Files.createTempDirectory("notif-card-");
             Path htmlFile = dir.resolve("card.html");
             Files.writeString(htmlFile, html, StandardCharsets.UTF_8);
             Path png = Files.createTempFile("notif-card-", ".png");
@@ -387,9 +389,20 @@ public class HtmlImageRenderer {
             log.error("HTML card render failed: {}", e.getMessage());
             return null;
         } finally {
+            deleteQuietly(dir);
             if (acquired) {
                 renderGate.release();
             }
+        }
+    }
+
+    private static void deleteQuietly(Path dir) {
+        if (dir == null) {
+            return;
+        }
+        try (Stream<Path> walk = Files.walk(dir)) {
+            walk.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+        } catch (Exception ignored) {
         }
     }
 

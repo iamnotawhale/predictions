@@ -159,13 +159,10 @@ public class PredictionDao {
     }
 
     public List<Prediction> findAllByBonusMatchId(int bonusMatchId) {
-        try {
-            String sql = "SELECT * FROM predict WHERE bonus_match_id = :id";
-            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new MapSqlParameterSource("id", bonusMatchId), new PredictionMapper()));
-        } catch (Exception e) {
-            return List.of();
-        }
+        String sql = "SELECT * FROM predict WHERE bonus_match_id = :id";
+        List<Prediction> rows = DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                sql, new MapSqlParameterSource("id", bonusMatchId), new PredictionMapper()));
+        return rows == null ? List.of() : rows;
     }
 
     public List<Prediction> findAllByBonusMatchIdsAndTelegramId(List<Integer> ids, String telegramId) {
