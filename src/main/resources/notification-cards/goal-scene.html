@@ -38,7 +38,7 @@ html,body{width:480px;height:480px;overflow:hidden;background:#07090d;color:#f4f
     <img class="symbol" id="symbol" alt="">
     <div class="content">
       <img class="crest" id="crestH" alt="">
-      <div class="score">
+      <div class="score" id="score">
         <div class="digit" id="dH"><div id="rH"></div></div>
         <span class="colon">:</span>
         <div class="digit" id="dA"><div id="rA"></div></div>
@@ -95,12 +95,25 @@ const LOGO_MOTION = {
   "drift-in-out": (p) => ({ o: 0.32 * Math.sin(Math.PI * p), t: `translateX(${-220 + 440 * p}px)` }),
 };
 
+const HEX = /^#[0-9a-f]{6}$/i;
+const hexLum = h => { const n = parseInt(h.slice(1), 16); return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
+function kitPalette(kit) {
+  if (!kit || !HEX.test(kit.color || '')) return null;
+  const fill = kit.color;
+  if (HEX.test(kit.alternateColor || '') && Math.abs(hexLum(fill) - hexLum(kit.alternateColor)) >= 40) {
+    return { p: fill, s: kit.alternateColor, light: isLight(fill) };
+  }
+  return { p: fill, s: isLight(fill) ? '#1a1a1a' : '#ffffff', light: isLight(fill) };
+}
+
 let C = null;
 
 function setup(c) {
   C = c;
   const scoringHome = c.next[0] !== c.prev[0];
-  const scorer = teamOf(scoringHome ? c.home : c.away);
+  const kit = kitPalette(scoringHome ? c.homeKit : c.awayKit);
+  const scorer = kit ? { ...teamOf(scoringHome ? c.home : c.away), p: kit.p, s: kit.s } : teamOf(scoringHome ? c.home : c.away);
+  C.darkDigits = !!(kit && kit.light && !c.disallowed);
   const tint = c.disallowed ? "#ff5a6e" : scorer.p;
   C.scorer = scorer;
   C.scoringHome = scoringHome;
@@ -186,6 +199,7 @@ window.seek = function (t) {
   hl.style.background = `linear-gradient(90deg, ${scorer.p}, ${scorer.p}99)`;
   hl.style.opacity = c.disallowed ? (0.55 * (1 - dim)).toFixed(3) : "0.85";
 
+  $("score").style.color = C.darkDigits && reveal >= 0.5 && hl.style.opacity >= 0.5 ? "#1a1a1a" : "#fff";
   const odo = span(t, HIT + 0.067, 0.867);
   const shownH = c.prev[0] + (c.next[0] - c.prev[0]) * odo;
   const shownA = c.prev[1] + (c.next[1] - c.prev[1]) * odo;
