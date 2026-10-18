@@ -64,6 +64,8 @@
         matchStatusBadge,
         niceChartStep,
         normalizeKitColor,
+        jerseyTextColor,
+        jerseySvg,
         normalizeOutcome,
         normalizeStatus,
         parseKickoffLabel,
@@ -1646,16 +1648,17 @@
         }
         pitch.classList.remove('hidden');
         const kitColor = normalizeKitColor(formation.kitColor);
+        const kitAlternateColor = normalizeKitColor(formation.kitAlternateColor);
         rows.forEach((row) => {
             const rowEl = document.createElement('div');
             rowEl.className = 'formation-row';
-            row.forEach((slot) => rowEl.appendChild(createFormationPlayerButton(slot, kitColor)));
+            row.forEach((slot) => rowEl.appendChild(createFormationPlayerButton(slot, kitColor, kitAlternateColor)));
             pitch.appendChild(rowEl);
         });
         setFormationLineupVisible(true, renderFormationBench(formation));
     }
 
-    function createFormationPlayerButton(slot, kitColor) {
+    function createFormationPlayerButton(slot, kitColor, kitAlternateColor) {
         const player = slot.player;
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -1663,17 +1666,7 @@
             (slot.subbedOutOnly ? ' subbed-out' : '') +
             (slot.isSubstitution ? ' is-substitute-in' : '');
         const isGk = slot.formationPlace === 1 || /^G/i.test(player.position || '');
-        const hasImage = !!player.jerseyImage;
-        const jerseyStyle = [];
-        if (hasImage) {
-            jerseyStyle.push('background-image:url(\'' + player.jerseyImage.replace(/'/g, '%27') + '\')');
-        } else if (kitColor) {
-            jerseyStyle.push('background-color:' + kitColor);
-        } else if (isGk) {
-            jerseyStyle.push('background-color:#4a5560');
-        } else {
-            jerseyStyle.push('background-color:#3a4a58');
-        }
+        const shirt = jerseySvg({ body: kitColor, trim: kitAlternateColor, number: formationJerseyNumber(player), isGk: isGk });
         const badges = [];
         if ((player.goals || 0) > 0) {
             badges.push('<span class="formation-badge">⚽' + player.goals + '</span>');
@@ -1693,19 +1686,16 @@
         btn.innerHTML =
             (badges.length ? '<div class="formation-badges">' + badges.join('') + '</div>' : '') +
             subIcon +
-            '<span class="formation-jersey' + (isGk ? ' is-gk' : '') + (hasImage ? ' has-image' : '') + '"' +
-            (jerseyStyle.length ? ' style="' + escapeHtml(jerseyStyle.join(';')) + '"' : '') + '>' +
-            (hasImage ? '' : escapeHtml(formationJerseyNumber(player))) +
-            '</span>' +
+            '<span class="formation-jersey formation-jersey-shirt' + (isGk ? ' is-gk' : '') + '">' + shirt + '</span>' +
             '<span class="formation-player-name">' + escapeHtml(formationPlayerLabel(player) || '?') + '</span>';
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            openPlayerModal(player, kitColor);
+            openPlayerModal(player, kitColor, kitAlternateColor);
         });
         return btn;
     }
 
-    function openPlayerModal(player, kitColor) {
+    function openPlayerModal(player, kitColor, kitAlternateColor) {
         const modal = $('#player-modal');
         if (!modal || !player) return;
         $('#player-modal-title').textContent = player.name || player.shortName || 'Игрок';
@@ -1714,14 +1704,13 @@
             (player.number ? ' · ' + player.number : '');
         const jersey = $('#player-modal-jersey');
         if (jersey) {
-            const hasImage = !!player.jerseyImage;
-            jersey.textContent = hasImage ? '' : (player.number || '');
-            jersey.style.backgroundImage = hasImage
-                ? 'url(\'' + player.jerseyImage.replace(/'/g, '%27') + '\')'
-                : '';
-            jersey.style.backgroundColor = hasImage ? '' : (kitColor || '');
-            jersey.classList.toggle('has-image', hasImage);
-            jersey.classList.toggle('is-gk', /^G/i.test(player.position || '') || player.formationPlace === 1);
+            const isGk = /^G/i.test(player.position || '') || player.formationPlace === 1;
+            jersey.innerHTML = jerseySvg({ body: kitColor, trim: kitAlternateColor, number: player.number || '', isGk: isGk });
+            jersey.style.backgroundImage = '';
+            jersey.style.backgroundColor = '';
+            jersey.style.color = '';
+            jersey.classList.remove('has-image');
+            jersey.classList.toggle('is-gk', isGk);
         }
         const badges = $('#player-modal-badges');
         if (badges) {

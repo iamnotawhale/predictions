@@ -48,6 +48,10 @@ final class EspnSummaryParser {
             if (!kitColor.isBlank() && !kitColor.startsWith("#")) {
                 kitColor = "#" + kitColor;
             }
+            String kitAlternateColor = rosterNode.path("uniform").path("alternateColor").asText("").trim();
+            if (!kitAlternateColor.isBlank() && !kitAlternateColor.startsWith("#")) {
+                kitAlternateColor = "#" + kitAlternateColor;
+            }
             List<FormationPlayerItem> starters = new ArrayList<>();
             List<FormationPlayerItem> bench = new ArrayList<>();
             JsonNode roster = rosterNode.path("roster");
@@ -68,7 +72,7 @@ final class EspnSummaryParser {
             if (starters.isEmpty() && formation.isBlank()) {
                 return null;
             }
-            return new TeamFormationItem(side, teamCode, formation, kitColor, starters, bench);
+            return new TeamFormationItem(side, teamCode, formation, kitColor, kitAlternateColor, starters, bench);
         }
         return null;
     }

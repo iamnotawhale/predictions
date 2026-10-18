@@ -2247,6 +2247,32 @@ html[data-switching] *::after {
     gap: 3px;
 }
 
+.formation-jersey-shirt,
+.formation-jersey-shirt.is-gk {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    width: 42px;
+    height: 39px;
+    padding: 0;
+    display: block;
+}
+
+#player-modal-jersey,
+.player-modal-jersey {
+    background: none;
+    border: 0;
+    box-shadow: none;
+}
+
+.formation-jersey-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.28));
+}
+
 .formation-jersey {
     width: 42px;
     height: 48px;
