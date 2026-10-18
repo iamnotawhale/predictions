@@ -1,0 +1,9 @@
+[Unit]
+Description=Check master for a new successful CI build and request install on this host
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=REPLACE_USER
+ExecStart=/home/REPLACE_USER/predictions/deploy/poll-master.sh
