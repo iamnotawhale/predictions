@@ -193,25 +193,14 @@
   - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, JDBC через SSH-туннель (см. `scripts/ssh-tunnel-prod-db.sh`) и автоподхватом `optional:file:./deploy/local-https.properties`.
 - Локально только бот: `./scripts/run-bot-only.sh`
 - Ручная сборка: `mvn package -DskipTests`
-- Деплой (pull-модель): GitHub Actions только собирает и тестирует, odyssey сам забирает jar исходящим запросом. Входящего SSH с GitHub нет, секретов `PROD_*` больше не используется.
-  - CI: `.github/workflows/ci.yml` (тесты Java и Mini App JS, `package`, на `push` в `master` загружает artifact `predictions-jar` сроком 14 дней).
-  - Odyssey: `deploy/pull-deploy.sh` по таймеру `predicts-deploy.timer` (каждые 5 мин, `Persistent=true`), юнит `predicts-deploy.service` (oneshot). Установленная копия живёт в `/home/nikita/predictions/deploy/`.
-  - Логика скрипта: берёт последний успешный push-ран `ci.yml` на `master` из репозитория `GH_REPO` (fork-PR отсекаются по `head_repository`). Если он уже установлен или раньше упал по health check, ничего не делает. Иначе скачивает artifact, проверяет `unzip -tq`, пишет `JAR.new`, останавливает сервис, делает `.bak`, ставит новый jar и запускает. Проверка: `is-active` и `HEALTH_URL` (30×3 с). При провале откатывается на `.bak`, записывает `failed_run` и шлёт алерт в Telegram. Алерты дедуплицируются через `STATE_DIR/last_alert`: одинаковый алерт не повторяется каждые 5 мин. Отдельные алерты при истёкшем токене (401/403), отсутствии artifact и неисправном откате.
-  - CI-workflow `ci.yml` запускается по тем же `paths:`, что и старый `deploy-prod.yml` (`src/**`, `pom.xml`, `application*.yml`, сам workflow; `deploy/*` не входит, потому что их изменение не меняет jar) и по `workflow_dispatch`. Поэтому документационные коммиты не перезапускают прод. Artifact грузится только на `push` в `master`.
-  - Конфиг: `deploy/pull-deploy.env` (chmod 600, gitignore), шаблон `deploy/pull-deploy.env.example`. Ключи: `GH_TOKEN` (fine-grained PAT только на `iamnotawhale/predictions` с правом «Actions: Read-only», с датой истечения), `GH_REPO`, `GH_WORKFLOW=ci.yml`, `GH_ARTIFACT=predictions-jar`, `APP_DIR`, `HEALTH_URL`, `PREDICTS_ENV`, `STATE_DIR` (по умолчанию `~/.local/state/predicts-deploy`).
-  - Состояние: `installed_run`, `failed_run`, `lock` в `STATE_DIR`. Сбросить повтор неудачного рана: удалить `failed_run`.
-  - Ручные режимы: `deploy/pull-deploy.sh --dry-run` (только выбрать и проверить artifact, ничего не ставить), `deploy/pull-deploy.sh --reinstall-current` (перезапуск уже установленного jar и health check; перезапускает прод, делать вне матчей).
-  - Установка юнитов (однократно на odyssey): скопировать `predicts-deploy.service`/`.timer` в `/etc/systemd/system/` с подстановкой `REPLACE_USER` и путей, `daemon-reload`, `enable --now predicts-deploy.timer`. Юниты и сам скрипт не обновляются автоматически: при изменении копировать руками.
-  - Нужны `sudo` без пароля для `systemctl stop/start/reset-failed predicts` (скрипт проверяет `sudo -n -l` до остановки прода), а также `curl`, `unzip`, `python3`, `flock`.
-  - Старый путь `deploy/upload-jar.sh` (с ноутбука по LAN) остаётся на случай аварии, он не трогался.
-  - Ключ `deploy/ci/` (локально, gitignore) больше не нужен для CI, его стоит удалить из `authorized_keys` на odyssey после перехода.
-  - Прогон для проверки: `deploy/pull-deploy.sh --dry-run`, `journalctl -u predicts-deploy -n 50`.
-  - Повторный деплой того же коммита: `gh run rerun <id>` (ран нужно перезапускать, а не `workflow_dispatch`: только `push` в `master` загружает artifact).
-
+- Деплой: GitHub Actions (`.github/workflows/ci.yml`). Job `build` запускает тесты Java и Mini App JS, собирает jar и грузит artifact `predictions-jar`. Job `deploy` (только `push` в `master`, если `build` зелёный) ставит jar на odyssey по SSH и проверяет `systemctl is-active` и `http://127.0.0.1:8080/miniapp/` (30×3 с). При провале возвращает `predictions-1.0.0.jar.bak`, перезапускает прод и снова проверяет здоровье; если и откат нездоров, job красный и прод лежит.
+  - Секреты (Settings → Secrets → Actions): `PROD_SSH_PRIVATE_KEY`, `PROD_HOST`, `PROD_SSH_PORT`, `PROD_USER`, `PROD_APP_DIR`. Заполнить: `./deploy/setup-github-actions-secrets.sh` (нужен `gh auth login`). Ключ CI локально (не в git): `deploy/ci/`.
+  - Почему не pull с odyssey: artifact GitHub отдаёт около 50 КБ/с, jar 240 МБ (из них 198 МБ — `driver-bundle` Playwright). Установка заняла бы часы. SSH-push из CI занимает около минуты.
+  - Ручной прогон: Actions → CI → Run workflow (только `workflow_dispatch` без deploy-job) или `gh run rerun <id>` для повтора деплоя.
+  - Аварийный деплой с ноутбука по LAN: `./deploy/upload-jar.sh` (нужны `sudo` для `systemctl` и `install`).
 ### Скрипты (`deploy/`)
 | Скрипт / unit | Назначение |
 |---------------|------------|
-| `pull-deploy.sh` + `predicts-deploy.service`/`.timer` | Установка jar из CI artifact на odyssey (pull), откат, алерт в Telegram |
 | `upload-jar.sh` | Аварийный деплой с ноутбука по LAN: локальная сборка + scp jar + restart `predicts` |
 | `setup-github-actions-secrets.sh` | Запись GitHub Actions secrets из `deploy.env` + CI-ключа |
 | `predicts.service` | Шаблон systemd unit приложения |
