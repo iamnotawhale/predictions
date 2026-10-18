@@ -23,7 +23,7 @@
 - локально bot+miniapp: ./scripts/run-local.sh
 - локально только бот: ./scripts/run-bot-only.sh
 - сборка jar: `mvn package -DskipTests` (или с тестами: `./mvnw test` / `./mvnw package`)
-- деплой на прод: ./deploy/upload-jar.sh (читает deploy/deploy.env) или GitHub Actions (push в master по path-filter / workflow_dispatch; можно `--ref <branch>`)
+- деплой на прод: сборка на odyssey по опросу `master` (см. раздел «Запуск и деплой»), аварийно — `./deploy/upload-jar.sh` с ноутбука по LAN
 - прод: systemd unit predicts (+ caddy / net-refresh — см. deploy/)
 - cold-standby: бэкап с домашнего сервера на VPS + оркестратор на VPS (failover/failback) — см. раздел «Отказоустойчивость»
 
@@ -193,20 +193,23 @@
   - `02 Predictions Local Debug` → Spring Boot Debug (profile `local`) с pre-launch шагом `01 Prepare Local HTTPS`, JDBC через SSH-туннель (см. `scripts/ssh-tunnel-prod-db.sh`) и автоподхватом `optional:file:./deploy/local-https.properties`.
 - Локально только бот: `./scripts/run-bot-only.sh`
 - Ручная сборка: `mvn package -DskipTests`
-- Деплой (сборка на odyssey): push в `master` → job `build` в `ci.yml` (тесты Java и Mini App JS) → job `deploy` по SSH пишет sha коммита в `~/.local/state/predicts-build/requested` и запускает `predicts-deploy.service` (`deploy/server-deploy.sh`), затем опрашивает статус (до часа).
-  - На odyssey скрипт работает из стабильной копии `~/predictions/deploy/server-deploy.sh` (ставится вручную из git: `git show <sha>:deploy/server-deploy.sh`). Клон для сборки: `~/predictions-src` (git, без токена, публичный репозиторий). JDK для сборки: `~/jdk/jdk-21.0.12.1+1`. Maven-кэш `~/.m2` переносится с ноутбука по LAN (`rsync`), потому что Maven Central с odyssey отдаёт около 50 КБ/с.
-  - Скрипт: блокировка, ожидание, пока не идут матчи в `eng.1` и кубках (`eng.fa`, `eng.league_cup`, `uefa.champions`, `uefa.europa`, `uefa.europa.conf`), проверка, что sha есть в `origin/master`, `checkout`, `mvnw package` (nice/ionice), `unzip -tq`, охрана по матчам повторно перед остановкой, замена jar с `.bak`, проверка `/miniapp/` и строки `Started PredictionsApplication` после момента старта. При провале — откат на `.bak`, маркер `failed`, алерт в Telegram.
+- Деплой (сборка на odyssey, опрос `master`): GitHub Actions (`ci.yml`) только тестирует и собирает (job `build`, тесты Java и Mini App JS). Таймер `predicts-deploy-poll.timer` на odyssey раз в 5 минут запускает `deploy/poll-master.sh`: берёт последний успешный push-ран `ci.yml` на `master` через публичный API GitHub (токен не нужен, лимит около 60 запросов в час), сравнивает с установленным коммитом и, если есть новые изменения приложения, пишет sha в `requested` и запускает `predicts-deploy.service`. Если между коммитами не менялись `src`, `pom.xml`, `application*.yml`, только отмечает коммит установленным без перезапуска.
+  - Ручной запуск сборки коммита: `ssh odyssey 'echo <sha> > ~/.local/state/predicts-build/requested && sudo systemctl start --no-block predicts-deploy.service'`. Проверка опроса без действий: `~/predictions/deploy/poll-master.sh --dry-run`.
+  - Установка: `deploy/server-deploy.sh` (сервис `predicts-deploy.service`). На odyssey скрипты работают из стабильных копий `~/predictions/deploy/` (ставятся вручную из git: `git show <sha>:deploy/<file>`). Клон для сборки: `~/predictions-src` (публичный репозиторий, без токена). JDK: `~/jdk/jdk-21.0.12.1+1`. Кэш Maven `~/.m2` переносится с ноутбука по LAN (`rsync`), потому что Maven Central с odyssey отдаёт около 50 КБ/с.
+  - Скрипт установки: блокировка, ожидание, пока не идут матчи в `eng.1` и кубках (`eng.fa`, `eng.league_cup`, `uefa.champions`, `uefa.europa`, `uefa.europa.conf`), проверка, что sha есть в `origin/master`, `checkout`, `mvnw package` (nice/ionice), `unzip -tq`, охрана по матчам повторно перед остановкой, замена jar с `.bak`, проверка `/miniapp/` и строки `Started PredictionsApplication` после момента старта. При провале — откат на `.bak`, маркер `failed`, алерт в Telegram.
   - Статусы в `~/.local/state/predicts-build/status`: idle, waiting, building, installing, failed. Маркеры `installed`, `failed`, `requested`.
   - Health check не доказывает рендер карточек: `/miniapp/` 200 и строка запуска не проверяют драйвер Playwright.
-  - `predicts.service` ставится из шаблона только вручную; `deploy/predicts.service` и `deploy/upload-jar.sh` не входят в `paths:` CI.
-  - Ручной прогон: `gh run rerun <id>` или `ssh odyssey 'echo <sha> > ~/.local/state/predicts-build/requested && sudo systemctl start --no-block predicts-deploy.service'`.
+  - `predicts.service` ставится только вручную (шаблон `deploy/predicts.service`), CI на него не реагирует.
+  - Откат на более старый коммит опрос не делает: кандидат, являющийся предком установленного, пропускается.
+  - Сбой `git fetch` не помечает коммит неудачным, на следующем тике попытка повторяется. `failed` ставится только при реальной ошибке (не master, сборка, jar, health check).
 ### Скрипты (`deploy/`)
 | Скрипт / unit | Назначение |
 |---------------|------------|
 | `upload-jar.sh` | Аварийный деплой с ноутбука по LAN: локальная сборка + scp jar + restart `predicts` |
 | `setup-github-actions-secrets.sh` | Запись GitHub Actions secrets из `deploy.env` + CI-ключа |
 | `predicts.service` | Шаблон systemd unit приложения (ставится вручную, не CI) |
-| `server-deploy.sh` + `predicts-deploy.service` | Сборка коммита на odyssey по запросу из CI, охрана по матчам, откат |
+| `server-deploy.sh` + `predicts-deploy.service` | Сборка коммита на odyssey по запросу, охрана по матчам, откат |
+| `poll-master.sh` + `predicts-deploy-poll.timer` | Раз в 5 минут проверяет успешный CI на master и запрашивает установку |
 | `Caddyfile` / `caddy.service` | HTTPS reverse-proxy к приложению |
 | `backup-to-vps.sh` | Дамп БД + jar/env → VPS standby |
 | `predictions-backup.service` / `.timer` | Таймер бэкапа на primary (2ч) |

@@ -60,7 +60,16 @@ while true; do
   done
 
   status building
-  git -C "$SRC" fetch -q origin master || { echo "$sha" > "$STATE/failed"; alert "fetch failed"; status failed; exit 1; }
+  exec 7>"$STATE/git.lock"
+  flock 7
+  if ! git -C "$SRC" fetch -q origin master; then
+    exec 7>&-
+    log "fetch failed, will retry"; status idle; exit 0
+  fi
+  exec 7>&-
+  if ! git -C "$SRC" cat-file -e "$sha^{commit}" 2>/dev/null; then
+    status idle; log "$sha not fetched yet, will retry"; exit 0
+  fi
   if ! git -C "$SRC" merge-base --is-ancestor "$sha" origin/master; then
     echo "$sha" > "$STATE/failed"; alert "sha $sha is not in master"; status failed; exit 1
   fi
