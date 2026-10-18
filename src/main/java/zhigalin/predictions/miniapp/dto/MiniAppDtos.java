@@ -292,6 +292,7 @@ public final class MiniAppDtos {
             String teamCode,
             String formation,
             String kitColor,
+            String kitAlternateColor,
             List<FormationPlayerItem> starters,
             List<FormationPlayerItem> bench
     ) {

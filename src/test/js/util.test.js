@@ -161,3 +161,34 @@ test('player name helpers', () => {
   assert.equal(U.surnameFromPlayerName('Trent Alexander-Arnold'), 'Alexander-Arnold');
   assert.equal(U.surnameFromPlayerName(''), '');
 });
+
+test('jerseySvg: body colour fills the shirt and number is drawn', () => {
+  const svg = U.jerseySvg({ body: '#fceec1', trim: '#1b4879', number: 7, isGk: false });
+  assert.ok(svg.includes('fill="#fceec1"'));
+  assert.ok(svg.includes('stroke="#1b4879"'));
+  assert.ok(svg.includes('>7</text>'));
+});
+
+test('jerseySvg: trim falls back to a readable colour when contrast is too low', () => {
+  const svg = U.jerseySvg({ body: '#fceec1', trim: '#fdf0c8', number: 1, isGk: false });
+  assert.ok(svg.includes('stroke="#1a1a1a"'));
+});
+
+test('jerseySvg: keeper uses neutral colour even when a kit colour is given', () => {
+  const svg = U.jerseySvg({ body: '#fceec1', trim: '#1b4879', number: 1, isGk: true });
+  assert.ok(svg.includes('fill="#4a5560"'));
+  assert.ok(!svg.includes('#fceec1'));
+});
+
+test('jerseySvg: invalid colour falls back to default and number is escaped', () => {
+  const svg = U.jerseySvg({ body: 'url(x)"><script>', trim: 'javascript:', number: '<script>1', isGk: false });
+  assert.ok(svg.includes('fill="#3a4a58"'));
+  assert.ok(!svg.includes('<script>'));
+  assert.ok(svg.includes('&lt;script&gt;1'));
+});
+
+test('jerseyTextColor: dark text on light kits, white on dark', () => {
+  assert.equal(U.jerseyTextColor('#fceec1'), '#1a1a1a');
+  assert.equal(U.jerseyTextColor('#cf0221'), '#ffffff');
+  assert.equal(U.jerseyTextColor(''), '#ffffff');
+});

@@ -25,6 +25,7 @@
             teamCode: teamCode,
             formation: '',
             kitColor: '',
+            kitAlternateColor: '',
             starters: lineup.map((p, idx) => ({
                 id: side + '-' + idx,
                 number: p.number || 0,

@@ -215,6 +215,37 @@
         return /^#[0-9a-f]{3,8}$/i.test(hex) ? hex : '';
     }
 
+    function jerseyTextColor(hex) {
+        const value = String(hex || '').replace('#', '');
+        if (value.length !== 6) return '#ffffff';
+        const n = parseInt(value, 16);
+        const luminance = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+        return luminance > 150 ? '#1a1a1a' : '#ffffff';
+    }
+
+    function jerseyLuminance(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+    }
+
+    function jerseySvg(input) {
+        const hexOk = (v) => /^#[0-9a-f]{6}$/i.test(String(v || ''));
+        const isGk = !!(input && input.isGk);
+        const body = isGk ? '#4a5560' : (hexOk(input && input.body) ? input.body : '#3a4a58');
+        const text = jerseyTextColor(body);
+        const trim = !isGk && hexOk(input && input.trim) && Math.abs(jerseyLuminance(body) - jerseyLuminance(input.trim)) >= 40
+            ? input.trim
+            : text;
+        const label = escapeHtml(String(input && input.number != null ? input.number : ''));
+        return '<svg class="formation-jersey-svg" viewBox="0 0 48 45" aria-hidden="true">' +
+            '<path d="M12 6 L17 3 Q24 8 31 3 L36 6 L46 16 L41 22 L36 19 L36 41 L12 41 L12 19 L7 22 L2 16 Z" ' +
+            'fill="' + body + '" stroke="rgba(0,0,0,0.55)" stroke-width="1.2" stroke-linejoin="round"/>' +
+            '<path d="M17 3 Q24 8 31 3" fill="none" stroke="' + trim + '" stroke-width="2.2"/>' +
+            '<path d="M2 16 L7 22 M46 16 L41 22" stroke="' + trim + '" stroke-width="2.2" stroke-linecap="round"/>' +
+            '<text x="24" y="29" text-anchor="middle" font-size="14" font-weight="700" fill="' + text + '">' + label + '</text>' +
+            '</svg>';
+    }
+
     function clamp(value, min, max) {
         const num = Number(value);
         if (!Number.isFinite(num)) return min;
@@ -315,6 +346,8 @@
         hasLiveOrSoonMatches,
         niceChartStep,
         normalizeKitColor,
+        jerseyTextColor,
+        jerseySvg,
         clamp,
         fairOdds,
         pctLabel,
