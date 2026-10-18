@@ -31,6 +31,7 @@ import zhigalin.predictions.repository.event.BonusMatchDao;
 import zhigalin.predictions.repository.notification.NotificationDedupDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.ApiClient.GoalScorer;
+import zhigalin.predictions.util.EspnKitColors;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.odds.OddsService;
@@ -278,6 +279,7 @@ public class NotificationService {
                 : scorerLabel(latest);
         String path = null;
         try {
+            EspnKitColors.Kit[] kits = matchKits(match);
             path = goalGifRenderer.renderToTempFile(new GoalEventGifRenderer.Request(
                     home.getPublicId(),
                     away.getPublicId(),
@@ -286,7 +288,9 @@ public class NotificationService {
                     ph, pa, nh, na,
                     subtitle,
                     disallowed,
-                    minute
+                    minute,
+                    kits[0],
+                    kits[1]
             ));
             if (path == null) {
                 return null;
@@ -318,6 +322,22 @@ public class NotificationService {
             return scorers.isEmpty() ? null : scorers.get(scorers.size() - 1);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private EspnKitColors.Kit[] matchKits(Match match) {
+        if (match.getEspnId() == null || match.getEspnId().isBlank()) {
+            return new EspnKitColors.Kit[2];
+        }
+        try {
+            var summary = api.fetchEspnSummary(match.getEspnId());
+            return new EspnKitColors.Kit[]{
+                    EspnKitColors.load(summary, "home"),
+                    EspnKitColors.load(summary, "away")
+            };
+        } catch (Exception e) {
+            log.debug("Kit colors unavailable for {}: {}", match.getEspnId(), e.getMessage());
+            return new EspnKitColors.Kit[2];
         }
     }
 

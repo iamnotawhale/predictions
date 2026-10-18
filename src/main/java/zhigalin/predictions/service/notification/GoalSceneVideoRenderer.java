@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import zhigalin.predictions.util.EspnKitColors;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotType;
 import org.slf4j.Logger;
@@ -100,8 +101,20 @@ public class GoalSceneVideoRenderer {
         c.put("minute", req.minute() == null ? "" : req.minute());
         c.put("disallowed", req.disallowed());
         c.put("logo", !req.disallowed());
+        c.put("homeKit", kitMap(req.homeKit()));
+        c.put("awayKit", kitMap(req.awayKit()));
         c.put("logoMotion", LOGO_MOTIONS.get(ThreadLocalRandom.current().nextInt(LOGO_MOTIONS.size())));
         return c;
+    }
+
+    private static Map<String, String> kitMap(EspnKitColors.Kit kit) {
+        if (kit == null) {
+            return null;
+        }
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("color", kit.color());
+        m.put("alternateColor", kit.alternateColor());
+        return m;
     }
 
     private static Boolean captureFrames(Page page, Path scene, Map<String, Object> config, Path dir) {

@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
+import zhigalin.predictions.util.EspnKitColors;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 
 @Service
@@ -87,15 +88,26 @@ public class GoalEventGifRenderer {
             int nextAway,
             String subtitle,
             boolean disallowed,
-            String minute
+            String minute,
+            EspnKitColors.Kit homeKit,
+            EspnKitColors.Kit awayKit
     ) {
+        public Request(
+                int homeTeamId, int awayTeamId, String homeCode, String awayCode,
+                int prevHome, int prevAway, int nextHome, int nextAway,
+                String subtitle, boolean disallowed, String minute
+        ) {
+            this(homeTeamId, awayTeamId, homeCode, awayCode, prevHome, prevAway, nextHome, nextAway,
+                    subtitle, disallowed, minute, null, null);
+        }
+
         public Request(
                 int homeTeamId, int awayTeamId, String homeCode, String awayCode,
                 int prevHome, int prevAway, int nextHome, int nextAway,
                 String subtitle, boolean disallowed
         ) {
             this(homeTeamId, awayTeamId, homeCode, awayCode, prevHome, prevAway, nextHome, nextAway,
-                    subtitle, disallowed, null);
+                    subtitle, disallowed, null, null, null);
         }
     }
 
@@ -126,9 +138,14 @@ public class GoalEventGifRenderer {
                 frames.add(copy(last));
             }
 
-            Path out = Files.createTempFile("goal-event-", ".gif");
-            writeGif(frames, out);
-            out = maybeOptimizeWithGifsicle(out);
+            Path raw = Files.createTempFile("goal-event-", ".gif");
+            try {
+                writeGif(frames, raw);
+            } catch (IOException e) {
+                Files.deleteIfExists(raw);
+                throw e;
+            }
+            Path out = maybeOptimizeWithGifsicle(raw);
             long kb = Files.size(out) / 1024;
             log.info("Goal GIF written {} ({} KB, frames={}, disallowed={})",
                     out.getFileName(), kb, frames.size(), req.disallowed());
