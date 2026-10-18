@@ -1,0 +1,9 @@
+[Unit]
+Description=Pull and install predictions jar from GitHub CI artifact
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=REPLACE_USER
+ExecStart=/path/to/predictions/deploy/pull-deploy.sh

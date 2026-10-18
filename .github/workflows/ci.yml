@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'application.yml'
+      - 'application-prod.yml'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Set up Node (Mini App JS tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Java unit tests
+        # Card preview test needs Chrome + network (it only writes preview PNGs), so it is not a gate.
+        run: mvn -B test -Dtest='!HtmlCardPreviewTest'
+
+      - name: Mini App JS tests
+        run: node --test "src/test/js/*.test.js"
+
+      - name: Build jar
+        run: mvn -B -DskipTests package
+
+      - name: Upload jar for odyssey
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: predictions-jar
+          path: target/predictions-1.0.0.jar
+          if-no-files-found: error
+          retention-days: 14
