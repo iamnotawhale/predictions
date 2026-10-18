@@ -23,7 +23,7 @@ public class DaoUtil {
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
-    public static int currentWeekId;
+    public static volatile int currentWeekId;
 
     private static TeamService teamServiceRef;
 
@@ -31,8 +31,8 @@ public class DaoUtil {
     private final UserService userService;
     private final WeekService weekService;
 
-    public final static Map<Integer, Team> TEAMS = new HashMap<>();
-    public final static Map<Integer, User> USERS = new HashMap<>();
+    public final static Map<Integer, Team> TEAMS = new java.util.concurrent.ConcurrentHashMap<>();
+    public final static Map<Integer, User> USERS = new java.util.concurrent.ConcurrentHashMap<>();
 
     public DaoUtil(TeamService teamService, UserService userService, WeekService weekService) {
         this.teamService = teamService;

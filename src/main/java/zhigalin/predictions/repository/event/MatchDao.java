@@ -51,7 +51,7 @@ public class MatchDao {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
     private final PanicSender panicSender;
-    private final Set<String> processedMatches = new HashSet<>();
+    private final Set<String> processedMatches = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final ConcurrentLinkedQueue<String> notificationQueue = new ConcurrentLinkedQueue<>();
     private final ObjectMapper mapper;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -562,8 +562,7 @@ public class MatchDao {
         while (!notificationQueue.isEmpty()) {
             serverLogger.info("Notification queue not empty");
             String payload = notificationQueue.poll();
-            if (!processedMatches.contains(payload)) {
-                processedMatches.add(payload);
+            if (processedMatches.add(payload)) {
 
                 try {
                     Match match = mapper.readValue(payload, Match.class);
