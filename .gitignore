@@ -48,3 +48,4 @@ deploy/backup.env
 deploy/orchestrator.env
 scripts/data/
 logo-cache/
+deploy/pull-deploy.env
