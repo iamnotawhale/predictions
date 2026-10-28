@@ -114,6 +114,15 @@ public class MatchService {
         return matchDao.hasPostponedMatches();
     }
 
+    public void resetLastProcessedAt(int publicId) {
+        matchDao.resetLastProcessedAt(publicId);
+    }
+
+    /** EPL matches that reached FT recently; ESPN may still correct their score. */
+    public boolean hasRecentlyFinishedMatches(int hours) {
+        return matchDao.hasFinishedSince(LocalDateTime.now().minusHours(hours));
+    }
+
     public List<Match> findFinishedMatches() {
         return sorted(matchDao.findFinishedMatches());
     }

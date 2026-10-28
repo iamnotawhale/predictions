@@ -324,6 +324,19 @@ public class MatchDao {
         }
     }
 
+    public boolean hasFinishedSince(LocalDateTime since) {
+        try {
+            String sql = "SELECT EXISTS (SELECT 1 FROM match WHERE status = 'ft' AND finished_at >= :since)";
+            Boolean exists = namedParameterJdbcTemplate.queryForObject(
+                    sql, new MapSqlParameterSource("since", since), Boolean.class);
+            return Boolean.TRUE.equals(exists);
+        } catch (Exception e) {
+            panicSender.sendPanic("Error checking recently finished matches", e);
+            serverLogger.error(e.getMessage());
+            return false;
+        }
+    }
+
     public List<Match> findFinishedMatches() {
         try {
             String sql = """
@@ -595,6 +608,17 @@ public class MatchDao {
             panicSender.sendPanic("Error isAlreadyProcessed", e);
             serverLogger.error(e.getMessage());
             return false;
+        }
+    }
+
+    /** Lets the FT card go out again when a fixture that was wrongly closed is replayed. */
+    public void resetLastProcessedAt(int publicId) {
+        try {
+            String sql = "UPDATE match SET last_processed_at = NULL WHERE public_id = :publicId";
+            namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource("publicId", publicId));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error resetLastProcessedAt", e);
+            serverLogger.error(e.getMessage());
         }
     }
 

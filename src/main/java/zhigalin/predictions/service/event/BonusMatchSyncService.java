@@ -25,6 +25,7 @@ import zhigalin.predictions.service.notification.Result;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.EspnStatus;
 import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
@@ -214,8 +215,10 @@ public class BonusMatchSyncService {
                 ? event.getStatus().getType().getState()
                 : "pre";
         String status = mapStatus(event, state);
-        Integer homeScore = parseScore(home.getScore());
-        Integer awayScore = parseScore(away.getScore());
+        boolean postponed = "pst".equals(status);
+        // ESPN reports 0:0 for postponed fixtures; keep the score empty until the match is played.
+        Integer homeScore = postponed ? null : parseScore(home.getScore());
+        Integer awayScore = postponed ? null : parseScore(away.getScore());
 
         boolean wasFt = existing != null && "ft".equals(existing.getStatus());
 
@@ -241,7 +244,11 @@ public class BonusMatchSyncService {
                 .build();
 
         boolean becameFt = "ft".equals(status) && !wasFt;
-        if (becameFt && match.getFinishedAt() == null) {
+        boolean scoreCorrected = wasFt && "ft".equals(status)
+                                 && (!Objects.equals(existing.getHomeTeamScore(), homeScore)
+                                     || !Objects.equals(existing.getAwayTeamScore(), awayScore));
+        if (becameFt) {
+            // A replayed fixture must not keep the timestamp of an earlier (postponed) run.
             match.setFinishedAt(LocalDateTime.now());
         }
 
@@ -250,6 +257,11 @@ public class BonusMatchSyncService {
         if (becameFt) {
             predictionService.updateByBonusMatch(match);
             sendFullTime(match);
+        } else if (scoreCorrected) {
+            log.info("Cup score corrected after FT: {} {} {}:{} -> {}:{}, recalculating points",
+                    competition, publicId,
+                    existing.getHomeTeamScore(), existing.getAwayTeamScore(), homeScore, awayScore);
+            predictionService.updateByBonusMatch(match);
         }
     }
 
@@ -316,6 +328,9 @@ public class BonusMatchSyncService {
     }
 
     private static String mapStatus(Event event, String state) {
+        if (EspnStatus.isPostponed(event.getStatus())) {
+            return "pst";
+        }
         if ("pre".equals(state)) {
             return "ns";
         }
