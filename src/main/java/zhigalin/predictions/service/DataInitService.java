@@ -92,7 +92,7 @@ public class DataInitService {
     private static final long LIVE_INTERVAL_MS = 30_000L;
     private static final long IDLE_INTERVAL_MS = 120_000L;
     /** Keep polling ESPN this long after FT to pick up score corrections. */
-    private static final int SCORE_CORRECTION_WINDOW_HOURS = 24;
+    private static final int SCORE_CORRECTION_WINDOW_HOURS = 2;
     private static final long NEWS_CACHE_MS = 120_000L;
     private static final ObjectMapper mapper = new ObjectMapper();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
