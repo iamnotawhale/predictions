@@ -39,14 +39,16 @@ public class BonusMatchDao {
                     home_name, away_name, home_logo_url, away_logo_url,
                     home_espn_code, away_espn_code,
                     home_team_score, away_team_score, result, status,
-                    local_date_time, finished_at, live_score_message_id
+                    local_date_time, finished_at, live_score_message_id,
+                    aet_home_score, aet_away_score, pen_home_score, pen_away_score
                 ) VALUES (
                     :publicId, :competition, :espnId,
                     :homeTeamId, :awayTeamId,
                     :homeName, :awayName, :homeLogoUrl, :awayLogoUrl,
                     :homeEspnCode, :awayEspnCode,
                     :homeScore, :awayScore, :result, :status,
-                    :localDateTime, :finishedAt, :liveScoreMessageId
+                    :localDateTime, :finishedAt, :liveScoreMessageId,
+                    :aetHomeScore, :aetAwayScore, :penHomeScore, :penAwayScore
                 )
                 ON CONFLICT (competition, espn_id) DO UPDATE SET
                     public_id = EXCLUDED.public_id,
@@ -64,7 +66,11 @@ public class BonusMatchDao {
                     status = EXCLUDED.status,
                     local_date_time = EXCLUDED.local_date_time,
                     finished_at = COALESCE(EXCLUDED.finished_at, bonus_match.finished_at),
-                    live_score_message_id = COALESCE(EXCLUDED.live_score_message_id, bonus_match.live_score_message_id)
+                    live_score_message_id = COALESCE(EXCLUDED.live_score_message_id, bonus_match.live_score_message_id),
+                    aet_home_score = EXCLUDED.aet_home_score,
+                    aet_away_score = EXCLUDED.aet_away_score,
+                    pen_home_score = EXCLUDED.pen_home_score,
+                    pen_away_score = EXCLUDED.pen_away_score
                 """;
         try {
             namedParameterJdbcTemplate.update(sql, params(match));
@@ -332,7 +338,11 @@ public class BonusMatchDao {
                 .addValue("status", match.getStatus())
                 .addValue("localDateTime", match.getLocalDateTime())
                 .addValue("finishedAt", match.getFinishedAt())
-                .addValue("liveScoreMessageId", match.getLiveScoreMessageId());
+                .addValue("liveScoreMessageId", match.getLiveScoreMessageId())
+                .addValue("aetHomeScore", match.getAetHomeScore())
+                .addValue("aetAwayScore", match.getAetAwayScore())
+                .addValue("penHomeScore", match.getPenHomeScore())
+                .addValue("penAwayScore", match.getPenAwayScore());
     }
 
     private static final class BonusMatchMapper implements RowMapper<BonusMatch> {
@@ -359,6 +369,10 @@ public class BonusMatchDao {
                     .localDateTime(ldt != null ? ldt.toLocalDateTime() : null)
                     .finishedAt(fat != null ? fat.toLocalDateTime() : null)
                     .liveScoreMessageId((Integer) rs.getObject("live_score_message_id"))
+                    .aetHomeScore((Integer) rs.getObject("aet_home_score"))
+                    .aetAwayScore((Integer) rs.getObject("aet_away_score"))
+                    .penHomeScore((Integer) rs.getObject("pen_home_score"))
+                    .penAwayScore((Integer) rs.getObject("pen_away_score"))
                     .build();
         }
     }

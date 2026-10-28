@@ -9,6 +9,7 @@ public class Competitor {
     private String id;
     private String homeAway;
     private String score;
+    private Integer shootoutScore;
     private EspnTeamRef team;
 
     @Data

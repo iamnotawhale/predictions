@@ -50,6 +50,11 @@ public class BonusMatchesSchemaMigration {
                     )
                     """);
 
+            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS aet_home_score INTEGER");
+            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS aet_away_score INTEGER");
+            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS pen_home_score INTEGER");
+            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS pen_away_score INTEGER");
+
             jdbc.execute("ALTER TABLE predict ADD COLUMN IF NOT EXISTS bonus_match_id INTEGER");
             jdbc.execute("ALTER TABLE predict ALTER COLUMN match_id DROP NOT NULL");
             jdbc.execute("""

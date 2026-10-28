@@ -41,4 +41,26 @@ class EspnStatusTest {
         assertFalse(EspnStatus.isPostponed(status("STATUS_FIRST_HALF", "in", false)));
         assertFalse(EspnStatus.isPostponed((Status) null));
     }
+
+    @Test
+    void beyondRegulationByPeriodOrName() {
+        Status et = status("STATUS_FIRST_HALF_EXTRA_TIME", "in", false);
+        assertTrue(EspnStatus.isBeyondRegulation(et));
+        assertTrue(EspnStatus.isBeyondRegulation(status("STATUS_FINAL_AET", "post", true)));
+        assertTrue(EspnStatus.isBeyondRegulation(status("STATUS_FINAL_PEN", "post", true)));
+        assertTrue(EspnStatus.isBeyondRegulation(status("STATUS_SHOOTOUT", "in", false)));
+        Status period3 = status(null, "in", false);
+        period3.setPeriod(3);
+        assertTrue(EspnStatus.isBeyondRegulation(period3));
+    }
+
+    @Test
+    void regulationIsNotBeyondRegulation() {
+        Status secondHalf = status("STATUS_SECOND_HALF", "in", false);
+        secondHalf.setPeriod(2);
+        assertFalse(EspnStatus.isBeyondRegulation(secondHalf));
+        assertFalse(EspnStatus.isBeyondRegulation(status("STATUS_FULL_TIME", "post", true)));
+        assertFalse(EspnStatus.isBeyondRegulation(status("STATUS_POSTPONED", "post", false)));
+        assertFalse(EspnStatus.isBeyondRegulation(null));
+    }
 }

@@ -20,7 +20,29 @@ public final class EspnStatus {
             "STATUS_ABANDONED"
     );
 
+    private static final int LAST_REGULATION_PERIOD = 2;
+
     private EspnStatus() {
+    }
+
+    /**
+     * True once the match has gone past 90 minutes: extra time, shootout, or a final after either.
+     * ESPN numbers periods 1–2 for regulation, 3–4 for extra time and 5 for the shootout.
+     */
+    public static boolean isBeyondRegulation(Status status) {
+        if (status == null) {
+            return false;
+        }
+        if (status.getPeriod() != null && status.getPeriod() > LAST_REGULATION_PERIOD) {
+            return true;
+        }
+        Type type = status.getType();
+        String name = type != null && type.getName() != null ? type.getName().toUpperCase() : "";
+        return name.contains("EXTRA")
+               || name.contains("OVERTIME")
+               || name.contains("SHOOTOUT")
+               || name.endsWith("_AET")
+               || name.endsWith("_PEN");
     }
 
     public static boolean isPostponed(Status status) {
