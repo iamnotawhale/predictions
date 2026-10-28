@@ -21,8 +21,22 @@ public final class EspnStatus {
     );
 
     private static final int LAST_REGULATION_PERIOD = 2;
+    private static final int SHOOTOUT_PERIOD = 5;
 
     private EspnStatus() {
+    }
+
+    /** Penalty shootout in progress or finished (ESPN period 5, or a shootout / pens status). */
+    public static boolean isShootout(Status status) {
+        if (status == null) {
+            return false;
+        }
+        if (status.getPeriod() != null && status.getPeriod() >= SHOOTOUT_PERIOD) {
+            return true;
+        }
+        Type type = status.getType();
+        String name = type != null && type.getName() != null ? type.getName().toUpperCase() : "";
+        return name.contains("SHOOTOUT") || name.endsWith("_PEN");
     }
 
     /**

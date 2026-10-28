@@ -36,6 +36,7 @@ const matches = [
   match(2, { hasPrediction: true, predictHome: 1, predictAway: 1, weekBonus: true }),
   match(3, { homeName: EVIL, awayName: EVIL, homeCode: EVIL }), match(4),
   match(5, { cup: true, competition: 'eng.league_cup', bonusMatchId: 9 }),
+  match(6, { cup: true, competition: 'eng.fa', bonusMatchId: 10, status: "120'", homeScore: 2, awayScore: 2, canPredict: false, hasPrediction: true, predictHome: 1, predictAway: 1, points: 2, scoreNote: 'осн. время 1:1 · пен. 3:2' }),
 ];
 const users = ['nik', 'max', 'alex', 'ivan'];
 const API = {
@@ -52,7 +53,7 @@ const API = {
   },
   '/weeks': Array.from({ length: 7 }, (_, i) => ({ id: i + 1, hasPredictions: true })),
   '/cups': [{ competition: 'eng.league_cup', label: 'Carabao Cup', hasPredictions: true, matchCount: 2 }, { competition: 'uefa.europa', label: 'UEL', hasPredictions: false, matchCount: 3 }],
-  '/today': { matches: matches.slice(0, 4).concat([matches[5]]), hasLive: true },
+  '/today': { matches: matches.slice(0, 4).concat([matches[5], matches[6]]), hasLive: true },
   '/leaderboard': { weekId: null, title: 'Общий зачёт', liveActive: true, entries: users.map((u, i) => ({ login: u, points: 84 - i * 9, provisionalPoints: 84 - i * 9 + (i === 1 ? 3 : 0), liveDelta: i === 1 ? 3 : 0 })) },
   '/standings': TEAMS.map((t, i) => ({ place: i + 1, code: t[0], name: t[1], logo: logo(t[0]), played: 7, won: 6 - (i >> 1), drawn: 1, lost: i >> 1, goalsFor: 18 - i, goalsAgainst: 5 + i, points: 19 - i * 1, placeDelta: i === 3 ? 1 : i === 4 ? -1 : 0, liveScore: i === 0 ? '1:0' : null, liveResult: i === 0 ? 'W' : null })),
   '/chart': { weeks: [1, 2, 3, 4, 5, 6, 7], series: users.map((u, i) => ({ login: u, label: u, points: [8, 17, 30, 41, 50, 66, 84].map((p) => Math.round(p * (1 - i * 0.1))) })) },
@@ -123,7 +124,10 @@ Object.assign(API, {
   '/match/BOU/CRY': matches[3], '/match/TOT/MUN': matches[2],
   '/h2h/LIV/CHE': H2H, '/team/LIV': TEAM, '/team/LIV/matches': { teamCode: 'LIV', teamName: 'Liverpool', lastMatches: TEAM.lastMatches, upcomingMatches: TEAM.upcomingMatches },
   '/cups/eng.league_cup/matches': [matches[5]], '/cups/uefa.europa/matches': [],
-  '/cups/eng.league_cup/review': { competition: 'eng.league_cup', label: 'Carabao Cup', totalPoints: 4, items: [] },
+  '/cups/eng.league_cup/review': { competition: 'eng.league_cup', label: 'Carabao Cup', totalPoints: 4, items: [
+    { publicId: 10, homeCode: 'ARS', awayCode: 'CHE', status: 'ft', homeScore: 2, awayScore: 1, predictHome: 1, predictAway: 1, points: 2, hasPrediction: true, recommendedHome: null, recommendedAway: null, scoreNote: 'осн. время 1:1' },
+    { publicId: 11, homeCode: 'LIV', awayCode: 'TOT', status: 'ft', homeScore: 0, awayScore: 0, predictHome: 1, predictAway: 0, points: 0, hasPrediction: true, recommendedHome: null, recommendedAway: null, scoreNote: EVIL },
+  ] },
   '/match/102/crowd': { matchPublicId: 102, totalPredictions: 4, homeWinPct: 50, drawPct: 25, awayWinPct: 25, topScores: [{ score: '2:1', count: 2, percent: 50 }, { score: '1:1', count: 1, percent: 25 }] },
 });
 
@@ -214,6 +218,11 @@ function svgLogo(code) {
   await close('#predict-back-weeks');
   await page.locator('#predict-weeks button', { hasText: 'Кубки' }).click(); await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT, `10-predict-cups-${THEME}.png`) });
+  await page.click('.nav-btn[data-screen="my"]'); await page.waitForTimeout(600);
+  await page.click('#profile-open-predictions'); await page.waitForTimeout(800);
+  await page.locator('#my-weeks .week-btn-cups').click(); await page.waitForTimeout(600);
+  await page.locator('#my-cups .cup-card').first().click(); await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(OUT, `11-cup-review-${THEME}.png`) });
   await page.click('.nav-btn[data-screen="today"]');
   await page.waitForTimeout(800);
   const xss = await page.evaluate(() => window.__xss === 1);

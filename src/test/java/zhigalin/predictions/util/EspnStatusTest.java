@@ -63,4 +63,15 @@ class EspnStatusTest {
         assertFalse(EspnStatus.isBeyondRegulation(status("STATUS_POSTPONED", "post", false)));
         assertFalse(EspnStatus.isBeyondRegulation(null));
     }
+
+    @Test
+    void shootoutOnlyForPenaltiesNotForExtraTime() {
+        assertTrue(EspnStatus.isShootout(status("STATUS_FINAL_PEN", "post", true)));
+        assertTrue(EspnStatus.isShootout(status("STATUS_SHOOTOUT", "in", false)));
+        Status period5 = status(null, "in", false);
+        period5.setPeriod(5);
+        assertTrue(EspnStatus.isShootout(period5));
+        assertFalse(EspnStatus.isShootout(status("STATUS_FINAL_AET", "post", true)));
+        assertFalse(EspnStatus.isShootout(status("STATUS_SECOND_HALF_EXTRA_TIME", "in", false)));
+    }
 }

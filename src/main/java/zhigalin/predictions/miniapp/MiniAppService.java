@@ -455,7 +455,8 @@ public class MiniAppService {
                 EspnSummaryParser.pitchColorFromFormation(awayFormation, "#c0c0c0"),
                 match.getHomeTeamScore(),
                 match.getAwayTeamScore(),
-                match.getStatus()
+                match.getStatus(),
+                null
         );
     }
 
@@ -490,15 +491,16 @@ public class MiniAppService {
                 matchStats,
                 EspnSummaryParser.pitchColorFromFormation(homeFormation, "#ffffff"),
                 EspnSummaryParser.pitchColorFromFormation(awayFormation, "#c0c0c0"),
-                match.getHomeTeamScore(),
-                match.getAwayTeamScore(),
-                match.getStatus()
+                MiniAppFormat.cupDisplayHome(match),
+                MiniAppFormat.cupDisplayAway(match),
+                match.getStatus(),
+                MiniAppFormat.cupScoreNote(match)
         );
     }
 
     private static LiveMatchDetailsResponse emptyLiveDetails() {
         return new LiveMatchDetailsResponse(
-                false, List.of(), List.of(), null, null, List.of(), List.of(), null, null, null, null, null);
+                false, List.of(), List.of(), null, null, List.of(), List.of(), null, null, null, null, null, null);
     }
 
     public LeaderboardResponse leaderboard(String telegramId, Integer weekId) {
@@ -681,7 +683,8 @@ public class MiniAppService {
                     pts,
                     hasPrediction,
                     kickoff != null ? kickoff[0] : null,
-                    kickoff != null ? kickoff[1] : null
+                    kickoff != null ? kickoff[1] : null,
+                    null
             ));
         }
         return new WeekReviewResponse(weekId, total, items);
@@ -1011,6 +1014,7 @@ public class MiniAppService {
                 weekBonus,
                 false,
                 null,
+                null,
                 null
         );
     }
@@ -1047,8 +1051,8 @@ public class MiniAppService {
                 match.getAwayName() != null ? match.getAwayName() : awayCode,
                 awayLogo,
                 match.getStatus(),
-                match.getHomeTeamScore(),
-                match.getAwayTeamScore(),
+                MiniAppFormat.cupDisplayHome(match),
+                MiniAppFormat.cupDisplayAway(match),
                 match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
                 MatchStatus.canPredictBonus(match),
                 prediction != null,
@@ -1066,7 +1070,8 @@ public class MiniAppService {
                 false,
                 true,
                 match.getCompetition(),
-                match.getPublicId()
+                match.getPublicId(),
+                MiniAppFormat.cupScoreNote(match)
         );
     }
 
@@ -1181,14 +1186,15 @@ public class MiniAppService {
                     home,
                     away,
                     match.getStatus(),
-                    match.getHomeTeamScore(),
-                    match.getAwayTeamScore(),
+                    MiniAppFormat.cupDisplayHome(match),
+                    MiniAppFormat.cupDisplayAway(match),
                     hasPrediction ? prediction.getHomeTeamScore() : null,
                     hasPrediction ? prediction.getAwayTeamScore() : null,
                     pts,
                     hasPrediction,
                     null,
-                    null
+                    null,
+                    MiniAppFormat.cupScoreNote(match)
             ));
         }
         return new CupReviewResponse(competition, MiniAppFormat.competitionLabel(competition), total, items);

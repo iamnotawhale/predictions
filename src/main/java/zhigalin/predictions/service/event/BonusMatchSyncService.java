@@ -229,8 +229,10 @@ public class BonusMatchSyncService {
             && EspnStatus.isBeyondRegulation(event.getStatus())) {
             aetHome = homeScore;
             aetAway = awayScore;
-            penHome = home.getShootoutScore();
-            penAway = away.getShootoutScore();
+            if (EspnStatus.isShootout(event.getStatus())) {
+                penHome = home.getShootoutScore();
+                penAway = away.getShootoutScore();
+            }
             int[] regulation = regulationScore(existing, competitionObj.getDetails(), home, away, aetHome, aetAway);
             if (regulation != null) {
                 homeScore = regulation[0];
