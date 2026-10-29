@@ -1,5 +1,6 @@
 package zhigalin.predictions.service.predict;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileBreakdownRow;
@@ -17,11 +19,13 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamQualityRow;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileWeekHighlight;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.recommender.FootyStatsStatsDao;
+import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 import zhigalin.predictions.service.event.MatchService;
@@ -36,6 +40,7 @@ public class UserPredictionStatsService {
 
     private final PredictionService predictionService;
     private final MatchService matchService;
+    private final CupMatchDao cupMatchDao;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final TeamLogoCacheService teamLogoCacheService;
     private final FootyStatsStatsDao footyStatsStatsDao;
@@ -46,12 +51,14 @@ public class UserPredictionStatsService {
     public UserPredictionStatsService(
             PredictionService predictionService,
             MatchService matchService,
+            CupMatchDao cupMatchDao,
             UserWeekBonusMatchService userWeekBonusMatchService,
             TeamLogoCacheService teamLogoCacheService,
             FootyStatsStatsDao footyStatsStatsDao
     ) {
         this.predictionService = predictionService;
         this.matchService = matchService;
+        this.cupMatchDao = cupMatchDao;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.teamLogoCacheService = teamLogoCacheService;
         this.footyStatsStatsDao = footyStatsStatsDao;
@@ -59,16 +66,45 @@ public class UserPredictionStatsService {
 
     public ProfileTeamPredictionsResponse teamPredictions(User user, Team team) {
         int userId = user.getId();
-        String teamCode = team.getCode();
-        List<MatchPrediction> forTeam = predictionService.findAllByUserId(userId).stream()
-                .filter(mp -> mp.match() != null && mp.prediction() != null)
-                .filter(mp -> teamCode.equals(code(mp.match().getHomeTeamId()))
-                        || teamCode.equals(code(mp.match().getAwayTeamId())))
-                .filter(mp -> mp.prediction().getHomeTeamScore() != null && mp.prediction().getAwayTeamScore() != null)
-                .toList();
-        List<Integer> ids = forTeam.stream().map(mp -> mp.match().getPublicId()).toList();
-        Map<Integer, int[]> aiTips = footyStatsStatsDao.findKickoffScoresByMatchIds(ids);
-        Map<Integer, int[]> others = predictionService.othersPointsByMatchIds(ids, userId);
+        Map<Integer, Prediction> eplPicks = new HashMap<>();
+        for (MatchPrediction mp : predictionService.findAllByUserId(userId)) {
+            if (mp.match() != null && mp.prediction() != null) {
+                eplPicks.put(mp.match().getPublicId(), mp.prediction());
+            }
+        }
+        Map<Integer, Prediction> cupPicks = new HashMap<>();
+        for (Prediction p : predictionService.findAllCupByUserId(userId)) {
+            cupPicks.put(p.getCupMatchId(), p);
+        }
+
+        List<Fixture> fixtures = new ArrayList<>();
+        matchService.findAllByTeamPublicId(team.getPublicId()).forEach(m -> fixtures.add(Fixture.of(m)));
+        cupMatchDao.findAllByTeamPublicId(team.getPublicId()).forEach(c -> fixtures.add(Fixture.of(c)));
+        fixtures.sort(Comparator.comparing(Fixture::kickoff,
+                Comparator.nullsLast(Comparator.<LocalDateTime>reverseOrder())));
+
+        List<TeamRow> rows = new ArrayList<>();
+        for (Fixture f : fixtures) {
+            Prediction pred = f.cup() ? cupPicks.get(f.publicId()) : eplPicks.get(f.publicId());
+            boolean weekBonus = weekBonus(userId, f);
+            Integer pts = null;
+            if (pred != null && isFinished(f.status())
+                    && classify(f.homeScore(), f.awayScore(), pred.getHomeTeamScore(), pred.getAwayTeamScore()) != Bucket.NO_BET) {
+                pts = points(f, pred, weekBonus);
+            }
+            rows.add(new TeamRow(f, pred, pts, weekBonus));
+        }
+
+        List<Integer> scoredEpl = rows.stream()
+                .filter(r -> r.points() != null && !r.fixture().cup())
+                .map(r -> r.fixture().publicId()).toList();
+        List<Integer> scoredCup = rows.stream()
+                .filter(r -> r.points() != null && r.fixture().cup())
+                .map(r -> r.fixture().publicId()).toList();
+        Map<Integer, int[]> aiTips = footyStatsStatsDao.findKickoffScoresByMatchIds(
+                fixtures.stream().filter(f -> !f.cup()).map(Fixture::publicId).toList());
+        Map<Integer, int[]> others = predictionService.othersPointsByMatchIds(scoredEpl, userId);
+        Map<Integer, int[]> cupOthers = predictionService.othersPointsByCupMatchIds(scoredCup, userId);
 
         List<ProfileTeamPredictionItem> items = new ArrayList<>();
         int pointsSum = 0;
@@ -77,32 +113,22 @@ public class UserPredictionStatsService {
         int aiN = 0;
         int othersSum = 0;
         int othersN = 0;
-        for (MatchPrediction mp : forTeam) {
-            Match match = mp.match();
-            Prediction pred = mp.prediction();
-            boolean finished = isFinished(match.getStatus());
-            boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
-                    userId, match.getWeekId(), match.getPublicId());
-            Integer rh = match.getHomeTeamScore();
-            Integer ra = match.getAwayTeamScore();
-            Integer ph = pred.getHomeTeamScore();
-            Integer pa = pred.getAwayTeamScore();
-            boolean scored = finished && classify(rh, ra, ph, pa) != Bucket.NO_BET;
-            Integer pts = null;
-            if (scored) {
-                ScoringMode mode = weekBonus ? ScoringMode.EPL_WEEK_BONUS : ScoringMode.EPL;
-                pts = pred.getPoints() != null ? pred.getPoints() : PredictionService.computePoints(mode, rh, ra, ph, pa);
+        for (TeamRow row : rows) {
+            Fixture f = row.fixture();
+            Prediction pred = row.prediction();
+            Integer pts = row.points();
+            if (pts != null) {
                 pointsSum += pts;
                 pointsN++;
             }
-            int[] ai = aiTips.get(match.getPublicId());
+            int[] ai = f.cup() ? null : aiTips.get(f.publicId());
             Integer aiPts = null;
-            if (ai != null && scored) {
-                aiPts = PredictionService.computePoints(ScoringMode.EPL, rh, ra, ai[0], ai[1]);
+            if (ai != null && pts != null) {
+                aiPts = PredictionService.computePoints(ScoringMode.EPL, f.homeScore(), f.awayScore(), ai[0], ai[1]);
                 aiSum += aiPts;
                 aiN++;
             }
-            int[] o = scored ? others.get(match.getPublicId()) : null;
+            int[] o = pts == null ? null : (f.cup() ? cupOthers : others).get(f.publicId());
             Double othersAvg = null;
             int othersCount = 0;
             if (o != null && o[1] > 0) {
@@ -111,17 +137,20 @@ public class UserPredictionStatsService {
                 othersSum += o[0];
                 othersN += o[1];
             }
+            boolean finished = isFinished(f.status());
             items.add(new ProfileTeamPredictionItem(
-                    match.getPublicId(),
-                    code(match.getHomeTeamId()),
-                    code(match.getAwayTeamId()),
-                    match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF_DAY) : null,
+                    f.publicId(),
+                    side(f.homeTeamId(), f.homeName()),
+                    side(f.awayTeamId(), f.awayName()),
+                    f.kickoff() != null ? f.kickoff().format(KICKOFF_DAY) : null,
                     finished,
-                    weekBonus,
-                    finished ? rh : null,
-                    finished ? ra : null,
-                    ph,
-                    pa,
+                    row.weekBonus(),
+                    f.cup(),
+                    f.competition(),
+                    finished ? f.homeScore() : null,
+                    finished ? f.awayScore() : null,
+                    pred != null ? pred.getHomeTeamScore() : null,
+                    pred != null ? pred.getAwayTeamScore() : null,
                     pts,
                     ai != null ? ai[0] : null,
                     ai != null ? ai[1] : null,
@@ -131,8 +160,8 @@ public class UserPredictionStatsService {
             ));
         }
         return new ProfileTeamPredictionsResponse(
-                teamCode,
-                team.getName() != null ? team.getName() : teamCode,
+                team.getCode(),
+                team.getName() != null ? team.getName() : team.getCode(),
                 teamLogoCacheService.pathForTeam(team.getPublicId()),
                 pointsN,
                 pointsN == 0 ? null : round1(pointsSum / (double) pointsN),
@@ -146,7 +175,7 @@ public class UserPredictionStatsService {
     public ProfileStatsResponse build(User user) {
         int userId = user.getId();
         int currentWeekId = DaoUtil.currentWeekId;
-        List<MatchPrediction> all = predictionService.findAllByUserId(userId);
+        List<UserPick> picks = userPicks(userId);
 
         int seasonPoints = predictionService.getAllPointsByUsers()
                 .getOrDefault(user.getLogin(), 0);
@@ -154,9 +183,9 @@ public class UserPredictionStatsService {
                 .getOrDefault(user.getLogin(), 0);
 
         String bonusLabel = null;
-        Integer cupMatchId = userWeekBonusMatchService.findAssigned(userId, currentWeekId).orElse(null);
-        if (cupMatchId != null) {
-            Match bonusMatch = matchService.findByPublicId(cupMatchId);
+        Integer weekBonusMatchId = userWeekBonusMatchService.findAssigned(userId, currentWeekId).orElse(null);
+        if (weekBonusMatchId != null) {
+            Match bonusMatch = matchService.findByPublicId(weekBonusMatchId);
             if (bonusMatch != null) {
                 String home = code(bonusMatch.getHomeTeamId());
                 String away = code(bonusMatch.getAwayTeamId());
@@ -165,10 +194,10 @@ public class UserPredictionStatsService {
                 }
             }
             if (bonusLabel == null) {
-                bonusLabel = all.stream()
-                        .filter(mp -> mp.match().getPublicId() == cupMatchId)
+                bonusLabel = picks.stream()
+                        .filter(p -> !p.fixture().cup() && p.fixture().publicId() == weekBonusMatchId)
                         .findFirst()
-                        .map(mp -> code(mp.match().getHomeTeamId()) + "–" + code(mp.match().getAwayTeamId()))
+                        .map(p -> code(p.fixture().homeTeamId()) + "–" + code(p.fixture().awayTeamId()))
                         .orElse(null);
             }
         }
@@ -202,32 +231,27 @@ public class UserPredictionStatsService {
 
         int bonusMatches = 0;
         int bonusPointsSum = 0;
+        int cupMatches = 0;
+        int cupPointsSum = 0;
 
-        for (MatchPrediction mp : all) {
-            Match match = mp.match();
-            Prediction pred = mp.prediction();
-            if (match == null || pred == null) {
+        for (UserPick pick : picks) {
+            Fixture f = pick.fixture();
+            Prediction pred = pick.prediction();
+            if (!isFinished(f.status())) {
                 continue;
             }
-            if (!isFinished(match.getStatus())) {
-                continue;
-            }
-            Integer rh = match.getHomeTeamScore();
-            Integer ra = match.getAwayTeamScore();
+            Integer rh = f.homeScore();
+            Integer ra = f.awayScore();
             Integer ph = pred.getHomeTeamScore();
             Integer pa = pred.getAwayTeamScore();
-
-            boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
-                    userId, match.getWeekId(), match.getPublicId());
-            ScoringMode mode = weekBonus ? ScoringMode.EPL_WEEK_BONUS : ScoringMode.EPL;
-            int pts = pred.getPoints() != null
-                    ? pred.getPoints()
-                    : PredictionService.computePoints(mode, rh, ra, ph, pa);
 
             Bucket bucket = classify(rh, ra, ph, pa);
             if (bucket == Bucket.NO_BET) {
                 continue;
             }
+            boolean weekBonus = weekBonus(userId, f);
+            int pts = points(f, pred, weekBonus);
+
             switch (bucket) {
                 case EXACT -> exact++;
                 case GOAL_DIFF -> goalDiff++;
@@ -267,17 +291,23 @@ public class UserPredictionStatsService {
             if (ph + pa >= 3) {
                 pickOver25++;
             }
-            accumulateTeam(byTeam, match.getHomeTeamId(), pts);
-            accumulateTeam(byTeam, match.getAwayTeamId(), pts);
+            accumulateTeam(byTeam, f.homeTeamId(), pts);
+            accumulateTeam(byTeam, f.awayTeamId(), pts);
 
-            weekAgg.computeIfAbsent(match.getWeekId(), w -> new int[2]);
-            int[] wa = weekAgg.get(match.getWeekId());
-            wa[0] += pts;
-            wa[1] += 1;
+            if (!f.cup()) {
+                weekAgg.computeIfAbsent(f.weekId(), w -> new int[2]);
+                int[] wa = weekAgg.get(f.weekId());
+                wa[0] += pts;
+                wa[1] += 1;
+            }
 
             if (weekBonus) {
                 bonusMatches++;
                 bonusPointsSum += pts;
+            }
+            if (f.cup()) {
+                cupMatches++;
+                cupPointsSum += pts;
             }
         }
 
@@ -300,12 +330,7 @@ public class UserPredictionStatsService {
                 new ProfileHighlight(
                         "Ср. очки",
                         formatNum(avgPts),
-                        "Средние очки за матч с прогнозом (Англия, с учётом бонуса тура)."
-                ),
-                new ProfileHighlight(
-                        "С прогнозом",
-                        String.valueOf(finishedWithPick),
-                        "Сколько завершённых матчей АПЛ вы уже спрогнозировали."
+                        "Средние очки за матч с прогнозом (АПЛ и кубки, с учётом бонуса тура)."
                 )
         );
 
@@ -405,6 +430,9 @@ public class UserPredictionStatsService {
         String bonusHint = bonusMatches > 0
                 ? "В бонусных матчах в среднем " + formatNum(round1(bonusPointsSum / (double) bonusMatches)) + " очк."
                 : "Бонус тура с 5-го тура: за точный счёт больше очков.";
+        String cupHint = cupMatches > 0
+                ? "В кубковых матчах в среднем " + formatNum(round1(cupPointsSum / (double) cupMatches)) + " очк."
+                : "Кубковые прогнозы появятся после первого сыгранного матча.";
 
         return new ProfileStatsResponse(
                 user.getLogin(),
@@ -413,7 +441,7 @@ public class UserPredictionStatsService {
                 currentWeekId,
                 seasonPoints,
                 currentWeekPoints,
-                cupMatchId,
+                weekBonusMatchId,
                 bonusLabel,
                 finishedWithPick,
                 finishedWithPick,
@@ -425,8 +453,52 @@ public class UserPredictionStatsService {
                 worstWeek,
                 bonusMatches,
                 bonusMatches > 0 ? round1(bonusPointsSum / (double) bonusMatches) : null,
-                bonusHint
+                bonusHint,
+                cupMatches,
+                cupMatches > 0 ? round1(cupPointsSum / (double) cupMatches) : null,
+                cupHint
         );
+    }
+
+    private List<UserPick> userPicks(int userId) {
+        List<UserPick> picks = new ArrayList<>();
+        for (MatchPrediction mp : predictionService.findAllByUserId(userId)) {
+            if (mp.match() != null && mp.prediction() != null) {
+                picks.add(new UserPick(Fixture.of(mp.match()), mp.prediction()));
+            }
+        }
+        List<Prediction> cupPredictions = predictionService.findAllCupByUserId(userId);
+        Map<Integer, CupMatch> cups = cupMatchDao.findAllByPublicIds(
+                        cupPredictions.stream().map(Prediction::getCupMatchId).filter(Objects::nonNull).toList())
+                .stream()
+                .collect(Collectors.toMap(CupMatch::getPublicId, c -> c, (a, b) -> a));
+        for (Prediction p : cupPredictions) {
+            CupMatch c = cups.get(p.getCupMatchId());
+            if (c != null) {
+                picks.add(new UserPick(Fixture.of(c), p));
+            }
+        }
+        return picks;
+    }
+
+    private boolean weekBonus(int userId, Fixture f) {
+        return !f.cup() && userWeekBonusMatchService.isWeekBonusMatch(userId, f.weekId(), f.publicId());
+    }
+
+    private static int points(Fixture f, Prediction p, boolean weekBonus) {
+        if (p.getPoints() != null) {
+            return p.getPoints();
+        }
+        ScoringMode mode = f.cup() ? ScoringMode.CUP : weekBonus ? ScoringMode.EPL_WEEK_BONUS : ScoringMode.EPL;
+        return PredictionService.computePoints(mode, f.homeScore(), f.awayScore(), p.getHomeTeamScore(), p.getAwayTeamScore());
+    }
+
+    private static String side(Integer teamId, String fallbackName) {
+        String c = teamId == null ? null : code(teamId);
+        if (c != null) {
+            return c;
+        }
+        return fallbackName != null ? fallbackName : "—";
     }
 
     private static String formatPickTypeAvgs(
@@ -478,8 +550,8 @@ public class UserPredictionStatsService {
         return new ProfileWeekHighlight(picked.getKey(), picked.getValue()[0], desc);
     }
 
-    private static void accumulateTeam(Map<String, TeamAgg> byTeam, int teamId, int pts) {
-        String c = code(teamId);
+    private static void accumulateTeam(Map<String, TeamAgg> byTeam, Integer teamId, int pts) {
+        String c = teamId == null ? null : code(teamId);
         if (c == null || c.isBlank()) {
             return;
         }
@@ -568,6 +640,28 @@ public class UserPredictionStatsService {
 
     enum Bucket {
         EXACT, GOAL_DIFF, OUTCOME, MISS, NO_BET
+    }
+
+    private record Fixture(int publicId, boolean cup, Integer homeTeamId, Integer awayTeamId,
+                           String homeName, String awayName, Integer homeScore, Integer awayScore,
+                           String status, LocalDateTime kickoff, Integer weekId, String competition) {
+
+        static Fixture of(Match m) {
+            return new Fixture(m.getPublicId(), false, m.getHomeTeamId(), m.getAwayTeamId(), null, null,
+                    m.getHomeTeamScore(), m.getAwayTeamScore(), m.getStatus(), m.getLocalDateTime(), m.getWeekId(), null);
+        }
+
+        static Fixture of(CupMatch c) {
+            return new Fixture(c.getPublicId(), true, c.getHomeTeamId(), c.getAwayTeamId(),
+                    c.getHomeName(), c.getAwayName(), c.getHomeTeamScore(), c.getAwayTeamScore(),
+                    c.getStatus(), c.getLocalDateTime(), null, c.getCompetition());
+        }
+    }
+
+    private record UserPick(Fixture fixture, Prediction prediction) {
+    }
+
+    private record TeamRow(Fixture fixture, Prediction prediction, Integer points, boolean weekBonus) {
     }
 
     private static final class TeamAgg {

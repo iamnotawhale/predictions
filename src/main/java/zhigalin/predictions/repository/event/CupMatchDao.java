@@ -119,6 +119,35 @@ public class CupMatchDao {
         }
     }
 
+    public List<CupMatch> findAllByPublicIds(java.util.Collection<Integer> publicIds) {
+        if (publicIds == null || publicIds.isEmpty()) {
+            return List.of();
+        }
+        try {
+            String sql = "SELECT * FROM cup_match WHERE public_id IN (:ids)";
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    sql, new MapSqlParameterSource("ids", publicIds), new CupMatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error find cup_match by ids", e);
+            return List.of();
+        }
+    }
+
+    public List<CupMatch> findAllByTeamPublicId(int teamPublicId) {
+        try {
+            String sql = """
+                    SELECT * FROM cup_match
+                    WHERE home_team_id = :teamPublicId OR away_team_id = :teamPublicId
+                    ORDER BY local_date_time, public_id
+                    """;
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    sql, new MapSqlParameterSource("teamPublicId", teamPublicId), new CupMatchMapper()));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error find cup_match by team", e);
+            return List.of();
+        }
+    }
+
     public List<CupMatch> findAllByDate(LocalDate date) {
         try {
             String sql = """

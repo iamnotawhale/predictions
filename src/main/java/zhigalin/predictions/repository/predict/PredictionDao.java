@@ -184,6 +184,43 @@ public class PredictionDao {
         }
     }
 
+    public List<Prediction> findAllCupByUserId(int userId) {
+        try {
+            String sql = """
+                    SELECT p.* FROM predict p
+                    WHERE p.user_id = :userId AND p.cup_match_id IS NOT NULL
+                    """;
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
+                    sql, new MapSqlParameterSource("userId", userId), new PredictionMapper()));
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    public java.util.Map<Integer, int[]> findOthersPointsByCupMatchIds(java.util.Collection<Integer> cupMatchIds, int excludeUserId) {
+        java.util.Map<Integer, int[]> result = new java.util.HashMap<>();
+        if (cupMatchIds == null || cupMatchIds.isEmpty()) {
+            return result;
+        }
+        String sql = """
+                SELECT cup_match_id, COUNT(*) AS n, SUM(points) AS s
+                FROM predict
+                WHERE cup_match_id IN (:ids)
+                  AND user_id <> :userId
+                  AND points IS NOT NULL
+                  AND home_team_score IS NOT NULL
+                  AND away_team_score IS NOT NULL
+                GROUP BY cup_match_id
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("ids", cupMatchIds);
+        params.addValue("userId", excludeUserId);
+        namedParameterJdbcTemplate.query(sql, params, rs -> {
+            result.put(rs.getInt("cup_match_id"), new int[]{rs.getInt("s"), rs.getInt("n")});
+        });
+        return result;
+    }
+
     public void updateCupPointsBatch(List<CupPointsUpdate> updates) {
         if (updates == null || updates.isEmpty()) {
             return;

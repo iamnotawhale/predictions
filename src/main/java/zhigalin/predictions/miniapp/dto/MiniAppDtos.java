@@ -445,6 +445,8 @@ public final class MiniAppDtos {
             String kickoff,
             boolean finished,
             boolean weekBonus,
+            boolean cup,
+            String competition,
             Integer homeScore,
             Integer awayScore,
             Integer predictHome,
@@ -506,7 +508,10 @@ public final class MiniAppDtos {
             ProfileWeekHighlight worstWeek,
             int bonusMatchCount,
             Double bonusAvgPoints,
-            String bonusHint
+            String bonusHint,
+            int cupMatchCount,
+            Double cupAvgPoints,
+            String cupHint
     ) {
     }
 }

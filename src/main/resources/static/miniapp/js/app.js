@@ -2870,9 +2870,11 @@
     function renderProfileTeamPredictions(data) {
         $('#profile-team-name').textContent = data.teamName || data.teamCode;
         setLogoSrc($('#profile-team-logo'), data.logo || '');
-        $('#profile-team-meta').textContent = data.matches
-            ? data.matches + ' ' + matchesWord(data.matches) + ' с вашим прогнозом'
-            : 'Завершённых матчей с вашим прогнозом пока нет';
+        const items = data.items || [];
+        const predicted = items.filter((item) => item.predictHome != null).length;
+        $('#profile-team-meta').textContent = items.length
+            ? items.length + ' ' + matchesWord(items.length) + ' · с вашим прогнозом ' + predicted
+            : 'Матчей пока нет';
 
         const summary = $('#profile-team-summary');
         const cells = [['Вы', data.avgPoints], ['ИИ', data.aiAvgPoints], ['Остальные', data.othersAvgPoints]];
@@ -2884,7 +2886,7 @@
         const list = $('#profile-team-matches');
         list.innerHTML = '';
         if (!data.items || !data.items.length) {
-            list.innerHTML = '<li class="empty-state">Прогнозов на матчи этой команды нет</li>';
+            list.innerHTML = '<li class="empty-state">Матчей этой команды пока нет</li>';
             return;
         }
         data.items.forEach((item) => {
@@ -2893,7 +2895,9 @@
             li.style.cursor = 'default';
             const parts = [];
             parts.push(item.finished ? 'счёт ' + item.homeScore + ':' + item.awayScore : 'ещё не сыгран');
-            parts.push('ваш ' + item.predictHome + ':' + item.predictAway);
+            parts.push(item.predictHome == null
+                ? 'прогноз не сделан'
+                : 'ваш ' + item.predictHome + ':' + item.predictAway);
             if (item.aiHome != null && item.aiAway != null) {
                 parts.push('ИИ ' + item.aiHome + ':' + item.aiAway
                     + (item.aiPoints != null ? ' (' + signedAvg(item.aiPoints) + ')' : ''));
@@ -2903,6 +2907,7 @@
             }
             const title = escapeHtml(item.homeCode) + ' — ' + escapeHtml(item.awayCode)
                 + (item.kickoff ? ' <span class="profile-team-match-date">· ' + escapeHtml(item.kickoff) + '</span>' : '')
+                + (item.cup ? ' ' + competitionBadgeHtml(item, false) : '')
                 + (item.weekBonus ? ' <span class="badge badge-bonus">бонус</span>' : '');
             li.innerHTML =
                 '<div class="list-item-main">' +
@@ -3221,6 +3226,13 @@
                 ? (data.bonusMatchCount + (data.bonusAvgPoints != null ? ' · ср. ' + data.bonusAvgPoints : ''))
                 : 'пока нет',
             description: data.bonusHint || ''
+        });
+        weekBits.push({
+            label: 'Кубковые матчи',
+            value: data.cupMatchCount
+                ? (data.cupMatchCount + (data.cupAvgPoints != null ? ' · ср. ' + data.cupAvgPoints : ''))
+                : 'пока нет',
+            description: data.cupHint || ''
         });
         weeksSection.classList.remove('hidden');
         weekBits.forEach((h) => {

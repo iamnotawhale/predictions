@@ -75,8 +75,16 @@ public class PredictionService {
         return predictionDao.findOthersPointsByMatchIds(matchIds, excludeUserId);
     }
 
+    public java.util.Map<Integer, int[]> othersPointsByCupMatchIds(java.util.Collection<Integer> cupMatchIds, int excludeUserId) {
+        return predictionDao.findOthersPointsByCupMatchIds(cupMatchIds, excludeUserId);
+    }
+
     public List<MatchPrediction> findAllByUserId(int userId) {
         return predictionDao.findAllByUserId(userId);
+    }
+
+    public List<Prediction> findAllCupByUserId(int userId) {
+        return predictionDao.findAllCupByUserId(userId);
     }
 
     public void deleteByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
