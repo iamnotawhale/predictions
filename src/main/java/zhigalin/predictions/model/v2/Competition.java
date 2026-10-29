@@ -11,4 +11,5 @@ public class Competition {
     private Status status;
     private List<Competitor> competitors;
     private List<OddV2> odds;
+    private List<Detail> details;
 }

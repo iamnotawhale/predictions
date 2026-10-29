@@ -7,5 +7,6 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Status {
     private String displayClock;
+    private Integer period;
     private Type type;
 }

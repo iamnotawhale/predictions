@@ -55,6 +55,7 @@ import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
+import zhigalin.predictions.util.EspnStatus;
 import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.util.EspnTeamLogos;
 import zhigalin.predictions.util.TeamCodeMapper;
@@ -90,6 +91,8 @@ public class DataInitService {
     private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
     private static final long LIVE_INTERVAL_MS = 30_000L;
     private static final long IDLE_INTERVAL_MS = 120_000L;
+    /** Keep polling ESPN this long after FT to pick up score corrections. */
+    private static final int SCORE_CORRECTION_WINDOW_HOURS = 2;
     private static final long NEWS_CACHE_MS = 120_000L;
     private static final ObjectMapper mapper = new ObjectMapper();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
@@ -186,8 +189,9 @@ public class DataInitService {
 
         boolean hasOnlineMatches = !matchService.findOnlineMatches().isEmpty();
         boolean hasPostponedMatches = matchService.hasPostponedMatches();
+        boolean hasRecentlyFinished = matchService.hasRecentlyFinishedMatches(SCORE_CORRECTION_WINDOW_HOURS);
 
-        if (!hasOnlineMatches && !hasPostponedMatches) return;
+        if (!hasOnlineMatches && !hasPostponedMatches && !hasRecentlyFinished) return;
 
         Scoreboard scoreboard = espnScoreboardClient.fetchScoreboard();
         if (scoreboard == null || scoreboard.getEvents() == null) {
@@ -201,7 +205,9 @@ public class DataInitService {
             String homeTeam = realTeamCode(teams[1]);
             String awayTeam = realTeamCode(teams[0]);
 
-            if (state.equals("pre")) {
+            if (EspnStatus.isPostponed(event.getStatus())) {
+                markPostponed(matchService.findByTeamCodes(homeTeam, awayTeam), event.getId(), homeTeam, awayTeam);
+            } else if (state.equals("pre")) {
                 Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
                 if (match == null) {
                     continue;
@@ -267,12 +273,13 @@ public class DataInitService {
                 match.setAwayTeamScore(awayScore);
 
                 boolean becameFinished = !status.equals(match.getStatus());
+                boolean scoreCorrected = !becameFinished
+                                         && (!Objects.equals(prevHome, homeScore) || !Objects.equals(prevAway, awayScore));
                 if (becameFinished) {
                     match.setStatus(status);
                     match.setResult(findResult(homeScore, awayScore));
-                    if (match.getFinishedAt() == null) {
-                        match.setFinishedAt(LocalDateTime.now());
-                    }
+                    // A replayed fixture must not keep the timestamp of an earlier (postponed) run.
+                    match.setFinishedAt(LocalDateTime.now());
                     matchService.update(match);
                     try {
                         // Ensure points even if LISTEN→sendFullTime is missed (NULL points → UI shows 0).
@@ -282,8 +289,18 @@ public class DataInitService {
                                 homeTeam, awayTeam, e.getMessage(), e);
                         panicSender.sendPanic("updateByMatch after ESPN post", e);
                     }
-                } else if (nextTotal != prevTotal) {
+                } else if (scoreCorrected) {
+                    match.setResult(findResult(homeScore, awayScore));
                     matchService.update(match);
+                    serverLogger.info("Score corrected after FT: {}-{} {}:{} -> {}:{}, recalculating points",
+                            homeTeam, awayTeam, prevHome, prevAway, homeScore, awayScore);
+                    try {
+                        predictionService.updateByMatch(match);
+                    } catch (Exception e) {
+                        serverLogger.error("updateByMatch after score correction failed for {}-{}: {}",
+                                homeTeam, awayTeam, e.getMessage(), e);
+                        panicSender.sendPanic("updateByMatch after score correction", e);
+                    }
                 }
                 bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
                 if (becameFinished) {
@@ -294,6 +311,27 @@ public class DataInitService {
                 }
                 headToHeadService.saveFromFinishedMatch(match);
             }
+        }
+    }
+
+    /** Postponed/cancelled fixtures are replayed later: no score, no points until they finish for real. */
+    private void markPostponed(Match match, String espnId, String homeTeam, String awayTeam) {
+        if (match == null || "pst".equals(match.getStatus())) {
+            return;
+        }
+        // A stale postponed event must not reopen a fixture that ESPN already tracks under another id.
+        if (match.getEspnId() != null && espnId != null && !match.getEspnId().equals(espnId)) {
+            return;
+        }
+        serverLogger.info("Match {}-{} postponed by ESPN: {} -> pst", homeTeam, awayTeam, match.getStatus());
+        match.setHomeTeamScore(null);
+        match.setAwayTeamScore(null);
+        match.setResult(null);
+        boolean wasFinished = "ft".equals(match.getStatus());
+        match.setStatus("pst");
+        matchService.update(match);
+        if (wasFinished) {
+            matchService.resetLastProcessedAt(match.getPublicId());
         }
     }
 

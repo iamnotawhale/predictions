@@ -545,6 +545,11 @@
         pill.classList.add('score-saved');
     }
 
+    /** Cup ties past 90 minutes: points use the regulation score, shown next to the live/final one. */
+    function scoreNoteSuffix(m) {
+        return m && m.scoreNote ? ' · ' + escapeHtml(m.scoreNote) : '';
+    }
+
     function renderMatchItem(m, onClick) {
         const li = document.createElement('li');
         let cls = 'list-item';
@@ -569,7 +574,7 @@
             '<span class="list-item-codes">' + escapeHtml(m.homeCode) + ' — ' + escapeHtml(m.awayCode) + '</span>' +
             cupBadge +
             '</div>' +
-            '<div class="list-item-sub">' + escapeHtml(m.homeName) + ' vs ' + escapeHtml(m.awayName) + '</div>' +
+            '<div class="list-item-sub">' + escapeHtml(m.homeName) + ' vs ' + escapeHtml(m.awayName) + scoreNoteSuffix(m) + '</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + escapeHtml(matchScoreLabel(m)) + '</div>' +
@@ -643,7 +648,7 @@
             '<span class="list-item-codes">' + escapeHtml(m.homeCode) + ' — ' + escapeHtml(m.awayCode) + '</span>' +
             cupBadge +
             '</div>' +
-            '<div class="list-item-sub">' + escapeHtml(m.homeName) + ' vs ' + escapeHtml(m.awayName) + '</div>' +
+            '<div class="list-item-sub">' + escapeHtml(m.homeName) + ' vs ' + escapeHtml(m.awayName) + scoreNoteSuffix(m) + '</div>' +
             '</div>' +
             '<div class="list-item-meta">' +
             '<div class="score-pill">' + escapeHtml(todayScoreLabel(m)) + '</div>' +
@@ -1509,7 +1514,8 @@
         }
         const clock = $('#live-modal-clock');
         if (clock) {
-            clock.textContent = ((match.status || '').trim()) || (match.kickoff || '');
+            const clockText = ((match.status || '').trim()) || (match.kickoff || '');
+            clock.textContent = match.scoreNote ? clockText + ' · ' + match.scoreNote : clockText;
         }
     }
 
@@ -1547,7 +1553,8 @@
             state.selectedMatch = Object.assign({}, state.selectedMatch, {
                 homeScore: data.homeScore != null ? data.homeScore : state.selectedMatch.homeScore,
                 awayScore: data.awayScore != null ? data.awayScore : state.selectedMatch.awayScore,
-                status: data.status || state.selectedMatch.status
+                status: data.status || state.selectedMatch.status,
+                scoreNote: data.scoreNote || state.selectedMatch.scoreNote || null
             });
             setLiveModalHeader(state.selectedMatch);
             syncTodayMatchScores(state.selectedMatch);
@@ -3363,7 +3370,8 @@
                     const li = document.createElement('li');
                     li.className = 'list-item review-item';
                     li.style.cursor = 'default';
-                    const actual = (item.homeScore ?? '-') + ':' + (item.awayScore ?? '-');
+                    const actual = (item.homeScore ?? '-') + ':' + (item.awayScore ?? '-')
+                        + (item.scoreNote ? ' (' + escapeHtml(item.scoreNote) + ')' : '');
                     const pred = item.hasPrediction
                         ? ((item.predictHome ?? '-') + ':' + (item.predictAway ?? '-'))
                         : '—';

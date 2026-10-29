@@ -46,6 +46,16 @@ public class BonusMatch {
     private Integer homeTeamScore;
     @JsonProperty("away_team_score")
     private Integer awayTeamScore;
+    /** Score after extra time; null when the match was decided in regulation. Not used for points. */
+    @JsonProperty("aet_home_score")
+    private Integer aetHomeScore;
+    @JsonProperty("aet_away_score")
+    private Integer aetAwayScore;
+    /** Penalty shootout score; null without a shootout. Not used for points. */
+    @JsonProperty("pen_home_score")
+    private Integer penHomeScore;
+    @JsonProperty("pen_away_score")
+    private Integer penAwayScore;
     private String result;
     private String status;
     @JsonProperty("local_date_time")

@@ -15,6 +15,7 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.model.v2.Competitor;
+import zhigalin.predictions.model.v2.Detail;
 import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.repository.event.BonusMatchDao;
@@ -25,6 +26,7 @@ import zhigalin.predictions.service.notification.Result;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.EspnStatus;
 import zhigalin.predictions.util.EspnTeamLogos;
 import zhigalin.predictions.util.TeamCodeMapper;
 
@@ -215,8 +217,32 @@ public class BonusMatchSyncService {
                 ? event.getStatus().getType().getState()
                 : "pre";
         String status = mapStatus(event, state);
-        Integer homeScore = parseScore(home.getScore());
-        Integer awayScore = parseScore(away.getScore());
+        boolean postponed = "pst".equals(status);
+        // ESPN reports 0:0 for postponed fixtures; keep the score empty until the match is played.
+        Integer homeScore = postponed ? null : parseScore(home.getScore());
+        Integer awayScore = postponed ? null : parseScore(away.getScore());
+        Integer aetHome = null;
+        Integer aetAway = null;
+        Integer penHome = null;
+        Integer penAway = null;
+        // Cup points and the FT card use the 90-minute score; extra time and the shootout are kept aside.
+        if (!postponed && homeScore != null && awayScore != null
+            && EspnStatus.isBeyondRegulation(event.getStatus())) {
+            aetHome = homeScore;
+            aetAway = awayScore;
+            if (EspnStatus.isShootout(event.getStatus())) {
+                penHome = home.getShootoutScore();
+                penAway = away.getShootoutScore();
+            }
+            int[] regulation = regulationScore(existing, competitionObj.getDetails(), home, away, aetHome, aetAway);
+            if (regulation != null) {
+                homeScore = regulation[0];
+                awayScore = regulation[1];
+            } else {
+                log.warn("Cup {} {}: 90-minute score unknown, using score after extra time {}:{}",
+                        competition, publicId, aetHome, aetAway);
+            }
+        }
 
         boolean wasFt = existing != null && "ft".equals(existing.getStatus());
 
@@ -234,6 +260,10 @@ public class BonusMatchSyncService {
                 .awayEspnCode(awayCode)
                 .homeTeamScore(homeScore)
                 .awayTeamScore(awayScore)
+                .aetHomeScore(aetHome)
+                .aetAwayScore(aetAway)
+                .penHomeScore(penHome)
+                .penAwayScore(penAway)
                 .status(status)
                 .result(resultOf(homeScore, awayScore))
                 .localDateTime(kickoff != null ? kickoff : (existing != null ? existing.getLocalDateTime() : null))
@@ -242,7 +272,11 @@ public class BonusMatchSyncService {
                 .build();
 
         boolean becameFt = "ft".equals(status) && !wasFt;
-        if (becameFt && match.getFinishedAt() == null) {
+        boolean scoreCorrected = wasFt && "ft".equals(status)
+                                 && (!Objects.equals(existing.getHomeTeamScore(), homeScore)
+                                     || !Objects.equals(existing.getAwayTeamScore(), awayScore));
+        if (becameFt) {
+            // A replayed fixture must not keep the timestamp of an earlier (postponed) run.
             match.setFinishedAt(LocalDateTime.now());
         }
 
@@ -251,7 +285,39 @@ public class BonusMatchSyncService {
         if (becameFt) {
             predictionService.updateByBonusMatch(match);
             sendFullTime(match);
+        } else if (scoreCorrected) {
+            log.info("Cup score corrected after FT: {} {} {}:{} -> {}:{}, recalculating points",
+                    competition, publicId,
+                    existing.getHomeTeamScore(), existing.getAwayTeamScore(), homeScore, awayScore);
+            predictionService.updateByBonusMatch(match);
         }
+    }
+
+    /**
+     * Goal events first; otherwise the last score stored while the match was still in regulation
+     * (or already frozen on an earlier extra-time poll).
+     */
+    private static int[] regulationScore(
+            BonusMatch existing,
+            List<Detail> details,
+            Competitor home,
+            Competitor away,
+            int aetHome,
+            int aetAway
+    ) {
+        int[] fromDetails = RegulationScore.fromDetails(details, home, away, aetHome, aetAway);
+        if (fromDetails != null) {
+            return fromDetails;
+        }
+        if (existing == null || existing.getHomeTeamScore() == null || existing.getAwayTeamScore() == null) {
+            return null;
+        }
+        if (existing.getAetHomeScore() != null) {
+            return new int[] {existing.getHomeTeamScore(), existing.getAwayTeamScore()};
+        }
+        String prev = existing.getStatus();
+        boolean wasInRegulation = prev != null && !List.of("ns", "pst", "ft").contains(prev);
+        return wasInRegulation ? new int[] {existing.getHomeTeamScore(), existing.getAwayTeamScore()} : null;
     }
 
     private void sendFullTime(BonusMatch match) {
@@ -291,8 +357,11 @@ public class BonusMatchSyncService {
                 results
         );
 
-        String caption = "Матч " + home + " " + center + " " + away
-                         + " (" + competitionLabel(match.getCompetition()) + ") окончен";
+        String caption = match.getAetHomeScore() != null
+                ? "Основное время: " + home + " " + center + " " + away
+                  + " (" + competitionLabel(match.getCompetition()) + ")"
+                : "Матч " + home + " " + center + " " + away
+                  + " (" + competitionLabel(match.getCompetition()) + ") окончен";
         if (path != null) {
             apiClient.sendPhoto(defaultChatId, caption, path, null);
         } else {
@@ -320,6 +389,9 @@ public class BonusMatchSyncService {
     }
 
     private static String mapStatus(Event event, String state) {
+        if (EspnStatus.isPostponed(event.getStatus())) {
+            return "pst";
+        }
         if ("pre".equals(state)) {
             return "ns";
         }
