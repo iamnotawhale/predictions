@@ -131,7 +131,8 @@ class UserPredictionStatsTeamTest {
         User user = User.builder().id(5).login("nik").build();
         when(predictionService.findAllByUserId(5)).thenReturn(List.of());
         when(predictionService.findAllCupByUserId(5)).thenReturn(List.of(
-                Prediction.builder().cupMatchId(900).userId(5).homeTeamScore(2).awayTeamScore(1).build()
+                Prediction.builder().cupMatchId(900).userId(5).homeTeamScore(2).awayTeamScore(1).build(),
+                Prediction.builder().cupMatchId(902).userId(5).homeTeamScore(1).awayTeamScore(1).build()
         ));
         when(matchService.findAllByTeamPublicId(1)).thenReturn(List.of());
         when(cupMatchDao.findAllByTeamPublicId(1)).thenReturn(List.of(
@@ -140,7 +141,10 @@ class UserPredictionStatsTeamTest {
                         .localDateTime(LocalDateTime.of(2026, 10, 20, 18, 0)).build(),
                 CupMatch.builder().publicId(901).homeTeamId(1).awayTeamId(2).homeName("Arsenal")
                         .awayName("Chelsea").status("ns")
-                        .localDateTime(LocalDateTime.of(2026, 10, 21, 18, 0)).build()
+                        .localDateTime(LocalDateTime.of(2026, 10, 21, 18, 0)).build(),
+                CupMatch.builder().publicId(902).homeTeamId(1).awayTeamId(2).homeName("Arsenal")
+                        .awayName("Chelsea").status("ns")
+                        .localDateTime(LocalDateTime.of(2026, 10, 30, 18, 0)).build()
         ));
         when(statsDao.findKickoffScoresByMatchIds(anyCollection())).thenReturn(Map.of());
         when(predictionService.othersPointsByCupMatchIds(anyCollection(), eq(5))).thenReturn(Map.of());
@@ -153,11 +157,11 @@ class UserPredictionStatsTeamTest {
         assertEquals(1, r.matches());
         assertEquals(2.0, r.avgPoints(), 1e-9);
 
-        var unpredicted = r.items().get(0);
-        assertEquals("CHE", unpredicted.awayCode());
-        assertTrue(unpredicted.cup());
-        assertNull(unpredicted.predictHome());
-        assertNull(unpredicted.points());
+        var upcoming = r.items().get(0);
+        assertEquals(902, upcoming.matchPublicId());
+        assertFalse(upcoming.finished());
+        assertEquals(1, upcoming.predictHome());
+        assertNull(upcoming.points());
 
         var cup = r.items().get(1);
         assertEquals("Lower Club", cup.awayCode());

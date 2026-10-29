@@ -80,12 +80,13 @@ public class UserPredictionStatsService {
         List<Fixture> fixtures = new ArrayList<>();
         matchService.findAllByTeamPublicId(team.getPublicId()).forEach(m -> fixtures.add(Fixture.of(m)));
         cupMatchDao.findAllByTeamPublicId(team.getPublicId()).forEach(c -> fixtures.add(Fixture.of(c)));
-        fixtures.sort(Comparator.comparing(Fixture::kickoff,
-                Comparator.nullsLast(Comparator.<LocalDateTime>reverseOrder())));
 
         List<TeamRow> rows = new ArrayList<>();
         for (Fixture f : fixtures) {
             Prediction pred = f.cup() ? cupPicks.get(f.publicId()) : eplPicks.get(f.publicId());
+            if (!isFinished(f.status()) && pred == null) {
+                continue;
+            }
             boolean weekBonus = weekBonus(userId, f);
             Integer pts = null;
             if (pred != null && isFinished(f.status())
@@ -94,6 +95,11 @@ public class UserPredictionStatsService {
             }
             rows.add(new TeamRow(f, pred, pts, weekBonus));
         }
+        Comparator<LocalDateTime> soonestFirst = Comparator.nullsLast(Comparator.naturalOrder());
+        Comparator<TeamRow> byKickoff = (a, b) -> isFinished(a.fixture().status())
+                ? soonestFirst.reversed().compare(a.fixture().kickoff(), b.fixture().kickoff())
+                : soonestFirst.compare(a.fixture().kickoff(), b.fixture().kickoff());
+        rows.sort(Comparator.comparing((TeamRow r) -> isFinished(r.fixture().status())).thenComparing(byKickoff));
 
         List<Integer> scoredEpl = rows.stream()
                 .filter(r -> r.points() != null && !r.fixture().cup())
