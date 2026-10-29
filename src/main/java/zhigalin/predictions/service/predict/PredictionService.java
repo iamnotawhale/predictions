@@ -317,17 +317,6 @@ public class PredictionService {
                 );
     }
 
-    public void recalculateFinishedMatchPoints() {
-        var finished = matchService.findFinishedMatches();
-        for (Match match : finished) {
-            updateByMatch(match);
-        }
-        for (BonusMatch bonus : bonusMatchDao.findFinished()) {
-            updateByBonusMatch(bonus);
-        }
-        log.info("Recalculated points for {} finished EPL + cup matches", finished.size());
-    }
-
     public void updateByMatch(Match match) {
         List<User> users = userService.findAll();
         if (match != null) {
