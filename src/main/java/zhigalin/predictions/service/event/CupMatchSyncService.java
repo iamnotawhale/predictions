@@ -45,6 +45,7 @@ public class CupMatchSyncService {
     private final PredictionService predictionService;
     private final ApiClient apiClient;
     private final HtmlImageRenderer htmlImageRenderer;
+    private final CupMatchTipService cupMatchTipService;
     private volatile long lastCupWindowSyncMs;
 
     public CupMatchSyncService(
@@ -52,13 +53,15 @@ public class CupMatchSyncService {
             CupMatchDao cupMatchDao,
             PredictionService predictionService,
             ApiClient apiClient,
-            HtmlImageRenderer htmlImageRenderer
+            HtmlImageRenderer htmlImageRenderer,
+            CupMatchTipService cupMatchTipService
     ) {
         this.espnScoreboardClient = espnScoreboardClient;
         this.cupMatchDao = cupMatchDao;
         this.predictionService = predictionService;
         this.apiClient = apiClient;
         this.htmlImageRenderer = htmlImageRenderer;
+        this.cupMatchTipService = cupMatchTipService;
     }
 
     public void syncTodayCups() {
@@ -78,6 +81,11 @@ public class CupMatchSyncService {
         }
         if (scanWindow) {
             lastCupWindowSyncMs = System.currentTimeMillis();
+        }
+        try {
+            cupMatchTipService.refreshUpcoming();
+        } catch (Exception e) {
+            log.warn("Cup tip refresh skipped: {}", e.getMessage());
         }
     }
 

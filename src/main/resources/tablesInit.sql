@@ -194,3 +194,31 @@ create table if not exists match_recommendation
 
 
 
+
+create table if not exists cup_match_tip
+(
+    cup_match_id integer primary key,
+    home_score integer not null,
+    away_score integer not null,
+    expected_points double precision not null,
+    p_home double precision not null,
+    p_draw double precision not null,
+    p_away double precision not null,
+    odd_home double precision,
+    odd_draw double precision,
+    odd_away double precision,
+    over_line double precision,
+    over_odds double precision,
+    under_odds double precision,
+    form_applied boolean not null default false,
+    home_form_goals_for double precision,
+    home_form_goals_against double precision,
+    home_form_matches integer,
+    away_form_goals_for double precision,
+    away_form_goals_against double precision,
+    away_form_matches integer,
+    h2h_home_goals double precision,
+    h2h_away_goals double precision,
+    h2h_matches integer,
+    updated_at timestamp not null
+);

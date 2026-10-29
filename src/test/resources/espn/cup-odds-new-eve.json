@@ -1,0 +1,301 @@
+{
+ "odds": [
+  {
+   "provider": {
+    "name": "DraftKings"
+   },
+   "overUnder": 2.5,
+   "overOdds": -155.0,
+   "underOdds": 120.0,
+   "homeTeamOdds": {
+    "moneyLine": 130,
+    "favorite": true
+   },
+   "awayTeamOdds": {
+    "moneyLine": 185,
+    "favorite": false
+   },
+   "drawOdds": {
+    "moneyLine": 240.0
+   }
+  }
+ ],
+ "header": {
+  "competitions": [
+   {
+    "competitors": [
+     {
+      "id": "368",
+      "homeAway": "home"
+     },
+     {
+      "id": "361",
+      "homeAway": "away"
+     }
+    ]
+   }
+  ]
+ },
+ "lastFiveGames": [
+  {
+   "team": {
+    "id": "368"
+   },
+   "events": [
+    {
+     "homeTeamId": "368",
+     "awayTeamId": "380",
+     "homeTeamScore": "1",
+     "awayTeamScore": "0",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-09-16T18:45Z",
+     "leagueAbbreviation": "Carabao Cup",
+     "score": "1-0"
+    },
+    {
+     "homeTeamId": "368",
+     "awayTeamId": "373",
+     "homeTeamScore": "1",
+     "awayTeamScore": "0",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-09-19T14:00Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "1-0"
+    },
+    {
+     "homeTeamId": "306",
+     "awayTeamId": "368",
+     "homeTeamScore": "2",
+     "awayTeamScore": "2",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-10-11T13:00Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "2-2"
+    },
+    {
+     "homeTeamId": "368",
+     "awayTeamId": "363",
+     "homeTeamScore": "0",
+     "awayTeamScore": "2",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-10-17T11:30Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "2-0"
+    },
+    {
+     "homeTeamId": "359",
+     "awayTeamId": "368",
+     "homeTeamScore": "2",
+     "awayTeamScore": "0",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-10-24T14:00Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "2-0"
+    }
+   ]
+  },
+  {
+   "team": {
+    "id": "361"
+   },
+   "events": [
+    {
+     "homeTeamId": "357",
+     "awayTeamId": "361",
+     "homeTeamScore": "4",
+     "awayTeamScore": "1",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-09-14T19:00Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "4-1"
+    },
+    {
+     "homeTeamId": "361",
+     "awayTeamId": "306",
+     "homeTeamScore": "2",
+     "awayTeamScore": "1",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-09-19T14:00Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "2-1"
+    },
+    {
+     "homeTeamId": "388",
+     "awayTeamId": "361",
+     "homeTeamScore": "4",
+     "awayTeamScore": "1",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-10-12T19:00Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "4-1"
+    },
+    {
+     "homeTeamId": "361",
+     "awayTeamId": "362",
+     "homeTeamScore": "0",
+     "awayTeamScore": "1",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-10-17T16:30Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "1-0"
+    },
+    {
+     "homeTeamId": "384",
+     "awayTeamId": "361",
+     "homeTeamScore": "0",
+     "awayTeamScore": "2",
+     "homeAggregateScore": "0",
+     "awayAggregateScore": "0",
+     "homeShootoutScore": "0",
+     "awayShootoutScore": "0",
+     "gameDate": "2026-10-25T14:00Z",
+     "leagueAbbreviation": "Premier League",
+     "score": "2-0"
+    }
+   ]
+  }
+ ],
+ "seasonseries": [
+  {
+   "events": [
+    {
+     "date": "2026-08-12T16:15:00Z",
+     "statusType": {
+      "completed": true
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "1",
+       "team": {
+        "id": "361"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "3",
+       "team": {
+        "id": "368"
+       }
+      }
+     ]
+    },
+    {
+     "date": "2026-02-28T15:00:00Z",
+     "statusType": {
+      "completed": true
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "2",
+       "team": {
+        "id": "361"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "3",
+       "team": {
+        "id": "368"
+       }
+      }
+     ]
+    },
+    {
+     "date": "2025-11-29T17:30:00Z",
+     "statusType": {
+      "completed": true
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "1",
+       "team": {
+        "id": "368"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "4",
+       "team": {
+        "id": "361"
+       }
+      }
+     ]
+    },
+    {
+     "date": "2025-05-25T15:00:00Z",
+     "statusType": {
+      "completed": true
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "361"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "1",
+       "team": {
+        "id": "368"
+       }
+      }
+     ]
+    },
+    {
+     "date": "2024-10-05T16:30:00Z",
+     "statusType": {
+      "completed": true
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "368"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "id": "361"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
