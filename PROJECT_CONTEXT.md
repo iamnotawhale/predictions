@@ -116,6 +116,7 @@
 - `odd_over_under` — линия тотала матча; `odd_home_team_total` / `odd_away_team_total` — индивидуальные тоталы.
 - `finished_at` — время фиксации FT для скользящего пола очков.
 - `bonus_match` — кубковые матчи с участием клубов АПЛ; `predict.bonus_match_id` — прогноз на них.
+- Кубковые команды сопоставляются с клубами АПЛ по ESPN team id через `EspnTeamLogos` (не по коду: коды ESPN коллидируют — `BRI` у Bristol Rovers, Brighton это `BHA`). Новый клуб АПЛ обязательно добавить в `EspnTeamLogos`, иначе его матчи с клубами вне АПЛ в кубке не попадут в `bonus_match`.
 - `user_week_bonus_match` — персональный бонус-матч тура (user_id, week_id → match_public_id).
 - Миграция: `MatchOddsSchemaMigration`, `BonusMatchesSchemaMigration` + `ALTER`/`CREATE` в `tablesInit.sql`.
 
