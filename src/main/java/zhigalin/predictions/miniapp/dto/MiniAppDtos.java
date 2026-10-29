@@ -1,5 +1,7 @@
 package zhigalin.predictions.miniapp.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import zhigalin.predictions.recommender.RecommendationInsight;
 import zhigalin.predictions.recommender.model.TipTrackRecord;
@@ -55,6 +57,10 @@ public final class MiniAppDtos {
             Integer cupMatchId,
             String scoreNote
     ) {
+        @JsonProperty("bonusMatchId")
+        public Integer bonusMatchId() {
+            return cupMatchId;
+        }
     }
 
     public record LeaderboardEntry(String login, int points, Integer provisionalPoints, Integer liveDelta) {
@@ -354,7 +360,7 @@ public final class MiniAppDtos {
             String awayCode,
             int homeScore,
             int awayScore,
-            Integer cupMatchId
+            @JsonAlias("bonusMatchId") Integer cupMatchId
     ) {
     }
 
