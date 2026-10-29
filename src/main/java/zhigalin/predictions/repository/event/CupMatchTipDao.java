@@ -2,8 +2,10 @@ package zhigalin.predictions.repository.event;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +104,51 @@ public class CupMatchTipDao {
             serverLogger.error("upsert cup_match_tip {}: {}", row.cupMatchId(), e.getMessage());
             panicSender.sendPanic("Error upsert cup_match_tip", e);
         }
+    }
+
+    public Map<Integer, CupOddsModel.Odds> oddsByCupMatchIds(Collection<Integer> cupMatchIds) {
+        Map<Integer, CupOddsModel.Odds> result = new HashMap<>();
+        if (cupMatchIds == null || cupMatchIds.isEmpty()) {
+            return result;
+        }
+        String sql = """
+                SELECT cup_match_id, odd_home, odd_draw, odd_away, over_line, over_odds, under_odds
+                FROM cup_match_tip WHERE cup_match_id IN (:ids)
+                """;
+        namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource("ids", cupMatchIds), rs -> {
+            if (rs.getObject("odd_home") == null) {
+                return;
+            }
+            result.put(rs.getInt("cup_match_id"), new CupOddsModel.Odds(
+                    rs.getDouble("odd_home"), rs.getDouble("odd_draw"), rs.getDouble("odd_away"),
+                    (Double) rs.getObject("over_line"), (Double) rs.getObject("over_odds"),
+                    (Double) rs.getObject("under_odds")));
+        });
+        return result;
+    }
+
+    public Optional<CupOddsModel.Tip> findByCupMatchId(int cupMatchId) {
+        String sql = """
+                SELECT home_score, away_score, expected_points, p_home, p_draw, p_away, form_applied
+                FROM cup_match_tip WHERE cup_match_id = :cupMatchId
+                """;
+        return namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource("cupMatchId", cupMatchId), rs -> rs.next()
+                ? Optional.of(new CupOddsModel.Tip(rs.getInt("home_score"), rs.getInt("away_score"),
+                rs.getDouble("expected_points"), rs.getDouble("p_home"), rs.getDouble("p_draw"),
+                rs.getDouble("p_away"), rs.getBoolean("form_applied")))
+                : Optional.empty());
+    }
+
+    public List<int[]> findFinishedTipResults() {
+        String sql = """
+                SELECT t.home_score, t.away_score, c.home_team_score, c.away_team_score
+                FROM cup_match_tip t
+                JOIN cup_match c ON c.public_id = t.cup_match_id
+                WHERE c.status = 'ft' AND c.home_team_score IS NOT NULL AND c.away_team_score IS NOT NULL
+                """;
+        return namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> new int[]{
+                rs.getInt("home_score"), rs.getInt("away_score"),
+                rs.getInt("home_team_score"), rs.getInt("away_team_score")});
     }
 
     public Map<Integer, LocalDateTime> updatedAtByCupMatchIds(Collection<Integer> cupMatchIds) {

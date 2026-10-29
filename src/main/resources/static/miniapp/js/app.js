@@ -1442,6 +1442,7 @@
                 $('#modal-h2h-section').classList.add('hidden');
                 $('#modal-news-section').classList.add('hidden');
                 renderModalPrematch([], [], [], match);
+                loadCupModalTip(match).catch(() => {});
             }
             return;
         }
@@ -1469,7 +1470,26 @@
             $('#modal-h2h-section').classList.add('hidden');
             $('#modal-news-section').classList.add('hidden');
             renderModalPrematch([], [], [], match);
+            loadCupModalTip(match).catch(() => {});
         }
+    }
+
+    async function loadCupModalTip(match) {
+        const section = $('#modal-recommendation-section');
+        if (!section) return;
+        state.currentRecommendation = null;
+        section.classList.add('hidden');
+        if (!(state.profile && state.profile.bettingRecommenderEnabled)) return;
+        const cupMatchId = match.cupMatchId || match.publicId;
+        const modalMatchId = match.publicId;
+        const tip = await api('/cups/match/' + encodeURIComponent(cupMatchId) + '/tip');
+        if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId || !tip.available) return;
+        $('#modal-recommendation-score').textContent = tip.recommendedHome + ':' + tip.recommendedAway;
+        const pct = (v) => Math.round(Number(v) * 100) + '%';
+        $('#modal-recommendation-summary').textContent = 'П1 ' + pct(tip.pHome) + ' · X ' + pct(tip.pDraw)
+            + ' · П2 ' + pct(tip.pAway) + ' · ожидаемые очки ' + Number(tip.expectedPoints).toFixed(2)
+            + (tip.formApplied ? ' · с учётом формы' : '');
+        section.classList.remove('hidden');
     }
 
     function isLiveModalOpen() {

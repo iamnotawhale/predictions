@@ -14,6 +14,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.recommender.CupOddsModel;
+import zhigalin.predictions.recommender.model.TipTrackRecord;
+import zhigalin.predictions.service.predict.PredictionService;
+import zhigalin.predictions.service.predict.ScoringMode;
 import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.event.CupMatchTipDao;
 import zhigalin.predictions.service.api.ApiClient;
@@ -61,6 +64,32 @@ public class CupMatchTipService {
                 log.warn("Cup tip refresh failed for {}: {}", match.getPublicId(), e.getMessage());
             }
         }
+    }
+
+    public Map<Integer, CupOddsModel.Odds> oddsFor(Collection<Integer> cupMatchIds) {
+        return tipDao.oddsByCupMatchIds(cupMatchIds);
+    }
+
+    public Optional<CupOddsModel.Tip> tipFor(int cupMatchId) {
+        return tipDao.findByCupMatchId(cupMatchId);
+    }
+
+    public TipTrackRecord cupTrackRecord() {
+        return computeTrackRecord(tipDao.findFinishedTipResults());
+    }
+
+    static TipTrackRecord computeTrackRecord(List<int[]> rows) {
+        int total = 0;
+        int exact = 0;
+        for (int[] r : rows) {
+            int points = PredictionService.computePoints(ScoringMode.CUP, r[2], r[3], r[0], r[1]);
+            total += points;
+            if (points == 2) {
+                exact++;
+            }
+        }
+        double avg = rows.isEmpty() ? 0.0 : (double) total / rows.size();
+        return new TipTrackRecord(rows.size(), avg, exact);
     }
 
     public Map<Integer, int[]> kickoffScoresByCupMatchIds(Collection<Integer> cupMatchIds) {

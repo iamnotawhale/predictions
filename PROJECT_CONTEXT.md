@@ -312,7 +312,10 @@
 - `service/event/CupMatchTipService.refreshUpcoming()` — из `CupMatchSyncService.syncTodayCups`: матчи, которые стартуют в ближайшие 3 дня. Троттлинг: обновление раз в 30 мин, за последний час до старта раз в 10 мин; после старта не обновляется (заморозка). Кэш summary в `ApiClient` живёт 8 с, поэтому троттлинг обязателен.
 - Хранение: `cup_match_tip` (`tablesInit.sql`, `create table if not exists`) — тип, коэффициенты, входные данные формы и личных встреч, `updated_at`. `match_recommendation` не используется.
 - Модалка команды: колонка «ИИ» для кубковых строк берётся из `cup_match_tip`, очки в `CUP`.
-- Не сделано: показ в карточке кубкового матча и в детальном экране; трек-рекорд кубков (сезонный трек-рекорд только EPL).
+- Трек-рекорд кубков: `CupMatchTipService.cupTrackRecord()` по завершённым матчам (`cup_match.status='ft'`) с сохранённым типом; очки по правилам `CUP` от 90-минутного счёта; точный счёт = 2 очка. Эндпоинт `GET /api/miniapp/cups/tip-track-record` (`TipTrackRecord`). Считается только с момента деплоя.
+- Модалка кубкового матча: блок «AI · рекомендация» загружается через `GET /api/miniapp/cups/match/{cupMatchId}/tip` (`CupTipResponse`, `available=false`, если типа нет) и показывается только при `bettingRecommenderEnabled`. Матрица и детали EPL-рекомендации для кубков не выводятся.
+- Коэффициенты в модалке кубка (блок 1/X/2): `MatchItem.oddHome/oddDraw/oddAway` для кубковых матчей берутся из `cup_match_tip` (ESPN-коэффициенты на момент последнего обновления типа). Пока тип не построен, блок скрыт.
+- Не сделано: тик в карточке списка кубков; трек-рекорд кубков в интерфейсе.
 - Фикстура `src/test/resources/espn/cup-odds-new-eve.json` (NEW–EVE: коэффициенты, `lastFiveGames`, `seasonseries`, `header.competitors`) и `CupOddsModelTest`.
 
 ## Рекомендатор ставок (FootyStats + SoccerSTATS + Poisson)

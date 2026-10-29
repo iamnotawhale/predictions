@@ -211,6 +211,18 @@ public final class MiniAppDtos {
     ) {
     }
 
+    public record CupTipResponse(
+            boolean available,
+            int recommendedHome,
+            int recommendedAway,
+            double expectedPoints,
+            double pHome,
+            double pDraw,
+            double pAway,
+            boolean formApplied
+    ) {
+    }
+
     public record MatchRecommendationResponse(
             int recommendedHome,
             int recommendedAway,

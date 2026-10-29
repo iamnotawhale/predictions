@@ -59,6 +59,13 @@ class CupOddsModelTest {
     }
 
     @Test
+    void americanOddsConvertToDecimal() {
+        assertEquals(2.30, CupOddsModel.decimal(130), 1e-9);
+        assertEquals(3.40, CupOddsModel.decimal(240), 1e-9);
+        assertEquals(1.645, CupOddsModel.decimal(-155), 1e-3);
+    }
+
+    @Test
     void americanOddsConvertToImpliedProbability() {
         assertEquals(0.5, CupOddsModel.implied(-100), 1e-9);
         assertEquals(0.4348, CupOddsModel.implied(130), 1e-4);

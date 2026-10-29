@@ -26,6 +26,10 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.ExplanationStatRow;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ScoreDistributionDto;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TopScoreDto;
 import zhigalin.predictions.recommender.BettingRecommendationService;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupTipResponse;
+import zhigalin.predictions.recommender.CupOddsModel;
+import zhigalin.predictions.recommender.model.TipTrackRecord;
+import zhigalin.predictions.service.event.CupMatchTipService;
 import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
@@ -113,6 +117,7 @@ public class MiniAppService {
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
+    private final CupMatchTipService cupMatchTipService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final UserPredictionStatsService userPredictionStatsService;
     private final CupMatchDao cupMatchDao;
@@ -134,6 +139,7 @@ public class MiniAppService {
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
+            CupMatchTipService cupMatchTipService,
             UserWeekBonusMatchService userWeekBonusMatchService,
             UserPredictionStatsService userPredictionStatsService,
             CupMatchDao cupMatchDao,
@@ -154,6 +160,7 @@ public class MiniAppService {
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
+        this.cupMatchTipService = cupMatchTipService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.userPredictionStatsService = userPredictionStatsService;
         this.cupMatchDao = cupMatchDao;
@@ -590,8 +597,10 @@ public class MiniAppService {
         if (!cups.isEmpty()) {
             Map<Integer, Prediction> cupPreds = predictionService.predictionsByCupMatchForUser(
                     telegramId, cups.stream().map(CupMatch::getPublicId).toList());
+            Map<Integer, CupOddsModel.Odds> cupOdds = cupMatchTipService.oddsFor(
+                    cups.stream().map(CupMatch::getPublicId).toList());
             for (CupMatch cup : cups) {
-                items.add(toCupMatchItem(cup, cupPreds.get(cup.getPublicId())));
+                items.add(toCupMatchItem(cup, cupPreds.get(cup.getPublicId()), cupOdds.get(cup.getPublicId())));
             }
             items.sort(Comparator
                     .comparing((MatchItem m) -> m.kickoff() == null ? "" : m.kickoff())
@@ -1019,7 +1028,7 @@ public class MiniAppService {
         );
     }
 
-    private MatchItem toCupMatchItem(CupMatch match, Prediction prediction) {
+    private MatchItem toCupMatchItem(CupMatch match, Prediction prediction, CupOddsModel.Odds odds) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
         Long predictSecondsLeft = null;
@@ -1059,9 +1068,9 @@ public class MiniAppService {
                 prediction != null ? prediction.getHomeTeamScore() : null,
                 prediction != null ? prediction.getAwayTeamScore() : null,
                 prediction != null ? prediction.getPoints() : null,
-                null,
-                null,
-                null,
+                odds != null ? CupOddsModel.decimal(odds.home()) : null,
+                odds != null ? CupOddsModel.decimal(odds.draw()) : null,
+                odds != null ? CupOddsModel.decimal(odds.away()) : null,
                 until != null ? until.format(KICKOFF) : null,
                 predictSecondsLeft,
                 kickoffSecondsLeft,
@@ -1118,6 +1127,18 @@ public class MiniAppService {
             "eng.fa", "eng.league_cup", "uefa.champions", "uefa.europa", "uefa.europa.conf"
     );
 
+    public CupTipResponse cupTip(String telegramId, int cupMatchId) {
+        requireUser(telegramId);
+        return cupMatchTipService.tipFor(cupMatchId)
+                .map(tip -> new CupTipResponse(true, tip.home(), tip.away(), tip.expectedPoints(),
+                        tip.pHome(), tip.pDraw(), tip.pAway(), tip.formApplied()))
+                .orElseGet(() -> new CupTipResponse(false, 0, 0, 0, 0, 0, 0, false));
+    }
+
+    public TipTrackRecord cupTipTrackRecord() {
+        return cupMatchTipService.cupTrackRecord();
+    }
+
     public List<CupCompetitionItem> cupCompetitions(String telegramId) {
         requireUser(telegramId);
         List<CupMatch> all = cupMatchDao.findAllOrdered();
@@ -1157,9 +1178,10 @@ public class MiniAppService {
         List<CupMatch> matches = cupMatchDao.findByCompetition(competition);
         List<Integer> ids = matches.stream().map(CupMatch::getPublicId).toList();
         Map<Integer, Prediction> preds = predictionService.predictionsByCupMatchForUser(telegramId, ids);
+        Map<Integer, CupOddsModel.Odds> odds = cupMatchTipService.oddsFor(ids);
         return matches.stream()
                 .sorted(CupMatch.BY_KICKOFF_THEN_PUBLIC_ID)
-                .map(m -> toCupMatchItem(m, preds.get(m.getPublicId())))
+                .map(m -> toCupMatchItem(m, preds.get(m.getPublicId()), odds.get(m.getPublicId())))
                 .toList();
     }
 

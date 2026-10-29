@@ -179,6 +179,10 @@ public final class CupOddsModel {
         return ev;
     }
 
+    public static double decimal(double american) {
+        return american > 0 ? 1 + american / 100.0 : 1 + 100.0 / -american;
+    }
+
     static double implied(double american) {
         return american > 0 ? 100.0 / (american + 100.0) : -american / (-american + 100.0);
     }

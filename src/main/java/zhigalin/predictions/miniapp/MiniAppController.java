@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionsResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupTipResponse;
+import zhigalin.predictions.recommender.model.TipTrackRecord;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.BettingRecommenderRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
@@ -202,6 +204,22 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
     ) {
         return miniAppService.todayMatches(requireTelegramId(initData));
+    }
+
+    @GetMapping("/cups/match/{cupMatchId}/tip")
+    public CupTipResponse cupTip(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int cupMatchId
+    ) {
+        return miniAppService.cupTip(requireTelegramId(initData), cupMatchId);
+    }
+
+    @GetMapping("/cups/tip-track-record")
+    public TipTrackRecord cupTipTrackRecord(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
+    ) {
+        requireTelegramId(initData);
+        return miniAppService.cupTipTrackRecord();
     }
 
     @GetMapping("/cups")
