@@ -18,6 +18,7 @@ public class CupMatchesSchemaMigration {
     }
 
     private void migrate(JdbcTemplate jdbc) {
+        CupSchemaRename.apply(jdbc);
         try {
             jdbc.execute("ALTER TABLE match ADD COLUMN IF NOT EXISTS finished_at TIMESTAMP");
             jdbc.execute("""
