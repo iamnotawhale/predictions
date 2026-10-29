@@ -25,6 +25,7 @@ import zhigalin.predictions.service.notification.Result;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
+import zhigalin.predictions.util.EspnTeamLogos;
 import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
@@ -190,8 +191,8 @@ public class BonusMatchSyncService {
         }
         String homeCode = codeOf(home);
         String awayCode = codeOf(away);
-        Team homeTeam = resolveTeam(homeCode);
-        Team awayTeam = resolveTeam(awayCode);
+        Team homeTeam = resolveTeam(home);
+        Team awayTeam = resolveTeam(away);
         // Only real EPL clubs from our roster — never match by bare code (Bayern ESPN MUN ≠ Man United).
         if (homeTeam == null && awayTeam == null) {
             return;
@@ -305,7 +306,10 @@ public class BonusMatchSyncService {
         bonusMatchDao.updateLiveScoreMessageId(match.getPublicId(), null);
     }
 
-    private static Team resolveTeam(String code) {
+    private static Team resolveTeam(Competitor competitor) {
+        String code = competitor.getTeam() != null
+                ? EspnTeamLogos.codeForEspnTeamId(competitor.getTeam().getId())
+                : null;
         if (code == null) {
             return null;
         }
