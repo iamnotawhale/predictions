@@ -69,7 +69,7 @@ class MatchStatusTest {
     @Test
     void canPredictRejectsNull() {
         assertFalse(MatchStatus.canPredict(null));
-        assertFalse(MatchStatus.canPredictBonus(null));
+        assertFalse(MatchStatus.canPredictCup(null));
         assertEquals(false, MatchStatus.canPredict(Match.builder().status("ns").build()));
     }
 }

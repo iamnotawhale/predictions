@@ -137,7 +137,7 @@ public class PredictionDao {
                     .addValue("awayTeamScore", awayTeamScore);
             namedParameterJdbcTemplate.update(sql, params);
         } catch (Exception e) {
-            panicSender.sendPanic("Error saving bonus prediction", e);
+            panicSender.sendPanic("Error saving cup prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -153,7 +153,7 @@ public class PredictionDao {
                     .addValue("telegramId", telegramId)
                     .addValue("cupMatchId", cupMatchId));
         } catch (Exception e) {
-            panicSender.sendPanic("Error deleting bonus prediction", e);
+            panicSender.sendPanic("Error deleting cup prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -201,7 +201,7 @@ public class PredictionDao {
                     .toArray(MapSqlParameterSource[]::new);
             namedParameterJdbcTemplate.batchUpdate(sql, batch);
         } catch (Exception e) {
-            panicSender.sendPanic("Error batch updating bonus prediction points", e);
+            panicSender.sendPanic("Error batch updating cup prediction points", e);
             serverLogger.error(e.getMessage());
         }
     }
@@ -635,16 +635,16 @@ public class PredictionDao {
         @Override
         public Prediction mapRow(ResultSet rs, int rowNum) throws SQLException {
             Integer matchId = (Integer) rs.getObject("match_id");
-            Integer bonusId = null;
+            Integer cupId = null;
             try {
-                bonusId = (Integer) rs.getObject("cup_match_id");
+                cupId = (Integer) rs.getObject("cup_match_id");
             } catch (SQLException ignored) {
                 // column may be absent on very old result sets
             }
             return Prediction.builder()
                     .userId(rs.getInt("user_id"))
                     .matchPublicId(matchId != null ? matchId : 0)
-                    .cupMatchId(bonusId)
+                    .cupMatchId(cupId)
                     .homeTeamScore(rs.getObject("home_team_score", Integer.class))
                     .awayTeamScore(rs.getObject("away_team_score", Integer.class))
                     .points(rs.getObject("points", Integer.class))

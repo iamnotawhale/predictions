@@ -43,7 +43,7 @@ final class MatchStatus {
         return match != null && canPredictAt(match.getStatus(), match.getLocalDateTime(), LocalDateTime.now());
     }
 
-    static boolean canPredictBonus(CupMatch match) {
+    static boolean canPredictCup(CupMatch match) {
         return match != null && canPredictAt(match.getStatus(), match.getLocalDateTime(), LocalDateTime.now());
     }
 

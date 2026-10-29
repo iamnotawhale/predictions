@@ -460,9 +460,9 @@ public class MiniAppService {
         );
     }
 
-    public LiveMatchDetailsResponse liveCupMatchDetails(String telegramId, int bonusPublicId) {
+    public LiveMatchDetailsResponse liveCupMatchDetails(String telegramId, int cupPublicId) {
         requireUser(telegramId);
-        CupMatch match = cupMatchDao.findByPublicId(bonusPublicId);
+        CupMatch match = cupMatchDao.findByPublicId(cupPublicId);
         if (match == null) {
             return emptyLiveDetails();
         }
@@ -473,8 +473,8 @@ public class MiniAppService {
             return emptyLiveDetails();
         }
         JsonNode summaryRoot = loadEspnSummaryRoot(match.getEspnId(), match.getCompetition());
-        String homeCode = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "HOME");
-        String awayCode = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "AWAY");
+        String homeCode = displayCupCode(match.getHomeEspnCode(), match.getHomeTeamId(), "HOME");
+        String awayCode = displayCupCode(match.getAwayEspnCode(), match.getAwayTeamId(), "AWAY");
         TeamFormationItem homeFormation = EspnSummaryParser.loadTeamFormation(summaryRoot, "home", homeCode);
         TeamFormationItem awayFormation = EspnSummaryParser.loadTeamFormation(summaryRoot, "away", awayCode);
         List<LineupPlayerItem> homeLineup = EspnSummaryParser.toLineupItemsFromFormation(homeFormation);
@@ -916,11 +916,11 @@ public class MiniAppService {
             return new ActionResponse(false, "Счёт должен быть от 0 до 5.");
         }
         if (request.cupMatchId() != null) {
-            CupMatch bonus = cupMatchDao.findByPublicId(request.cupMatchId());
-            if (!MatchStatus.canPredictBonus(bonus)) {
+            CupMatch cupMatch = cupMatchDao.findByPublicId(request.cupMatchId());
+            if (!MatchStatus.canPredictCup(cupMatch)) {
                 return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
             }
-            predictionService.saveCup(telegramId, bonus.getPublicId(), request.homeScore(), request.awayScore());
+            predictionService.saveCup(telegramId, cupMatch.getPublicId(), request.homeScore(), request.awayScore());
             return new ActionResponse(true, "Прогноз на кубковый матч сохранён", request.homeScore(), request.awayScore());
         }
         String home = request.homeCode().toUpperCase();
@@ -953,8 +953,8 @@ public class MiniAppService {
 
     public ActionResponse deleteCupPrediction(String telegramId, int cupMatchId) {
         requireUser(telegramId);
-        CupMatch bonus = cupMatchDao.findByPublicId(cupMatchId);
-        if (!MatchStatus.canPredictBonus(bonus)) {
+        CupMatch cupMatch = cupMatchDao.findByPublicId(cupMatchId);
+        if (!MatchStatus.canPredictCup(cupMatch)) {
             return new ActionResponse(false, "Время для удаления прогноза истекло.");
         }
         predictionService.deleteCupByUserTelegramId(telegramId, cupMatchId);
@@ -1023,7 +1023,7 @@ public class MiniAppService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
         Long predictSecondsLeft = null;
-        if (until != null && MatchStatus.canPredictBonus(match)) {
+        if (until != null && MatchStatus.canPredictCup(match)) {
             predictSecondsLeft = java.time.Duration.between(now, until).getSeconds();
             if (predictSecondsLeft < 0) {
                 predictSecondsLeft = 0L;
@@ -1033,8 +1033,8 @@ public class MiniAppService {
         if (match.getLocalDateTime() != null && MatchStatus.isNotStarted(match.getStatus())) {
             kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
         }
-        String homeCode = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
-        String awayCode = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
+        String homeCode = displayCupCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
+        String awayCode = displayCupCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
         String homeLogo = match.getHomeTeamId() != null
                 ? teamLogoPath(match.getHomeTeamId())
                 : teamLogoCacheService.pathForRemote(match.getHomeLogoUrl());
@@ -1054,7 +1054,7 @@ public class MiniAppService {
                 MiniAppFormat.cupDisplayHome(match),
                 MiniAppFormat.cupDisplayAway(match),
                 match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
-                MatchStatus.canPredictBonus(match),
+                MatchStatus.canPredictCup(match),
                 prediction != null,
                 prediction != null ? prediction.getHomeTeamScore() : null,
                 prediction != null ? prediction.getAwayTeamScore() : null,
@@ -1084,7 +1084,7 @@ public class MiniAppService {
     }
 
     /**
-     * Provisional cup points for in-play (non-FT) bonus matches — added to live Общий зачёт.
+     * Provisional cup points for in-play (non-FT) cup matches — added to live Общий зачёт.
      * Finished cup FT points are already in floored season totals.
      */
     private Map<String, Integer> computeLiveCupProvisionalPoints() {
@@ -1179,8 +1179,8 @@ public class MiniAppService {
             if (pts != null) {
                 total += pts;
             }
-            String home = displayBonusCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
-            String away = displayBonusCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
+            String home = displayCupCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
+            String away = displayCupCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
             items.add(new WeekReviewItem(
                     match.getPublicId(),
                     home,
@@ -1255,7 +1255,7 @@ public class MiniAppService {
     }
 
     /** Prefer stored abbr (ingest already maps ESPN MUN→BAY); fall back to linked EPL team. */
-    private static String displayBonusCode(String espnCode, Integer teamId, String fallback) {
+    private static String displayCupCode(String espnCode, Integer teamId, String fallback) {
         if (espnCode != null && !espnCode.isBlank()) {
             return espnCode;
         }

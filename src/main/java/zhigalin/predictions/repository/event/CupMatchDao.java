@@ -315,7 +315,7 @@ public class CupMatchDao {
                     "UPDATE cup_match SET live_score_message_id = :mid WHERE public_id = :id",
                     new MapSqlParameterSource().addValue("mid", messageId).addValue("id", publicId));
         } catch (Exception e) {
-            serverLogger.error("updateLiveScoreMessageId bonus: {}", e.getMessage());
+            serverLogger.error("updateLiveScoreMessageId cup: {}", e.getMessage());
         }
     }
 

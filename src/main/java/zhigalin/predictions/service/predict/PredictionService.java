@@ -204,11 +204,11 @@ public class PredictionService {
                 .collect(Collectors.toMap(Prediction::getMatchPublicId, p -> p, (a, b) -> a));
     }
 
-    public Map<Integer, Prediction> predictionsByCupMatchForUser(String telegramId, Collection<Integer> bonusIds) {
-        if (bonusIds == null || bonusIds.isEmpty()) {
+    public Map<Integer, Prediction> predictionsByCupMatchForUser(String telegramId, Collection<Integer> cupMatchIds) {
+        if (cupMatchIds == null || cupMatchIds.isEmpty()) {
             return Map.of();
         }
-        return predictionDao.findAllByCupMatchIdsAndTelegramId(List.copyOf(bonusIds), telegramId).stream()
+        return predictionDao.findAllByCupMatchIdsAndTelegramId(List.copyOf(cupMatchIds), telegramId).stream()
                 .filter(p -> p.getCupMatchId() != null)
                 .collect(Collectors.toMap(Prediction::getCupMatchId, p -> p, (a, b) -> a));
     }

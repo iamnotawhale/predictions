@@ -73,7 +73,7 @@ public class CupMatchesSchemaMigration {
                     WHERE match_id IS NOT NULL
                     """);
             jdbc.execute("""
-                    CREATE UNIQUE INDEX IF NOT EXISTS unique_predict_bonus
+                    CREATE UNIQUE INDEX IF NOT EXISTS unique_predict_cup
                     ON predict (user_id, cup_match_id)
                     WHERE cup_match_id IS NOT NULL
                     """);
@@ -81,9 +81,9 @@ public class CupMatchesSchemaMigration {
                     DO $$
                     BEGIN
                         IF NOT EXISTS (
-                            SELECT 1 FROM pg_constraint WHERE conname = 'predict_match_xor_bonus'
+                            SELECT 1 FROM pg_constraint WHERE conname = 'predict_match_xor_cup'
                         ) THEN
-                            ALTER TABLE predict ADD CONSTRAINT predict_match_xor_bonus
+                            ALTER TABLE predict ADD CONSTRAINT predict_match_xor_cup
                             CHECK (
                                 (match_id IS NOT NULL AND cup_match_id IS NULL)
                                 OR (match_id IS NULL AND cup_match_id IS NOT NULL)
@@ -104,7 +104,7 @@ public class CupMatchesSchemaMigration {
 
             log.info("Cup matches / finished_at / week-bonus schema ensured");
         } catch (Exception e) {
-            log.error("Failed bonus matches schema migration: {}", e.getMessage());
+            log.error("Failed cup matches schema migration: {}", e.getMessage());
             throw e;
         }
     }
