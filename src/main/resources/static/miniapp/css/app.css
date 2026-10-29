@@ -2247,8 +2247,7 @@ html[data-switching] *::after {
     gap: 3px;
 }
 
-.formation-jersey-shirt,
-.formation-jersey-shirt.is-gk {
+.formation-jersey-shirt {
     background: none;
     border: 0;
     box-shadow: none;
