@@ -11,8 +11,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import zhigalin.predictions.model.event.BonusMatch;
-import zhigalin.predictions.repository.event.BonusMatchDao;
+import zhigalin.predictions.model.event.CupMatch;
+import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 
 /**
@@ -24,11 +24,11 @@ public class TeamLogoCacheWarmup {
     private static final Logger log = LoggerFactory.getLogger("server");
 
     private final TeamLogoCacheService teamLogoCacheService;
-    private final BonusMatchDao bonusMatchDao;
+    private final CupMatchDao cupMatchDao;
 
-    public TeamLogoCacheWarmup(TeamLogoCacheService teamLogoCacheService, BonusMatchDao bonusMatchDao) {
+    public TeamLogoCacheWarmup(TeamLogoCacheService teamLogoCacheService, CupMatchDao cupMatchDao) {
         this.teamLogoCacheService = teamLogoCacheService;
-        this.bonusMatchDao = bonusMatchDao;
+        this.cupMatchDao = cupMatchDao;
     }
 
     @Async
@@ -51,7 +51,7 @@ public class TeamLogoCacheWarmup {
         }
         try {
             List<String> urls = new ArrayList<>();
-            for (BonusMatch match : bonusMatchDao.findAllFrom(LocalDate.now().minusDays(1))) {
+            for (CupMatch match : cupMatchDao.findAllFrom(LocalDate.now().minusDays(1))) {
                 urls.add(match.getHomeLogoUrl());
                 urls.add(match.getAwayLogoUrl());
             }

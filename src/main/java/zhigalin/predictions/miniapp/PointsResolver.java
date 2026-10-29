@@ -1,6 +1,6 @@
 package zhigalin.predictions.miniapp;
 
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.service.predict.PredictionService;
@@ -16,7 +16,7 @@ final class PointsResolver {
                 prediction, ScoringMode.EPL);
     }
 
-    static Integer cupReviewPoints(BonusMatch match, Prediction prediction) {
+    static Integer cupReviewPoints(CupMatch match, Prediction prediction) {
         return resolve(match.getStatus(), match.getHomeTeamScore(), match.getAwayTeamScore(),
                 prediction, ScoringMode.CUP);
     }

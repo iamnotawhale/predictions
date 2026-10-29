@@ -7,15 +7,15 @@ import lombok.Data;
 @Builder
 public class Prediction {
 
-    /** EPL match public_id; 0 / unused when {@link #bonusMatchId} is set. */
+    /** EPL match public_id; 0 / unused when {@link #cupMatchId} is set. */
     private int matchPublicId;
-    private Integer bonusMatchId;
+    private Integer cupMatchId;
     private int userId;
     private Integer homeTeamScore;
     private Integer awayTeamScore;
     private Integer points;
 
     public boolean isCupPrediction() {
-        return bonusMatchId != null;
+        return cupMatchId != null;
     }
 }

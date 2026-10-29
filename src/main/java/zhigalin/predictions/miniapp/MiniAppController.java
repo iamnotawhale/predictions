@@ -302,11 +302,11 @@ public class MiniAppController {
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
             @RequestParam(required = false) String homeCode,
             @RequestParam(required = false) String awayCode,
-            @RequestParam(required = false) Integer bonusMatchId
+            @RequestParam(required = false) Integer cupMatchId
     ) {
         String telegramId = requireTelegramId(initData);
-        if (bonusMatchId != null) {
-            return miniAppService.deleteBonusPrediction(telegramId, bonusMatchId);
+        if (cupMatchId != null) {
+            return miniAppService.deleteCupPrediction(telegramId, cupMatchId);
         }
         return miniAppService.deletePrediction(telegramId, homeCode, awayCode);
     }

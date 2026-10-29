@@ -85,9 +85,9 @@ alter table match
     add column if not exists finished_at timestamp;
 
 alter table predict
-    add column if not exists bonus_match_id integer;
+    add column if not exists cup_match_id integer;
 
-create table if not exists bonus_match
+create table if not exists cup_match
 (
     public_id             integer primary key,
     competition           varchar(64) not null,
@@ -107,7 +107,7 @@ create table if not exists bonus_match
     local_date_time       timestamp,
     finished_at           timestamp,
     live_score_message_id integer,
-    constraint unique_bonus_match_espn unique (competition, espn_id)
+    constraint unique_cup_match_espn unique (competition, espn_id)
 );
 
 create table if not exists user_week_bonus_match

@@ -6,14 +6,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Schema for floored points chronology, cup bonus matches, and per-user week bonus picks.
+ * Schema for floored points chronology, cup matches, and per-user week bonus picks.
  */
-@Component("bonusMatchesSchemaMigration")
-public class BonusMatchesSchemaMigration {
+@Component("cupMatchesSchemaMigration")
+public class CupMatchesSchemaMigration {
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
-    public BonusMatchesSchemaMigration(JdbcTemplate jdbcTemplate) {
+    public CupMatchesSchemaMigration(JdbcTemplate jdbcTemplate) {
         migrate(jdbcTemplate);
     }
 
@@ -27,7 +27,7 @@ public class BonusMatchesSchemaMigration {
                     """);
 
             jdbc.execute("""
-                    CREATE TABLE IF NOT EXISTS bonus_match (
+                    CREATE TABLE IF NOT EXISTS cup_match (
                         public_id        INTEGER PRIMARY KEY,
                         competition      VARCHAR(64) NOT NULL,
                         espn_id          VARCHAR(32) NOT NULL,
@@ -46,16 +46,16 @@ public class BonusMatchesSchemaMigration {
                         local_date_time  TIMESTAMP,
                         finished_at      TIMESTAMP,
                         live_score_message_id INTEGER,
-                        CONSTRAINT unique_bonus_match_espn UNIQUE (competition, espn_id)
+                        CONSTRAINT unique_cup_match_espn UNIQUE (competition, espn_id)
                     )
                     """);
 
-            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS aet_home_score INTEGER");
-            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS aet_away_score INTEGER");
-            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS pen_home_score INTEGER");
-            jdbc.execute("ALTER TABLE bonus_match ADD COLUMN IF NOT EXISTS pen_away_score INTEGER");
+            jdbc.execute("ALTER TABLE cup_match ADD COLUMN IF NOT EXISTS aet_home_score INTEGER");
+            jdbc.execute("ALTER TABLE cup_match ADD COLUMN IF NOT EXISTS aet_away_score INTEGER");
+            jdbc.execute("ALTER TABLE cup_match ADD COLUMN IF NOT EXISTS pen_home_score INTEGER");
+            jdbc.execute("ALTER TABLE cup_match ADD COLUMN IF NOT EXISTS pen_away_score INTEGER");
 
-            jdbc.execute("ALTER TABLE predict ADD COLUMN IF NOT EXISTS bonus_match_id INTEGER");
+            jdbc.execute("ALTER TABLE predict ADD COLUMN IF NOT EXISTS cup_match_id INTEGER");
             jdbc.execute("ALTER TABLE predict ALTER COLUMN match_id DROP NOT NULL");
             jdbc.execute("""
                     DO $$
@@ -74,8 +74,8 @@ public class BonusMatchesSchemaMigration {
                     """);
             jdbc.execute("""
                     CREATE UNIQUE INDEX IF NOT EXISTS unique_predict_bonus
-                    ON predict (user_id, bonus_match_id)
-                    WHERE bonus_match_id IS NOT NULL
+                    ON predict (user_id, cup_match_id)
+                    WHERE cup_match_id IS NOT NULL
                     """);
             jdbc.execute("""
                     DO $$
@@ -85,8 +85,8 @@ public class BonusMatchesSchemaMigration {
                         ) THEN
                             ALTER TABLE predict ADD CONSTRAINT predict_match_xor_bonus
                             CHECK (
-                                (match_id IS NOT NULL AND bonus_match_id IS NULL)
-                                OR (match_id IS NULL AND bonus_match_id IS NOT NULL)
+                                (match_id IS NOT NULL AND cup_match_id IS NULL)
+                                OR (match_id IS NULL AND cup_match_id IS NOT NULL)
                             );
                         END IF;
                     END $$
@@ -102,7 +102,7 @@ public class BonusMatchesSchemaMigration {
                     )
                     """);
 
-            log.info("Bonus matches / finished_at / week-bonus schema ensured");
+            log.info("Cup matches / finished_at / week-bonus schema ensured");
         } catch (Exception e) {
             log.error("Failed bonus matches schema migration: {}", e.getMessage());
             throw e;

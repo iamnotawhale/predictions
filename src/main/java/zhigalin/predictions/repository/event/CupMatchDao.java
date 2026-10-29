@@ -14,26 +14,26 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.util.DaoUtil;
 
 @Repository
-@DependsOn("bonusMatchesSchemaMigration")
-public class BonusMatchDao {
+@DependsOn("cupMatchesSchemaMigration")
+public class CupMatchDao {
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final Logger serverLogger = LoggerFactory.getLogger("server");
     private final PanicSender panicSender;
 
-    public BonusMatchDao(DataSource dataSource, PanicSender panicSender) {
+    public CupMatchDao(DataSource dataSource, PanicSender panicSender) {
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
         this.panicSender = panicSender;
     }
 
-    public void upsert(BonusMatch match) {
+    public void upsert(CupMatch match) {
         String sql = """
-                INSERT INTO bonus_match (
+                INSERT INTO cup_match (
                     public_id, competition, espn_id,
                     home_team_id, away_team_id,
                     home_name, away_name, home_logo_url, away_logo_url,
@@ -65,8 +65,8 @@ public class BonusMatchDao {
                     result = EXCLUDED.result,
                     status = EXCLUDED.status,
                     local_date_time = EXCLUDED.local_date_time,
-                    finished_at = COALESCE(EXCLUDED.finished_at, bonus_match.finished_at),
-                    live_score_message_id = COALESCE(EXCLUDED.live_score_message_id, bonus_match.live_score_message_id),
+                    finished_at = COALESCE(EXCLUDED.finished_at, cup_match.finished_at),
+                    live_score_message_id = COALESCE(EXCLUDED.live_score_message_id, cup_match.live_score_message_id),
                     aet_home_score = EXCLUDED.aet_home_score,
                     aet_away_score = EXCLUDED.aet_away_score,
                     pen_home_score = EXCLUDED.pen_home_score,
@@ -75,14 +75,14 @@ public class BonusMatchDao {
         try {
             namedParameterJdbcTemplate.update(sql, params(match));
         } catch (Exception e) {
-            panicSender.sendPanic("Error upsert bonus_match", e);
+            panicSender.sendPanic("Error upsert cup_match", e);
             serverLogger.error(e.getMessage());
         }
     }
 
-    public void update(BonusMatch match) {
+    public void update(CupMatch match) {
         String sql = """
-                UPDATE bonus_match SET
+                UPDATE cup_match SET
                     home_team_score = :homeScore,
                     away_team_score = :awayScore,
                     result = :result,
@@ -103,55 +103,55 @@ public class BonusMatchDao {
         try {
             namedParameterJdbcTemplate.update(sql, params(match));
         } catch (Exception e) {
-            panicSender.sendPanic("Error update bonus_match", e);
+            panicSender.sendPanic("Error update cup_match", e);
             serverLogger.error(e.getMessage());
         }
     }
 
-    public BonusMatch findByPublicId(int publicId) {
+    public CupMatch findByPublicId(int publicId) {
         try {
-            String sql = "SELECT * FROM bonus_match WHERE public_id = :publicId";
+            String sql = "SELECT * FROM cup_match WHERE public_id = :publicId";
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(
-                    sql, new MapSqlParameterSource("publicId", publicId), new BonusMatchMapper()));
+                    sql, new MapSqlParameterSource("publicId", publicId), new CupMatchMapper()));
         } catch (Exception e) {
-            panicSender.sendPanic("Error find bonus_match by id", e);
+            panicSender.sendPanic("Error find cup_match by id", e);
             return null;
         }
     }
 
-    public List<BonusMatch> findAllByDate(LocalDate date) {
+    public List<CupMatch> findAllByDate(LocalDate date) {
         try {
             String sql = """
-                    SELECT * FROM bonus_match
+                    SELECT * FROM cup_match
                     WHERE CAST(local_date_time AS DATE) = :date
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
                     ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new MapSqlParameterSource("date", date), new BonusMatchMapper()));
+                    sql, new MapSqlParameterSource("date", date), new CupMatchMapper()));
         } catch (Exception e) {
-            panicSender.sendPanic("Error find bonus_match by date", e);
+            panicSender.sendPanic("Error find cup_match by date", e);
             return List.of();
         }
     }
 
-    public List<BonusMatch> findOnline() {
+    public List<CupMatch> findOnline() {
         try {
             String sql = """
-                    SELECT * FROM bonus_match
+                    SELECT * FROM cup_match
                     WHERE status IS NOT NULL
                       AND status NOT IN ('ns', 'ft', 'pst', 'aet', 'pen')
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
                     ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new BonusMatchMapper()));
+                    sql, new CupMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }
     }
 
-    public List<BonusMatch> findByCompetition(String competition) {
+    public List<CupMatch> findByCompetition(String competition) {
         return findByCompetitionBrowse(
                 competition,
                 LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY),
@@ -163,14 +163,14 @@ public class BonusMatchDao {
      * Finished matches from {@code seasonStart} plus upcoming from {@code fromDate}.
      * Requires at least one linked EPL club ({@code home_team_id} / {@code away_team_id}).
      */
-    public List<BonusMatch> findByCompetitionBrowse(
+    public List<CupMatch> findByCompetitionBrowse(
             String competition,
             LocalDate fromDate,
             LocalDate seasonStart
     ) {
         try {
             String sql = """
-                    SELECT * FROM bonus_match
+                    SELECT * FROM cup_match
                     WHERE competition = :competition
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
                       AND CAST(local_date_time AS DATE) >= :seasonStart
@@ -185,24 +185,24 @@ public class BonusMatchDao {
                     .addValue("fromDate", fromDate)
                     .addValue("seasonStart", seasonStart);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, params, new BonusMatchMapper()));
+                    sql, params, new CupMatchMapper()));
         } catch (Exception e) {
-            panicSender.sendPanic("Error find bonus_match by competition", e);
+            panicSender.sendPanic("Error find cup_match by competition", e);
             return List.of();
         }
     }
 
-    public List<BonusMatch> findAllOrdered() {
+    public List<CupMatch> findAllOrdered() {
         return findAllBrowse(
                 LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY),
                 zhigalin.predictions.service.DataInitService.seasonStartDate()
         );
     }
 
-    public List<BonusMatch> findAllBrowse(LocalDate fromDate, LocalDate seasonStart) {
+    public List<CupMatch> findAllBrowse(LocalDate fromDate, LocalDate seasonStart) {
         try {
             String sql = """
-                    SELECT * FROM bonus_match
+                    SELECT * FROM cup_match
                     WHERE (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
                       AND CAST(local_date_time AS DATE) >= :seasonStart
                       AND (
@@ -215,21 +215,21 @@ public class BonusMatchDao {
                     .addValue("fromDate", fromDate)
                     .addValue("seasonStart", seasonStart);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, params, new BonusMatchMapper()));
+                    sql, params, new CupMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }
     }
 
-    public List<BonusMatch> findAllFrom(LocalDate fromDate) {
+    public List<CupMatch> findAllFrom(LocalDate fromDate) {
         try {
             String sql = """
-                    SELECT * FROM bonus_match
+                    SELECT * FROM cup_match
                     WHERE CAST(local_date_time AS DATE) >= :fromDate
                     ORDER BY local_date_time, public_id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    sql, new MapSqlParameterSource("fromDate", fromDate), new BonusMatchMapper()));
+                    sql, new MapSqlParameterSource("fromDate", fromDate), new CupMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }
@@ -238,11 +238,11 @@ public class BonusMatchDao {
     public int deleteBeforeDate(LocalDateTime before) {
         try {
             return namedParameterJdbcTemplate.update(
-                    "DELETE FROM bonus_match WHERE local_date_time IS NOT NULL AND local_date_time < :before",
+                    "DELETE FROM cup_match WHERE local_date_time IS NOT NULL AND local_date_time < :before",
                     new MapSqlParameterSource("before", before)
             );
         } catch (Exception e) {
-            serverLogger.error("deleteBeforeDate bonus_match: {}", e.getMessage());
+            serverLogger.error("deleteBeforeDate cup_match: {}", e.getMessage());
             return 0;
         }
     }
@@ -255,13 +255,13 @@ public class BonusMatchDao {
         try {
             return namedParameterJdbcTemplate.update(
                     """
-                            DELETE FROM bonus_match
+                            DELETE FROM cup_match
                             WHERE home_team_id IS NULL AND away_team_id IS NULL
                             """,
                     new MapSqlParameterSource()
             );
         } catch (Exception e) {
-            serverLogger.error("deleteWithoutEplTeam bonus_match: {}", e.getMessage());
+            serverLogger.error("deleteWithoutEplTeam cup_match: {}", e.getMessage());
             return 0;
         }
     }
@@ -269,30 +269,30 @@ public class BonusMatchDao {
     public int deleteByPublicId(int publicId) {
         try {
             return namedParameterJdbcTemplate.update(
-                    "DELETE FROM bonus_match WHERE public_id = :id",
+                    "DELETE FROM cup_match WHERE public_id = :id",
                     new MapSqlParameterSource("id", publicId)
             );
         } catch (Exception e) {
-            serverLogger.error("deleteByPublicId bonus_match: {}", e.getMessage());
+            serverLogger.error("deleteByPublicId cup_match: {}", e.getMessage());
             return 0;
         }
     }
 
     /** All rows (no season/EPL filter) — for purge/repair. */
-    public List<BonusMatch> findAllRaw() {
+    public List<CupMatch> findAllRaw() {
         try {
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    "SELECT * FROM bonus_match ORDER BY public_id",
-                    new BonusMatchMapper()));
+                    "SELECT * FROM cup_match ORDER BY public_id",
+                    new CupMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }
     }
 
-    public List<BonusMatch> findFinished() {
+    public List<CupMatch> findFinished() {
         try {
             String sql = """
-                    SELECT * FROM bonus_match
+                    SELECT * FROM cup_match
                     WHERE status = 'ft'
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
                       AND CAST(local_date_time AS DATE) >= :seasonStart
@@ -303,7 +303,7 @@ public class BonusMatchDao {
                     new MapSqlParameterSource(
                             "seasonStart",
                             zhigalin.predictions.service.DataInitService.seasonStartDate()),
-                    new BonusMatchMapper()));
+                    new CupMatchMapper()));
         } catch (Exception e) {
             return List.of();
         }
@@ -312,14 +312,14 @@ public class BonusMatchDao {
     public void updateLiveScoreMessageId(int publicId, Integer messageId) {
         try {
             namedParameterJdbcTemplate.update(
-                    "UPDATE bonus_match SET live_score_message_id = :mid WHERE public_id = :id",
+                    "UPDATE cup_match SET live_score_message_id = :mid WHERE public_id = :id",
                     new MapSqlParameterSource().addValue("mid", messageId).addValue("id", publicId));
         } catch (Exception e) {
             serverLogger.error("updateLiveScoreMessageId bonus: {}", e.getMessage());
         }
     }
 
-    private static MapSqlParameterSource params(BonusMatch match) {
+    private static MapSqlParameterSource params(CupMatch match) {
         return new MapSqlParameterSource()
                 .addValue("publicId", match.getPublicId())
                 .addValue("competition", match.getCompetition())
@@ -345,12 +345,12 @@ public class BonusMatchDao {
                 .addValue("penAwayScore", match.getPenAwayScore());
     }
 
-    private static final class BonusMatchMapper implements RowMapper<BonusMatch> {
+    private static final class CupMatchMapper implements RowMapper<CupMatch> {
         @Override
-        public BonusMatch mapRow(ResultSet rs, int rowNum) throws SQLException {
+        public CupMatch mapRow(ResultSet rs, int rowNum) throws SQLException {
             Timestamp ldt = rs.getTimestamp("local_date_time");
             Timestamp fat = rs.getTimestamp("finished_at");
-            return BonusMatch.builder()
+            return CupMatch.builder()
                     .publicId(rs.getInt("public_id"))
                     .competition(rs.getString("competition"))
                     .espnId(rs.getString("espn_id"))

@@ -2,7 +2,7 @@ package zhigalin.predictions.service.notification;
 
 import java.time.LocalDateTime;
 
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Match;
 
 public record MatchRecord(
@@ -36,7 +36,7 @@ public record MatchRecord(
         );
     }
 
-    public static MatchRecord fromCup(BonusMatch match) {
+    public static MatchRecord fromCup(CupMatch match) {
         return new MatchRecord(
                 match.getHomeTeamId(),
                 match.getAwayTeamId(),

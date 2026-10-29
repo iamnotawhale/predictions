@@ -26,7 +26,7 @@ function match(i, o = {}) {
     kickoff: '18.10 17:30', canPredict: true, hasPrediction: false, predictHome: null, predictAway: null,
     points: null, oddHome: 2.1, oddDraw: 3.5, oddAway: 3.4, predictUntil: '18.10 17:35',
     predictSecondsLeft: 7200, kickoffSecondsLeft: 7500, recommendedHome: 2, recommendedAway: 1,
-    weekBonus: false, cup: false, competition: null, bonusMatchId: null, ...o,
+    weekBonus: false, cup: false, competition: null, cupMatchId: null, ...o,
   };
 }
 const EVIL = '<img src=x onerror="window.__xss=1">';
@@ -35,8 +35,8 @@ const matches = [
   match(1, { status: '2h', homeScore: 1, awayScore: 1, canPredict: false, hasPrediction: true, predictHome: 1, predictAway: 0, points: 0 }),
   match(2, { hasPrediction: true, predictHome: 1, predictAway: 1, weekBonus: true }),
   match(3, { homeName: EVIL, awayName: EVIL, homeCode: EVIL }), match(4),
-  match(5, { cup: true, competition: 'eng.league_cup', bonusMatchId: 9 }),
-  match(6, { cup: true, competition: 'eng.fa', bonusMatchId: 10, status: "120'", homeScore: 2, awayScore: 2, canPredict: false, hasPrediction: true, predictHome: 1, predictAway: 1, points: 2, scoreNote: 'осн. время 1:1 · пен. 3:2' }),
+  match(5, { cup: true, competition: 'eng.league_cup', cupMatchId: 9 }),
+  match(6, { cup: true, competition: 'eng.fa', cupMatchId: 10, status: "120'", homeScore: 2, awayScore: 2, canPredict: false, hasPrediction: true, predictHome: 1, predictAway: 1, points: 2, scoreNote: 'осн. время 1:1 · пен. 3:2' }),
 ];
 const users = ['nik', 'max', 'alex', 'ivan'];
 const API = {

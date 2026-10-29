@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
@@ -27,7 +27,7 @@ import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.recommender.BettingRecommendationService;
-import zhigalin.predictions.repository.event.BonusMatchDao;
+import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.notification.NotificationDedupDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.ApiClient.GoalScorer;
@@ -47,7 +47,7 @@ public class NotificationService {
     private String defaultChatId;
 
     private final MatchService matchService;
-    private final BonusMatchDao bonusMatchDao;
+    private final CupMatchDao cupMatchDao;
     private final PredictionService predictionService;
     private final OddsService oddsService;
     private final HtmlImageRenderer htmlImages;
@@ -64,7 +64,7 @@ public class NotificationService {
     private final NotificationDedupDao notificationDedupDao;
 
     public NotificationService(MatchService matchService,
-                               BonusMatchDao bonusMatchDao,
+                               CupMatchDao cupMatchDao,
                                PredictionService predictionService,
                                OddsService oddsService,
                                HtmlImageRenderer htmlImages,
@@ -76,7 +76,7 @@ public class NotificationService {
                                BettingRecommendationService bettingRecommendationService,
                                UserWeekBonusMatchService userWeekBonusMatchService) {
         this.matchService = matchService;
-        this.bonusMatchDao = bonusMatchDao;
+        this.cupMatchDao = cupMatchDao;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
         this.htmlImages = htmlImages;
@@ -123,7 +123,7 @@ public class NotificationService {
                 list.add(MatchRecord.fromEpl(m));
             }
         }
-        for (BonusMatch cup : bonusMatchDao.findAllByDate(date)) {
+        for (CupMatch cup : cupMatchDao.findAllByDate(date)) {
             list.add(MatchRecord.fromCup(cup));
         }
         list.sort(Comparator

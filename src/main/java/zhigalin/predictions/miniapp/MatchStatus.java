@@ -2,7 +2,7 @@ package zhigalin.predictions.miniapp;
 
 import java.time.LocalDateTime;
 import java.util.Set;
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Match;
 
 /** Status-string and prediction-window rules shared by EPL and cup matches. */
@@ -43,7 +43,7 @@ final class MatchStatus {
         return match != null && canPredictAt(match.getStatus(), match.getLocalDateTime(), LocalDateTime.now());
     }
 
-    static boolean canPredictBonus(BonusMatch match) {
+    static boolean canPredictBonus(CupMatch match) {
         return match != null && canPredictAt(match.getStatus(), match.getLocalDateTime(), LocalDateTime.now());
     }
 

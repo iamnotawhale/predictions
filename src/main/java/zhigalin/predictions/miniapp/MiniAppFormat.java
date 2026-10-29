@@ -1,6 +1,6 @@
 package zhigalin.predictions.miniapp;
 
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 
 /** Small rounding / labelling helpers for Mini App DTOs. */
 final class MiniAppFormat {
@@ -8,16 +8,16 @@ final class MiniAppFormat {
     }
 
     /** Score to show for a cup match: the latest score, including extra time once it is played. */
-    static Integer cupDisplayHome(BonusMatch m) {
+    static Integer cupDisplayHome(CupMatch m) {
         return m.getAetHomeScore() != null ? m.getAetHomeScore() : m.getHomeTeamScore();
     }
 
-    static Integer cupDisplayAway(BonusMatch m) {
+    static Integer cupDisplayAway(CupMatch m) {
         return m.getAetAwayScore() != null ? m.getAetAwayScore() : m.getAwayTeamScore();
     }
 
     /** "осн. время 1:1 · пен. 4:3" once a cup tie goes past 90 minutes; points use the 90-minute score. */
-    static String cupScoreNote(BonusMatch m) {
+    static String cupScoreNote(CupMatch m) {
         if (m == null || m.getAetHomeScore() == null || m.getHomeTeamScore() == null) {
             return null;
         }

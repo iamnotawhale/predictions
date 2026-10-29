@@ -18,7 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.repository.event.BonusMatchDao;
+import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.UserWeekBonusMatchService;
@@ -38,7 +38,7 @@ class PredictionServiceUpdateByMatchTest {
     @Mock
     private UserWeekBonusMatchService userWeekBonusMatchService;
     @Mock
-    private BonusMatchDao bonusMatchDao;
+    private CupMatchDao cupMatchDao;
 
     @InjectMocks
     private PredictionService predictionService;

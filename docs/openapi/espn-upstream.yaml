@@ -18,7 +18,7 @@ paths:
   /apis/site/v2/sports/soccer/{league}/scoreboard:
     get:
       summary: Матчи лиги (с коэффициентами в competitions[].odds)
-      description: Используется OddsService (1X2, тотал), DataInitService (live и FT), BonusMatchSyncService (кубки). Отправляется User-Agent predictions-bot/1.0.
+      description: Используется OddsService (1X2, тотал), DataInitService (live и FT), CupMatchSyncService (кубки). Отправляется User-Agent predictions-bot/1.0.
       parameters:
         - {name: league, in: path, required: true, schema: {type: string, enum: [eng.1, eng.fa, eng.league_cup, uefa.champions, uefa.europa, uefa.europa.conf]}}
         - name: dates

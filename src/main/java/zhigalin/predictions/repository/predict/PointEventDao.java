@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.service.predict.FlooredPointsService.OrderedPointsRow;
 
 @Repository
-@DependsOn("bonusMatchesSchemaMigration")
+@DependsOn("cupMatchesSchemaMigration")
 public class PointEventDao {
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -44,8 +44,8 @@ public class PointEventDao {
                        TRUE
                 FROM predict p
                 JOIN users u ON u.id = p.user_id
-                JOIN bonus_match b ON b.public_id = p.bonus_match_id
-                WHERE p.bonus_match_id IS NOT NULL
+                JOIN cup_match b ON b.public_id = p.cup_match_id
+                WHERE p.cup_match_id IS NOT NULL
                   AND b.status = 'ft'
                 ORDER BY login, sort_time NULLS LAST, sequence
                 """;

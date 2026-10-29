@@ -185,11 +185,11 @@ paths:
       responses:
         "200": {description: ActionResponse, content: {application/json: {schema: {$ref: "#/components/schemas/ActionResponse"}}}}
     delete:
-      summary: Удалить прогноз (по кодам команд или bonusMatchId)
+      summary: Удалить прогноз (по кодам команд или cupMatchId)
       parameters:
         - {name: homeCode, in: query, required: false, schema: {type: string}}
         - {name: awayCode, in: query, required: false, schema: {type: string}}
-        - {name: bonusMatchId, in: query, required: false, schema: {type: integer}}
+        - {name: cupMatchId, in: query, required: false, schema: {type: integer}}
       responses:
         "200": {description: ActionResponse, content: {application/json: {schema: {$ref: "#/components/schemas/ActionResponse"}}}}
   /api/miniapp/client-log:
@@ -252,7 +252,7 @@ components:
         awayCode: {type: string}
         homeScore: {type: integer}
         awayScore: {type: integer}
-        bonusMatchId: {type: integer, nullable: true, description: "для кубкового матча"}
+        cupMatchId: {type: integer, nullable: true, description: "для кубкового матча"}
     ClientLogRequest:
       type: object
       properties:

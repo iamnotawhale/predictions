@@ -154,9 +154,9 @@ public class UserPredictionStatsService {
                 .getOrDefault(user.getLogin(), 0);
 
         String bonusLabel = null;
-        Integer bonusMatchId = userWeekBonusMatchService.findAssigned(userId, currentWeekId).orElse(null);
-        if (bonusMatchId != null) {
-            Match bonusMatch = matchService.findByPublicId(bonusMatchId);
+        Integer cupMatchId = userWeekBonusMatchService.findAssigned(userId, currentWeekId).orElse(null);
+        if (cupMatchId != null) {
+            Match bonusMatch = matchService.findByPublicId(cupMatchId);
             if (bonusMatch != null) {
                 String home = code(bonusMatch.getHomeTeamId());
                 String away = code(bonusMatch.getAwayTeamId());
@@ -166,7 +166,7 @@ public class UserPredictionStatsService {
             }
             if (bonusLabel == null) {
                 bonusLabel = all.stream()
-                        .filter(mp -> mp.match().getPublicId() == bonusMatchId)
+                        .filter(mp -> mp.match().getPublicId() == cupMatchId)
                         .findFirst()
                         .map(mp -> code(mp.match().getHomeTeamId()) + "–" + code(mp.match().getAwayTeamId()))
                         .orElse(null);
@@ -413,7 +413,7 @@ public class UserPredictionStatsService {
                 currentWeekId,
                 seasonPoints,
                 currentWeekPoints,
-                bonusMatchId,
+                cupMatchId,
                 bonusLabel,
                 finishedWithPick,
                 finishedWithPick,

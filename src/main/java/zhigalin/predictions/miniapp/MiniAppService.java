@@ -60,7 +60,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.TodayMatchesResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.WeekReviewResponse;
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Standing;
@@ -68,7 +68,7 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.repository.event.BonusMatchDao;
+import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.EspnTeamRosterService;
@@ -115,7 +115,7 @@ public class MiniAppService {
     private final BettingRecommendationService bettingRecommendationService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final UserPredictionStatsService userPredictionStatsService;
-    private final BonusMatchDao bonusMatchDao;
+    private final CupMatchDao cupMatchDao;
     private final String adminChatId;
     private final TeamNewsService teamNewsService;
 
@@ -136,7 +136,7 @@ public class MiniAppService {
             BettingRecommendationService bettingRecommendationService,
             UserWeekBonusMatchService userWeekBonusMatchService,
             UserPredictionStatsService userPredictionStatsService,
-            BonusMatchDao bonusMatchDao,
+            CupMatchDao cupMatchDao,
             TeamNewsService teamNewsService,
             @Value("${chatId:}") String adminChatId
     ) {
@@ -156,7 +156,7 @@ public class MiniAppService {
         this.bettingRecommendationService = bettingRecommendationService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.userPredictionStatsService = userPredictionStatsService;
-        this.bonusMatchDao = bonusMatchDao;
+        this.cupMatchDao = cupMatchDao;
         this.teamNewsService = teamNewsService;
         this.adminChatId = adminChatId == null ? "" : adminChatId.trim();
     }
@@ -462,7 +462,7 @@ public class MiniAppService {
 
     public LiveMatchDetailsResponse liveCupMatchDetails(String telegramId, int bonusPublicId) {
         requireUser(telegramId);
-        BonusMatch match = bonusMatchDao.findByPublicId(bonusPublicId);
+        CupMatch match = cupMatchDao.findByPublicId(bonusPublicId);
         if (match == null) {
             return emptyLiveDetails();
         }
@@ -586,12 +586,12 @@ public class MiniAppService {
                     return toMatchItem(match, telegramId, prediction != null, prediction, null, weekBonus);
                 })
                 .toList());
-        List<BonusMatch> cups = bonusMatchDao.findAllByDate(java.time.LocalDate.now());
+        List<CupMatch> cups = cupMatchDao.findAllByDate(java.time.LocalDate.now());
         if (!cups.isEmpty()) {
-            Map<Integer, Prediction> cupPreds = predictionService.predictionsByBonusMatchForUser(
-                    telegramId, cups.stream().map(BonusMatch::getPublicId).toList());
-            for (BonusMatch cup : cups) {
-                items.add(toBonusMatchItem(cup, cupPreds.get(cup.getPublicId())));
+            Map<Integer, Prediction> cupPreds = predictionService.predictionsByCupMatchForUser(
+                    telegramId, cups.stream().map(CupMatch::getPublicId).toList());
+            for (CupMatch cup : cups) {
+                items.add(toCupMatchItem(cup, cupPreds.get(cup.getPublicId())));
             }
             items.sort(Comparator
                     .comparing((MatchItem m) -> m.kickoff() == null ? "" : m.kickoff())
@@ -915,13 +915,13 @@ public class MiniAppService {
         if (request.homeScore() < 0 || request.homeScore() > 5 || request.awayScore() < 0 || request.awayScore() > 5) {
             return new ActionResponse(false, "Счёт должен быть от 0 до 5.");
         }
-        if (request.bonusMatchId() != null) {
-            BonusMatch bonus = bonusMatchDao.findByPublicId(request.bonusMatchId());
+        if (request.cupMatchId() != null) {
+            CupMatch bonus = cupMatchDao.findByPublicId(request.cupMatchId());
             if (!MatchStatus.canPredictBonus(bonus)) {
                 return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
             }
-            predictionService.saveBonus(telegramId, bonus.getPublicId(), request.homeScore(), request.awayScore());
-            return new ActionResponse(true, "Прогноз на бонус-матч сохранён", request.homeScore(), request.awayScore());
+            predictionService.saveCup(telegramId, bonus.getPublicId(), request.homeScore(), request.awayScore());
+            return new ActionResponse(true, "Прогноз на кубковый матч сохранён", request.homeScore(), request.awayScore());
         }
         String home = request.homeCode().toUpperCase();
         String away = request.awayCode().toUpperCase();
@@ -951,13 +951,13 @@ public class MiniAppService {
         return new ActionResponse(true, "Прогноз удалён");
     }
 
-    public ActionResponse deleteBonusPrediction(String telegramId, int bonusMatchId) {
+    public ActionResponse deleteCupPrediction(String telegramId, int cupMatchId) {
         requireUser(telegramId);
-        BonusMatch bonus = bonusMatchDao.findByPublicId(bonusMatchId);
+        CupMatch bonus = cupMatchDao.findByPublicId(cupMatchId);
         if (!MatchStatus.canPredictBonus(bonus)) {
             return new ActionResponse(false, "Время для удаления прогноза истекло.");
         }
-        predictionService.deleteBonusByUserTelegramId(telegramId, bonusMatchId);
+        predictionService.deleteCupByUserTelegramId(telegramId, cupMatchId);
         return new ActionResponse(true, "Прогноз удалён");
     }
 
@@ -1019,7 +1019,7 @@ public class MiniAppService {
         );
     }
 
-    private MatchItem toBonusMatchItem(BonusMatch match, Prediction prediction) {
+    private MatchItem toCupMatchItem(CupMatch match, Prediction prediction) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
         Long predictSecondsLeft = null;
@@ -1080,7 +1080,7 @@ public class MiniAppService {
     }
 
     private boolean hasLiveCupMatches() {
-        return !bonusMatchDao.findOnline().isEmpty();
+        return !cupMatchDao.findOnline().isEmpty();
     }
 
     /**
@@ -1092,12 +1092,12 @@ public class MiniAppService {
         for (User user : DaoUtil.USERS.values()) {
             sums.put(user.getLogin(), 0);
         }
-        List<BonusMatch> liveCups = bonusMatchDao.findOnline();
-        for (BonusMatch match : liveCups) {
+        List<CupMatch> liveCups = cupMatchDao.findOnline();
+        for (CupMatch match : liveCups) {
             if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
                 continue;
             }
-            Map<Integer, Prediction> byUser = predictionService.getByBonusMatchPublicId(match.getPublicId()).stream()
+            Map<Integer, Prediction> byUser = predictionService.getByCupMatchPublicId(match.getPublicId()).stream()
                     .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
             for (User user : DaoUtil.USERS.values()) {
                 Prediction p = byUser.get(user.getId());
@@ -1120,21 +1120,21 @@ public class MiniAppService {
 
     public List<CupCompetitionItem> cupCompetitions(String telegramId) {
         requireUser(telegramId);
-        List<BonusMatch> all = bonusMatchDao.findAllOrdered();
-        Map<String, List<BonusMatch>> byComp = new LinkedHashMap<>();
+        List<CupMatch> all = cupMatchDao.findAllOrdered();
+        Map<String, List<CupMatch>> byComp = new LinkedHashMap<>();
         for (String c : CUP_COMPETITION_ORDER) {
             byComp.put(c, new ArrayList<>());
         }
-        for (BonusMatch m : all) {
+        for (CupMatch m : all) {
             if (m.getCompetition() == null) {
                 continue;
             }
             byComp.computeIfAbsent(m.getCompetition(), k -> new ArrayList<>()).add(m);
         }
-        List<Integer> ids = all.stream().map(BonusMatch::getPublicId).toList();
-        Map<Integer, Prediction> myPreds = predictionService.predictionsByBonusMatchForUser(telegramId, ids);
+        List<Integer> ids = all.stream().map(CupMatch::getPublicId).toList();
+        Map<Integer, Prediction> myPreds = predictionService.predictionsByCupMatchForUser(telegramId, ids);
         List<CupCompetitionItem> items = new ArrayList<>();
-        for (Map.Entry<String, List<BonusMatch>> e : byComp.entrySet()) {
+        for (Map.Entry<String, List<CupMatch>> e : byComp.entrySet()) {
             if (e.getValue().isEmpty()) {
                 continue;
             }
@@ -1154,23 +1154,23 @@ public class MiniAppService {
 
     public List<MatchItem> cupMatches(String telegramId, String competition) {
         requireUser(telegramId);
-        List<BonusMatch> matches = bonusMatchDao.findByCompetition(competition);
-        List<Integer> ids = matches.stream().map(BonusMatch::getPublicId).toList();
-        Map<Integer, Prediction> preds = predictionService.predictionsByBonusMatchForUser(telegramId, ids);
+        List<CupMatch> matches = cupMatchDao.findByCompetition(competition);
+        List<Integer> ids = matches.stream().map(CupMatch::getPublicId).toList();
+        Map<Integer, Prediction> preds = predictionService.predictionsByCupMatchForUser(telegramId, ids);
         return matches.stream()
-                .sorted(BonusMatch.BY_KICKOFF_THEN_PUBLIC_ID)
-                .map(m -> toBonusMatchItem(m, preds.get(m.getPublicId())))
+                .sorted(CupMatch.BY_KICKOFF_THEN_PUBLIC_ID)
+                .map(m -> toCupMatchItem(m, preds.get(m.getPublicId())))
                 .toList();
     }
 
     public CupReviewResponse cupReview(String telegramId, String competition) {
         requireUser(telegramId);
-        List<BonusMatch> matches = bonusMatchDao.findByCompetition(competition);
-        List<Integer> ids = matches.stream().map(BonusMatch::getPublicId).toList();
-        Map<Integer, Prediction> preds = predictionService.predictionsByBonusMatchForUser(telegramId, ids);
+        List<CupMatch> matches = cupMatchDao.findByCompetition(competition);
+        List<Integer> ids = matches.stream().map(CupMatch::getPublicId).toList();
+        Map<Integer, Prediction> preds = predictionService.predictionsByCupMatchForUser(telegramId, ids);
         List<WeekReviewItem> items = new ArrayList<>();
         int total = 0;
-        for (BonusMatch match : matches.stream().sorted(BonusMatch.BY_KICKOFF_THEN_PUBLIC_ID).toList()) {
+        for (CupMatch match : matches.stream().sorted(CupMatch.BY_KICKOFF_THEN_PUBLIC_ID).toList()) {
             Prediction prediction = preds.get(match.getPublicId());
             boolean hasPrediction = prediction != null
                     && prediction.getHomeTeamScore() != null

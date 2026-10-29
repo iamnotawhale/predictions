@@ -40,17 +40,17 @@ public class PredictionDao {
 
     public void save(Prediction prediction) {
         try {
-            if (prediction.getBonusMatchId() != null) {
+            if (prediction.getCupMatchId() != null) {
                 String sql = """
-                        INSERT INTO predict (user_id, match_id, bonus_match_id, home_team_score, away_team_score, points)
-                        VALUES (:userId, NULL, :bonusMatchId, :homeTeamScore, :awayTeamScore, :points)
-                        ON CONFLICT (user_id, bonus_match_id) WHERE bonus_match_id IS NOT NULL DO UPDATE SET
+                        INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
+                        VALUES (:userId, NULL, :cupMatchId, :homeTeamScore, :awayTeamScore, :points)
+                        ON CONFLICT (user_id, cup_match_id) WHERE cup_match_id IS NOT NULL DO UPDATE SET
                         home_team_score = excluded.home_team_score,
                         away_team_score = excluded.away_team_score
                         """;
                 MapSqlParameterSource params = new MapSqlParameterSource();
                 params.addValue("userId", prediction.getUserId());
-                params.addValue("bonusMatchId", prediction.getBonusMatchId());
+                params.addValue("cupMatchId", prediction.getCupMatchId());
                 params.addValue("homeTeamScore", prediction.getHomeTeamScore());
                 params.addValue("awayTeamScore", prediction.getAwayTeamScore());
                 params.addValue("points", prediction.getPoints());
@@ -58,7 +58,7 @@ public class PredictionDao {
                 return;
             }
             String sql = """
-                    INSERT INTO predict (user_id, match_id, bonus_match_id, home_team_score, away_team_score, points)
+                    INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
                     VALUES (:userId, :matchId, NULL, :homeTeamScore, :awayTeamScore, :points)
                     ON CONFLICT (user_id, match_id) WHERE match_id IS NOT NULL DO UPDATE SET
                     home_team_score = excluded.home_team_score,
@@ -87,7 +87,7 @@ public class PredictionDao {
                         WHERE home_team_id IN (SELECT public_id FROM teams WHERE code = :homeTeam)
                         AND away_team_id IN (SELECT public_id FROM teams WHERE code = :awayTeam)
                     )
-                    INSERT INTO predict (user_id, match_id, bonus_match_id, home_team_score, away_team_score, points)
+                    INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
                     VALUES (
                         (SELECT id FROM user_id),
                         (SELECT public_id FROM match_id),
@@ -114,25 +114,25 @@ public class PredictionDao {
         }
     }
 
-    public void saveBonus(String telegramId, int bonusMatchId, int homeTeamScore, int awayTeamScore) {
+    public void saveCup(String telegramId, int cupMatchId, int homeTeamScore, int awayTeamScore) {
         try {
             String sql = """
-                    INSERT INTO predict (user_id, match_id, bonus_match_id, home_team_score, away_team_score, points)
+                    INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
                     VALUES (
                         (SELECT id FROM users WHERE telegram_id = :telegramId),
                         NULL,
-                        :bonusMatchId,
+                        :cupMatchId,
                         :homeTeamScore,
                         :awayTeamScore,
                         NULL
                     )
-                    ON CONFLICT (user_id, bonus_match_id) WHERE bonus_match_id IS NOT NULL DO UPDATE SET
+                    ON CONFLICT (user_id, cup_match_id) WHERE cup_match_id IS NOT NULL DO UPDATE SET
                     home_team_score = excluded.home_team_score,
                     away_team_score = excluded.away_team_score
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("telegramId", telegramId)
-                    .addValue("bonusMatchId", bonusMatchId)
+                    .addValue("cupMatchId", cupMatchId)
                     .addValue("homeTeamScore", homeTeamScore)
                     .addValue("awayTeamScore", awayTeamScore);
             namedParameterJdbcTemplate.update(sql, params);
@@ -142,30 +142,30 @@ public class PredictionDao {
         }
     }
 
-    public void deleteBonusByUserTelegramId(String telegramId, int bonusMatchId) {
+    public void deleteCupByUserTelegramId(String telegramId, int cupMatchId) {
         try {
             String sql = """
                     DELETE FROM predict
                     WHERE user_id IN (SELECT id FROM users WHERE telegram_id = :telegramId)
-                      AND bonus_match_id = :bonusMatchId
+                      AND cup_match_id = :cupMatchId
                     """;
             namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource()
                     .addValue("telegramId", telegramId)
-                    .addValue("bonusMatchId", bonusMatchId));
+                    .addValue("cupMatchId", cupMatchId));
         } catch (Exception e) {
             panicSender.sendPanic("Error deleting bonus prediction", e);
             serverLogger.error(e.getMessage());
         }
     }
 
-    public List<Prediction> findAllByBonusMatchId(int bonusMatchId) {
-        String sql = "SELECT * FROM predict WHERE bonus_match_id = :id";
+    public List<Prediction> findAllByCupMatchId(int cupMatchId) {
+        String sql = "SELECT * FROM predict WHERE cup_match_id = :id";
         List<Prediction> rows = DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                sql, new MapSqlParameterSource("id", bonusMatchId), new PredictionMapper()));
+                sql, new MapSqlParameterSource("id", cupMatchId), new PredictionMapper()));
         return rows == null ? List.of() : rows;
     }
 
-    public List<Prediction> findAllByBonusMatchIdsAndTelegramId(List<Integer> ids, String telegramId) {
+    public List<Prediction> findAllByCupMatchIdsAndTelegramId(List<Integer> ids, String telegramId) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
@@ -173,7 +173,7 @@ public class PredictionDao {
             String sql = """
                     SELECT p.* FROM predict p
                     JOIN users u ON p.user_id = u.id
-                    WHERE u.telegram_id = :telegramId AND p.bonus_match_id IN (:ids)
+                    WHERE u.telegram_id = :telegramId AND p.cup_match_id IN (:ids)
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql,
@@ -184,18 +184,18 @@ public class PredictionDao {
         }
     }
 
-    public void updateBonusPointsBatch(List<BonusPointsUpdate> updates) {
+    public void updateCupPointsBatch(List<CupPointsUpdate> updates) {
         if (updates == null || updates.isEmpty()) {
             return;
         }
         try {
             String sql = """
                     UPDATE predict SET points = :points
-                    WHERE bonus_match_id = :bonusMatchId AND user_id = :userId
+                    WHERE cup_match_id = :cupMatchId AND user_id = :userId
                     """;
             MapSqlParameterSource[] batch = updates.stream()
                     .map(u -> new MapSqlParameterSource()
-                            .addValue("bonusMatchId", u.bonusMatchId())
+                            .addValue("cupMatchId", u.cupMatchId())
                             .addValue("userId", u.userId())
                             .addValue("points", u.points()))
                     .toArray(MapSqlParameterSource[]::new);
@@ -206,7 +206,7 @@ public class PredictionDao {
         }
     }
 
-    public record BonusPointsUpdate(int bonusMatchId, int userId, int points) {
+    public record CupPointsUpdate(int cupMatchId, int userId, int points) {
     }
 
     public void delete(int userId, int matchPublicId) {
@@ -637,14 +637,14 @@ public class PredictionDao {
             Integer matchId = (Integer) rs.getObject("match_id");
             Integer bonusId = null;
             try {
-                bonusId = (Integer) rs.getObject("bonus_match_id");
+                bonusId = (Integer) rs.getObject("cup_match_id");
             } catch (SQLException ignored) {
                 // column may be absent on very old result sets
             }
             return Prediction.builder()
                     .userId(rs.getInt("user_id"))
                     .matchPublicId(matchId != null ? matchId : 0)
-                    .bonusMatchId(bonusId)
+                    .cupMatchId(bonusId)
                     .homeTeamScore(rs.getObject("home_team_score", Integer.class))
                     .awayTeamScore(rs.getObject("away_team_score", Integer.class))
                     .points(rs.getObject("points", Integer.class))

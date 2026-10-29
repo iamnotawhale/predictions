@@ -43,7 +43,7 @@ import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.recommender.BettingRecommendationService;
-import zhigalin.predictions.service.event.BonusMatchSyncService;
+import zhigalin.predictions.service.event.CupMatchSyncService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.UserWeekBonusMatchService;
@@ -74,7 +74,7 @@ public class DataInitService {
     private final ApiClient apiClient;
     private final BettingRecommendationService bettingRecommendationService;
     private final EspnScoreboardClient espnScoreboardClient;
-    private final BonusMatchSyncService bonusMatchSyncService;
+    private final CupMatchSyncService cupMatchSyncService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final PredictionService predictionService;
     private final OddsService oddsService;
@@ -108,7 +108,7 @@ public class DataInitService {
                            EspnScoreboardClient espnScoreboardClient,
                            PredictionService predictionService,
                            OddsService oddsService,
-                           BonusMatchSyncService bonusMatchSyncService,
+                           CupMatchSyncService cupMatchSyncService,
                            UserWeekBonusMatchService userWeekBonusMatchService
     ) {
         this.teamService = teamService;
@@ -122,7 +122,7 @@ public class DataInitService {
         this.espnScoreboardClient = espnScoreboardClient;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
-        this.bonusMatchSyncService = bonusMatchSyncService;
+        this.cupMatchSyncService = cupMatchSyncService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
     }
 
@@ -147,7 +147,7 @@ public class DataInitService {
             panicSender.sendPanic("refreshUpcomingOdds", e);
         }
         try {
-            bonusMatchSyncService.syncTodayCups();
+            cupMatchSyncService.syncTodayCups();
         } catch (Exception e) {
             serverLogger.error("syncTodayCups error: {}", e.getMessage(), e);
             panicSender.sendPanic("syncTodayCups", e);

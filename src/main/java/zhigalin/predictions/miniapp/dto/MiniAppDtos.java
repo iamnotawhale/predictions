@@ -52,7 +52,7 @@ public final class MiniAppDtos {
             boolean weekBonus,
             boolean cup,
             String competition,
-            Integer bonusMatchId,
+            Integer cupMatchId,
             String scoreNote
     ) {
     }
@@ -354,7 +354,7 @@ public final class MiniAppDtos {
             String awayCode,
             int homeScore,
             int awayScore,
-            Integer bonusMatchId
+            Integer cupMatchId
     ) {
     }
 

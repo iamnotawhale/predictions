@@ -12,11 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.repository.event.BonusMatchDao;
+import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.event.MatchService;
@@ -33,7 +33,7 @@ public class PredictionService {
     private final UserService userService;
     private final FlooredPointsService flooredPointsService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
-    private final BonusMatchDao bonusMatchDao;
+    private final CupMatchDao cupMatchDao;
 
     public PredictionService(
             PredictionDao predictionDao,
@@ -41,14 +41,14 @@ public class PredictionService {
             UserService userService,
             FlooredPointsService flooredPointsService,
             @Lazy UserWeekBonusMatchService userWeekBonusMatchService,
-            BonusMatchDao bonusMatchDao
+            CupMatchDao cupMatchDao
     ) {
         this.predictionDao = predictionDao;
         this.matchService = matchService;
         this.userService = userService;
         this.flooredPointsService = flooredPointsService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
-        this.bonusMatchDao = bonusMatchDao;
+        this.cupMatchDao = cupMatchDao;
     }
 
     public void save(Prediction prediction) {
@@ -59,8 +59,8 @@ public class PredictionService {
         predictionDao.save(telegramId, homeTeam, awayTeam, homeScore, awayScore);
     }
 
-    public void saveBonus(String telegramId, int bonusMatchId, int homeScore, int awayScore) {
-        predictionDao.saveBonus(telegramId, bonusMatchId, homeScore, awayScore);
+    public void saveCup(String telegramId, int cupMatchId, int homeScore, int awayScore) {
+        predictionDao.saveCup(telegramId, cupMatchId, homeScore, awayScore);
     }
 
     public Prediction findByMatchIdAndUserId(int matchId, int userId) {
@@ -83,8 +83,8 @@ public class PredictionService {
         predictionDao.deleteByUserTelegramIdAndTeams(telegramId, homeTeam, awayTeam);
     }
 
-    public void deleteBonusByUserTelegramId(String telegramId, int bonusMatchId) {
-        predictionDao.deleteBonusByUserTelegramId(telegramId, bonusMatchId);
+    public void deleteCupByUserTelegramId(String telegramId, int cupMatchId) {
+        predictionDao.deleteCupByUserTelegramId(telegramId, cupMatchId);
     }
 
     public void updatePoints(int matchId, int userId) {
@@ -191,8 +191,8 @@ public class PredictionService {
         return predictionDao.findAllByMatchIds(List.of(publicId));
     }
 
-    public List<Prediction> getByBonusMatchPublicId(int publicId) {
-        return predictionDao.findAllByBonusMatchId(publicId);
+    public List<Prediction> getByCupMatchPublicId(int publicId) {
+        return predictionDao.findAllByCupMatchId(publicId);
     }
 
     public Map<Integer, Prediction> predictionsByMatchForUser(String telegramId, Collection<Integer> matchIds) {
@@ -204,13 +204,13 @@ public class PredictionService {
                 .collect(Collectors.toMap(Prediction::getMatchPublicId, p -> p, (a, b) -> a));
     }
 
-    public Map<Integer, Prediction> predictionsByBonusMatchForUser(String telegramId, Collection<Integer> bonusIds) {
+    public Map<Integer, Prediction> predictionsByCupMatchForUser(String telegramId, Collection<Integer> bonusIds) {
         if (bonusIds == null || bonusIds.isEmpty()) {
             return Map.of();
         }
-        return predictionDao.findAllByBonusMatchIdsAndTelegramId(List.copyOf(bonusIds), telegramId).stream()
-                .filter(p -> p.getBonusMatchId() != null)
-                .collect(Collectors.toMap(Prediction::getBonusMatchId, p -> p, (a, b) -> a));
+        return predictionDao.findAllByCupMatchIdsAndTelegramId(List.copyOf(bonusIds), telegramId).stream()
+                .filter(p -> p.getCupMatchId() != null)
+                .collect(Collectors.toMap(Prediction::getCupMatchId, p -> p, (a, b) -> a));
     }
 
     public List<Prediction> getAllByMatches(List<Match> matches) {
@@ -247,19 +247,19 @@ public class PredictionService {
         predictionDao.updatePointsBatch(updates);
     }
 
-    public void updateByBonusMatch(BonusMatch match) {
+    public void updateByCupMatch(CupMatch match) {
         if (match == null) {
             return;
         }
         List<User> users = userService.findAll();
-        List<Prediction> predictions = getByBonusMatchPublicId(match.getPublicId());
+        List<Prediction> predictions = getByCupMatchPublicId(match.getPublicId());
         Map<Integer, Prediction> byUser = predictions.stream()
                 .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
         if (!predictions.isEmpty() && predictions.size() < users.size()) {
             for (User user : users) {
                 if (!byUser.containsKey(user.getId())) {
                     save(Prediction.builder()
-                            .bonusMatchId(match.getPublicId())
+                            .cupMatchId(match.getPublicId())
                             .matchPublicId(0)
                             .points(0)
                             .homeTeamScore(null)
@@ -268,11 +268,11 @@ public class PredictionService {
                             .build());
                 }
             }
-            predictions = getByBonusMatchPublicId(match.getPublicId());
+            predictions = getByCupMatchPublicId(match.getPublicId());
             byUser = predictions.stream()
                     .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
         }
-        List<PredictionDao.BonusPointsUpdate> updates = new ArrayList<>();
+        List<PredictionDao.CupPointsUpdate> updates = new ArrayList<>();
         for (User user : users) {
             Prediction prediction = byUser.get(user.getId());
             int points = computePoints(
@@ -282,9 +282,9 @@ public class PredictionService {
                     prediction != null ? prediction.getHomeTeamScore() : null,
                     prediction != null ? prediction.getAwayTeamScore() : null
             );
-            updates.add(new PredictionDao.BonusPointsUpdate(match.getPublicId(), user.getId(), points));
+            updates.add(new PredictionDao.CupPointsUpdate(match.getPublicId(), user.getId(), points));
         }
-        predictionDao.updateBonusPointsBatch(updates);
+        predictionDao.updateCupPointsBatch(updates);
     }
 
     public void updateUnpredictable() {

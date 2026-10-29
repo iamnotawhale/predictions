@@ -15,11 +15,11 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BonusMatch {
+public class CupMatch {
 
-    public static final Comparator<BonusMatch> BY_KICKOFF_THEN_PUBLIC_ID = Comparator
-            .comparing(BonusMatch::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
-            .thenComparingInt(BonusMatch::getPublicId);
+    public static final Comparator<CupMatch> BY_KICKOFF_THEN_PUBLIC_ID = Comparator
+            .comparing(CupMatch::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparingInt(CupMatch::getPublicId);
 
     @JsonProperty("public_id")
     private int publicId;

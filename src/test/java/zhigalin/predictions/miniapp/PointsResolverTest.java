@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.service.predict.PredictionService;
@@ -46,7 +46,7 @@ class PointsResolverTest {
     @Test
     void missingPredictionPenalisedInEplButNotInCup() {
         assertEquals(-1, PointsResolver.reviewPoints(match("ft", 1, 0), null));
-        BonusMatch cup = BonusMatch.builder().status("ft").homeTeamScore(1).awayTeamScore(0).build();
+        CupMatch cup = CupMatch.builder().status("ft").homeTeamScore(1).awayTeamScore(0).build();
         assertEquals(0, PointsResolver.cupReviewPoints(cup, null));
     }
 

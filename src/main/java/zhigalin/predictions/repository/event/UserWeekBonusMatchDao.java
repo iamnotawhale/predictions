@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import zhigalin.predictions.util.DaoUtil;
 
 @Repository
-@DependsOn("bonusMatchesSchemaMigration")
+@DependsOn("cupMatchesSchemaMigration")
 public class UserWeekBonusMatchDao {
 
     private final NamedParameterJdbcTemplate jdbc;

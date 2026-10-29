@@ -435,10 +435,10 @@
 
     async function verifyPredictionSaved(match, homeScore, awayScore) {
         try {
-            if (match.cup || match.bonusMatchId) {
+            if (match.cup || match.cupMatchId) {
                 const data = await api('/today');
                 const item = (data.matches || []).find(m =>
-                    m.cup && Number(m.bonusMatchId || m.publicId) === Number(match.bonusMatchId || match.publicId)
+                    m.cup && Number(m.cupMatchId || m.publicId) === Number(match.cupMatchId || match.publicId)
                 );
                 return !!(item && item.hasPrediction
                     && item.predictHome === homeScore
@@ -531,7 +531,7 @@
     }
 
     function matchKey(m) {
-        return m.homeCode + '-' + m.awayCode + (m.bonusMatchId != null ? '-' + m.bonusMatchId : '');
+        return m.homeCode + '-' + m.awayCode + (m.cupMatchId != null ? '-' + m.cupMatchId : '');
     }
 
     function flashSavedScore() {
@@ -1536,7 +1536,7 @@
     async function loadLiveMatchDetails(match) {
         const modalMatchId = match.publicId;
         const liveUrl = match.cup
-            ? ('/cups/match/' + encodeURIComponent(match.bonusMatchId || match.publicId) + '/live-details')
+            ? ('/cups/match/' + encodeURIComponent(match.cupMatchId || match.publicId) + '/live-details')
             : ('/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/live-details');
         const data = await api(liveUrl);
         if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
@@ -2971,8 +2971,8 @@
                 homeScore,
                 awayScore
             };
-            if (match.cup && match.bonusMatchId != null) {
-                body.bonusMatchId = match.bonusMatchId;
+            if (match.cup && match.cupMatchId != null) {
+                body.cupMatchId = match.cupMatchId;
             }
             const res = await apiWithRetry('/predictions', {
                 method: 'POST',
@@ -3016,8 +3016,8 @@
         if (!m) return;
         setScoreButtonsDisabled(true);
         try {
-            const path = (m.cup && m.bonusMatchId != null)
-                ? '/predictions?bonusMatchId=' + encodeURIComponent(m.bonusMatchId)
+            const path = (m.cup && m.cupMatchId != null)
+                ? '/predictions?cupMatchId=' + encodeURIComponent(m.cupMatchId)
                 : '/predictions?homeCode=' + encodeURIComponent(m.homeCode) + '&awayCode=' + encodeURIComponent(m.awayCode);
             const res = await apiWithRetry(path, { method: 'DELETE' });
             showToast(res.message, res.ok ? 'success' : 'error');

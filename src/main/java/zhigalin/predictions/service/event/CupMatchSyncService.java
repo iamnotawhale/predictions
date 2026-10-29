@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import zhigalin.predictions.model.event.BonusMatch;
+import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
@@ -18,7 +18,7 @@ import zhigalin.predictions.model.v2.Competitor;
 import zhigalin.predictions.model.v2.Detail;
 import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.Scoreboard;
-import zhigalin.predictions.repository.event.BonusMatchDao;
+import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.service.api.ApiClient;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
 import zhigalin.predictions.service.notification.HtmlImageRenderer;
@@ -31,7 +31,7 @@ import zhigalin.predictions.util.EspnTeamLogos;
 import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
-public class BonusMatchSyncService {
+public class CupMatchSyncService {
 
     private static final Logger log = LoggerFactory.getLogger("server");
     private static final long CUP_WINDOW_MIN_INTERVAL_MS = 30 * 60 * 1000L;
@@ -41,28 +41,28 @@ public class BonusMatchSyncService {
     private String defaultChatId;
 
     private final EspnScoreboardClient espnScoreboardClient;
-    private final BonusMatchDao bonusMatchDao;
+    private final CupMatchDao cupMatchDao;
     private final PredictionService predictionService;
     private final ApiClient apiClient;
     private final HtmlImageRenderer htmlImageRenderer;
     private volatile long lastCupWindowSyncMs;
 
-    public BonusMatchSyncService(
+    public CupMatchSyncService(
             EspnScoreboardClient espnScoreboardClient,
-            BonusMatchDao bonusMatchDao,
+            CupMatchDao cupMatchDao,
             PredictionService predictionService,
             ApiClient apiClient,
             HtmlImageRenderer htmlImageRenderer
     ) {
         this.espnScoreboardClient = espnScoreboardClient;
-        this.bonusMatchDao = bonusMatchDao;
+        this.cupMatchDao = cupMatchDao;
         this.predictionService = predictionService;
         this.apiClient = apiClient;
         this.htmlImageRenderer = htmlImageRenderer;
     }
 
     public void syncTodayCups() {
-        purgeInvalidBonusMatches();
+        purgeInvalidCupMatches();
         java.time.LocalDate today = LocalDateTime.now(AppTimeZones.DISPLAY).toLocalDate();
         java.time.LocalDate until = today.plusDays(CUP_WINDOW_DAYS);
         boolean scanWindow = shouldScanCupWindow();
@@ -85,17 +85,17 @@ public class BonusMatchSyncService {
      * Drop rows without an EPL club link and anything before the current season.
      * Fixes legacy Bayern(MUN)→Man United collisions and last-season FA finals.
      */
-    void purgeInvalidBonusMatches() {
+    void purgeInvalidCupMatches() {
         java.time.LocalDate seasonStart = zhigalin.predictions.service.DataInitService.seasonStartDate();
-        int removed = bonusMatchDao.deleteBeforeDate(seasonStart.atStartOfDay());
-        int removedNonEpl = bonusMatchDao.deleteWithoutEplTeam();
+        int removed = cupMatchDao.deleteBeforeDate(seasonStart.atStartOfDay());
+        int removedNonEpl = cupMatchDao.deleteWithoutEplTeam();
         int removedMismatch = 0;
         int remappedBayern = 0;
-        for (BonusMatch m : bonusMatchDao.findAllRaw()) {
+        for (CupMatch m : cupMatchDao.findAllRaw()) {
             if (isFalseEplLink(m.getHomeName(), m.getHomeTeamId())
                 || isFalseEplLink(m.getAwayName(), m.getAwayTeamId())
                 || (m.getHomeTeamId() == null && m.getAwayTeamId() == null)) {
-                removedMismatch += bonusMatchDao.deleteByPublicId(m.getPublicId());
+                removedMismatch += cupMatchDao.deleteByPublicId(m.getPublicId());
                 continue;
             }
             boolean dirty = false;
@@ -108,7 +108,7 @@ public class BonusMatchSyncService {
                 dirty = true;
             }
             if (dirty) {
-                bonusMatchDao.upsert(m);
+                cupMatchDao.upsert(m);
                 remappedBayern++;
             }
         }
@@ -212,7 +212,7 @@ public class BonusMatchSyncService {
             return;
         }
 
-        BonusMatch existing = bonusMatchDao.findByPublicId(publicId);
+        CupMatch existing = cupMatchDao.findByPublicId(publicId);
         String state = event.getStatus() != null && event.getStatus().getType() != null
                 ? event.getStatus().getType().getState()
                 : "pre";
@@ -246,7 +246,7 @@ public class BonusMatchSyncService {
 
         boolean wasFt = existing != null && "ft".equals(existing.getStatus());
 
-        BonusMatch match = BonusMatch.builder()
+        CupMatch match = CupMatch.builder()
                 .publicId(publicId)
                 .competition(competition)
                 .espnId(event.getId())
@@ -280,16 +280,16 @@ public class BonusMatchSyncService {
             match.setFinishedAt(LocalDateTime.now());
         }
 
-        bonusMatchDao.upsert(match);
+        cupMatchDao.upsert(match);
 
         if (becameFt) {
-            predictionService.updateByBonusMatch(match);
+            predictionService.updateByCupMatch(match);
             sendFullTime(match);
         } else if (scoreCorrected) {
             log.info("Cup score corrected after FT: {} {} {}:{} -> {}:{}, recalculating points",
                     competition, publicId,
                     existing.getHomeTeamScore(), existing.getAwayTeamScore(), homeScore, awayScore);
-            predictionService.updateByBonusMatch(match);
+            predictionService.updateByCupMatch(match);
         }
     }
 
@@ -298,7 +298,7 @@ public class BonusMatchSyncService {
      * (or already frozen on an earlier extra-time poll).
      */
     private static int[] regulationScore(
-            BonusMatch existing,
+            CupMatch existing,
             List<Detail> details,
             Competitor home,
             Competitor away,
@@ -320,11 +320,11 @@ public class BonusMatchSyncService {
         return wasInRegulation ? new int[] {existing.getHomeTeamScore(), existing.getAwayTeamScore()} : null;
     }
 
-    private void sendFullTime(BonusMatch match) {
+    private void sendFullTime(CupMatch match) {
         String home = match.getHomeEspnCode() != null ? match.getHomeEspnCode() : "?";
         String away = match.getAwayEspnCode() != null ? match.getAwayEspnCode() : "?";
         String center = nz(match.getHomeTeamScore()) + ":" + nz(match.getAwayTeamScore());
-        List<Prediction> predictions = predictionService.getByBonusMatchPublicId(match.getPublicId());
+        List<Prediction> predictions = predictionService.getByCupMatchPublicId(match.getPublicId());
         List<Result> results = predictions.stream()
                 .map(p -> {
                     User user = DaoUtil.USERS.get(p.getUserId());
@@ -372,7 +372,7 @@ public class BonusMatchSyncService {
             }
             apiClient.sendMessage(defaultChatId, sb.toString(), null);
         }
-        bonusMatchDao.updateLiveScoreMessageId(match.getPublicId(), null);
+        cupMatchDao.updateLiveScoreMessageId(match.getPublicId(), null);
     }
 
     private static Team resolveTeam(Competitor competitor) {
