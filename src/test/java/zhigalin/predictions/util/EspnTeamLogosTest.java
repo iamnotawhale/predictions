@@ -2,6 +2,7 @@ package zhigalin.predictions.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -20,5 +21,16 @@ class EspnTeamLogosTest {
         );
         assertTrue(EspnTeamLogos.allEspnIds().size() >= 20);
         assertNotNull(EspnTeamLogos.logoUrl("tot"));
+    }
+
+    @Test
+    void resolvesEspnTeamIdNotAbbreviation() {
+        assertEquals("BRI", EspnTeamLogos.codeForEspnTeamId("331"));
+        assertEquals("MUN", EspnTeamLogos.codeForEspnTeamId("360"));
+        assertNull(EspnTeamLogos.codeForEspnTeamId("308"));
+        assertNull(EspnTeamLogos.codeForEspnTeamId("635"));
+        assertNull(EspnTeamLogos.codeForEspnTeamId("351"));
+        assertNull(EspnTeamLogos.codeForEspnTeamId(null));
+        assertNull(EspnTeamLogos.codeForEspnTeamId("abc"));
     }
 }

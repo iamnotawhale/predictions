@@ -49,6 +49,23 @@ public final class EspnTeamLogos {
         return id == null ? null : CDN.formatted(id);
     }
 
+    public static String codeForEspnTeamId(String espnTeamId) {
+        if (espnTeamId == null || espnTeamId.isBlank()) {
+            return null;
+        }
+        int id;
+        try {
+            id = Integer.parseInt(espnTeamId.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return ESPN_ID_BY_CODE.entrySet().stream()
+                .filter(e -> e.getValue() == id)
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
+    }
+
     public static Map<String, Integer> allEspnIds() {
         return ESPN_ID_BY_CODE;
     }
