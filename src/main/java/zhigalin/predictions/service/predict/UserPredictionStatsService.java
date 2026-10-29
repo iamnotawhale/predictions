@@ -28,6 +28,7 @@ import zhigalin.predictions.recommender.FootyStatsStatsDao;
 import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
+import zhigalin.predictions.service.event.CupMatchTipService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.util.DaoUtil;
@@ -44,6 +45,7 @@ public class UserPredictionStatsService {
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final TeamLogoCacheService teamLogoCacheService;
     private final FootyStatsStatsDao footyStatsStatsDao;
+    private final CupMatchTipService cupMatchTipService;
 
     private static final java.time.format.DateTimeFormatter KICKOFF_DAY =
             java.time.format.DateTimeFormatter.ofPattern("dd.MM");
@@ -54,7 +56,8 @@ public class UserPredictionStatsService {
             CupMatchDao cupMatchDao,
             UserWeekBonusMatchService userWeekBonusMatchService,
             TeamLogoCacheService teamLogoCacheService,
-            FootyStatsStatsDao footyStatsStatsDao
+            FootyStatsStatsDao footyStatsStatsDao,
+            CupMatchTipService cupMatchTipService
     ) {
         this.predictionService = predictionService;
         this.matchService = matchService;
@@ -62,6 +65,7 @@ public class UserPredictionStatsService {
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.teamLogoCacheService = teamLogoCacheService;
         this.footyStatsStatsDao = footyStatsStatsDao;
+        this.cupMatchTipService = cupMatchTipService;
     }
 
     public ProfileTeamPredictionsResponse teamPredictions(User user, Team team) {
@@ -109,6 +113,8 @@ public class UserPredictionStatsService {
                 .map(r -> r.fixture().publicId()).toList();
         Map<Integer, int[]> aiTips = footyStatsStatsDao.findKickoffScoresByMatchIds(
                 fixtures.stream().filter(f -> !f.cup()).map(Fixture::publicId).toList());
+        Map<Integer, int[]> cupTips = cupMatchTipService.kickoffScoresByCupMatchIds(
+                fixtures.stream().filter(Fixture::cup).map(Fixture::publicId).toList());
         Map<Integer, int[]> others = predictionService.othersPointsByMatchIds(scoredEpl, userId);
         Map<Integer, int[]> cupOthers = predictionService.othersPointsByCupMatchIds(scoredCup, userId);
 
@@ -127,10 +133,11 @@ public class UserPredictionStatsService {
                 pointsSum += pts;
                 pointsN++;
             }
-            int[] ai = f.cup() ? null : aiTips.get(f.publicId());
+            int[] ai = f.cup() ? cupTips.get(f.publicId()) : aiTips.get(f.publicId());
             Integer aiPts = null;
             if (ai != null && pts != null) {
-                aiPts = PredictionService.computePoints(ScoringMode.EPL, f.homeScore(), f.awayScore(), ai[0], ai[1]);
+                ScoringMode aiMode = f.cup() ? ScoringMode.CUP : ScoringMode.EPL;
+                aiPts = PredictionService.computePoints(aiMode, f.homeScore(), f.awayScore(), ai[0], ai[1]);
                 aiSum += aiPts;
                 aiN++;
             }
@@ -499,6 +506,18 @@ public class UserPredictionStatsService {
         return PredictionService.computePoints(mode, f.homeScore(), f.awayScore(), p.getHomeTeamScore(), p.getAwayTeamScore());
     }
 
+    private static String shortName(String espnCode, String name) {
+        if (espnCode == null || espnCode.isBlank() || isEplCode(espnCode)) {
+            return name;
+        }
+        return espnCode;
+    }
+
+    private static boolean isEplCode(String code) {
+        return DaoUtil.TEAMS.values().stream()
+                .anyMatch(t -> t != null && t.getCode() != null && t.getCode().equalsIgnoreCase(code));
+    }
+
     private static String side(Integer teamId, String fallbackName) {
         String c = teamId == null ? null : code(teamId);
         if (c != null) {
@@ -659,7 +678,7 @@ public class UserPredictionStatsService {
 
         static Fixture of(CupMatch c) {
             return new Fixture(c.getPublicId(), true, c.getHomeTeamId(), c.getAwayTeamId(),
-                    c.getHomeName(), c.getAwayName(), c.getHomeTeamScore(), c.getAwayTeamScore(),
+                    shortName(c.getHomeEspnCode(), c.getHomeName()), shortName(c.getAwayEspnCode(), c.getAwayName()), c.getHomeTeamScore(), c.getAwayTeamScore(),
                     c.getStatus(), c.getLocalDateTime(), null, c.getCompetition());
         }
     }
