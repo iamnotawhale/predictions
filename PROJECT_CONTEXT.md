@@ -207,7 +207,7 @@
 ### Скрипты (`deploy/`)
 | Скрипт / unit | Назначение |
 |---------------|------------|
-| `upload-jar.sh` | Аварийный деплой с ноутбука по LAN: локальная сборка + scp jar + restart `predicts` |
+| `upload-jar.sh` | Аварийный деплой с ноутбука по LAN: локальная сборка + scp jar + `sudo -n systemctl restart predicts`; установка unit в `/etc/systemd` — best-effort (без TTY) |
 | `setup-github-actions-secrets.sh` | Запись GitHub Actions secrets из `deploy.env` + CI-ключа |
 | `predicts.service` | Шаблон systemd unit приложения (ставится вручную, не CI) |
 | `server-deploy.sh` + `predicts-deploy.service` | Сборка коммита на odyssey по запросу, охрана по матчам, откат |

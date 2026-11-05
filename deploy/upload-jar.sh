@@ -35,7 +35,18 @@ sed -e "s|REPLACE_USER|${DEPLOY_USER}|g" \
     deploy/predicts.service > "$TMP_UNIT"
 
 log "Upload to $SERVER:$APP_DIR ..."
-ssh "$SERVER" "$REMOTE_SUDO systemctl stop predicts 2>/dev/null || true; mkdir -p $APP_DIR/target $APP_DIR/deploy"
+ssh "$SERVER" env APP_DIR="$APP_DIR" REMOTE_SUDO="${REMOTE_SUDO}" bash -s <<'REMOTE_PREP'
+set -euo pipefail
+priv() {
+    if [[ -n "${REMOTE_SUDO:-}" ]]; then
+        "${REMOTE_SUDO}" -n "$@"
+    else
+        "$@"
+    fi
+}
+priv systemctl stop predicts 2>/dev/null || true
+mkdir -p "${APP_DIR}/target" "${APP_DIR}/deploy"
+REMOTE_PREP
 if ssh "$SERVER" "test -f $APP_DIR/target/predictions-1.0.0.jar"; then
     ssh "$SERVER" "cp -a $APP_DIR/target/predictions-1.0.0.jar $APP_DIR/target/predictions-1.0.0.jar.bak"
 fi
@@ -44,15 +55,35 @@ ssh "$SERVER" "mv -f $APP_DIR/target/predictions-1.0.0.jar.new $APP_DIR/target/p
 scp "$TMP_UNIT" "$SERVER:$APP_DIR/deploy/predicts.service"
 rm -f "$TMP_UNIT"
 
-log "Install unit + restart..."
-ssh "$SERVER" "$REMOTE_SUDO bash -s" <<EOF
+log "Install unit (optional) + restart..."
+if ! ssh "$SERVER" env APP_DIR="$APP_DIR" REMOTE_SUDO="${REMOTE_SUDO}" bash -s <<'REMOTE_RESTART'
 set -euo pipefail
-install -m 644 $APP_DIR/deploy/predicts.service /etc/systemd/system/predicts.service
-systemctl daemon-reload
-systemctl reset-failed predicts 2>/dev/null || true
-systemctl start predicts
+priv() {
+    if [[ -n "${REMOTE_SUDO:-}" ]]; then
+        "${REMOTE_SUDO}" -n "$@"
+    else
+        "$@"
+    fi
+}
+if priv install -m 644 "${APP_DIR}/deploy/predicts.service" /etc/systemd/system/predicts.service 2>/dev/null; then
+    priv systemctl daemon-reload
+else
+    echo "[upload-jar] WARN: skipped systemd unit install (sudo -n install denied; unit unchanged OK)" >&2
+fi
+priv systemctl reset-failed predicts 2>/dev/null || true
+if ! priv systemctl restart predicts; then
+    echo "[upload-jar] ERROR: systemctl restart failed (need passwordless sudo for systemctl)" >&2
+    exit 1
+fi
 sleep 6
-systemctl is-active predicts
-EOF
+if ! priv systemctl is-active --quiet predicts; then
+    echo "[upload-jar] ERROR: predicts not active after restart" >&2
+    exit 1
+fi
+REMOTE_RESTART
+then
+    log "ERROR: remote restart failed"
+    exit 1
+fi
 
 log "Done."
