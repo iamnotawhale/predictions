@@ -1499,6 +1499,71 @@ html[data-switching] *::after {
     display: none;
 }
 
+.admin-pred-match-header {
+    margin-top: 4px;
+    margin-bottom: 6px;
+}
+
+.admin-pred-match-header .modal-team-logo {
+    width: 36px;
+    height: 36px;
+}
+
+.admin-pred-user {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--hint);
+    margin-bottom: 10px;
+}
+
+.admin-pred-user-login {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.admin-pred-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+}
+
+.admin-pred-row-teams {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.admin-pred-row-teams img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+.admin-pred-row-codes {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--hint);
+    white-space: nowrap;
+}
+
+.admin-pred-row-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-pred-row-user {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.admin-pred-row-meta {
+    font-size: 10px;
+    color: var(--hint);
+}
+
 .admin-toolbar {
     display: flex;
     flex-wrap: wrap;

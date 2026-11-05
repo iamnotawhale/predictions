@@ -468,7 +468,7 @@
         <nav class="admin-tabs" id="admin-tabs">
             <button type="button" class="admin-tab admin-tab-active" data-admin-tab="matches">Матчи</button>
             <button type="button" class="admin-tab" data-admin-tab="cups">Кубки</button>
-            <button type="button" class="admin-tab" data-admin-tab="users">Пользователи</button>
+            <button type="button" class="admin-tab" data-admin-tab="predictions">Прогнозы</button>
             <button type="button" class="admin-tab" data-admin-tab="raw">Сырые таблицы</button>
         </nav>
         <div id="admin-panel-matches" class="admin-panel">
@@ -488,12 +488,64 @@
             </div>
             <ul id="admin-visual-cups-list" class="list admin-rows-list"></ul>
         </div>
-        <div id="admin-panel-users" class="admin-panel hidden">
-            <ul id="admin-visual-users-list" class="list admin-rows-list"></ul>
-            <section id="admin-visual-user-detail" class="admin-editor hidden">
-                <h4 id="admin-visual-user-title">Пользователь</h4>
-                <ul id="admin-visual-user-predictions" class="list admin-rows-list"></ul>
-                <button type="button" id="admin-visual-user-close" class="admin-btn">Закрыть</button>
+        <div id="admin-panel-predictions" class="admin-panel hidden">
+            <div class="admin-toolbar">
+                <label class="admin-field">
+                    <span>Источник</span>
+                    <select id="admin-pred-scope">
+                        <option value="week">EPL · тур</option>
+                        <option value="cups">Кубки · сегодня</option>
+                    </select>
+                </label>
+                <label class="admin-field" id="admin-pred-week-wrap">
+                    <span>Тур</span>
+                    <select id="admin-pred-week"></select>
+                </label>
+                <label class="admin-field">
+                    <span>Пользователь</span>
+                    <select id="admin-pred-user-filter">
+                        <option value="">Все</option>
+                    </select>
+                </label>
+                <button type="button" id="admin-pred-reload" class="admin-btn">Обновить</button>
+                <button type="button" id="admin-pred-add" class="admin-btn admin-btn-accent">Новый прогноз</button>
+            </div>
+            <p id="admin-pred-list-hint" class="admin-modal-desc"></p>
+            <ul id="admin-pred-list" class="list admin-rows-list"></ul>
+            <div class="admin-toolbar hidden" id="admin-pred-add-toolbar">
+                <label class="admin-field">
+                    <span>Матч</span>
+                    <select id="admin-pred-add-match"></select>
+                </label>
+                <label class="admin-field">
+                    <span>Пользователь</span>
+                    <select id="admin-pred-add-user"></select>
+                </label>
+                <button type="button" id="admin-pred-add-go" class="admin-btn">Открыть редактор</button>
+                <button type="button" id="admin-pred-add-cancel" class="admin-btn">Отмена</button>
+            </div>
+            <section id="admin-visual-prediction-editor" class="admin-editor hidden">
+                <h4 id="admin-visual-pred-editor-title">Прогноз</h4>
+                <div class="modal-match-header admin-pred-match-header">
+                    <div class="modal-team modal-team-home">
+                        <img id="admin-visual-pred-home-logo" class="modal-team-logo" alt="">
+                        <div id="admin-visual-pred-home-code" class="modal-team-code">—</div>
+                    </div>
+                    <div class="modal-match-center">
+                        <div class="modal-vs">VS</div>
+                    </div>
+                    <div class="modal-team modal-team-away">
+                        <img id="admin-visual-pred-away-logo" class="modal-team-logo" alt="">
+                        <div id="admin-visual-pred-away-code" class="modal-team-code">—</div>
+                    </div>
+                </div>
+                <div id="admin-visual-pred-user" class="admin-pred-user"></div>
+                <div id="admin-visual-pred-score-grid" class="score-grid admin-score-grid"></div>
+                <div class="admin-editor-actions">
+                    <button type="button" id="admin-visual-pred-save" class="admin-btn admin-btn-accent">Сохранить</button>
+                    <button type="button" id="admin-visual-pred-delete" class="admin-btn admin-btn-danger">Удалить</button>
+                    <button type="button" id="admin-visual-pred-cancel" class="admin-btn">Отмена</button>
+                </div>
             </section>
         </div>
         <div id="admin-panel-raw" class="admin-panel hidden">
@@ -546,26 +598,6 @@
                 <button type="button" id="admin-visual-match-save" class="admin-btn admin-btn-accent">Сохранить</button>
                 <button type="button" id="admin-visual-match-cancel" class="admin-btn">Отмена</button>
             </div>
-            <h4>Прогнозы</h4>
-            <ul id="admin-visual-predictions-list" class="list admin-rows-list"></ul>
-            <div class="admin-toolbar">
-                <button type="button" id="admin-visual-pred-add" class="admin-btn">Добавить прогноз</button>
-                <label id="admin-visual-pred-add-wrap" class="admin-field hidden">
-                    <span>Пользователь</span>
-                    <select id="admin-visual-pred-add-user"></select>
-                </label>
-                <button type="button" id="admin-visual-pred-add-go" class="admin-btn hidden">Выбрать</button>
-            </div>
-            <section id="admin-visual-prediction-editor" class="admin-editor-sub hidden">
-                <h5 id="admin-visual-pred-editor-title">Прогноз</h5>
-                <p id="admin-visual-pred-editor-user" class="admin-modal-desc"></p>
-                <div id="admin-visual-pred-score-grid" class="score-grid admin-score-grid"></div>
-                <div class="admin-editor-actions">
-                    <button type="button" id="admin-visual-pred-save" class="admin-btn admin-btn-accent">Сохранить прогноз</button>
-                    <button type="button" id="admin-visual-pred-delete" class="admin-btn admin-btn-danger">Удалить</button>
-                    <button type="button" id="admin-visual-pred-cancel" class="admin-btn">Отмена</button>
-                </div>
-            </section>
         </section>
     </div>
 </div>

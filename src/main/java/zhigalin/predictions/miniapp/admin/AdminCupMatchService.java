@@ -138,6 +138,8 @@ public class AdminCupMatchService {
             rows.add(new AdminPredictionItem(
                     p.getUserId(),
                     u != null ? u.getLogin() : ("user#" + p.getUserId()),
+                    u != null ? u.getTelegramId() : null,
+                    u != null ? u.getRole() : null,
                     p.getHomeTeamScore(),
                     p.getAwayTeamScore(),
                     p.getPoints(),

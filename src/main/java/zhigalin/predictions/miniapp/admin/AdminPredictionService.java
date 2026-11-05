@@ -1,20 +1,30 @@
 package zhigalin.predictions.miniapp.admin;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import zhigalin.predictions.miniapp.MiniAppException;
+import zhigalin.predictions.miniapp.MiniAppService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionDeleteRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionListItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionUpsertRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminRowMutationResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.predict.Prediction;
+import zhigalin.predictions.model.user.User;
 import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao;
 import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.predict.ScoringMode;
+import zhigalin.predictions.service.user.UserService;
 
 @Service
 public class AdminPredictionService {
@@ -24,19 +34,112 @@ public class AdminPredictionService {
     private final PredictionDao predictionDao;
     private final MatchService matchService;
     private final CupMatchDao cupMatchDao;
+    private final MiniAppService miniAppService;
+    private final UserService userService;
+    private final UserWeekBonusMatchService userWeekBonusMatchService;
 
     public AdminPredictionService(
             AdminGuard adminGuard,
             PredictionService predictionService,
             PredictionDao predictionDao,
             MatchService matchService,
-            CupMatchDao cupMatchDao
+            CupMatchDao cupMatchDao,
+            MiniAppService miniAppService,
+            UserService userService,
+            UserWeekBonusMatchService userWeekBonusMatchService
     ) {
         this.adminGuard = adminGuard;
         this.predictionService = predictionService;
         this.predictionDao = predictionDao;
         this.matchService = matchService;
         this.cupMatchDao = cupMatchDao;
+        this.miniAppService = miniAppService;
+        this.userService = userService;
+        this.userWeekBonusMatchService = userWeekBonusMatchService;
+    }
+
+    public List<AdminPredictionListItem> list(
+            String telegramId,
+            String scope,
+            Integer weekId,
+            Integer userId
+    ) {
+        adminGuard.requireAdmin(telegramId);
+        String normalized = scope == null ? "" : scope.trim().toLowerCase();
+        List<AdminPredictionListItem> rows = new ArrayList<>();
+        Map<Integer, User> usersById = userService.findAll().stream()
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        if ("week".equals(normalized)) {
+            if (weekId == null || weekId <= 0) {
+                throw new MiniAppException(400, "Нужен weekId для scope=week.");
+            }
+            for (Match match : matchService.findAllByWeekId(weekId)) {
+                MatchItem card = miniAppService.adminMatchCard(match);
+                for (Prediction p : predictionService.getByMatchPublicId(match.getPublicId())) {
+                    if (userId != null && userId > 0 && p.getUserId() != userId) {
+                        continue;
+                    }
+                    rows.add(toListItem("epl", p, usersById.get(p.getUserId()), card, match.getStatus(), weekId));
+                }
+            }
+        } else if ("cups".equals(normalized)) {
+            for (MatchItem card : miniAppService.adminCupMatchesToday()) {
+                CupMatch cup = cupMatchDao.findByPublicId(card.publicId());
+                String status = cup != null ? cup.getStatus() : null;
+                for (Prediction p : predictionService.getByCupMatchPublicId(card.publicId())) {
+                    if (userId != null && userId > 0 && p.getUserId() != userId) {
+                        continue;
+                    }
+                    rows.add(toListItem("cup", p, usersById.get(p.getUserId()), card, status, null));
+                }
+            }
+        } else {
+            throw new MiniAppException(400, "scope: week или cups.");
+        }
+        rows.sort(Comparator
+                .comparing(AdminPredictionListItem::homeCode, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(AdminPredictionListItem::awayCode, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing((AdminPredictionListItem r) -> r.login(), String.CASE_INSENSITIVE_ORDER));
+        return rows;
+    }
+
+    private AdminPredictionListItem toListItem(
+            String kind,
+            Prediction p,
+            User u,
+            MatchItem card,
+            String matchStatus,
+            Integer weekId
+    ) {
+        boolean weekBonus = false;
+        if ("epl".equals(kind) && weekId != null && u != null) {
+            weekBonus = userWeekBonusMatchService.findAssigned(u.getId(), weekId)
+                    .map(id -> id == p.getMatchPublicId())
+                    .orElse(false);
+        }
+        Integer matchPublicId = "epl".equals(kind) ? p.getMatchPublicId() : null;
+        Integer cupMatchId = "cup".equals(kind) ? p.getCupMatchId() : null;
+        return new AdminPredictionListItem(
+                kind,
+                p.getUserId(),
+                u != null ? u.getLogin() : ("user#" + p.getUserId()),
+                u != null ? u.getTelegramId() : null,
+                u != null ? u.getRole() : null,
+                matchPublicId,
+                cupMatchId,
+                p.getHomeTeamScore(),
+                p.getAwayTeamScore(),
+                p.getPoints(),
+                weekBonus,
+                matchStatus,
+                card.homeCode() != null ? card.homeCode() : "",
+                card.awayCode() != null ? card.awayCode() : "",
+                card.homeName() != null ? card.homeName() : "",
+                card.awayName() != null ? card.awayName() : "",
+                card.homeLogo() != null ? card.homeLogo() : "",
+                card.awayLogo() != null ? card.awayLogo() : "",
+                weekId
+        );
     }
 
     @Transactional

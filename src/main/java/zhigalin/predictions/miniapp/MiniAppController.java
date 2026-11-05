@@ -35,6 +35,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminMatchDetailResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminMatchListItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminMatchPatchRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionDeleteRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionListItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionUpsertRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminUserDetailResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminUserItem;
@@ -241,6 +242,16 @@ public class MiniAppController {
             @RequestBody AdminMatchPatchRequest body
     ) {
         return adminCupMatchService.patchMatch(requireTelegramIdForAdmin(initData), publicId, body);
+    }
+
+    @GetMapping("/admin/predictions")
+    public List<AdminPredictionListItem> adminVisualListPredictions(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam String scope,
+            @RequestParam(required = false) Integer weekId,
+            @RequestParam(required = false) Integer userId
+    ) {
+        return adminPredictionService.list(requireTelegramIdForAdmin(initData), scope, weekId, userId);
     }
 
     @PutMapping("/admin/predictions")

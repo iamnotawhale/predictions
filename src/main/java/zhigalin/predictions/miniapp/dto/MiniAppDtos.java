@@ -587,6 +587,8 @@ public final class MiniAppDtos {
     public record AdminPredictionItem(
             int userId,
             String login,
+            String telegramId,
+            String role,
             Integer homeScore,
             Integer awayScore,
             Integer points,
@@ -614,6 +616,29 @@ public final class MiniAppDtos {
     public record AdminPredictionDeleteRequest(int userId, Integer matchPublicId, Integer cupMatchId) {
     }
 
+    public record AdminPredictionListItem(
+            String kind,
+            int userId,
+            String login,
+            String telegramId,
+            String role,
+            Integer matchPublicId,
+            Integer cupMatchId,
+            Integer predictHome,
+            Integer predictAway,
+            Integer points,
+            boolean weekBonus,
+            String matchStatus,
+            String homeCode,
+            String awayCode,
+            String homeName,
+            String awayName,
+            String homeLogo,
+            String awayLogo,
+            Integer weekId
+    ) {
+    }
+
     public record AdminUserItem(
             int id,
             String login,
@@ -635,7 +660,13 @@ public final class MiniAppDtos {
             String matchStatus,
             Integer predictHome,
             Integer predictAway,
-            Integer points
+            Integer points,
+            String homeCode,
+            String awayCode,
+            String homeName,
+            String awayName,
+            String homeLogo,
+            String awayLogo
     ) {
     }
 }

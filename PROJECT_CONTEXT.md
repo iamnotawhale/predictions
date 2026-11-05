@@ -291,20 +291,21 @@
 
 ### Admin UI v2 (2026-11-05)
 
-В `#admin-modal`: вкладки **Матчи · Кубки · Пользователи · Сырые таблицы**. Generic CRUD — `AdminDataService` (вкладка «Сырые»). Визуально: `AdminMatchService` / `AdminCupMatchService` / `AdminUserService` / `AdminPredictionService`, `AdminGuard`, `AdminEspnSyncGuard` (409 пока ESPN-sync busy).
+В `#admin-modal`: вкладки **Матчи · Кубки · Прогнозы · Сырые таблицы**. Generic CRUD — `AdminDataService` (вкладка «Сырые»). Визуально: `AdminMatchService` / `AdminCupMatchService` / `AdminPredictionService` / `AdminUserService` (списки для фильтров), `AdminGuard`, `AdminEspnSyncGuard` (409 пока ESPN-sync busy).
 
 | GET | `/admin/matches?weekId=` | Карточки тура + `espnEditBlocked` |
 | GET/PATCH | `/admin/matches/{publicId}` | Деталь, прогнозы; PATCH — auto-recalc при `ft` |
 | GET/PATCH | `/admin/cup-matches/today`, `/admin/cup-matches/{publicId}` | Кубки сегодня |
+| GET | `/admin/predictions?scope=week\|cups&weekId=&userId=` | Список прогнозов для вкладки «Прогнозы» |
 | PUT/DELETE | `/admin/predictions` | Upsert/delete прогноза (XOR) |
-| GET | `/admin/users` | Список пользователей |
-| GET | `/admin/users/{userId}` | Карточка пользователя + все прогнозы (EPL/кубок) |
+| GET | `/admin/users` | Список пользователей (фильтр на вкладке «Прогнозы») |
+| GET | `/admin/users/{userId}` | Drill-down API (UI необязателен) |
 
 **Продуктовые решения:** (1) после успешного save матча в `ft` со счётом — **авто-пересчёт очков** в той же транзакции, если save разрешён; kickoff-only и не-`ft` — без recalc. (2) **Фазы 0–4 одним этапом:** матчи АПЛ, прогнозы, кубки, пользователи + raw tab. (3) **Без `manual_override`:** правки, которые ESPN-sync перезапишет, — **409** + предупреждение в UI (правило poll: матч ещё на scoreboard при live / глобальный `pst` / FT &lt; 2 ч).
 
 **Backend (новое):** `AdminGuard`, доменные `/admin/matches`, `/admin/cup-matches`, `/admin/predictions`, `/admin/users`; patch матча — load row, только изменённые поля, `result` как в `DataInitService`, `finished_at` только при первом `ft`; kickoff — полное московское время, не строка карточки `dd.MM HH:mm`; не слать `status`, если админ его не менял (live `45'`/`ht`). Recalc — `PredictionService.updateByMatch` / `updateByCupMatch` (может **добавить** прогнозы пользователям без строки); отдельное редактирование одного прогноза — upsert через `PredictionDao`, без `updateByMatch`.
 
-**Frontend:** вкладки в `#admin-modal`, `renderMatchItem`, общий `renderScoreGrid` (score-modal + админ); статус — чипы `ns/pst/ft/canc`, live-clock только текст; FT-save — confirm; прогнозы — сетка + add/delete; cup AET/pen — read-only; пользователи — список + drill-down.
+**Frontend:** четыре вкладки — **Матчи** и **Кубки** (только счёт/статус/kickoff), **Прогнозы** (список + редактор: логотипы, пользователь, сетка, новый/удалить), **Сырые**; общий `renderScoreGrid`; FT-save на матче — confirm; cup AET/pen — read-only.
 
 | GET | `/weeks` | Список туров |
 | GET | `/weeks/{weekId}/matches` | Матчи тура |
