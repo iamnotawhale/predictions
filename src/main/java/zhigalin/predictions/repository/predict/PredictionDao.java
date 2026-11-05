@@ -261,6 +261,36 @@ public class PredictionDao {
         }
     }
 
+    public void deleteCup(int userId, int cupMatchId) {
+        try {
+            String sql = """
+                    DELETE FROM predict WHERE user_id = :userId AND cup_match_id = :cupMatchId
+                    """;
+            namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("cupMatchId", cupMatchId));
+        } catch (Exception e) {
+            panicSender.sendPanic("Error deleting cup prediction", e);
+            serverLogger.error(e.getMessage());
+        }
+    }
+
+    public Prediction findByCupMatchIdAndUserId(int cupMatchId, int userId) {
+        try {
+            String sql = """
+                    SELECT * FROM predict WHERE user_id = :userId AND cup_match_id = :cupMatchId
+                    """;
+            return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(
+                    sql,
+                    new MapSqlParameterSource()
+                            .addValue("userId", userId)
+                            .addValue("cupMatchId", cupMatchId),
+                    new PredictionMapper()));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public void deleteByUserTelegramIdAndTeams(String telegramId, String homeTeam, String awayTeam) {
         try {
             String sql = """

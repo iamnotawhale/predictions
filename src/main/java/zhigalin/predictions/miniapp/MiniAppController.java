@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,9 +23,21 @@ import org.springframework.web.bind.annotation.RestController;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupTipResponse;
 import zhigalin.predictions.recommender.model.TipTrackRecord;
+import zhigalin.predictions.miniapp.admin.AdminCupMatchService;
 import zhigalin.predictions.miniapp.admin.AdminDataService;
+import zhigalin.predictions.miniapp.admin.AdminMatchService;
+import zhigalin.predictions.miniapp.admin.AdminPredictionService;
+import zhigalin.predictions.miniapp.admin.AdminUserService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminColumnItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminCupMatchDetailResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminMatchDetailResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminMatchListItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminMatchPatchRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionDeleteRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminPredictionUpsertRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminUserDetailResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminUserItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminRowMutationResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminRowSaveRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminTableItem;
@@ -62,19 +75,31 @@ public class MiniAppController {
     private final MiniAppProperties miniAppProperties;
     private final TeamLogoCacheService teamLogoCacheService;
     private final AdminDataService adminDataService;
+    private final AdminMatchService adminMatchService;
+    private final AdminCupMatchService adminCupMatchService;
+    private final AdminPredictionService adminPredictionService;
+    private final AdminUserService adminUserService;
 
     public MiniAppController(
             TelegramWebAppAuthService authService,
             MiniAppService miniAppService,
             MiniAppProperties miniAppProperties,
             TeamLogoCacheService teamLogoCacheService,
-            AdminDataService adminDataService
+            AdminDataService adminDataService,
+            AdminMatchService adminMatchService,
+            AdminCupMatchService adminCupMatchService,
+            AdminPredictionService adminPredictionService,
+            AdminUserService adminUserService
     ) {
         this.authService = authService;
         this.miniAppService = miniAppService;
         this.miniAppProperties = miniAppProperties;
         this.teamLogoCacheService = teamLogoCacheService;
         this.adminDataService = adminDataService;
+        this.adminMatchService = adminMatchService;
+        this.adminCupMatchService = adminCupMatchService;
+        this.adminPredictionService = adminPredictionService;
+        this.adminUserService = adminUserService;
     }
 
     @GetMapping("/profile")
@@ -167,6 +192,86 @@ public class MiniAppController {
             @RequestBody AdminRowSaveRequest body
     ) {
         return adminDataService.deleteRow(requireTelegramIdForAdmin(initData), tableId, body.primaryKey());
+    }
+
+    @GetMapping("/admin/matches")
+    public List<AdminMatchListItem> adminVisualMatches(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam int weekId
+    ) {
+        return adminMatchService.listMatches(requireTelegramIdForAdmin(initData), weekId);
+    }
+
+    @GetMapping("/admin/matches/{publicId}")
+    public AdminMatchDetailResponse adminVisualMatch(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int publicId
+    ) {
+        return adminMatchService.getMatch(requireTelegramIdForAdmin(initData), publicId);
+    }
+
+    @PatchMapping("/admin/matches/{publicId}")
+    public AdminRowMutationResponse adminVisualPatchMatch(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int publicId,
+            @RequestBody AdminMatchPatchRequest body
+    ) {
+        return adminMatchService.patchMatch(requireTelegramIdForAdmin(initData), publicId, body);
+    }
+
+    @GetMapping("/admin/cup-matches/today")
+    public List<AdminMatchListItem> adminVisualCupToday(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
+    ) {
+        return adminCupMatchService.listToday(requireTelegramIdForAdmin(initData));
+    }
+
+    @GetMapping("/admin/cup-matches/{publicId}")
+    public AdminCupMatchDetailResponse adminVisualCupMatch(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int publicId
+    ) {
+        return adminCupMatchService.getMatch(requireTelegramIdForAdmin(initData), publicId);
+    }
+
+    @PatchMapping("/admin/cup-matches/{publicId}")
+    public AdminRowMutationResponse adminVisualPatchCup(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int publicId,
+            @RequestBody AdminMatchPatchRequest body
+    ) {
+        return adminCupMatchService.patchMatch(requireTelegramIdForAdmin(initData), publicId, body);
+    }
+
+    @PutMapping("/admin/predictions")
+    public AdminRowMutationResponse adminVisualUpsertPrediction(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestBody AdminPredictionUpsertRequest body
+    ) {
+        return adminPredictionService.upsert(requireTelegramIdForAdmin(initData), body);
+    }
+
+    @DeleteMapping("/admin/predictions")
+    public AdminRowMutationResponse adminVisualDeletePrediction(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestBody AdminPredictionDeleteRequest body
+    ) {
+        return adminPredictionService.delete(requireTelegramIdForAdmin(initData), body);
+    }
+
+    @GetMapping("/admin/users")
+    public List<AdminUserItem> adminVisualUsers(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
+    ) {
+        return adminUserService.listUsers(requireTelegramIdForAdmin(initData));
+    }
+
+    @GetMapping("/admin/users/{userId}")
+    public AdminUserDetailResponse adminVisualUser(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable int userId
+    ) {
+        return adminUserService.getUser(requireTelegramIdForAdmin(initData), userId);
     }
 
     @GetMapping("/weeks")

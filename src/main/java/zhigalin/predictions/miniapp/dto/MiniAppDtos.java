@@ -554,4 +554,88 @@ public final class MiniAppDtos {
 
     public record AdminRowMutationResponse(boolean ok, String message) {
     }
+
+    public record AdminMatchListItem(MatchItem match, boolean espnEditBlocked, String kickoffLocal) {
+    }
+
+    public record AdminMatchDetailResponse(
+            MatchItem match,
+            boolean espnEditBlocked,
+            String kickoffLocal,
+            List<AdminPredictionItem> predictions,
+            int usersTotal,
+            int predictionsCount,
+            int missingPredictionsOnRecalc
+    ) {
+    }
+
+    public record AdminCupMatchDetailResponse(
+            MatchItem match,
+            boolean espnEditBlocked,
+            String kickoffLocal,
+            List<AdminPredictionItem> predictions,
+            int usersTotal,
+            int predictionsCount,
+            int missingPredictionsOnRecalc,
+            Integer aetHomeScore,
+            Integer aetAwayScore,
+            Integer penHomeScore,
+            Integer penAwayScore
+    ) {
+    }
+
+    public record AdminPredictionItem(
+            int userId,
+            String login,
+            Integer homeScore,
+            Integer awayScore,
+            Integer points,
+            boolean weekBonus
+    ) {
+    }
+
+    public record AdminMatchPatchRequest(
+            Integer homeScore,
+            Integer awayScore,
+            String status,
+            String kickoffLocal
+    ) {
+    }
+
+    public record AdminPredictionUpsertRequest(
+            int userId,
+            Integer matchPublicId,
+            Integer cupMatchId,
+            Integer homeScore,
+            Integer awayScore
+    ) {
+    }
+
+    public record AdminPredictionDeleteRequest(int userId, Integer matchPublicId, Integer cupMatchId) {
+    }
+
+    public record AdminUserItem(
+            int id,
+            String login,
+            String telegramId,
+            String role,
+            boolean bettingRecommenderEnabled,
+            int predictionCount
+    ) {
+    }
+
+    public record AdminUserDetailResponse(AdminUserItem user, List<AdminUserPredictionRow> predictions) {
+    }
+
+    public record AdminUserPredictionRow(
+            String kind,
+            Integer matchPublicId,
+            Integer cupMatchId,
+            String label,
+            String matchStatus,
+            Integer predictHome,
+            Integer predictAway,
+            Integer points
+    ) {
+    }
 }

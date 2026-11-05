@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -26,8 +25,6 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminColumnItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminRowMutationResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminTableItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminTableRowsResponse;
-import zhigalin.predictions.service.user.UserService;
-
 @Service
 public class AdminDataService {
 
@@ -37,21 +34,15 @@ public class AdminDataService {
     private static final String MASK = "***";
 
     private final NamedParameterJdbcTemplate jdbc;
-    private final UserService userService;
-    private final String adminChatId;
+    private final AdminGuard adminGuard;
 
-    public AdminDataService(
-            DataSource dataSource,
-            UserService userService,
-            @Value("${chatId:}") String adminChatId
-    ) {
+    public AdminDataService(DataSource dataSource, AdminGuard adminGuard) {
         this.jdbc = new NamedParameterJdbcTemplate(dataSource);
-        this.userService = userService;
-        this.adminChatId = adminChatId == null ? "" : adminChatId.trim();
+        this.adminGuard = adminGuard;
     }
 
     public List<AdminTableItem> listTables(String telegramId) {
-        requireAdmin(telegramId);
+        adminGuard.requireAdmin(telegramId);
         return AdminTableRegistry.all().stream()
                 .map(t -> new AdminTableItem(
                         t.id(),
@@ -65,7 +56,7 @@ public class AdminDataService {
     }
 
     public List<AdminColumnItem> listColumns(String telegramId, String tableId) {
-        requireAdmin(telegramId);
+        adminGuard.requireAdmin(telegramId);
         return loadColumns(requireTable(tableId));
     }
 
@@ -76,7 +67,7 @@ public class AdminDataService {
             int offset,
             String query
     ) {
-        requireAdmin(telegramId);
+        adminGuard.requireAdmin(telegramId);
         TableSpec spec = requireTable(tableId);
         int safeLimit = Math.min(Math.max(limit, 1), MAX_LIMIT);
         int safeOffset = Math.min(Math.max(offset, 0), MAX_OFFSET);
@@ -119,7 +110,7 @@ public class AdminDataService {
             Map<String, Object> primaryKey,
             String mode
     ) {
-        requireAdmin(telegramId);
+        adminGuard.requireAdmin(telegramId);
         TableSpec spec = requireTable(tableId);
         if (spec.readOnly()) {
             throw new MiniAppException(403, "Таблица только для чтения.");
@@ -170,7 +161,7 @@ public class AdminDataService {
             String tableId,
             Map<String, Object> primaryKey
     ) {
-        requireAdmin(telegramId);
+        adminGuard.requireAdmin(telegramId);
         TableSpec spec = requireTable(tableId);
         if (spec.readOnly() || spec.noDelete()) {
             throw new MiniAppException(403, "Удаление запрещено для этой таблицы.");
@@ -202,15 +193,6 @@ public class AdminDataService {
             return AdminTableRegistry.require(tableId);
         } catch (IllegalArgumentException e) {
             throw new MiniAppException(404, e.getMessage());
-        }
-    }
-
-    private void requireAdmin(String telegramId) {
-        if (userService.findByTelegramId(telegramId) == null) {
-            throw new MiniAppException(401, "Пользователь не найден.");
-        }
-        if (adminChatId.isBlank() || "0".equals(adminChatId) || !adminChatId.equals(telegramId)) {
-            throw new MiniAppException(403, "Доступ только для администратора.");
         }
     }
 

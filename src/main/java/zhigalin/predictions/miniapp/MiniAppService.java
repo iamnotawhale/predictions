@@ -1373,4 +1373,20 @@ public class MiniAppService {
         );
     }
 
+    public MatchItem adminMatchCard(Match match) {
+        return toMatchItem(match, "", false, null, null, false);
+    }
+
+    public MatchItem adminCupCard(CupMatch cup) {
+        return toCupMatchItem(cup, null, null);
+    }
+
+    public List<MatchItem> adminCupMatchesToday() {
+        List<CupMatch> cups = cupMatchDao.findAllByDate(java.time.LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
+        return cups.stream()
+                .sorted(CupMatch.BY_KICKOFF_THEN_PUBLIC_ID)
+                .map(c -> toCupMatchItem(c, null, null))
+                .toList();
+    }
+
 }

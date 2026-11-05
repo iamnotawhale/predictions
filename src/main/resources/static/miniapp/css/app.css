@@ -1440,6 +1440,65 @@ html[data-switching] *::after {
     line-height: 1.4;
 }
 
+.admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.admin-tab {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--hint);
+}
+
+.admin-tab-active {
+    color: var(--accent-lift);
+    border-color: rgba(176, 140, 255, 0.45);
+}
+
+.admin-panel.hidden {
+    display: none;
+}
+
+.admin-espn-warn {
+    color: #ffb4b4;
+}
+
+.admin-score-grid {
+    margin-bottom: 12px;
+}
+
+.admin-status-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin-status-chip-active {
+    color: var(--accent-lift);
+    border-color: rgba(176, 140, 255, 0.45);
+}
+
+.admin-row-item-clickable {
+    cursor: pointer;
+}
+
+.admin-editor-sub {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.admin-editor-sub.hidden {
+    display: none;
+}
+
 .admin-toolbar {
     display: flex;
     flex-wrap: wrap;

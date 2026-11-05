@@ -209,7 +209,24 @@
             busy: false,
             tableLoading: false,
             columnLoadToken: 0,
-            rowLoadToken: 0
+            rowLoadToken: 0,
+            visual: {
+                tab: 'matches',
+                weekId: null,
+                selectedPublicId: null,
+                isCup: false,
+                editHome: null,
+                editAway: null,
+                originalStatus: '',
+                originalKickoff: '',
+                originalHome: null,
+                originalAway: null,
+                statusDraft: null,
+                detail: null,
+                usersCache: null,
+                predEdit: null,
+                selectedUserId: null
+            }
         },
         leaderboardMode: '',
         chartLoaded: false,
@@ -1216,11 +1233,12 @@
         }
         state.adminPanelOpened = true;
         state.admin.offset = 0;
+        state.admin.visual.tab = 'matches';
         $('#admin-modal').classList.remove('hidden');
         tg.BackButton.show();
+        adminSetTab('matches');
         try {
-            await adminLoadTables();
-            await adminLoadColumnsAndRows();
+            await adminVisualLoadMatches();
         } catch (e) {
             showToast(e.message || 'Не удалось загрузить админку', 'error');
         }
@@ -1230,6 +1248,7 @@
         hideModal($('#admin-modal'));
         state.adminPanelOpened = false;
         adminCloseEditor();
+        adminVisualCloseEditor();
         if (shouldHideBackButton()) {
             tg.BackButton.hide();
         } else {
@@ -1303,6 +1322,437 @@
         } finally {
             adminSetBusy(false);
         }
+    }
+
+    function adminSetTab(tab) {
+        state.admin.visual.tab = tab;
+        document.querySelectorAll('.admin-tab').forEach((btn) => {
+            btn.classList.toggle('admin-tab-active', btn.dataset.adminTab === tab);
+        });
+        ['matches', 'cups', 'users', 'raw'].forEach((id) => {
+            const el = $('#admin-panel-' + id);
+            if (el) el.classList.toggle('hidden', id !== tab);
+        });
+        if (tab === 'raw' && !state.admin.tables.length) {
+            adminLoadTables().then(() => adminLoadColumnsAndRows()).catch(() => {});
+        }
+        if (tab === 'users') {
+            adminVisualLoadUsers().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+        }
+        if (tab === 'cups') {
+            adminVisualLoadCups().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+        }
+    }
+
+    function adminVisualKickoffToInput(iso) {
+        if (!iso) return '';
+        return iso.length >= 16 ? iso.slice(0, 16) : iso;
+    }
+
+    function adminVisualKickoffFromInput(val) {
+        if (!val) return null;
+        return val.length === 16 ? val + ':00' : val;
+    }
+
+    const ADMIN_FIXED_STATUSES = ['ns', 'pst', 'ft', 'canc'];
+
+    function renderScoreGrid(container, selectedHome, selectedAway, onPick) {
+        if (!container) return;
+        container.innerHTML = '';
+        for (let h = 0; h <= 5; h++) {
+            for (let a = 0; a <= 5; a++) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'score-btn';
+                btn.textContent = h + ':' + a;
+                if (selectedHome === h && selectedAway === a) btn.classList.add('selected');
+                btn.addEventListener('click', () => onPick(h, a));
+                container.appendChild(btn);
+            }
+        }
+    }
+
+    function adminIsLiveClockStatus(status) {
+        if (!status) return false;
+        return ADMIN_FIXED_STATUSES.indexOf(status) < 0;
+    }
+
+    function adminRenderStatusChips(currentStatus, onSelect) {
+        const wrap = $('#admin-visual-status-chips');
+        const liveEl = $('#admin-visual-status-live');
+        if (!wrap || !liveEl) return;
+        wrap.innerHTML = '';
+        if (adminIsLiveClockStatus(currentStatus)) {
+            liveEl.textContent = 'Live: ' + currentStatus + ' — меняйте только через ESPN-sync';
+            liveEl.classList.remove('hidden');
+            wrap.classList.add('hidden');
+            return;
+        }
+        liveEl.classList.add('hidden');
+        wrap.classList.remove('hidden');
+        ADMIN_FIXED_STATUSES.forEach((code) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'admin-btn admin-status-chip'
+                + (currentStatus === code ? ' admin-status-chip-active' : '');
+            btn.textContent = code;
+            btn.addEventListener('click', () => onSelect(code));
+            wrap.appendChild(btn);
+        });
+    }
+
+    function adminEffectiveStatusDraft() {
+        const v = state.admin.visual;
+        if (adminIsLiveClockStatus(v.originalStatus)) return null;
+        if (v.statusDraft != null) return v.statusDraft;
+        return v.originalStatus || 'ns';
+    }
+
+    async function adminVisualEnsureWeeks() {
+        const weeks = await api('/weeks');
+        const select = $('#admin-visual-week');
+        if (!select) return;
+        select.innerHTML = '';
+        weeks.forEach((w) => {
+            const opt = document.createElement('option');
+            opt.value = String(w.id);
+            opt.textContent = 'Тур ' + w.id;
+            select.appendChild(opt);
+        });
+        if (!state.admin.visual.weekId && weeks.length) {
+            const cur = state.profile && state.profile.currentWeekId;
+            state.admin.visual.weekId = weeks.some((w) => w.id === cur) ? cur : weeks[weeks.length - 1].id;
+        }
+        if (state.admin.visual.weekId) select.value = String(state.admin.visual.weekId);
+    }
+
+    async function adminVisualLoadMatches() {
+        await adminVisualEnsureWeeks();
+        const weekId = state.admin.visual.weekId || parseInt($('#admin-visual-week').value, 10);
+        state.admin.visual.weekId = weekId;
+        const rows = await api('/admin/matches?weekId=' + encodeURIComponent(weekId));
+        const list = $('#admin-visual-matches-list');
+        const hint = $('#admin-visual-matches-hint');
+        list.innerHTML = '';
+        if (hint) hint.textContent = 'Матчи тура ' + weekId;
+        rows.forEach((row) => {
+            const li = renderMatchItem(row.match, () => adminVisualOpenMatch(row.match.publicId, false));
+            if (row.espnEditBlocked) li.classList.add('admin-row-blocked');
+            list.appendChild(li);
+        });
+        adminVisualCloseEditor();
+    }
+
+    async function adminVisualLoadCups() {
+        const rows = await api('/admin/cup-matches/today');
+        const list = $('#admin-visual-cups-list');
+        list.innerHTML = '';
+        rows.forEach((row) => {
+            const li = renderMatchItem(row.match, () => adminVisualOpenMatch(row.match.publicId, true));
+            if (row.espnEditBlocked) li.classList.add('admin-row-blocked');
+            list.appendChild(li);
+        });
+    }
+
+    async function adminVisualLoadUsers() {
+        const users = await api('/admin/users');
+        const list = $('#admin-visual-users-list');
+        list.innerHTML = '';
+        users.forEach((u) => {
+            const li = document.createElement('li');
+            li.className = 'admin-row-item admin-row-item-clickable';
+            li.textContent = u.login + ' · id=' + u.id + ' · tg=' + (u.telegramId || '—')
+                + ' · прогнозов ' + u.predictionCount + (u.bettingRecommenderEnabled ? ' · AI' : '');
+            li.addEventListener('click', () => {
+                adminVisualOpenUser(u.id).catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+            list.appendChild(li);
+        });
+        state.admin.visual.usersCache = users;
+    }
+
+    async function adminVisualOpenUser(userId) {
+        state.admin.visual.selectedUserId = userId;
+        const data = await api('/admin/users/' + encodeURIComponent(userId));
+        if (state.admin.visual.selectedUserId !== userId) return;
+        const u = data.user;
+        $('#admin-visual-user-title').textContent = u.login + ' · id=' + u.id
+            + ' · tg=' + (u.telegramId || '—') + (u.bettingRecommenderEnabled ? ' · AI' : '');
+        const list = $('#admin-visual-user-predictions');
+        list.innerHTML = '';
+        (data.predictions || []).forEach((p) => {
+            const li = document.createElement('li');
+            li.className = 'admin-row-item';
+            const sc = (p.predictHome != null && p.predictAway != null)
+                ? (p.predictHome + ':' + p.predictAway) : '—';
+            const kind = p.kind === 'cup' ? 'кубок' : 'EPL';
+            li.textContent = kind + ' · ' + p.label + ' · ' + sc
+                + (p.points != null ? ' · ' + p.points + ' очк' : '')
+                + (p.matchStatus ? ' · ' + p.matchStatus : '');
+            list.appendChild(li);
+        });
+        if (!(data.predictions || []).length) {
+            const li = document.createElement('li');
+            li.className = 'admin-row-item';
+            li.textContent = 'Нет прогнозов';
+            list.appendChild(li);
+        }
+        $('#admin-visual-user-detail').classList.remove('hidden');
+    }
+
+    function adminVisualCloseUserDetail() {
+        $('#admin-visual-user-detail').classList.add('hidden');
+        state.admin.visual.selectedUserId = null;
+    }
+
+    function adminVisualClosePredEditor() {
+        $('#admin-visual-prediction-editor').classList.add('hidden');
+        $('#admin-visual-pred-add-wrap').classList.add('hidden');
+        $('#admin-visual-pred-add-go').classList.add('hidden');
+        state.admin.visual.predEdit = null;
+    }
+
+    function adminVisualCloseEditor() {
+        $('#admin-visual-match-editor').classList.add('hidden');
+        adminVisualClosePredEditor();
+        state.admin.visual.selectedPublicId = null;
+        state.admin.visual.detail = null;
+        state.admin.visual.statusDraft = null;
+    }
+
+    async function adminVisualOpenMatch(publicId, isCup) {
+        const path = isCup
+            ? '/admin/cup-matches/' + encodeURIComponent(publicId)
+            : '/admin/matches/' + encodeURIComponent(publicId);
+        const detail = await api(path);
+        state.admin.visual.selectedPublicId = publicId;
+        state.admin.visual.isCup = isCup;
+        state.admin.visual.detail = detail;
+        const m = detail.match;
+        state.admin.visual.editHome = m.homeScore;
+        state.admin.visual.editAway = m.awayScore;
+        state.admin.visual.originalHome = m.homeScore;
+        state.admin.visual.originalAway = m.awayScore;
+        state.admin.visual.originalStatus = m.status || '';
+        state.admin.visual.originalKickoff = detail.kickoffLocal || '';
+        state.admin.visual.statusDraft = adminIsLiveClockStatus(m.status) ? null : (m.status || 'ns');
+        adminVisualClosePredEditor();
+        $('#admin-visual-match-title').textContent = m.homeCode + ' – ' + m.awayCode
+            + (m.cup ? ' · ' + (m.competition || 'cup') : '');
+        const warn = $('#admin-visual-espn-warn');
+        if (detail.espnEditBlocked) {
+            warn.textContent = 'ESPN-sync может перезаписать правки. Сохранение заблокировано (409).';
+            warn.classList.remove('hidden');
+        } else {
+            warn.classList.add('hidden');
+        }
+        const rh = $('#admin-visual-recalc-hint');
+        if (detail.missingPredictionsOnRecalc > 0) {
+            rh.textContent = 'При FT-save auto-recalc может добавить до '
+                + detail.missingPredictionsOnRecalc + ' прогнозов (−1/0).';
+            rh.classList.remove('hidden');
+        } else {
+            rh.classList.add('hidden');
+        }
+        const cupExtra = $('#admin-visual-cup-extra');
+        if (isCup && (detail.aetHomeScore != null || detail.penHomeScore != null)) {
+            const parts = [];
+            if (detail.aetHomeScore != null && detail.aetAwayScore != null) {
+                parts.push('AET ' + detail.aetHomeScore + ':' + detail.aetAwayScore);
+            }
+            if (detail.penHomeScore != null && detail.penAwayScore != null) {
+                parts.push('пен. ' + detail.penHomeScore + ':' + detail.penAwayScore);
+            }
+            cupExtra.textContent = parts.join(' · ') + ' (только чтение, ESPN)';
+            cupExtra.classList.remove('hidden');
+        } else if (cupExtra) {
+            cupExtra.classList.add('hidden');
+        }
+        const statusPick = (code) => {
+            state.admin.visual.statusDraft = code;
+            adminRenderStatusChips(code, statusPick);
+        };
+        adminRenderStatusChips(adminEffectiveStatusDraft(), statusPick);
+        $('#admin-visual-kickoff').value = adminVisualKickoffToInput(detail.kickoffLocal);
+        const grid = $('#admin-visual-score-grid');
+        const pickScore = (h, a) => {
+            state.admin.visual.editHome = h;
+            state.admin.visual.editAway = a;
+            renderScoreGrid(grid, h, a, pickScore);
+        };
+        renderScoreGrid(grid, m.homeScore, m.awayScore, pickScore);
+        const predList = $('#admin-visual-predictions-list');
+        predList.innerHTML = '';
+        (detail.predictions || []).forEach((p) => {
+            const li = document.createElement('li');
+            li.className = 'admin-row-item admin-row-item-clickable';
+            const sc = (p.homeScore != null && p.awayScore != null) ? (p.homeScore + ':' + p.awayScore) : '—';
+            li.textContent = p.login + ' · ' + sc + ' · ' + (p.points != null ? p.points + ' очк' : '—')
+                + (p.weekBonus ? ' · бонус' : '');
+            li.addEventListener('click', () => adminVisualOpenPredEditor(p, false));
+            predList.appendChild(li);
+        });
+        $('#admin-visual-match-editor').classList.remove('hidden');
+    }
+
+    function adminVisualOpenPredEditor(p, isNew) {
+        const publicId = state.admin.visual.selectedPublicId;
+        const isCup = state.admin.visual.isCup;
+        if (!publicId) return;
+        state.admin.visual.predEdit = {
+            userId: p.userId,
+            login: p.login,
+            home: p.homeScore,
+            away: p.awayScore,
+            isNew: !!isNew,
+            isCup,
+            matchPublicId: publicId
+        };
+        $('#admin-visual-pred-editor-title').textContent = isNew ? 'Новый прогноз' : 'Редактировать прогноз';
+        $('#admin-visual-pred-editor-user').textContent = p.login + ' (user id ' + p.userId + ')';
+        const delBtn = $('#admin-visual-pred-delete');
+        if (delBtn) delBtn.classList.toggle('hidden', !!isNew);
+        const grid = $('#admin-visual-pred-score-grid');
+        const pick = (h, a) => {
+            state.admin.visual.predEdit.home = h;
+            state.admin.visual.predEdit.away = a;
+            renderScoreGrid(grid, h, a, pick);
+        };
+        const h0 = p.homeScore != null ? p.homeScore : 0;
+        const a0 = p.awayScore != null ? p.awayScore : 0;
+        state.admin.visual.predEdit.home = h0;
+        state.admin.visual.predEdit.away = a0;
+        renderScoreGrid(grid, h0, a0, pick);
+        $('#admin-visual-prediction-editor').classList.remove('hidden');
+    }
+
+    async function adminVisualBeginAddPrediction() {
+        if (!state.admin.visual.selectedPublicId) return;
+        if (!state.admin.visual.usersCache) {
+            state.admin.visual.usersCache = await api('/admin/users');
+        }
+        const existing = new Set((state.admin.visual.detail.predictions || []).map((p) => p.userId));
+        const candidates = state.admin.visual.usersCache.filter((u) => !existing.has(u.id));
+        if (!candidates.length) {
+            showToast('У всех пользователей уже есть прогноз', 'error');
+            return;
+        }
+        const wrap = $('#admin-visual-pred-add-wrap');
+        const go = $('#admin-visual-pred-add-go');
+        const select = $('#admin-visual-pred-add-user');
+        select.innerHTML = '';
+        candidates.forEach((u) => {
+            const opt = document.createElement('option');
+            opt.value = String(u.id);
+            opt.textContent = u.login + ' (id ' + u.id + ')';
+            select.appendChild(opt);
+        });
+        wrap.classList.remove('hidden');
+        go.classList.remove('hidden');
+    }
+
+    function adminVisualConfirmAddPrediction() {
+        const select = $('#admin-visual-pred-add-user');
+        if (!select || !select.value) return;
+        const userId = parseInt(select.value, 10);
+        const u = (state.admin.visual.usersCache || []).find((x) => x.id === userId);
+        adminVisualOpenPredEditor({
+            userId,
+            login: u ? u.login : String(userId),
+            homeScore: null,
+            awayScore: null
+        }, true);
+        $('#admin-visual-pred-add-wrap').classList.add('hidden');
+        $('#admin-visual-pred-add-go').classList.add('hidden');
+    }
+
+    async function adminVisualSavePrediction() {
+        const ed = state.admin.visual.predEdit;
+        if (!ed) return;
+        const body = {
+            userId: ed.userId,
+            homeScore: ed.home,
+            awayScore: ed.away
+        };
+        if (ed.isCup) body.cupMatchId = ed.matchPublicId;
+        else body.matchPublicId = ed.matchPublicId;
+        const res = await api('/admin/predictions', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        adminClearAppCaches();
+        showToast(res.message || 'Сохранено', 'success');
+        adminVisualClosePredEditor();
+        await adminVisualOpenMatch(ed.matchPublicId, ed.isCup);
+    }
+
+    async function adminVisualDeletePrediction() {
+        const ed = state.admin.visual.predEdit;
+        if (!ed || ed.isNew) return;
+        const ok = await adminConfirm('Удалить прогноз ' + ed.login + '?');
+        if (!ok) return;
+        const body = { userId: ed.userId };
+        if (ed.isCup) body.cupMatchId = ed.matchPublicId;
+        else body.matchPublicId = ed.matchPublicId;
+        const res = await api('/admin/predictions', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        adminClearAppCaches();
+        showToast(res.message || 'Удалено', 'success');
+        adminVisualClosePredEditor();
+        await adminVisualOpenMatch(ed.matchPublicId, ed.isCup);
+    }
+
+    async function adminVisualSaveMatch() {
+        const publicId = state.admin.visual.selectedPublicId;
+        if (!publicId) return;
+        const detail = state.admin.visual.detail;
+        if (detail && detail.espnEditBlocked) {
+            showToast('Сохранение заблокировано: ESPN-sync активен', 'error');
+            return;
+        }
+        const body = {};
+        const v = state.admin.visual;
+        const scoreChanged = v.editHome !== v.originalHome || v.editAway !== v.originalAway;
+        if (scoreChanged) {
+            if (v.editHome != null) body.homeScore = v.editHome;
+            if (v.editAway != null) body.awayScore = v.editAway;
+        }
+        const st = adminEffectiveStatusDraft();
+        if (st != null && st !== v.originalStatus) {
+            if (st === 'ft' && v.originalStatus !== 'ft') {
+                const ok = await adminConfirm(
+                    'Поставить статус FT? Будет пересчёт очков (и возможны авто-прогнозы −1/0). '
+                    + 'Уведомления в Telegram — как при обычном завершении матча ESPN.'
+                );
+                if (!ok) return;
+            }
+            body.status = st;
+        }
+        if (scoreChanged && v.originalStatus === 'ft') {
+            const ok = await adminConfirm(
+                'Изменить счёт FT-матча? Очки будут пересчитаны для всех прогнозов.'
+            );
+            if (!ok) return;
+        }
+        const kick = adminVisualKickoffFromInput($('#admin-visual-kickoff').value);
+        if (kick && kick !== state.admin.visual.originalKickoff) body.kickoffLocal = kick;
+        const path = state.admin.visual.isCup
+            ? '/admin/cup-matches/' + encodeURIComponent(publicId)
+            : '/admin/matches/' + encodeURIComponent(publicId);
+        const res = await api(path, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        adminClearAppCaches();
+        showToast(res.message || 'Сохранено', 'success');
+        if (state.admin.visual.isCup) await adminVisualLoadCups();
+        else await adminVisualLoadMatches();
+        await adminVisualOpenMatch(publicId, state.admin.visual.isCup);
     }
 
     function clearInsightsCache() {
@@ -1903,18 +2353,7 @@
 
         deleteBtn.classList.toggle('hidden', !match.hasPrediction);
 
-        for (let h = 0; h <= 5; h++) {
-            for (let a = 0; a <= 5; a++) {
-                const btn = document.createElement('button');
-                btn.className = 'score-btn';
-                btn.textContent = h + ':' + a;
-                if (match.predictHome === h && match.predictAway === a) {
-                    btn.classList.add('selected');
-                }
-                btn.addEventListener('click', () => savePrediction(match, h, a));
-                grid.appendChild(btn);
-            }
-        }
+        renderScoreGrid(grid, match.predictHome, match.predictAway, (h, a) => savePrediction(match, h, a));
         $('#score-modal').classList.remove('hidden');
         tg.BackButton.show();
         if (!match.cup) {
@@ -4009,6 +4448,60 @@
         }
         const adminModalClose = $('#admin-modal-close');
         if (adminModalClose) adminModalClose.addEventListener('click', closeAdminPanel);
+        document.querySelectorAll('.admin-tab').forEach((btn) => {
+            btn.addEventListener('click', () => adminSetTab(btn.dataset.adminTab));
+        });
+        const adminVisualWeek = $('#admin-visual-week');
+        if (adminVisualWeek) {
+            adminVisualWeek.addEventListener('change', () => {
+                state.admin.visual.weekId = parseInt(adminVisualWeek.value, 10);
+                adminVisualLoadMatches().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminVisualMatchesReload = $('#admin-visual-matches-reload');
+        if (adminVisualMatchesReload) {
+            adminVisualMatchesReload.addEventListener('click', () => {
+                adminVisualLoadMatches().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminVisualCupsReload = $('#admin-visual-cups-reload');
+        if (adminVisualCupsReload) {
+            adminVisualCupsReload.addEventListener('click', () => {
+                adminVisualLoadCups().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminVisualMatchSave = $('#admin-visual-match-save');
+        if (adminVisualMatchSave) {
+            adminVisualMatchSave.addEventListener('click', () => {
+                adminVisualSaveMatch().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminVisualMatchCancel = $('#admin-visual-match-cancel');
+        if (adminVisualMatchCancel) adminVisualMatchCancel.addEventListener('click', adminVisualCloseEditor);
+        const adminVisualPredSave = $('#admin-visual-pred-save');
+        if (adminVisualPredSave) {
+            adminVisualPredSave.addEventListener('click', () => {
+                adminVisualSavePrediction().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminVisualPredDelete = $('#admin-visual-pred-delete');
+        if (adminVisualPredDelete) {
+            adminVisualPredDelete.addEventListener('click', () => {
+                adminVisualDeletePrediction().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminVisualPredCancel = $('#admin-visual-pred-cancel');
+        if (adminVisualPredCancel) adminVisualPredCancel.addEventListener('click', adminVisualClosePredEditor);
+        const adminVisualPredAdd = $('#admin-visual-pred-add');
+        if (adminVisualPredAdd) {
+            adminVisualPredAdd.addEventListener('click', () => {
+                adminVisualBeginAddPrediction().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminVisualPredAddGo = $('#admin-visual-pred-add-go');
+        if (adminVisualPredAddGo) adminVisualPredAddGo.addEventListener('click', adminVisualConfirmAddPrediction);
+        const adminVisualUserClose = $('#admin-visual-user-close');
+        if (adminVisualUserClose) adminVisualUserClose.addEventListener('click', adminVisualCloseUserDetail);
         const adminReload = $('#admin-reload');
         if (adminReload) {
             adminReload.addEventListener('click', () => {

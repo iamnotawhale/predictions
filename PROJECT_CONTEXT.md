@@ -288,6 +288,24 @@
 | GET | `/admin/data/{tableId}/rows` | **Admin**: постраничный список строк (`limit`≤100, `q` — поиск по полю сортировки) |
 | PUT | `/admin/data/{tableId}/row` | **Admin**: `{ values, primaryKey?, mode: create\|update }` (без silent upsert); типы колонок приводятся на сервере; create `match` — 409 при дубликате `public_id`; create `predict` — ровно одно из `match_id` / `cup_match_id` |
 | DELETE | `/admin/data/{tableId}/row` | **Admin**: удаление по `{ primaryKey }`; admin API требует валидный `initData` (без dev-bypass) |
+
+### Admin UI v2 (2026-11-05)
+
+В `#admin-modal`: вкладки **Матчи · Кубки · Пользователи · Сырые таблицы**. Generic CRUD — `AdminDataService` (вкладка «Сырые»). Визуально: `AdminMatchService` / `AdminCupMatchService` / `AdminUserService` / `AdminPredictionService`, `AdminGuard`, `AdminEspnSyncGuard` (409 пока ESPN-sync busy).
+
+| GET | `/admin/matches?weekId=` | Карточки тура + `espnEditBlocked` |
+| GET/PATCH | `/admin/matches/{publicId}` | Деталь, прогнозы; PATCH — auto-recalc при `ft` |
+| GET/PATCH | `/admin/cup-matches/today`, `/admin/cup-matches/{publicId}` | Кубки сегодня |
+| PUT/DELETE | `/admin/predictions` | Upsert/delete прогноза (XOR) |
+| GET | `/admin/users` | Список пользователей |
+| GET | `/admin/users/{userId}` | Карточка пользователя + все прогнозы (EPL/кубок) |
+
+**Продуктовые решения:** (1) после успешного save матча в `ft` со счётом — **авто-пересчёт очков** в той же транзакции, если save разрешён; kickoff-only и не-`ft` — без recalc. (2) **Фазы 0–4 одним этапом:** матчи АПЛ, прогнозы, кубки, пользователи + raw tab. (3) **Без `manual_override`:** правки, которые ESPN-sync перезапишет, — **409** + предупреждение в UI (правило poll: матч ещё на scoreboard при live / глобальный `pst` / FT &lt; 2 ч).
+
+**Backend (новое):** `AdminGuard`, доменные `/admin/matches`, `/admin/cup-matches`, `/admin/predictions`, `/admin/users`; patch матча — load row, только изменённые поля, `result` как в `DataInitService`, `finished_at` только при первом `ft`; kickoff — полное московское время, не строка карточки `dd.MM HH:mm`; не слать `status`, если админ его не менял (live `45'`/`ht`). Recalc — `PredictionService.updateByMatch` / `updateByCupMatch` (может **добавить** прогнозы пользователям без строки); отдельное редактирование одного прогноза — upsert через `PredictionDao`, без `updateByMatch`.
+
+**Frontend:** вкладки в `#admin-modal`, `renderMatchItem`, общий `renderScoreGrid` (score-modal + админ); статус — чипы `ns/pst/ft/canc`, live-clock только текст; FT-save — confirm; прогнозы — сетка + add/delete; cup AET/pen — read-only; пользователи — список + drill-down.
+
 | GET | `/weeks` | Список туров |
 | GET | `/weeks/{weekId}/matches` | Матчи тура |
 | GET | `/weeks/{weekId}/my-predictions` | Прогнозы пользователя |
@@ -405,7 +423,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - **Главная** (`screen-stats`): live-карточка, зачёт (Общий / `N тур`), график очков по неделям (EPL + кубки в снимке недели), таблица АПЛ, версия miniapp; в шапке ползунок **AI** (рекомендатор).
 - **Сегодня** (`screen-today`): матчи дня, счёт/старт, бейджи прогнозов.
 - **Прогноз** (`screen-predict`): выбор тура → список матчей → модалка прогноза.
-- **Профиль** (`screen-my`): hero как у клуба + статистика сезона (`GET /profile/stats`, `UserPredictionStatsService`); для admin (`profile.admin`) — **Админ · БД** (модалка CRUD, `AdminDataService`). Блок **По командам** — все клубы АПЛ в 2 колонки со средними очками (без «Заходит/Мимо»); **Привычки и тотал** (АПЛ и кубки) — тип ставки, ср. очки П1/X/П2, тотал прогноз/факт; кнопка **Мои прогнозы** → сетка туров / кубки / разбор как раньше.
+- **Профиль** (`screen-my`): hero как у клуба + статистика сезона (`GET /profile/stats`, `UserPredictionStatsService`); для admin (`profile.admin`) — **Админ · БД** (визуальные вкладки + «Сырые таблицы», см. Admin UI v2). Блок **По командам** — все клубы АПЛ в 2 колонки со средними очками (без «Заходит/Мимо»); **Привычки и тотал** (АПЛ и кубки) — тип ставки, ср. очки П1/X/П2, тотал прогноз/факт; кнопка **Мои прогнозы** → сетка туров / кубки / разбор как раньше.
 
 **Модалки:**
 - `#score-modal` — прогноз, odds 1/X/2, кнопка AI-рекомендации (если AI вкл.) → `#ai-modal`, кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).

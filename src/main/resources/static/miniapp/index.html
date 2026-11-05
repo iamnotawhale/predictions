@@ -462,10 +462,42 @@
 <div id="admin-modal" class="modal hidden">
     <div class="modal-sheet admin-modal-sheet">
         <div class="modal-header">
-            <h3>Админ · данные</h3>
+            <h3>Админ</h3>
             <button id="admin-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
         </div>
-        <p class="admin-modal-desc">Правка строк в БД (только admin). Очки и зачёт после правок сами не пересчитываются. Осторожно с удалением.</p>
+        <nav class="admin-tabs" id="admin-tabs">
+            <button type="button" class="admin-tab admin-tab-active" data-admin-tab="matches">Матчи</button>
+            <button type="button" class="admin-tab" data-admin-tab="cups">Кубки</button>
+            <button type="button" class="admin-tab" data-admin-tab="users">Пользователи</button>
+            <button type="button" class="admin-tab" data-admin-tab="raw">Сырые таблицы</button>
+        </nav>
+        <div id="admin-panel-matches" class="admin-panel">
+            <div class="admin-toolbar">
+                <label class="admin-field">
+                    <span>Тур</span>
+                    <select id="admin-visual-week"></select>
+                </label>
+                <button type="button" id="admin-visual-matches-reload" class="admin-btn">Обновить</button>
+            </div>
+            <p id="admin-visual-matches-hint" class="admin-modal-desc"></p>
+            <ul id="admin-visual-matches-list" class="list admin-rows-list"></ul>
+        </div>
+        <div id="admin-panel-cups" class="admin-panel hidden">
+            <div class="admin-toolbar">
+                <button type="button" id="admin-visual-cups-reload" class="admin-btn">Обновить сегодня</button>
+            </div>
+            <ul id="admin-visual-cups-list" class="list admin-rows-list"></ul>
+        </div>
+        <div id="admin-panel-users" class="admin-panel hidden">
+            <ul id="admin-visual-users-list" class="list admin-rows-list"></ul>
+            <section id="admin-visual-user-detail" class="admin-editor hidden">
+                <h4 id="admin-visual-user-title">Пользователь</h4>
+                <ul id="admin-visual-user-predictions" class="list admin-rows-list"></ul>
+                <button type="button" id="admin-visual-user-close" class="admin-btn">Закрыть</button>
+            </section>
+        </div>
+        <div id="admin-panel-raw" class="admin-panel hidden">
+        <p class="admin-modal-desc">Generic CRUD по whitelist-таблицам. FT-матчи лучше править во вкладке «Матчи» (авто-пересчёт очков).</p>
         <div class="admin-toolbar">
             <label class="admin-field">
                 <span>Таблица</span>
@@ -492,6 +524,48 @@
                 <button type="button" id="admin-delete-row" class="admin-btn admin-btn-danger">Удалить</button>
                 <button type="button" id="admin-cancel-edit" class="admin-btn">Отмена</button>
             </div>
+        </section>
+        </div>
+        <section id="admin-visual-match-editor" class="admin-editor hidden">
+            <h4 id="admin-visual-match-title">Матч</h4>
+            <p id="admin-visual-espn-warn" class="admin-modal-desc admin-espn-warn hidden"></p>
+            <p id="admin-visual-recalc-hint" class="admin-modal-desc hidden"></p>
+            <div class="admin-field">
+                <span>Статус</span>
+                <p id="admin-visual-status-live" class="admin-modal-desc hidden"></p>
+                <div id="admin-visual-status-chips" class="admin-status-chips"></div>
+            </div>
+            <label class="admin-field">
+                <span>Kickoff (МСК)</span>
+                <input type="datetime-local" id="admin-visual-kickoff" step="60">
+            </label>
+            <p id="admin-visual-cup-extra" class="admin-modal-desc hidden"></p>
+            <p class="admin-modal-desc">Счёт матча</p>
+            <div id="admin-visual-score-grid" class="score-grid admin-score-grid"></div>
+            <div class="admin-editor-actions">
+                <button type="button" id="admin-visual-match-save" class="admin-btn admin-btn-accent">Сохранить</button>
+                <button type="button" id="admin-visual-match-cancel" class="admin-btn">Отмена</button>
+            </div>
+            <h4>Прогнозы</h4>
+            <ul id="admin-visual-predictions-list" class="list admin-rows-list"></ul>
+            <div class="admin-toolbar">
+                <button type="button" id="admin-visual-pred-add" class="admin-btn">Добавить прогноз</button>
+                <label id="admin-visual-pred-add-wrap" class="admin-field hidden">
+                    <span>Пользователь</span>
+                    <select id="admin-visual-pred-add-user"></select>
+                </label>
+                <button type="button" id="admin-visual-pred-add-go" class="admin-btn hidden">Выбрать</button>
+            </div>
+            <section id="admin-visual-prediction-editor" class="admin-editor-sub hidden">
+                <h5 id="admin-visual-pred-editor-title">Прогноз</h5>
+                <p id="admin-visual-pred-editor-user" class="admin-modal-desc"></p>
+                <div id="admin-visual-pred-score-grid" class="score-grid admin-score-grid"></div>
+                <div class="admin-editor-actions">
+                    <button type="button" id="admin-visual-pred-save" class="admin-btn admin-btn-accent">Сохранить прогноз</button>
+                    <button type="button" id="admin-visual-pred-delete" class="admin-btn admin-btn-danger">Удалить</button>
+                    <button type="button" id="admin-visual-pred-cancel" class="admin-btn">Отмена</button>
+                </div>
+            </section>
         </section>
     </div>
 </div>
