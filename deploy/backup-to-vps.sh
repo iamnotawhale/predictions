@@ -77,7 +77,7 @@ scp -q "$APP_DIR/deploy/predicts.env" "$VPS_SSH:$VPS_APP_DIR/deploy/predicts.env
 [[ -f "$APP_DIR/application.yml" ]] && scp -q "$APP_DIR/application.yml" "$VPS_SSH:$VPS_APP_DIR/application.yml"
 [[ -f "$APP_DIR/application-prod.yml" ]] && scp -q "$APP_DIR/application-prod.yml" "$VPS_SSH:$VPS_APP_DIR/application-prod.yml"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-for f in failover-to-vps.sh failback-to-odyssey.sh orchestrator.sh; do
+for f in failover-to-vps.sh failback-to-odyssey.sh orchestrator.sh disable-vps-failover.sh; do
   [[ -f "$SCRIPT_DIR/$f" ]] && scp -q "$SCRIPT_DIR/$f" "$VPS_SSH:$VPS_APP_DIR/deploy/$f"
 done
 # endpoint для оркестратора (домашний WAN IP, не зависит от текущего DuckDNS)

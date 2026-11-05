@@ -25,7 +25,7 @@
 - сборка jar: `mvn package -DskipTests` (или с тестами: `./mvnw test` / `./mvnw package`)
 - деплой на прод: сборка на odyssey по опросу `master` (см. раздел «Запуск и деплой»), аварийно — `./deploy/upload-jar.sh` с ноутбука по LAN
 - прод: systemd unit predicts (+ caddy / net-refresh — см. deploy/)
-- cold-standby: бэкап с домашнего сервера на VPS + оркестратор на VPS (failover/failback) — см. раздел «Отказоустойчивость»
+- cold-standby: бэкап primary→VPS (jar/дамп); авто-failover **выключен** — прод только на Odyssey (`deploy/disable-vps-failover.sh`) — см. «Отказоустойчивость»
 
 Обязательное правило:
 - если в проект добавлен новый код/фича/скрипт/конфиг/эндпоинт/процесс запуска, ОБЯЗАТЕЛЬНО обнови PROJECT_CONTEXT.md в этом же изменении (что добавлено, где лежит, как запускать/использовать).
@@ -148,7 +148,7 @@
 | Узел | Роль | Что крутится |
 |------|------|----------------|
 | Домашний сервер | primary | `predicts`, `caddy`, бэкап-таймер → VPS |
-| VPS | cold-standby + оркестратор | обычно бот **остановлен**; `predictions-orchestrator.timer`; хранит дампы/jar/env |
+| VPS | cold-standby (без прода) | бот и Caddy **остановлены**; `predictions-orchestrator.timer` **disabled** (политика Odyssey-only); хранит дампы/jar/env для ручного восстановления |
 
 ### Бэкап primary → VPS
 - Скрипт: `deploy/backup-to-vps.sh` (на primary).
