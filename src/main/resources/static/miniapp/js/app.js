@@ -192,6 +192,25 @@
         myCupCompetition: null,
         myPredictionsNavOpened: false,
         profileStatsLoaded: false,
+        adminPanelOpened: false,
+        admin: {
+            tables: [],
+            tableId: 'match',
+            columns: [],
+            rows: [],
+            total: 0,
+            limit: 50,
+            offset: 0,
+            query: '',
+            editPk: null,
+            editOriginal: null,
+            editTableId: null,
+            isNew: false,
+            busy: false,
+            tableLoading: false,
+            columnLoadToken: 0,
+            rowLoadToken: 0
+        },
         leaderboardMode: '',
         chartLoaded: false,
         chartData: null,
@@ -831,6 +850,7 @@
         }
         syncRecommenderToggle(profile.bettingRecommenderEnabled);
         syncRecommenderRefreshButton(!!profile.admin);
+        syncAdminPanelButton(!!profile.admin);
         const verEl = $('.miniapp-version');
         if (verEl) {
             const base = verEl.getAttribute('data-base') || verEl.textContent.trim();
@@ -849,6 +869,440 @@
         const btn = $('#betting-recommender-refresh');
         if (!btn) return;
         btn.classList.toggle('hidden', !isAdmin);
+    }
+
+    function syncAdminPanelButton(isAdmin) {
+        const btn = $('#profile-open-admin');
+        if (!btn) return;
+        btn.classList.toggle('hidden', !isAdmin);
+    }
+
+    function adminCurrentTableMeta() {
+        return state.admin.tables.find((t) => t.id === state.admin.tableId) || null;
+    }
+
+    function adminTableLabel(tableId) {
+        const t = state.admin.tables.find((x) => x.id === tableId);
+        return t ? t.label : tableId;
+    }
+
+    function adminRowSummary(row, table) {
+        if (!row) return '';
+        const keys = (table && table.primaryKeys && table.primaryKeys.length)
+            ? table.primaryKeys
+            : Object.keys(row).slice(0, 3);
+        const extra = Object.keys(row).filter((k) => keys.indexOf(k) < 0).slice(0, 2);
+        const all = keys.concat(extra);
+        return all.map((k) => k + '=' + (row[k] == null ? '∅' : String(row[k]))).join(' · ');
+    }
+
+    function adminFormatFieldValue(val) {
+        if (val == null) return '';
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+    }
+
+    function adminSetBusy(busy) {
+        state.admin.busy = !!busy;
+        ['#admin-save-row', '#admin-delete-row', '#admin-new-row', '#admin-reload', '#admin-prev', '#admin-next'].forEach((sel) => {
+            const el = $(sel);
+            if (el) el.disabled = state.admin.busy;
+        });
+    }
+
+    function adminSyncTableActions() {
+        const table = adminCurrentTableMeta();
+        const readOnly = table && table.readOnly;
+        const noInsert = readOnly || (table && table.noInsert);
+        const noDelete = readOnly || (table && table.noDelete);
+        const newBtn = $('#admin-new-row');
+        if (newBtn) newBtn.classList.toggle('hidden', !!noInsert);
+        const saveBtn = $('#admin-save-row');
+        if (saveBtn) saveBtn.classList.toggle('hidden', !!readOnly);
+        const delBtn = $('#admin-delete-row');
+        if (delBtn) delBtn.classList.toggle('hidden', !!noDelete || state.admin.isNew);
+    }
+
+    function adminConfirm(message) {
+        return new Promise((resolve) => {
+            if (tg.showConfirm) {
+                tg.showConfirm(message, (ok) => resolve(!!ok));
+                return;
+            }
+            resolve(window.confirm(message));
+        });
+    }
+
+    function adminParseFieldValue(input, col) {
+        const v = input.value;
+        if (v === '') {
+            return { empty: true, value: null };
+        }
+        const type = col.dataType || input.dataset.type || '';
+        if (type === 'integer' || type === 'bigint' || type === 'smallint') {
+            const n = parseInt(v, 10);
+            if (!Number.isFinite(n)) {
+                throw new Error('Поле ' + col.name + ': нужно целое число');
+            }
+            return { empty: false, value: n };
+        }
+        if (type === 'numeric' || type === 'double precision' || type === 'real') {
+            const n = parseFloat(v.replace(',', '.'));
+            if (!Number.isFinite(n)) {
+                throw new Error('Поле ' + col.name + ': нужно число');
+            }
+            return { empty: false, value: n };
+        }
+        if (type === 'boolean') {
+            if (v === 'true' || v === '1') return { empty: false, value: true };
+            if (v === 'false' || v === '0') return { empty: false, value: false };
+            throw new Error('Поле ' + col.name + ': true или false');
+        }
+        return { empty: false, value: v };
+    }
+
+    function adminCollectEditorValues(isNew) {
+        const out = {};
+        const table = adminCurrentTableMeta();
+        const pkSet = new Set((table && table.primaryKeys) || []);
+        state.admin.columns.forEach((col) => {
+            const input = $('#admin-editor-fields [data-col="' + col.name + '"]');
+            if (!input) return;
+            const parsed = adminParseFieldValue(input, col);
+            if (parsed.empty) {
+                if (isNew) {
+                    if (pkSet.has(col.name)) {
+                        if (col.nullable) {
+                            return;
+                        }
+                        throw new Error('Поле ' + col.name + ' обязательно');
+                    }
+                    if (!col.nullable) {
+                        throw new Error('Поле ' + col.name + ' обязательно');
+                    }
+                    return;
+                }
+                return;
+            }
+            out[col.name] = parsed.value;
+        });
+        if (isNew && table && table.id === 'predict') {
+            const hasMatch = Object.prototype.hasOwnProperty.call(out, 'match_id');
+            const hasCup = Object.prototype.hasOwnProperty.call(out, 'cup_match_id');
+            if (hasMatch === hasCup) {
+                throw new Error('Укажите match_id или cup_match_id (ровно одно)');
+            }
+        }
+        if (!isNew && state.admin.editOriginal) {
+            const changed = {};
+            state.admin.columns.forEach((col) => {
+                const input = $('#admin-editor-fields [data-col="' + col.name + '"]');
+                if (!input || input.readOnly) return;
+                const parsed = adminParseFieldValue(input, col);
+                const prevStr = adminFormatFieldValue(state.admin.editOriginal[col.name]);
+                const nextStr = parsed.empty ? '' : adminFormatFieldValue(parsed.value);
+                if (prevStr === nextStr) return;
+                if (parsed.empty && !col.nullable) {
+                    throw new Error('Поле ' + col.name + ' обязательно');
+                }
+                changed[col.name] = parsed.empty ? null : parsed.value;
+            });
+            if (!Object.keys(changed).length) {
+                throw new Error('Нет изменений');
+            }
+            return changed;
+        }
+        return out;
+    }
+
+    function adminRenderEditorFields(row, isNew) {
+        const wrap = $('#admin-editor-fields');
+        wrap.innerHTML = '';
+        const table = adminCurrentTableMeta();
+        const pkSet = new Set((table && table.primaryKeys) || []);
+        state.admin.columns.forEach((col) => {
+            const label = document.createElement('label');
+            label.className = 'admin-editor-field';
+            const title = document.createElement('span');
+            title.textContent = col.name + (col.nullable ? '' : ' *');
+            let control;
+            if (col.dataType === 'boolean') {
+                control = document.createElement('select');
+                ['', 'true', 'false'].forEach((optVal) => {
+                    const opt = document.createElement('option');
+                    opt.value = optVal;
+                    opt.textContent = optVal === '' ? '—' : optVal;
+                    control.appendChild(opt);
+                });
+                const raw = row[col.name];
+                control.value = raw === true ? 'true' : raw === false ? 'false' : '';
+            } else {
+                control = document.createElement('input');
+                control.type = 'text';
+                control.value = adminFormatFieldValue(row[col.name]);
+                control.placeholder = col.defaultValue || col.dataType;
+            }
+            control.dataset.col = col.name;
+            control.dataset.type = col.dataType;
+            if (!isNew && pkSet.has(col.name)) {
+                control.readOnly = true;
+            }
+            if (col.name === 'password') {
+                control.readOnly = true;
+                control.value = '***';
+            }
+            label.appendChild(title);
+            label.appendChild(control);
+            wrap.appendChild(label);
+        });
+    }
+
+    function adminCloseEditor() {
+        $('#admin-editor').classList.add('hidden');
+        state.admin.editPk = null;
+        state.admin.editOriginal = null;
+        state.admin.editTableId = null;
+        state.admin.isNew = false;
+    }
+
+    function adminBeginTableLoad() {
+        state.admin.tableLoading = true;
+        adminCloseEditor();
+        state.admin.rows = [];
+        state.admin.total = 0;
+        adminRenderRowsList();
+        const meta = $('#admin-rows-meta');
+        if (meta) {
+            meta.textContent = adminTableLabel(state.admin.tableId) + ': загрузка…';
+        }
+    }
+
+    function adminEnsureEditorTable() {
+        if (state.admin.tableLoading) {
+            throw new Error('Дождитесь загрузки таблицы');
+        }
+        if (state.admin.editTableId != null && state.admin.editTableId !== state.admin.tableId) {
+            throw new Error('Таблица сменилась — откройте строку заново');
+        }
+    }
+
+    function adminOpenEditor(row, isNew) {
+        if (state.admin.tableLoading) {
+            return;
+        }
+        const table = adminCurrentTableMeta();
+        if (table && table.readOnly && !isNew) {
+            showToast('Таблица только для чтения', 'error');
+            return;
+        }
+        state.admin.editTableId = state.admin.tableId;
+        state.admin.isNew = !!isNew;
+        state.admin.editOriginal = isNew ? null : Object.assign({}, row);
+        if (!isNew && table) {
+            const pk = {};
+            table.primaryKeys.forEach((k) => {
+                pk[k] = row[k];
+            });
+            state.admin.editPk = pk;
+        } else {
+            state.admin.editPk = null;
+        }
+        $('#admin-editor-title').textContent = isNew
+            ? 'Новая строка · ' + adminTableLabel(state.admin.tableId)
+            : 'Редактирование · ' + adminRowSummary(row, table);
+        adminRenderEditorFields(row || {}, isNew);
+        adminSyncTableActions();
+        $('#admin-editor').classList.remove('hidden');
+    }
+
+    function adminRenderRowsList() {
+        const list = $('#admin-rows-list');
+        list.innerHTML = '';
+        const table = state.admin.tables.find((t) => t.id === state.admin.tableId);
+        if (!state.admin.rows.length) {
+            list.innerHTML = '<li class="empty-state">Нет строк</li>';
+            return;
+        }
+        state.admin.rows.forEach((row) => {
+            const li = document.createElement('li');
+            li.className = 'admin-row-item';
+            li.textContent = adminRowSummary(row, table);
+            li.addEventListener('click', () => adminOpenEditor(row, false));
+            list.appendChild(li);
+        });
+    }
+
+    function adminUpdateRowsMeta() {
+        const el = $('#admin-rows-meta');
+        if (!el) return;
+        const from = state.admin.total === 0 ? 0 : state.admin.offset + 1;
+        const to = Math.min(state.admin.offset + state.admin.rows.length, state.admin.total);
+        el.textContent = adminTableLabel(state.admin.tableId)
+            + ': ' + from + '–' + to + ' из ' + state.admin.total;
+    }
+
+    async function adminLoadTables() {
+        state.admin.tables = await api('/admin/data/tables');
+        const select = $('#admin-table-select');
+        select.innerHTML = '';
+        state.admin.tables.forEach((t) => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.label;
+            select.appendChild(opt);
+        });
+        if (state.admin.tables.some((t) => t.id === state.admin.tableId)) {
+            select.value = state.admin.tableId;
+        } else if (state.admin.tables.length) {
+            state.admin.tableId = state.admin.tables[0].id;
+            select.value = state.admin.tableId;
+        }
+        adminSyncTableActions();
+    }
+
+    async function adminLoadRows() {
+        const tableId = state.admin.tableId;
+        const token = ++state.admin.rowLoadToken;
+        const q = state.admin.query ? ('&q=' + encodeURIComponent(state.admin.query)) : '';
+        const path = '/admin/data/' + encodeURIComponent(tableId)
+            + '/rows?limit=' + state.admin.limit + '&offset=' + state.admin.offset + q;
+        const data = await api(path);
+        if (token !== state.admin.rowLoadToken || tableId !== state.admin.tableId) {
+            return;
+        }
+        state.admin.rows = data.rows || [];
+        state.admin.total = data.total || 0;
+        state.admin.limit = data.limit || state.admin.limit;
+        state.admin.offset = data.offset || 0;
+        adminCloseEditor();
+        adminRenderRowsList();
+        adminUpdateRowsMeta();
+        adminSyncTableActions();
+        const prevBtn = $('#admin-prev');
+        const nextBtn = $('#admin-next');
+        if (prevBtn) prevBtn.disabled = state.admin.offset <= 0;
+        if (nextBtn) {
+            nextBtn.disabled = state.admin.offset + state.admin.rows.length >= state.admin.total;
+        }
+        if (state.admin.rows.length === 0 && state.admin.offset > 0) {
+            state.admin.offset = Math.max(0, state.admin.offset - state.admin.limit);
+            return adminLoadRows();
+        }
+    }
+
+    async function adminLoadColumnsAndRows() {
+        adminBeginTableLoad();
+        const tableId = state.admin.tableId;
+        const token = ++state.admin.columnLoadToken;
+        try {
+            const columns = await api('/admin/data/' + encodeURIComponent(tableId) + '/columns');
+            if (token !== state.admin.columnLoadToken || tableId !== state.admin.tableId) {
+                return;
+            }
+            state.admin.columns = columns;
+            adminSyncTableActions();
+            await adminLoadRows();
+        } finally {
+            if (token === state.admin.columnLoadToken && tableId === state.admin.tableId) {
+                state.admin.tableLoading = false;
+            }
+        }
+    }
+
+    async function openAdminPanel() {
+        if (!(state.profile && state.profile.admin)) {
+            showToast('Доступ только для администратора', 'error');
+            return;
+        }
+        state.adminPanelOpened = true;
+        state.admin.offset = 0;
+        $('#admin-modal').classList.remove('hidden');
+        tg.BackButton.show();
+        try {
+            await adminLoadTables();
+            await adminLoadColumnsAndRows();
+        } catch (e) {
+            showToast(e.message || 'Не удалось загрузить админку', 'error');
+        }
+    }
+
+    function closeAdminPanel() {
+        hideModal($('#admin-modal'));
+        state.adminPanelOpened = false;
+        adminCloseEditor();
+        if (shouldHideBackButton()) {
+            tg.BackButton.hide();
+        } else {
+            tg.BackButton.show();
+        }
+    }
+
+    function adminClearAppCaches() {
+        Object.keys(state.apiCache).forEach((k) => delete state.apiCache[k]);
+        state.chartLoaded = false;
+        state.todayLoaded = false;
+    }
+
+    async function adminSaveRow() {
+        if (state.admin.busy) return;
+        const table = adminCurrentTableMeta();
+        if (table && table.readOnly) return;
+        adminSetBusy(true);
+        try {
+            adminEnsureEditorTable();
+            const values = adminCollectEditorValues(state.admin.isNew);
+            const body = {
+                values: values,
+                primaryKey: state.admin.isNew ? null : state.admin.editPk,
+                mode: state.admin.isNew ? 'create' : 'update'
+            };
+            const res = await api('/admin/data/' + encodeURIComponent(state.admin.tableId) + '/row', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            adminClearAppCaches();
+            showToast((res.message || 'Сохранено') + '. Очки/зачёт пересчитываются отдельно.', 'success');
+            await adminLoadRows();
+        } finally {
+            adminSetBusy(false);
+        }
+    }
+
+    async function adminDeleteRow() {
+        if (state.admin.busy || !state.admin.editPk || state.admin.isNew) return;
+        const table = adminCurrentTableMeta();
+        if (table && (table.readOnly || table.noDelete)) return;
+        try {
+            adminEnsureEditorTable();
+        } catch (e) {
+            showToast(e.message, 'error');
+            return;
+        }
+        const tableIdSnap = state.admin.tableId;
+        const pkSnap = Object.assign({}, state.admin.editPk);
+        const rowSnap = state.admin.editOriginal ? Object.assign({}, state.admin.editOriginal) : null;
+        const ok = await adminConfirm(
+            'Удалить строку?\n' + adminTableLabel(tableIdSnap) + '\n' + adminRowSummary(rowSnap, table)
+        );
+        if (!ok) return;
+        if (tableIdSnap !== state.admin.tableId || state.admin.editTableId !== tableIdSnap) {
+            showToast('Таблица сменилась — откройте строку заново', 'error');
+            return;
+        }
+        adminSetBusy(true);
+        try {
+            const res = await api('/admin/data/' + encodeURIComponent(tableIdSnap) + '/row', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ primaryKey: pkSnap, values: null, mode: 'update' })
+            });
+            adminClearAppCaches();
+            showToast(res.message || 'Удалено', 'success');
+            await adminLoadRows();
+        } finally {
+            adminSetBusy(false);
+        }
     }
 
     function clearInsightsCache() {
@@ -2214,7 +2668,8 @@
             && !state.predictCupsOpened
             && !state.myWeekOpened
             && !state.myCupsOpened
-            && !state.myPredictionsNavOpened;
+            && !state.myPredictionsNavOpened
+            && !state.adminPanelOpened;
     }
 
     async function loadScoreModalH2h(match) {
@@ -3546,6 +4001,68 @@
                 openMyPredictionsNav().catch((e) => showToast(e.message || 'Ошибка', 'error'));
             });
         }
+        const profileOpenAdmin = $('#profile-open-admin');
+        if (profileOpenAdmin) {
+            profileOpenAdmin.addEventListener('click', () => {
+                openAdminPanel().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminModalClose = $('#admin-modal-close');
+        if (adminModalClose) adminModalClose.addEventListener('click', closeAdminPanel);
+        const adminReload = $('#admin-reload');
+        if (adminReload) {
+            adminReload.addEventListener('click', () => {
+                adminLoadColumnsAndRows().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminTableSelect = $('#admin-table-select');
+        if (adminTableSelect) {
+            adminTableSelect.addEventListener('change', () => {
+                state.admin.tableId = adminTableSelect.value;
+                state.admin.offset = 0;
+                adminLoadColumnsAndRows().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminSearch = $('#admin-search');
+        if (adminSearch) {
+            adminSearch.addEventListener('change', () => {
+                state.admin.query = adminSearch.value.trim();
+                state.admin.offset = 0;
+                adminLoadRows().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminNewRow = $('#admin-new-row');
+        if (adminNewRow) {
+            adminNewRow.addEventListener('click', () => adminOpenEditor({}, true));
+        }
+        const adminSave = $('#admin-save-row');
+        if (adminSave) {
+            adminSave.addEventListener('click', () => {
+                adminSaveRow().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminDelete = $('#admin-delete-row');
+        if (adminDelete) {
+            adminDelete.addEventListener('click', () => {
+                adminDeleteRow().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminCancelEdit = $('#admin-cancel-edit');
+        if (adminCancelEdit) adminCancelEdit.addEventListener('click', adminCloseEditor);
+        const adminPrev = $('#admin-prev');
+        if (adminPrev) {
+            adminPrev.addEventListener('click', () => {
+                state.admin.offset = Math.max(0, state.admin.offset - state.admin.limit);
+                adminLoadRows().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
+        const adminNext = $('#admin-next');
+        if (adminNext) {
+            adminNext.addEventListener('click', () => {
+                state.admin.offset += state.admin.limit;
+                adminLoadRows().catch((e) => showToast(e.message || 'Ошибка', 'error'));
+            });
+        }
 
         $('#modal-close').addEventListener('click', closeScoreModal);
         const recommenderToggle = $('#betting-recommender-toggle');
@@ -3604,6 +4121,10 @@
         }
 
         tg.BackButton.onClick(() => {
+            if (state.adminPanelOpened) {
+                closeAdminPanel();
+                return;
+            }
             if (playerModal && !playerModal.classList.contains('hidden')) {
                 closePlayerModal();
                 return;

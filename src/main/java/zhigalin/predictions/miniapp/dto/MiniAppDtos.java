@@ -3,6 +3,7 @@ package zhigalin.predictions.miniapp.dto;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 import zhigalin.predictions.recommender.RecommendationInsight;
 import zhigalin.predictions.recommender.model.TipTrackRecord;
 
@@ -525,5 +526,32 @@ public final class MiniAppDtos {
             Double cupAvgPoints,
             String cupHint
     ) {
+    }
+
+    public record AdminTableItem(
+            String id,
+            String label,
+            List<String> primaryKeys,
+            boolean readOnly,
+            boolean noInsert,
+            boolean noDelete
+    ) {
+    }
+
+    public record AdminColumnItem(String name, String dataType, boolean nullable, String defaultValue) {
+    }
+
+    public record AdminTableRowsResponse(
+            long total,
+            int limit,
+            int offset,
+            List<Map<String, Object>> rows
+    ) {
+    }
+
+    public record AdminRowSaveRequest(Map<String, Object> values, Map<String, Object> primaryKey, String mode) {
+    }
+
+    public record AdminRowMutationResponse(boolean ok, String message) {
     }
 }

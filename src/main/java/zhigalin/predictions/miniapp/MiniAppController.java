@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileTeamPredictionsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupTipResponse;
 import zhigalin.predictions.recommender.model.TipTrackRecord;
+import zhigalin.predictions.miniapp.admin.AdminDataService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ActionResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminColumnItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminRowMutationResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminRowSaveRequest;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminTableItem;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.AdminTableRowsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.BettingRecommenderRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ClientLogRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupCompetitionItem;
@@ -54,17 +61,20 @@ public class MiniAppController {
     private final MiniAppService miniAppService;
     private final MiniAppProperties miniAppProperties;
     private final TeamLogoCacheService teamLogoCacheService;
+    private final AdminDataService adminDataService;
 
     public MiniAppController(
             TelegramWebAppAuthService authService,
             MiniAppService miniAppService,
             MiniAppProperties miniAppProperties,
-            TeamLogoCacheService teamLogoCacheService
+            TeamLogoCacheService teamLogoCacheService,
+            AdminDataService adminDataService
     ) {
         this.authService = authService;
         this.miniAppService = miniAppService;
         this.miniAppProperties = miniAppProperties;
         this.teamLogoCacheService = teamLogoCacheService;
+        this.adminDataService = adminDataService;
     }
 
     @GetMapping("/profile")
@@ -107,6 +117,56 @@ public class MiniAppController {
             @RequestParam(required = false) Integer weekId
     ) {
         return miniAppService.refreshBettingRecommendations(requireTelegramId(initData), weekId);
+    }
+
+    @GetMapping("/admin/data/tables")
+    public List<AdminTableItem> adminTables(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData
+    ) {
+        return adminDataService.listTables(requireTelegramIdForAdmin(initData));
+    }
+
+    @GetMapping("/admin/data/{tableId}/columns")
+    public List<AdminColumnItem> adminTableColumns(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String tableId
+    ) {
+        return adminDataService.listColumns(requireTelegramIdForAdmin(initData), tableId);
+    }
+
+    @GetMapping("/admin/data/{tableId}/rows")
+    public AdminTableRowsResponse adminTableRows(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String tableId,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(required = false) String q
+    ) {
+        return adminDataService.listRows(requireTelegramIdForAdmin(initData), tableId, limit, offset, q);
+    }
+
+    @PutMapping("/admin/data/{tableId}/row")
+    public AdminRowMutationResponse adminSaveRow(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String tableId,
+            @RequestBody AdminRowSaveRequest body
+    ) {
+        return adminDataService.saveRow(
+                requireTelegramIdForAdmin(initData),
+                tableId,
+                body.values(),
+                body.primaryKey(),
+                body.mode()
+        );
+    }
+
+    @DeleteMapping("/admin/data/{tableId}/row")
+    public AdminRowMutationResponse adminDeleteRow(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String tableId,
+            @RequestBody AdminRowSaveRequest body
+    ) {
+        return adminDataService.deleteRow(requireTelegramIdForAdmin(initData), tableId, body.primaryKey());
     }
 
     @GetMapping("/weeks")
@@ -383,6 +443,17 @@ public class MiniAppController {
             }
         }
         throw new MiniAppException(HttpStatus.UNAUTHORIZED.value(), "Недействительные данные Telegram.");
+    }
+
+    private String requireTelegramIdForAdmin(String initData) {
+        if (initData == null || initData.isBlank()) {
+            throw new MiniAppException(HttpStatus.UNAUTHORIZED.value(), "Недействительные данные Telegram.");
+        }
+        String telegramId = authService.parseUserId(initData);
+        if (telegramId == null) {
+            throw new MiniAppException(HttpStatus.UNAUTHORIZED.value(), "Недействительные данные Telegram.");
+        }
+        return telegramId;
     }
 
     private String resolveTelegramIdForLog(String initData) {

@@ -1421,6 +1421,145 @@ html[data-switching] *::after {
     transform: scale(0.99);
 }
 
+.profile-cta-admin {
+    margin-top: 8px;
+    background: rgba(255, 120, 120, 0.12);
+    border-color: rgba(255, 120, 120, 0.35);
+    color: #ffb4b4;
+}
+
+.admin-modal-sheet {
+    max-height: 92vh;
+    overflow: auto;
+}
+
+.admin-modal-desc {
+    font-size: 11px;
+    color: var(--hint);
+    margin: 0 0 12px;
+    line-height: 1.4;
+}
+
+.admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-end;
+    margin-bottom: 10px;
+}
+
+.admin-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--hint);
+    min-width: 120px;
+}
+
+.admin-field-grow {
+    flex: 1;
+    min-width: 140px;
+}
+
+.admin-field select,
+.admin-field input {
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+.admin-btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+}
+
+.admin-btn-accent {
+    border-color: rgba(176, 140, 255, 0.5);
+    color: var(--accent-lift);
+}
+
+.admin-btn-danger {
+    border-color: rgba(255, 100, 100, 0.45);
+    color: #ff9a9a;
+}
+
+.admin-rows-meta {
+    font-size: 11px;
+    color: var(--hint);
+    margin: 0 0 8px;
+}
+
+.admin-rows-list {
+    max-height: 36vh;
+    overflow: auto;
+    margin-bottom: 8px;
+}
+
+.admin-row-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+}
+
+.admin-row-item:active {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-pager {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.admin-editor {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+}
+
+.admin-editor-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 32vh;
+    overflow: auto;
+    margin-bottom: 10px;
+}
+
+.admin-editor-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--hint);
+}
+
+.admin-editor-field input {
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font-mono);
+}
+
+.admin-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 @media (max-width: 360px) {
     .profile-teams-grid {
         grid-template-columns: 1fr;

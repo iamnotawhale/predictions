@@ -78,6 +78,24 @@ public class CupMatchesSchemaMigration {
                     ON predict (user_id, cup_match_id)
                     WHERE cup_match_id IS NOT NULL
                     """);
+            Integer matchPublicIdDupes = jdbc.queryForObject("""
+                    SELECT COUNT(*) FROM (
+                        SELECT public_id FROM match
+                        WHERE public_id IS NOT NULL
+                        GROUP BY public_id HAVING COUNT(*) > 1
+                    ) d
+                    """, Integer.class);
+            if (matchPublicIdDupes == null || matchPublicIdDupes == 0) {
+                jdbc.execute("""
+                        CREATE UNIQUE INDEX IF NOT EXISTS unique_match_public_id
+                        ON match (public_id) WHERE public_id IS NOT NULL
+                        """);
+            } else {
+                log.warn(
+                        "Skip unique_match_public_id: {} duplicate public_id values on match",
+                        matchPublicIdDupes
+                );
+            }
             jdbc.execute("""
                     DO $$
                     BEGIN

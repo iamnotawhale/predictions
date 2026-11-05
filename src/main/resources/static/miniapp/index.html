@@ -116,6 +116,7 @@
                 </div>
             </div>
             <button type="button" id="profile-open-predictions" class="profile-cta">Мои прогнозы</button>
+            <button type="button" id="profile-open-admin" class="profile-cta profile-cta-admin hidden">Админ · БД</button>
             <div id="profile-bonus-chip" class="profile-bonus-chip hidden"></div>
             <section class="modal-h2h team-stats-section profile-section">
                 <h4>Сезон</h4>
@@ -455,6 +456,43 @@
         </div>
         <div id="player-modal-badges" class="player-modal-badges"></div>
         <div id="player-modal-stats" class="player-modal-stats"></div>
+    </div>
+</div>
+
+<div id="admin-modal" class="modal hidden">
+    <div class="modal-sheet admin-modal-sheet">
+        <div class="modal-header">
+            <h3>Админ · данные</h3>
+            <button id="admin-modal-close" class="icon-btn" aria-label="Закрыть">&#10005;</button>
+        </div>
+        <p class="admin-modal-desc">Правка строк в БД (только admin). Очки и зачёт после правок сами не пересчитываются. Осторожно с удалением.</p>
+        <div class="admin-toolbar">
+            <label class="admin-field">
+                <span>Таблица</span>
+                <select id="admin-table-select"></select>
+            </label>
+            <label class="admin-field admin-field-grow">
+                <span>Поиск</span>
+                <input type="search" id="admin-search" placeholder="по полю сортировки" autocomplete="off">
+            </label>
+            <button type="button" id="admin-reload" class="admin-btn">Обновить</button>
+            <button type="button" id="admin-new-row" class="admin-btn admin-btn-accent">Новая строка</button>
+        </div>
+        <p id="admin-rows-meta" class="admin-rows-meta"></p>
+        <ul id="admin-rows-list" class="list admin-rows-list"></ul>
+        <div class="admin-pager">
+            <button type="button" id="admin-prev" class="admin-btn">← Назад</button>
+            <button type="button" id="admin-next" class="admin-btn">Вперёд →</button>
+        </div>
+        <section id="admin-editor" class="admin-editor hidden">
+            <h4 id="admin-editor-title">Строка</h4>
+            <div id="admin-editor-fields" class="admin-editor-fields"></div>
+            <div class="admin-editor-actions">
+                <button type="button" id="admin-save-row" class="admin-btn admin-btn-accent">Сохранить</button>
+                <button type="button" id="admin-delete-row" class="admin-btn admin-btn-danger">Удалить</button>
+                <button type="button" id="admin-cancel-edit" class="admin-btn">Отмена</button>
+            </div>
+        </section>
     </div>
 </div>
 
