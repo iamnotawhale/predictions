@@ -880,12 +880,14 @@ public class MiniAppService {
         Double xga = MiniAppFormat.firstNonNull(espn.avgXga(), fs != null ? fs.xgaOverall() : null);
         Double scoredPm = MiniAppFormat.firstNonNull(ext.seasonScoredPerMatch(), fs != null ? fs.scoredOverall() : null);
         Double concededPm = MiniAppFormat.firstNonNull(ext.seasonConcededPerMatch(), fs != null ? fs.concededOverall() : null);
+        Double goalsDelta = scoredPm != null && xg != null ? scoredPm - xg : null;
         Integer cleanSheets = espn.cleanSheets();
         Double csPct = ext.seasonCsOverall();
 
         TeamSeasonStats stats = new TeamSeasonStats(
                 MiniAppFormat.round1(xg),
                 MiniAppFormat.round1(xga),
+                MiniAppFormat.round1(goalsDelta),
                 MiniAppFormat.round1(scoredPm),
                 MiniAppFormat.round1(concededPm),
                 MiniAppFormat.roundPct(ext.seasonBttsOverall()),
@@ -893,6 +895,8 @@ public class MiniAppService {
                 MiniAppFormat.roundPct(ext.over25Overall()),
                 MiniAppFormat.round1(ext.homePpg()),
                 MiniAppFormat.round1(ext.awayPpg()),
+                MiniAppFormat.roundPct(ext.winningAtHtPct()),
+                MiniAppFormat.round1(ext.htPpg()),
                 MiniAppFormat.round1(espn.possessionPct()),
                 MiniAppFormat.round1(espn.shotsPerMatch()),
                 MiniAppFormat.round1(espn.shotsOnTargetPerMatch()),

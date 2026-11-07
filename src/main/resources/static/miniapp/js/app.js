@@ -3886,44 +3886,157 @@
         }
     }
 
+    function fmtStatDelta(v) {
+        if (v == null || Number.isNaN(Number(v))) return null;
+        const n = Number(v);
+        const body = fmtStatNum(Math.abs(n));
+        if (body == null) return null;
+        if (n > 0) return '+' + body;
+        if (n < 0) return '−' + body;
+        return body;
+    }
+
     function renderTeamSeasonStats(stats) {
         const section = $('#team-stats-section');
         const grid = $('#team-stats-grid');
         if (!section || !grid) return;
+        closeTeamStatTip();
         if (!stats) {
             section.classList.add('hidden');
             grid.innerHTML = '';
+            grid.className = 'team-stats-grid';
             return;
         }
-        const cells = [
-            { label: 'xG', value: fmtStatNum(stats.xg) },
-            { label: 'xGA', value: fmtStatNum(stats.xga) },
-            { label: 'Г / М', value: fmtStatNum(stats.scoredPerMatch) },
-            { label: 'Пр / М', value: fmtStatNum(stats.concededPerMatch) },
-            { label: 'ОЗ', value: fmtStatPct(stats.bttsPct) },
-            { label: 'СМ %', value: fmtStatPct(stats.csPct) },
-            { label: 'ТБ 2.5', value: fmtStatPct(stats.over25Pct) },
-            { label: 'ППГ дом', value: fmtStatNum(stats.homePpg) },
-            { label: 'ППГ выезд', value: fmtStatNum(stats.awayPpg) },
-            { label: 'Владение', value: fmtStatPct(stats.possessionPct) },
-            { label: 'Удары / М', value: fmtStatNum(stats.shotsPerMatch) },
-            { label: 'В створ / М', value: fmtStatNum(stats.shotsOnTargetPerMatch) },
-            { label: 'Сухие', value: stats.cleanSheets != null ? String(stats.cleanSheets) : null }
-        ].filter((c) => c.value != null);
+        const groups = [
+            {
+                title: 'Атака и оборона',
+                cells: [
+                    { key: 'gf', label: 'Г / М', value: fmtStatNum(stats.scoredPerMatch), tip: 'Голы за матч' },
+                    { key: 'ga', label: 'Пр / М', value: fmtStatNum(stats.concededPerMatch), tip: 'Пропущенные за матч' },
+                    { key: 'o25', label: 'ТБ 2.5', value: fmtStatPct(stats.over25Pct), tip: 'Доля матчей с тоталом больше 2.5' }
+                ]
+            },
+            {
+                title: 'Ожидаемые голы',
+                cells: [
+                    { key: 'xg', label: 'xG', value: fmtStatNum(stats.xg), tip: 'Ожидаемые голы за матч' },
+                    { key: 'xga', label: 'xGA', value: fmtStatNum(stats.xga), tip: 'Ожидаемые пропущенные за матч' },
+                    {
+                        key: 'gdelta',
+                        label: 'Δ голы',
+                        value: fmtStatDelta(stats.goalsDelta),
+                        tip: 'Голы минус xG. Плюс — забивают больше ожидаемого',
+                        tone: stats.goalsDelta != null && Number(stats.goalsDelta) > 0
+                            ? 'pos'
+                            : (stats.goalsDelta != null && Number(stats.goalsDelta) < 0 ? 'neg' : null)
+                    }
+                ]
+            },
+            {
+                title: 'Надёжность',
+                cells: [
+                    { key: 'btts', label: 'ОЗ', value: fmtStatPct(stats.bttsPct), tip: 'Обе забьют — доля матчей' },
+                    { key: 'cs', label: 'СМ %', value: fmtStatPct(stats.csPct), tip: 'Сухие матчи — доля игр без пропущенных' },
+                    { key: 'csc', label: 'Сухие', value: stats.cleanSheets != null ? String(stats.cleanSheets) : null, tip: 'Число сухих матчей' }
+                ]
+            },
+            {
+                title: 'Дом / выезд',
+                cells: [
+                    { key: 'hppg', label: 'ППГ дома', value: fmtStatNum(stats.homePpg), tip: 'Очки за матч дома' },
+                    { key: 'appg', label: 'ППГ выезд', value: fmtStatNum(stats.awayPpg), tip: 'Очки за матч на выезде' }
+                ]
+            },
+            {
+                title: 'К перерыву',
+                cells: [
+                    { key: 'wht', label: 'Лидер HT', value: fmtStatPct(stats.winningAtHtPct), tip: 'Доля матчей с лидерством к перерыву' },
+                    { key: 'htppg', label: 'ППГ HT', value: fmtStatNum(stats.htPpg), tip: 'Очки за первый тайм' }
+                ]
+            },
+            {
+                title: 'Стиль',
+                cells: [
+                    { key: 'poss', label: 'Владение', value: fmtStatPct(stats.possessionPct), tip: 'Среднее владение мячом' },
+                    { key: 'sh', label: 'Удары / М', value: fmtStatNum(stats.shotsPerMatch), tip: 'Удары за матч' },
+                    { key: 'sot', label: 'В створ / М', value: fmtStatNum(stats.shotsOnTargetPerMatch), tip: 'Удары в створ за матч' }
+                ]
+            }
+        ].map((g) => ({
+            title: g.title,
+            cells: g.cells.filter((c) => c.value != null)
+        })).filter((g) => g.cells.length);
 
-        if (!cells.length) {
+        if (!groups.length) {
             section.classList.add('hidden');
             grid.innerHTML = '';
+            grid.className = 'team-stats-grid';
             return;
         }
         section.classList.remove('hidden');
-        grid.innerHTML = cells.map((c) =>
-            '<div class="team-stat-cell">'
-            + '<span class="team-stat-label">' + escapeHtml(c.label) + '</span>'
-            + '<span class="team-stat-value">' + escapeHtml(c.value) + '</span>'
-            + '</div>'
+        grid.className = 'team-stats-groups';
+        grid.innerHTML = groups.map((g) =>
+            '<div class="team-stats-group">'
+            + '<div class="team-stats-group-title">' + escapeHtml(g.title) + '</div>'
+            + '<div class="team-stats-grid">'
+            + g.cells.map((c) =>
+                '<button type="button" class="team-stat-cell'
+                + (c.tone === 'pos' ? ' team-stat-pos' : '')
+                + (c.tone === 'neg' ? ' team-stat-neg' : '')
+                + '" data-stat-key="' + escapeHtml(c.key) + '"'
+                + ' data-stat-tip="' + escapeHtml(c.tip) + '"'
+                + ' data-stat-label="' + escapeHtml(c.label) + '">'
+                + '<span class="team-stat-label">' + escapeHtml(c.label) + '</span>'
+                + '<span class="team-stat-value">' + escapeHtml(c.value) + '</span>'
+                + '</button>'
+            ).join('')
+            + '</div></div>'
         ).join('');
+        grid.querySelectorAll('.team-stat-cell').forEach((cell) => {
+            cell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleTeamStatTip(section, cell);
+            });
+        });
     }
+
+    function closeTeamStatTip() {
+        const tip = document.querySelector('#team-stats-section .team-stat-tip');
+        if (tip) tip.remove();
+        document.querySelectorAll('#team-stats-section .team-stat-cell.is-tip-open')
+            .forEach((el) => el.classList.remove('is-tip-open'));
+    }
+
+    function toggleTeamStatTip(section, cell) {
+        const key = cell.getAttribute('data-stat-key') || '';
+        const open = section.querySelector('.team-stat-tip');
+        if (open && open.dataset.key === key) {
+            closeTeamStatTip();
+            return;
+        }
+        closeTeamStatTip();
+        const label = cell.getAttribute('data-stat-label') || '';
+        const text = cell.getAttribute('data-stat-tip') || '';
+        const tip = document.createElement('div');
+        tip.className = 'team-stat-tip';
+        tip.dataset.key = key;
+        tip.innerHTML = '<strong>' + escapeHtml(label) + '</strong>'
+            + '<span>' + escapeHtml(text) + '</span>';
+        section.appendChild(tip);
+        cell.classList.add('is-tip-open');
+        const sr = section.getBoundingClientRect();
+        const cr = cell.getBoundingClientRect();
+        const tipW = tip.offsetWidth;
+        let left = cr.left - sr.left + (cr.width - tipW) / 2;
+        left = Math.max(8, Math.min(left, section.clientWidth - tipW - 8));
+        tip.style.left = left + 'px';
+        tip.style.top = (cr.bottom - sr.top + section.scrollTop + 8) + 'px';
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#team-stats-section .team-stat-cell')) return;
+        closeTeamStatTip();
+    });
 
     function renderTeamLeaders(leaders) {
         const section = $('#team-leaders-section');

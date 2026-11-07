@@ -135,6 +135,7 @@ public final class MiniAppDtos {
     public record TeamSeasonStats(
             Double xg,
             Double xga,
+            Double goalsDelta,
             Double scoredPerMatch,
             Double concededPerMatch,
             Double bttsPct,
@@ -142,16 +143,19 @@ public final class MiniAppDtos {
             Double over25Pct,
             Double homePpg,
             Double awayPpg,
+            Double winningAtHtPct,
+            Double htPpg,
             Double possessionPct,
             Double shotsPerMatch,
             Double shotsOnTargetPerMatch,
             Integer cleanSheets
     ) {
         public boolean isEmpty() {
-            return xg == null && xga == null
+            return xg == null && xga == null && goalsDelta == null
                     && scoredPerMatch == null && concededPerMatch == null
                     && bttsPct == null && csPct == null && over25Pct == null
                     && homePpg == null && awayPpg == null
+                    && winningAtHtPct == null && htPpg == null
                     && possessionPct == null && shotsPerMatch == null
                     && shotsOnTargetPerMatch == null && cleanSheets == null;
         }

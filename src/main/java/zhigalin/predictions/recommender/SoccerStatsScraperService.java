@@ -216,14 +216,12 @@ public class SoccerStatsScraperService {
             if (code.isEmpty() || seen.containsKey(code.get()) || !patches.containsKey(code.get())) {
                 continue;
             }
-            // team, GP, Leading%, Level%, Trailing%
             Double lead = parsePercent(cells.get(2));
-            Double level = parsePercent(cells.get(3));
             Double trail = parsePercent(cells.get(4));
-            if (lead == null && level == null && trail == null) {
+            if (lead == null && trail == null) {
                 continue;
             }
-            patches.get(code.get()).ssLeadDurations(lead, level, trail);
+            patches.get(code.get()).ssLeadDurations(lead, trail);
             seen.put(code.get(), true);
             if (seen.size() >= 24) {
                 break;

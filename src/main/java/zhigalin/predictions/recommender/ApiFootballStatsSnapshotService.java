@@ -319,12 +319,8 @@ public class ApiFootballStatsSnapshotService {
         private int under25;
         private int under25Home;
         private int under25Away;
-        private int totalGoalsHomeMatches;
-        private int totalGoalsAwayMatches;
         private int htPoints;
-        private int secondHalfPoints;
         private int leadingAtHt;
-        private int trailingAtHt;
         private int htSample;
         private double xgFor;
         private double xgAgainst;
@@ -354,7 +350,6 @@ public class ApiFootballStatsSnapshotService {
             ga += m.awayGoals();
             homeGf += m.homeGoals();
             homeGa += m.awayGoals();
-            totalGoalsHomeMatches += m.homeGoals() + m.awayGoals();
             applyResult(m.homeGoals(), m.awayGoals(), true);
             applyXg(xgForMatch, xgAgainstMatch, true);
             applyXpts(xgForMatch, xgAgainstMatch, m.homeGoals(), m.awayGoals());
@@ -370,7 +365,6 @@ public class ApiFootballStatsSnapshotService {
             ga += m.homeGoals();
             awayGf += m.awayGoals();
             awayGa += m.homeGoals();
-            totalGoalsAwayMatches += m.homeGoals() + m.awayGoals();
             applyResult(m.awayGoals(), m.homeGoals(), false);
             applyXg(xgForMatch, xgAgainstMatch, false);
             applyXpts(xgForMatch, xgAgainstMatch, m.awayGoals(), m.homeGoals());
@@ -468,16 +462,9 @@ public class ApiFootballStatsSnapshotService {
             htSample++;
             int htFor = home ? m.htHome() : m.htAway();
             int htAgainst = home ? m.htAway() : m.htHome();
-            int ftFor = home ? m.homeGoals() : m.awayGoals();
-            int ftAgainst = home ? m.awayGoals() : m.homeGoals();
-            int shFor = ftFor - htFor;
-            int shAgainst = ftAgainst - htAgainst;
             htPoints += points(htFor, htAgainst);
-            secondHalfPoints += points(shFor, shAgainst);
             if (htFor > htAgainst) {
                 leadingAtHt++;
-            } else if (htFor < htAgainst) {
-                trailingAtHt++;
             }
         }
 
@@ -510,7 +497,6 @@ public class ApiFootballStatsSnapshotService {
             Double xgdOverall = xgOverall != null && xgaOverall != null ? xgOverall - xgaOverall : null;
             Double xgHomeAvg = xgReady && xgHomeSamples > 0 ? xgHome / xgHomeSamples : null;
             Double xgAwayAvg = xgReady && xgAwaySamples > 0 ? xgAway / xgAwaySamples : null;
-            Double xgVsActual = xgOverall != null ? xgOverall - scoredOverall : null;
 
             FormStats form = formStats(lastN(chronAll, 6));
             FormStats formHome = formStats(lastN(chronHome, 6));
@@ -529,9 +515,6 @@ public class ApiFootballStatsSnapshotService {
             ExtendedTeamMetrics ext = ExtendedTeamMetrics.builder()
                     .formBtts(form.bttsPct, formHome.bttsPct, formAway.bttsPct)
                     .formCs(form.csPct, formHome.csPct, formAway.csPct)
-                    .formAvgGoals(form.avgGoals, formHome.avgGoals, formAway.avgGoals)
-                    .formWinPct(form.winPct, formHome.winPct, formAway.winPct)
-                    .xgVsActual(xgVsActual)
                     .xPts(xPts, actualPts, xPtsDelta)
                     .homeAdvantage(homeAdvantage)
                     .seasonBtts(pct(btts, mp), pct(bttsHome, homeMp), pct(bttsAway, awayMp))
@@ -539,10 +522,6 @@ public class ApiFootballStatsSnapshotService {
                     .ftsHome(pct(ftsHome, homeMp))
                     .ftsAway(pct(ftsAway, awayMp))
                     .drawPct(pct(draws, mp), pct(homeDraws, homeMp), pct(awayDraws, awayMp))
-                    .seasonAvgTotal(
-                            homeMp > 0 ? (double) totalGoalsHomeMatches / homeMp : null,
-                            awayMp > 0 ? (double) totalGoalsAwayMatches / awayMp : null
-                    )
                     .seasonScored(scoredOverall, scoredHome, scoredAway)
                     .seasonConceded(concededOverall, concededHome, concededAway)
                     .over25(pct(over25, mp), pct(over25Home, homeMp), pct(over25Away, awayMp))
@@ -550,9 +529,7 @@ public class ApiFootballStatsSnapshotService {
                     .homePpg(homePpg)
                     .awayPpg(awayPpg)
                     .htPpg(htSample > 0 ? (double) htPoints / htSample : null)
-                    .secondHalfPpg(htSample > 0 ? (double) secondHalfPoints / htSample : null)
                     .winningAtHtPct(pct(leadingAtHt, htSample))
-                    .losingAtHtPct(pct(trailingAtHt, htSample))
                     .build();
 
             return new TeamStatsSnapshot(
@@ -585,9 +562,6 @@ public class ApiFootballStatsSnapshotService {
                 return FormStats.empty();
             }
             int n = 0;
-            int scored = 0;
-            int conceded = 0;
-            int wins = 0;
             int btts = 0;
             int cs = 0;
             for (FinishedMatch m : matches) {
@@ -595,11 +569,6 @@ public class ApiFootballStatsSnapshotService {
                 int gf = home ? m.homeGoals() : m.awayGoals();
                 int ga = home ? m.awayGoals() : m.homeGoals();
                 n++;
-                scored += gf;
-                conceded += ga;
-                if (gf > ga) {
-                    wins++;
-                }
                 if (gf > 0 && ga > 0) {
                     btts++;
                 }
@@ -607,12 +576,7 @@ public class ApiFootballStatsSnapshotService {
                     cs++;
                 }
             }
-            return new FormStats(
-                    pct(btts, n),
-                    pct(cs, n),
-                    n > 0 ? (double) (scored + conceded) / n : null,
-                    pct(wins, n)
-            );
+            return new FormStats(pct(btts, n), pct(cs, n));
         }
 
         private static double perMatch(int value, int matches) {
@@ -627,9 +591,9 @@ public class ApiFootballStatsSnapshotService {
         }
     }
 
-    private record FormStats(Double bttsPct, Double csPct, Double avgGoals, Double winPct) {
+    private record FormStats(Double bttsPct, Double csPct) {
         static FormStats empty() {
-            return new FormStats(null, null, null, null);
+            return new FormStats(null, null);
         }
     }
 }

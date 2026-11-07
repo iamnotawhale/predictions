@@ -7,13 +7,6 @@ public record ExtendedTeamMetrics(
         Double formCsOverall,
         Double formCsHome,
         Double formCsAway,
-        Double formAvgGoalsOverall,
-        Double formAvgGoalsHome,
-        Double formAvgGoalsAway,
-        Double formWinPctOverall,
-        Double formWinPctHome,
-        Double formWinPctAway,
-        Double xgVsActual,
         Double xPts,
         Double actualPts,
         Double xPtsDelta,
@@ -29,8 +22,6 @@ public record ExtendedTeamMetrics(
         Double drawPctOverall,
         Double drawPctHome,
         Double drawPctAway,
-        Double seasonAvgTotalHome,
-        Double seasonAvgTotalAway,
         Double seasonScoredPerMatch,
         Double seasonScoredHome,
         Double seasonScoredAway,
@@ -46,15 +37,12 @@ public record ExtendedTeamMetrics(
         Double homePpg,
         Double awayPpg,
         Double htPpg,
-        Double secondHalfPpg,
         Double winningAtHtPct,
-        Double losingAtHtPct,
         Double ssScoredFirstPct,
         Double ssScoredFirstPpg,
         Double ssConcededFirstPct,
         Double ssConcededFirstPpg,
         Double ssLeadPct,
-        Double ssLevelPct,
         Double ssTrailPct,
         Double ssEqualiserScoredPct,
         Double ssEqualiserConcededPct,
@@ -78,13 +66,6 @@ public record ExtendedTeamMetrics(
                 coalesce(patch.formCsOverall, formCsOverall),
                 coalesce(patch.formCsHome, formCsHome),
                 coalesce(patch.formCsAway, formCsAway),
-                coalesce(patch.formAvgGoalsOverall, formAvgGoalsOverall),
-                coalesce(patch.formAvgGoalsHome, formAvgGoalsHome),
-                coalesce(patch.formAvgGoalsAway, formAvgGoalsAway),
-                coalesce(patch.formWinPctOverall, formWinPctOverall),
-                coalesce(patch.formWinPctHome, formWinPctHome),
-                coalesce(patch.formWinPctAway, formWinPctAway),
-                coalesce(patch.xgVsActual, xgVsActual),
                 coalesce(patch.xPts, xPts),
                 coalesce(patch.actualPts, actualPts),
                 coalesce(patch.xPtsDelta, xPtsDelta),
@@ -100,8 +81,6 @@ public record ExtendedTeamMetrics(
                 coalesce(patch.drawPctOverall, drawPctOverall),
                 coalesce(patch.drawPctHome, drawPctHome),
                 coalesce(patch.drawPctAway, drawPctAway),
-                coalesce(patch.seasonAvgTotalHome, seasonAvgTotalHome),
-                coalesce(patch.seasonAvgTotalAway, seasonAvgTotalAway),
                 coalesce(patch.seasonScoredPerMatch, seasonScoredPerMatch),
                 coalesce(patch.seasonScoredHome, seasonScoredHome),
                 coalesce(patch.seasonScoredAway, seasonScoredAway),
@@ -117,15 +96,12 @@ public record ExtendedTeamMetrics(
                 coalesce(patch.homePpg, homePpg),
                 coalesce(patch.awayPpg, awayPpg),
                 coalesce(patch.htPpg, htPpg),
-                coalesce(patch.secondHalfPpg, secondHalfPpg),
                 coalesce(patch.winningAtHtPct, winningAtHtPct),
-                coalesce(patch.losingAtHtPct, losingAtHtPct),
                 coalesce(patch.ssScoredFirstPct, ssScoredFirstPct),
                 coalesce(patch.ssScoredFirstPpg, ssScoredFirstPpg),
                 coalesce(patch.ssConcededFirstPct, ssConcededFirstPct),
                 coalesce(patch.ssConcededFirstPpg, ssConcededFirstPpg),
                 coalesce(patch.ssLeadPct, ssLeadPct),
-                coalesce(patch.ssLevelPct, ssLevelPct),
                 coalesce(patch.ssTrailPct, ssTrailPct),
                 coalesce(patch.ssEqualiserScoredPct, ssEqualiserScoredPct),
                 coalesce(patch.ssEqualiserConcededPct, ssEqualiserConcededPct),
@@ -147,13 +123,6 @@ public record ExtendedTeamMetrics(
         private Double formCsOverall;
         private Double formCsHome;
         private Double formCsAway;
-        private Double formAvgGoalsOverall;
-        private Double formAvgGoalsHome;
-        private Double formAvgGoalsAway;
-        private Double formWinPctOverall;
-        private Double formWinPctHome;
-        private Double formWinPctAway;
-        private Double xgVsActual;
         private Double xPts;
         private Double actualPts;
         private Double xPtsDelta;
@@ -169,8 +138,6 @@ public record ExtendedTeamMetrics(
         private Double drawPctOverall;
         private Double drawPctHome;
         private Double drawPctAway;
-        private Double seasonAvgTotalHome;
-        private Double seasonAvgTotalAway;
         private Double seasonScoredPerMatch;
         private Double seasonScoredHome;
         private Double seasonScoredAway;
@@ -186,15 +153,12 @@ public record ExtendedTeamMetrics(
         private Double homePpg;
         private Double awayPpg;
         private Double htPpg;
-        private Double secondHalfPpg;
         private Double winningAtHtPct;
-        private Double losingAtHtPct;
         private Double ssScoredFirstPct;
         private Double ssScoredFirstPpg;
         private Double ssConcededFirstPct;
         private Double ssConcededFirstPpg;
         private Double ssLeadPct;
-        private Double ssLevelPct;
         private Double ssTrailPct;
         private Double ssEqualiserScoredPct;
         private Double ssEqualiserConcededPct;
@@ -217,20 +181,6 @@ public record ExtendedTeamMetrics(
             return this;
         }
 
-        public Builder formAvgGoals(Double overall, Double home, Double away) {
-            formAvgGoalsOverall = overall;
-            formAvgGoalsHome = home;
-            formAvgGoalsAway = away;
-            return this;
-        }
-
-        public Builder formWinPct(Double overall, Double home, Double away) {
-            formWinPctOverall = overall;
-            formWinPctHome = home;
-            formWinPctAway = away;
-            return this;
-        }
-
         public Builder seasonBtts(Double overall, Double home, Double away) {
             seasonBttsOverall = overall;
             seasonBttsHome = home;
@@ -249,12 +199,6 @@ public record ExtendedTeamMetrics(
             drawPctOverall = overall;
             drawPctHome = home;
             drawPctAway = away;
-            return this;
-        }
-
-        public Builder seasonAvgTotal(Double home, Double away) {
-            seasonAvgTotalHome = home;
-            seasonAvgTotalAway = away;
             return this;
         }
 
@@ -283,11 +227,6 @@ public record ExtendedTeamMetrics(
             under25Overall = overall;
             under25Home = home;
             under25Away = away;
-            return this;
-        }
-
-        public Builder xgVsActual(Double value) {
-            xgVsActual = value;
             return this;
         }
 
@@ -328,18 +267,8 @@ public record ExtendedTeamMetrics(
             return this;
         }
 
-        public Builder secondHalfPpg(Double value) {
-            secondHalfPpg = value;
-            return this;
-        }
-
         public Builder winningAtHtPct(Double value) {
             winningAtHtPct = value;
-            return this;
-        }
-
-        public Builder losingAtHtPct(Double value) {
-            losingAtHtPct = value;
             return this;
         }
 
@@ -355,9 +284,8 @@ public record ExtendedTeamMetrics(
             return this;
         }
 
-        public Builder ssLeadDurations(Double lead, Double level, Double trail) {
+        public Builder ssLeadDurations(Double lead, Double trail) {
             ssLeadPct = lead;
-            ssLevelPct = level;
             ssTrailPct = trail;
             return this;
         }
@@ -388,23 +316,19 @@ public record ExtendedTeamMetrics(
             return new ExtendedTeamMetrics(
                     formBttsOverall, formBttsHome, formBttsAway,
                     formCsOverall, formCsHome, formCsAway,
-                    formAvgGoalsOverall, formAvgGoalsHome, formAvgGoalsAway,
-                    formWinPctOverall, formWinPctHome, formWinPctAway,
-                    xgVsActual, xPts, actualPts, xPtsDelta, homeAdvantage,
+                    xPts, actualPts, xPtsDelta, homeAdvantage,
                     seasonBttsOverall, seasonBttsHome, seasonBttsAway,
                     seasonCsOverall, seasonCsHome, seasonCsAway,
                     ftsHome, ftsAway,
                     drawPctOverall, drawPctHome, drawPctAway,
-                    seasonAvgTotalHome, seasonAvgTotalAway,
                     seasonScoredPerMatch, seasonScoredHome, seasonScoredAway,
                     seasonConcededPerMatch, seasonConcededHome, seasonConcededAway,
                     over25Overall, over25Home, over25Away,
                     under25Overall, under25Home, under25Away,
-                    homePpg, awayPpg, htPpg, secondHalfPpg,
-                    winningAtHtPct, losingAtHtPct,
+                    homePpg, awayPpg, htPpg, winningAtHtPct,
                     ssScoredFirstPct, ssScoredFirstPpg,
                     ssConcededFirstPct, ssConcededFirstPpg,
-                    ssLeadPct, ssLevelPct, ssTrailPct,
+                    ssLeadPct, ssTrailPct,
                     ssEqualiserScoredPct, ssEqualiserConcededPct,
                     ssOgsPct, ssOgcPct, ssAvgFirstGoalMin,
                     ssFavouritePpg
