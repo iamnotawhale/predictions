@@ -28,7 +28,30 @@ live_matches() {
   for league in $LEAGUES; do
     curl -s -m 20 -A predictions-bot/1.0 \
       "https://site.web.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard" |
-      python3 -c 'import json,sys; sys.exit(0 if any(e["status"]["type"]["state"]=="in" for e in json.load(sys.stdin).get("events",[])) else 1)' 2>/dev/null && return 0
+      python3 -c '
+import json, sys
+EPL = {306,331,337,349,357,359,360,361,362,363,364,366,367,368,370,371,373,382,384,388,393}
+league = sys.argv[1]
+data = json.load(sys.stdin)
+
+def involves_epl(event):
+    if league == "eng.1":
+        return True
+    for comp in event.get("competitions") or []:
+        for c in comp.get("competitors") or []:
+            tid = (c.get("team") or {}).get("id") or c.get("id")
+            try:
+                if int(tid) in EPL:
+                    return True
+            except (TypeError, ValueError):
+                pass
+    return False
+
+sys.exit(0 if any(
+    e.get("status", {}).get("type", {}).get("state") == "in" and involves_epl(e)
+    for e in data.get("events", [])
+) else 1)
+' "$league" 2>/dev/null && return 0
   done
   return 1
 }
