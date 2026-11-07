@@ -238,6 +238,7 @@ public final class MiniAppDtos {
             List<String> explanationNotes,
             List<String> explanationLines,
             String summary,
+            String analysis,
             ScoreDistributionDto distribution,
             RecommendationInsight.Insight insight,
             Long computedAtMs,

@@ -49,7 +49,10 @@ public record ExtendedTeamMetrics(
         Double ssOgsPct,
         Double ssOgcPct,
         Double ssAvgFirstGoalMin,
-        Double ssFavouritePpg
+        Double ssFavouritePpg,
+        Double recentXgPerMatch,
+        Double recentXgaPerMatch,
+        Integer recentXgSamples
 ) {
     public static ExtendedTeamMetrics empty() {
         return builder().build();
@@ -108,7 +111,10 @@ public record ExtendedTeamMetrics(
                 coalesce(patch.ssOgsPct, ssOgsPct),
                 coalesce(patch.ssOgcPct, ssOgcPct),
                 coalesce(patch.ssAvgFirstGoalMin, ssAvgFirstGoalMin),
-                coalesce(patch.ssFavouritePpg, ssFavouritePpg)
+                coalesce(patch.ssFavouritePpg, ssFavouritePpg),
+                coalesce(patch.recentXgPerMatch, recentXgPerMatch),
+                coalesce(patch.recentXgaPerMatch, recentXgaPerMatch),
+                coalesce(patch.recentXgSamples, recentXgSamples)
         );
     }
 
@@ -166,6 +172,9 @@ public record ExtendedTeamMetrics(
         private Double ssOgcPct;
         private Double ssAvgFirstGoalMin;
         private Double ssFavouritePpg;
+        private Double recentXgPerMatch;
+        private Double recentXgaPerMatch;
+        private Integer recentXgSamples;
 
         public Builder formBtts(Double overall, Double home, Double away) {
             formBttsOverall = overall;
@@ -312,6 +321,13 @@ public record ExtendedTeamMetrics(
             return this;
         }
 
+        public Builder recentXg(Double xgPerMatch, Double xgaPerMatch, Integer samples) {
+            recentXgPerMatch = xgPerMatch;
+            recentXgaPerMatch = xgaPerMatch;
+            recentXgSamples = samples;
+            return this;
+        }
+
         public ExtendedTeamMetrics build() {
             return new ExtendedTeamMetrics(
                     formBttsOverall, formBttsHome, formBttsAway,
@@ -331,12 +347,17 @@ public record ExtendedTeamMetrics(
                     ssLeadPct, ssTrailPct,
                     ssEqualiserScoredPct, ssEqualiserConcededPct,
                     ssOgsPct, ssOgcPct, ssAvgFirstGoalMin,
-                    ssFavouritePpg
+                    ssFavouritePpg,
+                    recentXgPerMatch, recentXgaPerMatch, recentXgSamples
             );
         }
     }
 
     private static Double coalesce(Double preferred, Double fallback) {
+        return preferred != null ? preferred : fallback;
+    }
+
+    private static Integer coalesce(Integer preferred, Integer fallback) {
         return preferred != null ? preferred : fallback;
     }
 }

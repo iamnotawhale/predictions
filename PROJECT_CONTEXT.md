@@ -377,12 +377,13 @@
 
 **Модель:**
 - База: атака×оборона со **shrinkage** к среднему лиги (1 матч не обнуляет λ); если у команды ещё не было матчей на этом поле (home/away), сила = 1.0 — **не** подставляем голы с другого поля.
-- Смешивание: статистика + xG/xGA (за матч) + **рынок 1X2 → λ** (при тонкой выборке вес рынка растёт).
-- Лёгкий nudge λ от SoccerSTATS (scored-first / lead / favourite PPG), dampen при thin sample.
-- **H2H** из таблицы `h2h` (до 20 последних встреч): soft blend в λ по средним голам (overall + сильнее когда текущий хозяин дома) и мягкий вес исходов W/D/L в матрице; в explanation — общая серия и серия «дома у хозяина».
+- **Market-path (есть 1X2):** `MarketScoreMatrix.fit` → shape-blend ≤15% (`STATS_SHAPE_WEIGHT`) из formula + season/recent xG → soft xPts/SoccerSTATS nudges **на stats до blend** → `calibrated` снова фиксирует 1X2. H2H / homeAdvantage / totals-nudge на этой ветке не дублируются (тотал уже в `totalTarget` fit).
+- **Recent xG:** в `ExtendedTeamMetrics` (`recentXgPerMatch` / `recentXgaPerMatch` / `recentXgSamples`) — последние 6 матчей с обеими сторонами xG; в λ только если season xG уже ready (`xgMetricsReady`) и samples ≥ 4; вес recent до 0.55 (scale при неполном окне). Не пишет в `xg_overall`.
+- Без коэффициентов: прежнее смешивание stats + xG + market prior; nudges xPts/SoccerSTATS/H2H на λ.
+- **H2H** из таблицы `h2h` (до 20 последних встреч): на no-odds ветке soft blend в λ и вес исходов в матрице; в explanation — общая серия и серия «дома у хозяина».
 - Матрица Пуассона 0–5 с мягкими весами BTTS/CS/FTS/ничьи/Over-Under + SoccerSTATS (first-goal, lead, equalisers); при thin sample (≥0.55) form/season BTTS/CS/Over **отключаются**, иначе ранний сезон с 0% схлопывает все советы в 1:0. Нормализованная матрица + derived 1X2/BTTS/OU/topScores сохраняются в `explanation_json.distribution` и отдаются в insights (`MatchRecommendationResponse.distribution`).
 - Floor λ ~0.7+, иначе при λ&lt;1 mode всегда 0:0.
-- В explanation: ожидаемые голы, сила атаки/обороны словами, xG, форма, сезон, SoccerSTATS, H2H, букмекеры (%), самый вероятный счёт; без сырых λ/формул. Venue без матчей — «ещё не играли», а не overall под видом выезда.
+- В explanation: rows/notes как раньше; плюс **`analysis`** — RU-шаблон (`RecommendationAnalysisWriter`) в стиле обзора BetBuilders (tip vs mostLikely, λ/1X2, xG/xPts, H2H, O2.5/BTTS), без LLM и без текста BB. Короткий `summary` для кнопки не меняется. Venue без матчей — «ещё не играли», а не overall под видом выезда.
 
 **Когда пересчитывается:**
 1. Автоматически в `DataInitService` после завершения всех матчей тура (`weekService.updateCurrent()` → `onCurrentWeekRollover`: `assignForNewCurrentWeek` + `refreshForWeek` следующего тура).
@@ -393,7 +394,7 @@
 **UI:**
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
 - Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
-- В `#score-modal` компактная кнопка `#modal-recommendation-section` (tip + λ + %); детали — в отдельной `#ai-modal` (heatmap 0–5, 1X2/BTTS/OU, топ-счета, таблица explanation). Только при включённом AI toggle. Distribution лежит в `explanation_json` (`ScoreDistribution`); после деплоя нужен refresh тура, чтобы матрица появилась у старых tips.
+- В `#score-modal` компактная кнопка `#modal-recommendation-section` (tip + λ + %); детали — в отдельной `#ai-modal` (блок **Обзор** из `analysis`, heatmap 0–5, 1X2/BTTS/OU, топ-счета, таблица explanation). Только при включённом AI toggle. Distribution + `analysis` лежат в `explanation_json`; после деплоя нужен refresh тура (неперезаписанные kickoff-frozen tips остаются без `analysis` — секция скрыта).
 - На **«Профиль» → Мои прогнозы / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
 - Картинка FT: `HtmlImageRenderer` RESULT (EPL + кубки с разными accent); строка `AI h:a` для EPL, если freeze есть.
 - Mini App кубки: цвета турниров на карточках; категория «Кубки» (карточки турниров, вся FT-история + матчи с сегодня и будущие); live-детали/составы/комментарии через ESPN summary по league slug; live Общий зачёт += provisional cup.

@@ -374,6 +374,7 @@ public class MiniAppService {
                 notes,
                 snapshot.explanationLines(),
                 snapshot.summary(),
+                explanation.analysis(),
                 distribution,
                 distribution == null ? null : RecommendationInsight.build(
                         toRawMatrix(distribution.matrix()),

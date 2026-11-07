@@ -3536,6 +3536,25 @@
         renderAiPointsBar(insight, recommendation);
         renderAiMeta(recommendation);
 
+        const analysisSection = $('#ai-modal-analysis-section');
+        const analysisEl = $('#ai-modal-analysis');
+        const analysisText = recommendation.analysis;
+        if (analysisEl) {
+            if (analysisText) {
+                analysisEl.innerHTML = String(analysisText)
+                    .split(/\n\n+/)
+                    .map((p) => p.trim())
+                    .filter(Boolean)
+                    .map((p) => '<p>' + escapeHtml(p) + '</p>')
+                    .join('');
+            } else {
+                analysisEl.innerHTML = '';
+            }
+        }
+        if (analysisSection) {
+            analysisSection.classList.toggle('hidden', !analysisText);
+        }
+
         const reasonsSection = $('#ai-modal-reasons-section');
         const reasons = (insight && insight.reasons) || [];
         const reasonsEl = $('#ai-reasons');

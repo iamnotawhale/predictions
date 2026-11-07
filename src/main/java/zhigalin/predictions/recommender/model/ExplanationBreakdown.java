@@ -6,7 +6,8 @@ import java.util.List;
 public record ExplanationBreakdown(
         List<ExplanationRow> rows,
         List<String> notes,
-        ScoreDistribution distribution
+        ScoreDistribution distribution,
+        String analysis
 ) {
     public ExplanationBreakdown {
         rows = rows != null ? List.copyOf(rows) : List.of();
@@ -14,15 +15,23 @@ public record ExplanationBreakdown(
     }
 
     public ExplanationBreakdown(List<ExplanationRow> rows, List<String> notes) {
-        this(rows, notes, null);
+        this(rows, notes, null, null);
+    }
+
+    public ExplanationBreakdown(List<ExplanationRow> rows, List<String> notes, ScoreDistribution distribution) {
+        this(rows, notes, distribution, null);
     }
 
     public static ExplanationBreakdown empty() {
-        return new ExplanationBreakdown(List.of(), List.of(), null);
+        return new ExplanationBreakdown(List.of(), List.of(), null, null);
     }
 
     public ExplanationBreakdown withDistribution(ScoreDistribution distribution) {
-        return new ExplanationBreakdown(rows, notes, distribution);
+        return new ExplanationBreakdown(rows, notes, distribution, analysis);
+    }
+
+    public ExplanationBreakdown withAnalysis(String analysis) {
+        return new ExplanationBreakdown(rows, notes, distribution, analysis);
     }
 
     public List<String> asLines() {

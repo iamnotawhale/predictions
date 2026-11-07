@@ -31,6 +31,8 @@ public class ApiFootballStatsSnapshotService {
     private static final int XPTS_MAX_GOALS = 10;
     private static final int MIN_XG_SAMPLES_FOR_METRICS = 8;
     private static final double MIN_XG_COVERAGE = 0.8;
+    private static final int RECENT_XG_WINDOW = 6;
+    private static final int MIN_RECENT_XG_SAMPLES = 4;
     private static final Set<String> FINISHED = Set.of("FT", "AET", "PEN");
 
     private final ApiFootballClient apiFootballClient;
@@ -336,6 +338,7 @@ public class ApiFootballStatsSnapshotService {
         private final List<FinishedMatch> chronHome = new ArrayList<>();
         private final List<FinishedMatch> chronAway = new ArrayList<>();
         private final List<FinishedMatch> chronAll = new ArrayList<>();
+        private final List<XgSample> chronXg = new ArrayList<>();
 
         private TeamAgg(int teamId) {
             this.teamId = teamId;
@@ -436,6 +439,7 @@ public class ApiFootballStatsSnapshotService {
             xgFor += xgForMatch;
             xgAgainst += xgAgainstMatch;
             xgSamples++;
+            chronXg.add(new XgSample(xgForMatch, xgAgainstMatch));
             if (home) {
                 xgHome += xgForMatch;
                 xgaHome += xgAgainstMatch;
@@ -511,6 +515,7 @@ public class ApiFootballStatsSnapshotService {
             Double xPts = xgReady ? xPtsSum : null;
             Double actualPts = xgReady ? (double) actualPtsOnXg : null;
             Double xPtsDelta = xPts != null && actualPts != null ? actualPts - xPts : null;
+            RecentXg recentXg = recentXg(chronXg);
 
             ExtendedTeamMetrics ext = ExtendedTeamMetrics.builder()
                     .formBtts(form.bttsPct, formHome.bttsPct, formAway.bttsPct)
@@ -530,6 +535,7 @@ public class ApiFootballStatsSnapshotService {
                     .awayPpg(awayPpg)
                     .htPpg(htSample > 0 ? (double) htPoints / htSample : null)
                     .winningAtHtPct(pct(leadingAtHt, htSample))
+                    .recentXg(recentXg.xgPerMatch(), recentXg.xgaPerMatch(), recentXg.samples())
                     .build();
 
             return new TeamStatsSnapshot(
@@ -555,6 +561,31 @@ public class ApiFootballStatsSnapshotService {
                 return List.copyOf(all);
             }
             return List.copyOf(all.subList(all.size() - n, all.size()));
+        }
+
+        private static <T> List<T> lastNList(List<T> all, int n) {
+            if (all.size() <= n) {
+                return List.copyOf(all);
+            }
+            return List.copyOf(all.subList(all.size() - n, all.size()));
+        }
+
+        private static RecentXg recentXg(List<XgSample> chronXg) {
+            if (chronXg.isEmpty()) {
+                return RecentXg.none();
+            }
+            List<XgSample> window = lastNList(chronXg, RECENT_XG_WINDOW);
+            int n = window.size();
+            if (n < MIN_RECENT_XG_SAMPLES) {
+                return new RecentXg(null, null, n);
+            }
+            double xgSum = 0;
+            double xgaSum = 0;
+            for (XgSample sample : window) {
+                xgSum += sample.xgFor();
+                xgaSum += sample.xgAgainst();
+            }
+            return new RecentXg(xgSum / n, xgaSum / n, n);
         }
 
         private FormStats formStats(List<FinishedMatch> matches) {
@@ -594,6 +625,15 @@ public class ApiFootballStatsSnapshotService {
     private record FormStats(Double bttsPct, Double csPct) {
         static FormStats empty() {
             return new FormStats(null, null);
+        }
+    }
+
+    private record XgSample(double xgFor, double xgAgainst) {
+    }
+
+    private record RecentXg(Double xgPerMatch, Double xgaPerMatch, Integer samples) {
+        static RecentXg none() {
+            return new RecentXg(null, null, null);
         }
     }
 }

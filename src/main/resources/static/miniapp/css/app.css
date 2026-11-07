@@ -2094,6 +2094,19 @@ html[data-switching] *::after {
     font-variant-numeric: tabular-nums;
 }
 
+.ai-modal-analysis {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ai-modal-analysis p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+}
+
 .ai-reasons {
     list-style: none;
     margin: 0;

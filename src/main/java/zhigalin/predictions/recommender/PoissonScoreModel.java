@@ -130,10 +130,26 @@ public final class PoissonScoreModel {
         double formulaHome = leagueHome * homeAttack * awayDefense;
         double formulaAway = leagueAway * awayAttack * homeDefense;
 
-        Double homeXgPerMatch = perMatchRate(home.xgOverall(), homeExt);
-        Double awayXgPerMatch = perMatchRate(away.xgOverall(), awayExt);
-        Double homeXgaPerMatch = perMatchRate(home.xgaOverall(), homeExt);
-        Double awayXgaPerMatch = perMatchRate(away.xgaOverall(), awayExt);
+        Double homeXgPerMatch = mixRecentXg(
+                perMatchRate(home.xgOverall(), homeExt),
+                homeExt.recentXgPerMatch(),
+                homeExt.recentXgSamples()
+        );
+        Double awayXgPerMatch = mixRecentXg(
+                perMatchRate(away.xgOverall(), awayExt),
+                awayExt.recentXgPerMatch(),
+                awayExt.recentXgSamples()
+        );
+        Double homeXgaPerMatch = mixRecentXg(
+                perMatchRate(home.xgaOverall(), homeExt),
+                homeExt.recentXgaPerMatch(),
+                homeExt.recentXgSamples()
+        );
+        Double awayXgaPerMatch = mixRecentXg(
+                perMatchRate(away.xgaOverall(), awayExt),
+                awayExt.recentXgaPerMatch(),
+                awayExt.recentXgSamples()
+        );
 
         double xgHome = blendPair(homeXgPerMatch, awayXgaPerMatch, leagueHome);
         double xgAway = blendPair(awayXgPerMatch, homeXgaPerMatch, leagueAway);
@@ -162,6 +178,10 @@ public final class PoissonScoreModel {
             shadowAway = shadow.away();
             double statsHome = 0.7 * formulaHome + 0.3 * xgHome;
             double statsAway = 0.7 * formulaAway + 0.3 * xgAway;
+            statsHome = applyXptsNudge(statsHome, homeExt.xPtsDelta());
+            statsAway = applyXptsNudge(statsAway, awayExt.xPtsDelta());
+            statsHome = applySoccerStatsLambdaNudge(statsHome, homeExt, true, thinSample);
+            statsAway = applySoccerStatsLambdaNudge(statsAway, awayExt, false, thinSample);
             double w = STATS_SHAPE_WEIGHT * (1.0 - 0.6 * thinSample);
             blendedHome = clampLambda((1 - w) * fit.home() + w * statsHome);
             blendedAway = clampLambda((1 - w) * fit.away() + w * statsAway);
@@ -288,6 +308,27 @@ public final class PoissonScoreModel {
         if (market != null) {
             explanation = withMarketNote(explanation);
         }
+        explanation = explanation.withAnalysis(RecommendationAnalysisWriter.write(
+                homeCode,
+                awayCode,
+                pick.home(),
+                pick.away(),
+                pick.probability(),
+                pick.expectedPoints(),
+                bestHome,
+                bestAway,
+                bestProb,
+                blendedHome,
+                blendedAway,
+                distribution,
+                market,
+                home,
+                away,
+                homeExt,
+                awayExt,
+                h2h,
+                thinSample
+        ));
 
         String summary = String.format(
                 Locale.US,
@@ -442,7 +483,23 @@ public final class PoissonScoreModel {
     private static ExplanationBreakdown withMarketNote(ExplanationBreakdown explanation) {
         List<String> notes = new ArrayList<>(explanation.notes());
         notes.add(0, "Основа прогноза — коэффициенты букмекеров; статистика команд лишь уточняет форму счёта");
-        return new ExplanationBreakdown(explanation.rows(), notes, explanation.distribution());
+        return new ExplanationBreakdown(
+                explanation.rows(),
+                notes,
+                explanation.distribution(),
+                explanation.analysis()
+        );
+    }
+
+    static Double mixRecentXg(Double seasonRate, Double recentRate, Integer recentSamples) {
+        if (seasonRate == null) {
+            return null;
+        }
+        if (recentRate == null || recentSamples == null || recentSamples < 4) {
+            return seasonRate;
+        }
+        double recentWeight = 0.55 * Math.min(1.0, recentSamples / 6.0);
+        return (1.0 - recentWeight) * seasonRate + recentWeight * recentRate;
     }
 
     enum TotalScope {
