@@ -127,8 +127,8 @@ public class NotificationService {
             list.add(MatchRecord.fromCup(cup));
         }
         list.sort(Comparator
-                .comparing(MatchRecord::localDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparingInt(MatchRecord::publicId));
+                .comparing(MatchRecord::startsAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparingInt(MatchRecord::id));
         return list;
     }
 
@@ -138,28 +138,28 @@ public class NotificationService {
         Team awayTeam = DaoUtil.TEAMS.get(match.getAwayTeamId());
 
         predictionService.updateByMatch(match);
-        bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
-        String aiKickoffScore = bettingRecommendationService.kickoffScore(match.getPublicId())
+        bettingRecommendationService.freezeAtKickoffIfNeeded(match.getId());
+        String aiKickoffScore = bettingRecommendationService.kickoffScore(match.getId())
                 .map(score -> score[0] + ":" + score[1])
                 .orElse(null);
 
-        String center = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
-        List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
+        String center = match.getHomeScore() + ":" + match.getAwayScore();
+        List<Prediction> predictions = predictionService.getByMatchPublicId(match.getId());
         predictions.sort(Comparator.comparingInt(Prediction::getPoints).reversed());
         List<Result> results = predictions.stream()
                 .map(p -> {
                     User user = DaoUtil.USERS.get(p.getUserId());
-                    String predict = (p.getHomeTeamScore() != null ? p.getHomeTeamScore() : "") + ":" +
-                                     (p.getAwayTeamScore() != null ? p.getAwayTeamScore() : "");
+                    String predict = (p.getHomeScore() != null ? p.getHomeScore() : "") + ":" +
+                                     (p.getAwayScore() != null ? p.getAwayScore() : "");
                     boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
-                            p.getUserId(), match.getWeekId(), match.getPublicId());
+                            p.getUserId(), match.getWeekId(), match.getId());
                     return new Result(user.getLogin().substring(0, 3), predict, p.getPoints(), weekBonus);
                 })
                 .sorted(Comparator.comparingInt(Result::point).reversed().thenComparing(Result::login))
                 .toList();
 
         String path = htmlImages.createEplResultImage(
-                match.getPublicId(),
+                match.getId(),
                 match.getHomeTeamId(),
                 match.getAwayTeamId(),
                 center,
@@ -170,7 +170,7 @@ public class NotificationService {
         if (path != null) {
             api.sendPhoto(defaultChatId, "Матч " + homeTeam.getCode() + "-" + awayTeam.getCode() + " окончен", path, null);
         }
-        api.evictLineups(match.getPublicId());
+        api.evictLineups(match.getId());
         removeLiveScoreNoise(match);
     }
 
@@ -186,7 +186,7 @@ public class NotificationService {
         if (messageId != null) {
             api.deleteMessage(defaultChatId, messageId);
         }
-        matchService.updateLiveScoreMessageId(match.getPublicId(), null);
+        matchService.updateLiveScoreMessageId(match.getId(), null);
         liveScoreState.clear(match, home, away);
     }
 
@@ -223,7 +223,7 @@ public class NotificationService {
             }
             liveScoreState.putMessageId(key, gifMessageId);
             liveScoreState.markAnimation(key);
-            matchService.updateLiveScoreMessageId(match.getPublicId(), gifMessageId);
+            matchService.updateLiveScoreMessageId(match.getId(), gifMessageId);
             liveScoreState.putLastText(key, text);
             return;
         }
@@ -240,7 +240,7 @@ public class NotificationService {
             Integer sentMessageId = api.sendMessageAndGetId(defaultChatId, text, null);
             if (sentMessageId != null) {
                 liveScoreState.putMessageId(key, sentMessageId);
-                matchService.updateLiveScoreMessageId(match.getPublicId(), sentMessageId);
+                matchService.updateLiveScoreMessageId(match.getId(), sentMessageId);
                 delivered = true;
             }
         }
@@ -263,8 +263,8 @@ public class NotificationService {
         }
         int ph = prevHome == null ? 0 : prevHome;
         int pa = prevAway == null ? 0 : prevAway;
-        int nh = match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore();
-        int na = match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore();
+        int nh = match.getHomeScore() == null ? 0 : match.getHomeScore();
+        int na = match.getAwayScore() == null ? 0 : match.getAwayScore();
         int prevTotal = ph + pa;
         int nextTotal = nh + na;
         if (prevTotal == nextTotal) {
@@ -281,8 +281,8 @@ public class NotificationService {
         try {
             EspnKitColors.Kit[] kits = matchKits(match);
             path = goalGifRenderer.renderToTempFile(new GoalEventGifRenderer.Request(
-                    home.getPublicId(),
-                    away.getPublicId(),
+                    home.getId(),
+                    away.getId(),
                     home.getCode(),
                     away.getCode(),
                     ph, pa, nh, na,
@@ -357,7 +357,7 @@ public class NotificationService {
     }
 
     private String buildLiveScoreUpdateText(Match match, Team home, Team away, Integer prevHome, Integer prevAway) {
-        String next = match.getHomeTeamScore() + ":" + match.getAwayTeamScore();
+        String next = match.getHomeScore() + ":" + match.getAwayScore();
         StringBuilder text = new StringBuilder();
         text.append("⚽ *")
                 .append(home.getCode())
@@ -372,8 +372,8 @@ public class NotificationService {
                 .append(" → ")
                 .append(next);
 
-        int expectedTotal = (match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore())
-                + (match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore());
+        int expectedTotal = (match.getHomeScore() == null ? 0 : match.getHomeScore())
+                + (match.getAwayScore() == null ? 0 : match.getAwayScore());
         if (expectedTotal > 0 && match.getEspnId() != null && !match.getEspnId().isBlank()) {
             List<GoalScorer> scorers = api.listGoalScorers(match.getEspnId(), expectedTotal);
             if (!scorers.isEmpty()) {
@@ -396,7 +396,7 @@ public class NotificationService {
                 .toList();
 
         for (Match match : upcoming) {
-            long minutesLeft = Duration.between(now, match.getLocalDateTime()).toMinutes();
+            long minutesLeft = Duration.between(now, match.getStartsAt()).toMinutes();
             for (int reminderMinutes : REMINDER_MINUTES_BEFORE) {
                 if (!ReminderCaption.isReminderWindow(minutesLeft, reminderMinutes)) {
                     continue;
@@ -407,28 +407,28 @@ public class NotificationService {
                         match.getAwayTeamId()
                 );
                 if (lineups.isEmpty()) {
-                    lineups = api.getLineups(match.getPublicId());
+                    lineups = api.getLineups(match.getId());
                 }
-                Set<Integer> predictedUserIds = predictionService.getByMatchPublicId(match.getPublicId()).stream()
+                Set<Integer> predictedUserIds = predictionService.getByMatchPublicId(match.getId()).stream()
                         .map(Prediction::getUserId)
                         .collect(Collectors.toSet());
                 String imagePathPlain = null;
                 String imagePathBonus = null;
-                String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getLocalDateTime());
+                String matchTime = DateTimeFormatter.ofPattern("HH:mm").format(match.getStartsAt());
                 for (User user : DaoUtil.USERS.values()) {
                     if (predictedUserIds.contains(user.getId())) {
                         continue;
                     }
-                    if (!notificationDedupDao.tryMarkReminderSent(user.getId(), match.getPublicId(), reminderMinutes)) {
+                    if (!notificationDedupDao.tryMarkReminderSent(user.getId(), match.getId(), reminderMinutes)) {
                         continue;
                     }
                     boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
-                            user.getId(), match.getWeekId(), match.getPublicId());
+                            user.getId(), match.getWeekId(), match.getId());
                     String imagePath;
                     if (weekBonus) {
                         if (imagePathBonus == null) {
                             imagePathBonus = htmlImages.createReminderImage(
-                                    match.getPublicId(),
+                                    match.getId(),
                                     match.getHomeTeamId(),
                                     match.getAwayTeamId(),
                                     matchTime,
@@ -439,7 +439,7 @@ public class NotificationService {
                     } else {
                         if (imagePathPlain == null) {
                             imagePathPlain = htmlImages.createReminderImage(
-                                    match.getPublicId(),
+                                    match.getId(),
                                     match.getHomeTeamId(),
                                     match.getAwayTeamId(),
                                     matchTime,
@@ -454,15 +454,15 @@ public class NotificationService {
                             .lineups(lineups)
                             .build();
                     log.info("Predict reminder: {} min before match, user={}, match={}, weekBonus={}",
-                            reminderMinutes, user.getId(), match.getPublicId(), weekBonus);
+                            reminderMinutes, user.getId(), match.getId(), weekBonus);
                     Integer prevMessageId = notificationDedupDao.findLatestReminderTelegramMessageId(
-                            user.getId(), match.getPublicId());
+                            user.getId(), match.getId());
                     if (prevMessageId != null && user.getTelegramId() != null && !user.getTelegramId().isBlank()) {
                         api.deleteMessage(user.getTelegramId(), prevMessageId);
                     }
                     Integer messageId = sendNotification(notification, imagePath);
                     notificationDedupDao.saveReminderTelegramMessageId(
-                            user.getId(), match.getPublicId(), reminderMinutes, messageId);
+                            user.getId(), match.getId(), reminderMinutes, messageId);
                 }
             }
         }
@@ -482,7 +482,7 @@ public class NotificationService {
             }
             // Mark even when Telegram refuses (message already gone / older than 48h) so we do not retry forever.
             notificationDedupDao.markReminderMessageDeleted(
-                    reminder.userId(), reminder.matchPublicId(), reminder.reminderMinutes());
+                    reminder.userId(), reminder.matchId(), reminder.reminderMinutes());
         }
     }
 
@@ -491,7 +491,7 @@ public class NotificationService {
         log.info("Send notification");
         try {
             Match match = notification.getMatch();
-            long minutesLeft = Duration.between(LocalDateTime.now(), match.getLocalDateTime()).toMinutes();
+            long minutesLeft = Duration.between(LocalDateTime.now(), match.getStartsAt()).toMinutes();
             String chatId = notification.getUser().getTelegramId();
 
             if (chatId != null && !chatId.isEmpty()) {

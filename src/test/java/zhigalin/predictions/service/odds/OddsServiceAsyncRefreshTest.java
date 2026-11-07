@@ -33,7 +33,7 @@ class OddsServiceAsyncRefreshTest {
         OddsService service = new OddsService(
                 mock(PanicSender.class), mock(MatchDao.class), espn, mock(EspnTeamTotalsClient.class));
         Match match = new Match();
-        match.setLocalDateTime(LocalDateTime.now().plusDays(1));
+        match.setStartsAt(LocalDateTime.now().plusDays(1));
 
         long started = System.nanoTime();
         service.refreshAsyncIfStale(List.of(match));

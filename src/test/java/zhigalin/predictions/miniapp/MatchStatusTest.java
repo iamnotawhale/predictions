@@ -45,13 +45,13 @@ class MatchStatusTest {
 
     @Test
     void liveLikeAlsoCoversScoredMatchWithUnknownStatus() {
-        Match scoredUnknown = Match.builder().status("tbd").homeTeamScore(1).awayTeamScore(0).build();
+        Match scoredUnknown = Match.builder().status("tbd").homeScore(1).awayScore(0).build();
         assertTrue(MatchStatus.isLiveLike(scoredUnknown));
 
-        Match finished = Match.builder().status("ft").homeTeamScore(1).awayTeamScore(0).build();
+        Match finished = Match.builder().status("ft").homeScore(1).awayScore(0).build();
         assertFalse(MatchStatus.isLiveLike(finished));
 
-        Match notStarted = Match.builder().status("ns").homeTeamScore(0).awayTeamScore(0).build();
+        Match notStarted = Match.builder().status("ns").homeScore(0).awayScore(0).build();
         assertFalse(MatchStatus.isLiveLike(notStarted));
 
         assertFalse(MatchStatus.isLiveLike(null));

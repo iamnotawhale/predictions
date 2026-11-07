@@ -30,12 +30,12 @@ public class TeamDao {
     public void save(Team team) {
         try {
             String sql = """
-                    INSERT INTO teams (public_id, code, logo, name)
-                    VALUES (:public_id, :code, :logo, :name)
+                    INSERT INTO teams (id, code, logo, name)
+                    VALUES (:id, :code, :logo, :name)
                     ON CONFLICT DO NOTHING
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("public_id", team.getPublicId());
+            params.addValue("id", team.getId());
             params.addValue("code", team.getCode());
             params.addValue("logo", team.getLogo());
             params.addValue("name", team.getName());
@@ -46,10 +46,10 @@ public class TeamDao {
         }
     }
 
-    public Team findByPublicId(int publicId) {
+    public Team findById(int publicId) {
         try {
             String sql = """
-                    SELECT * FROM teams WHERE public_id = :publicId
+                    SELECT * FROM teams WHERE id = :publicId
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource("publicId", publicId);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(sql, params, new TeamMapper()));
@@ -93,7 +93,7 @@ public class TeamDao {
         @Override
         public Team mapRow(ResultSet rs, int rowNum) throws SQLException {
             return Team.builder()
-                    .publicId(rs.getInt("public_id"))
+                    .id(rs.getInt("id"))
                     .name(rs.getString("name"))
                     .code(rs.getString("code"))
                     .logo(rs.getString("logo"))

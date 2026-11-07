@@ -38,8 +38,8 @@ public class MatchService {
         matchDao.updateMatches(List.of(matchToUpdate));
     }
 
-    public Match findByPublicId(int publicId) {
-        return matchDao.findByPublicId(publicId);
+    public Match findById(int publicId) {
+        return matchDao.findById(publicId);
     }
 
     public List<Match> findAllByTodayDate() {
@@ -75,10 +75,10 @@ public class MatchService {
         Integer awayId = null;
         for (Team team : DaoUtil.TEAMS.values()) {
             if (homeId == null && team.getCode().equals(homeTeamCode)) {
-                homeId = team.getPublicId();
+                homeId = team.getId();
             }
             if (awayId == null && team.getCode().equals(awayTeamCode)) {
-                awayId = team.getPublicId();
+                awayId = team.getId();
             }
             if (homeId != null && awayId != null) {
                 break;
@@ -190,7 +190,7 @@ public class MatchService {
         if (matches == null || matches.isEmpty()) {
             return matches == null ? List.of() : matches;
         }
-        return matches.stream().sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID).toList();
+        return matches.stream().sorted(Match.BY_KICKOFF_THEN_ID).toList();
     }
 }
 

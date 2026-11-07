@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.recommender.model.ScoreDistribution;
 
 class ScoreDistributionTest {
@@ -49,9 +49,9 @@ class ScoreDistributionTest {
 
     @Test
     void recommendResultIncludesDistributionMatchingTip() {
-        FootyStatsTeamSnapshot home = team("ARS", 1.6, 1.7, 1.4, 1.0, 0.9, 1.1);
-        FootyStatsTeamSnapshot away = team("CHE", 1.3, 1.4, 1.2, 1.2, 1.1, 1.3);
-        FootyStatsLeagueSnapshot league = new FootyStatsLeagueSnapshot(
+        TeamStatsSnapshot home = team("ARS", 1.6, 1.7, 1.4, 1.0, 0.9, 1.1);
+        TeamStatsSnapshot away = team("CHE", 1.3, 1.4, 1.2, 1.2, 1.1, 1.3);
+        LeagueAveragesSnapshot league = new LeagueAveragesSnapshot(
                 5, 1.48, 1.25, 1.25, 1.48, Instant.now()
         );
 
@@ -81,15 +81,15 @@ class ScoreDistributionTest {
         assertTrue(result.explanation().distribution() != null);
     }
 
-    private static FootyStatsTeamSnapshot team(
+    private static TeamStatsSnapshot team(
             String code,
             double so, double sh, double sa,
             double co, double ch, double ca
     ) {
-        return new FootyStatsTeamSnapshot(
+        return new TeamStatsSnapshot(
                 code, so, sh, sa, co, ch, ca,
                 1.4, 1.1, 0.3, 1.5, 1.2,
-                FootyStatsExtendedMetrics.empty(),
+                ExtendedTeamMetrics.empty(),
                 Instant.now()
         );
     }

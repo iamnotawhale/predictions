@@ -17,7 +17,7 @@ final class LiveTable {
             if (!MatchStatus.isLive(match.getStatus())) {
                 continue;
             }
-            if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
+            if (match.getHomeScore() == null || match.getAwayScore() == null) {
                 continue;
             }
             byTeam.put(match.getHomeTeamId(), match);
@@ -42,8 +42,8 @@ final class LiveTable {
     }
 
     private static int[] scoreFor(Match match, int teamId) {
-        int home = match.getHomeTeamScore() == null ? 0 : match.getHomeTeamScore();
-        int away = match.getAwayTeamScore() == null ? 0 : match.getAwayTeamScore();
+        int home = match.getHomeScore() == null ? 0 : match.getHomeScore();
+        int away = match.getAwayScore() == null ? 0 : match.getAwayScore();
         return match.getHomeTeamId() == teamId ? new int[] {home, away} : new int[] {away, home};
     }
 }

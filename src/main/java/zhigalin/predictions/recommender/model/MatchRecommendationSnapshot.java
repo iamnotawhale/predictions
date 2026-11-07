@@ -4,12 +4,12 @@ import java.time.Instant;
 import java.util.List;
 
 public record MatchRecommendationSnapshot(
-        int matchPublicId,
+        int matchId,
         int weekId,
         int recommendedHome,
         int recommendedAway,
-        double expectedHomeGoals,
-        double expectedAwayGoals,
+        double expectedHome,
+        double expectedAway,
         double scoreProbability,
         ExplanationBreakdown explanation,
         String summary,
@@ -21,12 +21,12 @@ public record MatchRecommendationSnapshot(
         Integer shadowAway
 ) {
     public MatchRecommendationSnapshot(
-            int matchPublicId,
+            int matchId,
             int weekId,
             int recommendedHome,
             int recommendedAway,
-            double expectedHomeGoals,
-            double expectedAwayGoals,
+            double expectedHome,
+            double expectedAway,
             double scoreProbability,
             ExplanationBreakdown explanation,
             String summary,
@@ -35,30 +35,30 @@ public record MatchRecommendationSnapshot(
             Integer kickoffAway,
             Instant kickoffFrozenAt
     ) {
-        this(matchPublicId, weekId, recommendedHome, recommendedAway, expectedHomeGoals, expectedAwayGoals,
+        this(matchId, weekId, recommendedHome, recommendedAway, expectedHome, expectedAway,
                 scoreProbability, explanation, summary, computedAt, kickoffHome, kickoffAway, kickoffFrozenAt,
                 null, null);
     }
 
     public MatchRecommendationSnapshot(
-            int matchPublicId,
+            int matchId,
             int weekId,
             int recommendedHome,
             int recommendedAway,
-            double expectedHomeGoals,
-            double expectedAwayGoals,
+            double expectedHome,
+            double expectedAway,
             double scoreProbability,
             ExplanationBreakdown explanation,
             String summary,
             Instant computedAt
     ) {
         this(
-                matchPublicId,
+                matchId,
                 weekId,
                 recommendedHome,
                 recommendedAway,
-                expectedHomeGoals,
-                expectedAwayGoals,
+                expectedHome,
+                expectedAway,
                 scoreProbability,
                 explanation,
                 summary,
@@ -69,26 +69,25 @@ public record MatchRecommendationSnapshot(
         );
     }
 
-    /** Legacy constructor: flat explanation lines become notes. */
     public MatchRecommendationSnapshot(
-            int matchPublicId,
+            int matchId,
             int weekId,
             int recommendedHome,
             int recommendedAway,
-            double expectedHomeGoals,
-            double expectedAwayGoals,
+            double expectedHome,
+            double expectedAway,
             double scoreProbability,
             List<String> explanationLines,
             String summary,
             Instant computedAt
     ) {
         this(
-                matchPublicId,
+                matchId,
                 weekId,
                 recommendedHome,
                 recommendedAway,
-                expectedHomeGoals,
-                expectedAwayGoals,
+                expectedHome,
+                expectedAway,
                 scoreProbability,
                 new ExplanationBreakdown(List.of(), explanationLines != null ? explanationLines : List.of()),
                 summary,

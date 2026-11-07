@@ -39,15 +39,15 @@ public class HeadToHeadService {
         if (match == null || match.getStatus() == null || !"ft".equalsIgnoreCase(match.getStatus())) {
             return;
         }
-        if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null || match.getLocalDateTime() == null) {
+        if (match.getHomeScore() == null || match.getAwayScore() == null || match.getStartsAt() == null) {
             return;
         }
         save(HeadToHead.builder()
                 .homeTeamId(match.getHomeTeamId())
                 .awayTeamId(match.getAwayTeamId())
-                .homeTeamScore(match.getHomeTeamScore())
-                .awayTeamScore(match.getAwayTeamScore())
-                .localDateTime(match.getLocalDateTime())
+                .homeScore(match.getHomeScore())
+                .awayScore(match.getAwayScore())
+                .startsAt(match.getStartsAt())
                 .leagueName("PL " + season)
                 .build());
     }
@@ -69,7 +69,7 @@ public class HeadToHeadService {
 
     public List<HeadToHead> findAllByTwoTeamsCode(String homeTeamCode, String awayTeamCode) {
         return headToHeadDao.getH2hByTeamsCode(homeTeamCode, awayTeamCode).stream()
-                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
+                .sorted(Comparator.comparing(HeadToHead::getStartsAt).reversed())
                 .limit(H2H_LIMIT)
                 .toList();
     }
@@ -77,7 +77,7 @@ public class HeadToHeadService {
     /** Broader H2H sample for the recommender (UI still uses {@link #H2H_LIMIT}). */
     public List<HeadToHead> findForRecommender(int homeTeamId, int awayTeamId) {
         return headToHeadDao.getAllByTeamsIds(homeTeamId, awayTeamId).stream()
-                .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
+                .sorted(Comparator.comparing(HeadToHead::getStartsAt).reversed())
                 .limit(20)
                 .toList();
     }

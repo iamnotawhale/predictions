@@ -31,11 +31,11 @@ public class HeadToHeadCommand implements Command {
             for (HeadToHead h2h : list) {
                 Team homeTeam = DaoUtil.TEAMS.get(h2h.getHomeTeamId());
                 Team awayTeam = DaoUtil.TEAMS.get(h2h.getAwayTeamId());
-                builder.append("`").append(h2h.getLocalDateTime().format(DateTimeFormatter.ofPattern("dd.MM.yy"))).append(" ")
+                builder.append("`").append(h2h.getStartsAt().format(DateTimeFormatter.ofPattern("dd.MM.yy"))).append(" ")
                         .append(h2h.getLeagueName()).append("\n")
                         .append(homeTeam.getCode()).append(" ")
-                        .append(h2h.getHomeTeamScore()).append(" - ")
-                        .append(h2h.getAwayTeamScore()).append(" ")
+                        .append(h2h.getHomeScore()).append(" - ")
+                        .append(h2h.getAwayScore()).append(" ")
                         .append(awayTeam.getCode()).append(" ")
                         .append("`").append("\n\n");
             }

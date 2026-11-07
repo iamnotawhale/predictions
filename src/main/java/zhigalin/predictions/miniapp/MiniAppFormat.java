@@ -9,21 +9,21 @@ final class MiniAppFormat {
 
     /** Score to show for a cup match: the latest score, including extra time once it is played. */
     static Integer cupDisplayHome(CupMatch m) {
-        return m.getAetHomeScore() != null ? m.getAetHomeScore() : m.getHomeTeamScore();
+        return m.getAetHome() != null ? m.getAetHome() : m.getHomeScore();
     }
 
     static Integer cupDisplayAway(CupMatch m) {
-        return m.getAetAwayScore() != null ? m.getAetAwayScore() : m.getAwayTeamScore();
+        return m.getAetAway() != null ? m.getAetAway() : m.getAwayScore();
     }
 
     /** "осн. время 1:1 · пен. 4:3" once a cup tie goes past 90 minutes; points use the 90-minute score. */
     static String cupScoreNote(CupMatch m) {
-        if (m == null || m.getAetHomeScore() == null || m.getHomeTeamScore() == null) {
+        if (m == null || m.getAetHome() == null || m.getHomeScore() == null) {
             return null;
         }
-        String note = "осн. время " + m.getHomeTeamScore() + ":" + m.getAwayTeamScore();
-        if (m.getPenHomeScore() != null && m.getPenAwayScore() != null) {
-            note += " · пен. " + m.getPenHomeScore() + ":" + m.getPenAwayScore();
+        String note = "осн. время " + m.getHomeScore() + ":" + m.getAwayScore();
+        if (m.getPenHome() != null && m.getPenAway() != null) {
+            note += " · пен. " + m.getPenHome() + ":" + m.getPenAway();
         }
         return note;
     }

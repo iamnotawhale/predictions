@@ -227,8 +227,8 @@ public final class MiniAppDtos {
     public record MatchRecommendationResponse(
             int recommendedHome,
             int recommendedAway,
-            double expectedHomeGoals,
-            double expectedAwayGoals,
+            @JsonProperty("expectedHomeGoals") double expectedHome,
+            @JsonProperty("expectedAwayGoals") double expectedAway,
             double scoreProbability,
             List<ExplanationStatRow> explanationRows,
             List<String> explanationNotes,
@@ -396,7 +396,7 @@ public final class MiniAppDtos {
     }
 
     public record CrowdMeterResponse(
-            int matchPublicId,
+            int matchId,
             int totalPredictions,
             int homeWinPct,
             int drawPct,
@@ -452,7 +452,7 @@ public final class MiniAppDtos {
     }
 
     public record ProfileTeamPredictionItem(
-            int matchPublicId,
+            int matchId,
             String homeCode,
             String awayCode,
             String kickoff,
@@ -577,10 +577,10 @@ public final class MiniAppDtos {
             int usersTotal,
             int predictionsCount,
             int missingPredictionsOnRecalc,
-            Integer aetHomeScore,
-            Integer aetAwayScore,
-            Integer penHomeScore,
-            Integer penAwayScore
+            @JsonProperty("aetHomeScore") Integer aetHome,
+            @JsonProperty("aetAwayScore") Integer aetAway,
+            @JsonProperty("penHomeScore") Integer penHome,
+            @JsonProperty("penAwayScore") Integer penAway
     ) {
     }
 
@@ -606,14 +606,18 @@ public final class MiniAppDtos {
 
     public record AdminPredictionUpsertRequest(
             int userId,
-            Integer matchPublicId,
+            @JsonProperty("matchPublicId") @JsonAlias("matchId") Integer matchId,
             Integer cupMatchId,
             Integer homeScore,
             Integer awayScore
     ) {
     }
 
-    public record AdminPredictionDeleteRequest(int userId, Integer matchPublicId, Integer cupMatchId) {
+    public record AdminPredictionDeleteRequest(
+            int userId,
+            @JsonProperty("matchPublicId") @JsonAlias("matchId") Integer matchId,
+            Integer cupMatchId
+    ) {
     }
 
     public record AdminPredictionListItem(
@@ -622,7 +626,7 @@ public final class MiniAppDtos {
             String login,
             String telegramId,
             String role,
-            Integer matchPublicId,
+            @JsonProperty("matchPublicId") Integer matchId,
             Integer cupMatchId,
             Integer predictHome,
             Integer predictAway,
@@ -654,7 +658,7 @@ public final class MiniAppDtos {
 
     public record AdminUserPredictionRow(
             String kind,
-            Integer matchPublicId,
+            @JsonProperty("matchPublicId") Integer matchId,
             Integer cupMatchId,
             String label,
             String matchStatus,

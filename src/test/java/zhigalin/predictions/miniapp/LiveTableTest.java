@@ -20,16 +20,16 @@ class LiveTableTest {
         Match match = Match.builder()
                 .homeTeamId(1)
                 .awayTeamId(2)
-                .homeTeamScore(1)
-                .awayTeamScore(0)
+                .homeScore(1)
+                .awayScore(0)
                 .status("1h")
-                .localDateTime(LocalDateTime.of(2026, 8, 29, 18, 0))
+                .startsAt(LocalDateTime.of(2026, 8, 29, 18, 0))
                 .build();
         assertEquals("W", LiveTable.resultForTeam(match, 1));
         assertEquals("L", LiveTable.resultForTeam(match, 2));
 
-        match.setHomeTeamScore(1);
-        match.setAwayTeamScore(1);
+        match.setHomeScore(1);
+        match.setAwayScore(1);
         assertEquals("D", LiveTable.resultForTeam(match, 1));
         assertEquals("D", LiveTable.resultForTeam(match, 2));
     }
@@ -39,25 +39,25 @@ class LiveTableTest {
         Match match = Match.builder()
                 .homeTeamId(10)
                 .awayTeamId(20)
-                .homeTeamScore(1)
-                .awayTeamScore(0)
+                .homeScore(1)
+                .awayScore(0)
                 .status("1h")
-                .localDateTime(LocalDateTime.of(2026, 8, 29, 18, 0))
+                .startsAt(LocalDateTime.of(2026, 8, 29, 18, 0))
                 .build();
         assertEquals("1:0", LiveTable.scoreForTeam(match, 10));
         assertEquals("0:1", LiveTable.scoreForTeam(match, 20));
 
         match.setHomeTeamId(30);
         match.setAwayTeamId(40);
-        match.setHomeTeamScore(1);
-        match.setAwayTeamScore(3);
+        match.setHomeScore(1);
+        match.setAwayScore(3);
         assertEquals("1:3", LiveTable.scoreForTeam(match, 30));
         assertEquals("3:1", LiveTable.scoreForTeam(match, 40));
     }
 
     private static Match live(int home, int away, String status, Integer hs, Integer as) {
         return Match.builder().homeTeamId(home).awayTeamId(away).status(status)
-                .homeTeamScore(hs).awayTeamScore(as).build();
+                .homeScore(hs).awayScore(as).build();
     }
 
     @Test

@@ -10,9 +10,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-final class FootyStatsTableParser {
+final class StatsTableParser {
 
-    private FootyStatsTableParser() {
+    private StatsTableParser() {
     }
 
     static Map<String, List<String>> parseTableByClassContains(Document doc, String classContains) {
@@ -111,7 +111,7 @@ final class FootyStatsTableParser {
         if (name == null || name.isBlank()) {
             name = link.text();
         }
-        return FootyStatsTeamNameMapper.toTeamCode(name.trim());
+        return StatsTeamNameMapper.toTeamCode(name.trim());
     }
 
     static List<String> dataCells(Element row) {

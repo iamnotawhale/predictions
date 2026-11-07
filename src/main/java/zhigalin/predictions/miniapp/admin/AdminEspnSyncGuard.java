@@ -43,11 +43,11 @@ public class AdminEspnSyncGuard {
         if (cup == null || !isSyncBusy()) {
             return false;
         }
-        if (cup.getLocalDateTime() == null) {
+        if (cup.getStartsAt() == null) {
             return false;
         }
         LocalDate today = LocalDate.now(AppTimeZones.DISPLAY);
-        if (!cup.getLocalDateTime().toLocalDate().equals(today)) {
+        if (!cup.getStartsAt().toLocalDate().equals(today)) {
             return false;
         }
         String league = cup.getCompetition();

@@ -12,8 +12,8 @@ import org.jsoup.nodes.Element;
 import org.junit.jupiter.api.Test;
 import zhigalin.predictions.recommender.PoissonScoreModel.MarketOutcome;
 import zhigalin.predictions.recommender.model.ExplanationBreakdown;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 
 class PoissonScoreModelExplanationTest {
 
@@ -41,16 +41,16 @@ class PoissonScoreModelExplanationTest {
 
     @Test
     void humanExplanationAvoidsRawModelJargonAndFalseAwayRate() {
-        FootyStatsTeamSnapshot tot = team("TOT", 0, 0, 0, 1.2, 0.8, 0.4);
+        TeamStatsSnapshot tot = team("TOT", 0, 0, 0, 1.2, 0.8, 0.4);
         // NEW only played home: overall/home goals, zero away venue
-        FootyStatsTeamSnapshot neu = team("NEW", 2.0, 2.0, 0, 3.0, 3.0, 0);
-        FootyStatsExtendedMetrics homeExt = FootyStatsExtendedMetrics.builder()
+        TeamStatsSnapshot neu = team("NEW", 2.0, 2.0, 0, 3.0, 3.0, 0);
+        ExtendedTeamMetrics homeExt = ExtendedTeamMetrics.builder()
                 .formBtts(0.0, 0.0, 0.0)
                 .formCs(0.0, 0.0, 0.0)
                 .seasonScored(0.0, 0.0, null)
                 .over25(0.0, 0.0, 0.0)
                 .build();
-        FootyStatsExtendedMetrics awayExt = FootyStatsExtendedMetrics.builder()
+        ExtendedTeamMetrics awayExt = ExtendedTeamMetrics.builder()
                 .formBtts(0.0, 0.0, 0.0)
                 .formCs(0.0, 0.0, 0.0)
                 .seasonScored(2.0, 2.0, null)
@@ -109,8 +109,8 @@ class PoissonScoreModelExplanationTest {
 
     @Test
     void thinSampleWithoutMarketDoesNotClaimBookmakers() {
-        FootyStatsTeamSnapshot a = team("SUN", 0, 0, 0, 0, 0, 0);
-        FootyStatsTeamSnapshot b = team("ARS", 0, 0, 0, 0, 0, 0);
+        TeamStatsSnapshot a = team("SUN", 0, 0, 0, 0, 0, 0);
+        TeamStatsSnapshot b = team("ARS", 0, 0, 0, 0, 0, 0);
         ExplanationBreakdown explanation = PoissonScoreModel.buildHumanExplanation(
                 "SUN",
                 "ARS",
@@ -127,8 +127,8 @@ class PoissonScoreModelExplanationTest {
                 null,
                 a,
                 b,
-                FootyStatsExtendedMetrics.empty(),
-                FootyStatsExtendedMetrics.empty(),
+                ExtendedTeamMetrics.empty(),
+                ExtendedTeamMetrics.empty(),
                 null, // h2h
                 null, // market
                 null, null, null, // 1X2
@@ -156,15 +156,15 @@ class PoissonScoreModelExplanationTest {
                   <td>1</td><td>2.00</td><td>2.00</td><td></td>
                 </tr></tbody></table>
                 """).selectFirst("tr");
-        List<String> cells = FootyStatsTableParser.dataCells(row);
+        List<String> cells = StatsTableParser.dataCells(row);
         assertEquals(List.of("1", "2.00", "2.00", ""), cells);
-        assertEquals(1, FootyStatsTableParser.mpOffset(cells));
-        assertEquals(2.0, FootyStatsTableParser.cellAfterMp(cells, 0));
-        assertEquals(2.0, FootyStatsTableParser.cellAfterMp(cells, 1));
-        assertNull(FootyStatsTableParser.cellAfterMp(cells, 2));
+        assertEquals(1, StatsTableParser.mpOffset(cells));
+        assertEquals(2.0, StatsTableParser.cellAfterMp(cells, 0));
+        assertEquals(2.0, StatsTableParser.cellAfterMp(cells, 1));
+        assertNull(StatsTableParser.cellAfterMp(cells, 2));
     }
 
-    private static FootyStatsTeamSnapshot team(
+    private static TeamStatsSnapshot team(
             String code,
             double scoredOverall,
             double scoredHome,
@@ -173,7 +173,7 @@ class PoissonScoreModelExplanationTest {
             double concededHome,
             double concededAway
     ) {
-        return new FootyStatsTeamSnapshot(
+        return new TeamStatsSnapshot(
                 code,
                 scoredOverall,
                 scoredHome,
@@ -186,19 +186,19 @@ class PoissonScoreModelExplanationTest {
                 null,
                 null,
                 null,
-                FootyStatsExtendedMetrics.empty(),
+                ExtendedTeamMetrics.empty(),
                 Instant.parse("2026-08-29T12:00:00Z")
         );
     }
 
     @Test
     void whenThePickDiffersFromTheModeBothAreExplained() {
-        FootyStatsTeamSnapshot a = team("SUN", 1, 1, 1, 1, 1, 1);
-        FootyStatsTeamSnapshot b = team("ARS", 1, 1, 1, 1, 1, 1);
+        TeamStatsSnapshot a = team("SUN", 1, 1, 1, 1, 1, 1);
+        TeamStatsSnapshot b = team("ARS", 1, 1, 1, 1, 1, 1);
         ExplanationBreakdown explanation = PoissonScoreModel.buildHumanExplanation(
                 "SUN", "ARS", 1.4, 1.3, 1.0, 1.0, 1.0, 1.0, 0.2,
                 null, null, null, null, a, b,
-                FootyStatsExtendedMetrics.empty(), FootyStatsExtendedMetrics.empty(),
+                ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty(),
                 null, null, null, null, null, null, null, null, null, null, null,
                 1, 1, 0.11,   // most likely score
                 1, 0, 0.10, 0.62 // recommended score, its probability and expected points
@@ -211,12 +211,12 @@ class PoissonScoreModelExplanationTest {
 
     @Test
     void whenThePickIsTheModeThereIsNoSeparateRecommendationNote() {
-        FootyStatsTeamSnapshot a = team("SUN", 1, 1, 1, 1, 1, 1);
-        FootyStatsTeamSnapshot b = team("ARS", 1, 1, 1, 1, 1, 1);
+        TeamStatsSnapshot a = team("SUN", 1, 1, 1, 1, 1, 1);
+        TeamStatsSnapshot b = team("ARS", 1, 1, 1, 1, 1, 1);
         ExplanationBreakdown explanation = PoissonScoreModel.buildHumanExplanation(
                 "SUN", "ARS", 1.4, 1.3, 1.0, 1.0, 1.0, 1.0, 0.2,
                 null, null, null, null, a, b,
-                FootyStatsExtendedMetrics.empty(), FootyStatsExtendedMetrics.empty(),
+                ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty(),
                 null, null, null, null, null, null, null, null, null, null, null,
                 1, 0, 0.12,
                 1, 0, 0.12, 0.7

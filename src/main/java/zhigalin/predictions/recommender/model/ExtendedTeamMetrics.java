@@ -1,9 +1,6 @@
 package zhigalin.predictions.recommender.model;
 
-/**
- * Extended metrics (FootyStats + SoccerSTATS) stored as JSON in DB.
- */
-public record FootyStatsExtendedMetrics(
+public record ExtendedTeamMetrics(
         Double formBttsOverall,
         Double formBttsHome,
         Double formBttsAway,
@@ -67,15 +64,15 @@ public record FootyStatsExtendedMetrics(
         Double ssAvgFirstGoalMin,
         Double ssFavouritePpg
 ) {
-    public static FootyStatsExtendedMetrics empty() {
+    public static ExtendedTeamMetrics empty() {
         return builder().build();
     }
 
-    public FootyStatsExtendedMetrics merge(FootyStatsExtendedMetrics patch) {
+    public ExtendedTeamMetrics merge(ExtendedTeamMetrics patch) {
         if (patch == null) {
             return this;
         }
-        return new FootyStatsExtendedMetrics(
+        return new ExtendedTeamMetrics(
                 coalesce(patch.formBttsOverall, formBttsOverall),
                 coalesce(patch.formBttsHome, formBttsHome),
                 coalesce(patch.formBttsAway, formBttsAway),
@@ -388,8 +385,8 @@ public record FootyStatsExtendedMetrics(
             return this;
         }
 
-        public FootyStatsExtendedMetrics build() {
-            return new FootyStatsExtendedMetrics(
+        public ExtendedTeamMetrics build() {
+            return new ExtendedTeamMetrics(
                     formBttsOverall, formBttsHome, formBttsAway,
                     formCsOverall, formCsHome, formCsAway,
                     formAvgGoalsOverall, formAvgGoalsHome, formAvgGoalsAway,

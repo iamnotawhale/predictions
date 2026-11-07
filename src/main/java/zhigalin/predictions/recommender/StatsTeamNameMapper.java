@@ -4,7 +4,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-public final class FootyStatsTeamNameMapper {
+public final class StatsTeamNameMapper {
 
     private static final Map<String, String> EXACT = Map.ofEntries(
             Map.entry("arsenal fc", "ARS"),
@@ -34,14 +34,14 @@ public final class FootyStatsTeamNameMapper {
             Map.entry("luton town fc", "LUT")
     );
 
-    private FootyStatsTeamNameMapper() {
+    private StatsTeamNameMapper() {
     }
 
-    public static Optional<String> toTeamCode(String footyStatsName) {
-        if (footyStatsName == null || footyStatsName.isBlank()) {
+    public static Optional<String> toTeamCode(String teamName) {
+        if (teamName == null || teamName.isBlank()) {
             return Optional.empty();
         }
-        String normalized = footyStatsName.trim().toLowerCase(Locale.ROOT);
+        String normalized = teamName.trim().toLowerCase(Locale.ROOT);
         String exact = EXACT.get(normalized);
         if (exact != null) {
             return Optional.of(exact);

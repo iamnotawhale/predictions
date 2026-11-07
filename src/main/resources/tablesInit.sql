@@ -1,25 +1,25 @@
 create table if not exists h2h
 (
-    home_team_id    integer,
-    away_team_id    integer,
-    home_team_score integer,
-    away_team_score integer,
-    league_name     varchar(255),
-    local_date_time timestamp,
-    CONSTRAINT unique_h2h UNIQUE (home_team_id, away_team_id, local_date_time)
+    home_team_id integer,
+    away_team_id integer,
+    home_score   integer,
+    away_score   integer,
+    league_name  varchar(255),
+    starts_at    timestamp,
+    CONSTRAINT unique_h2h UNIQUE (home_team_id, away_team_id, starts_at)
 );
 
 create table if not exists match
 (
     home_team_id    integer,
     away_team_id    integer,
-    home_team_score integer,
-    away_team_score integer,
-    public_id       integer,
+    home_score      integer,
+    away_score      integer,
+    id              integer,
     result          varchar(255),
     status          varchar(255),
     week_id         integer,
-    local_date_time timestamp,
+    starts_at       timestamp,
     last_processed_at timestamp,
     espn_id varchar(20),
     CONSTRAINT unique_match UNIQUE (home_team_id, away_team_id)
@@ -35,19 +35,19 @@ create table if not exists weeks
 
 create table if not exists teams
 (
-    public_id integer unique,
-    code      varchar(255),
-    name      varchar(255),
-    logo      varchar(255)
+    id   integer unique,
+    code varchar(255),
+    name varchar(255),
+    logo varchar(255)
 );
 
 create table if not exists predict
 (
-    user_id         integer,
-    match_id        integer,
-    home_team_score integer,
-    away_team_score integer,
-    points          integer,
+    user_id    integer,
+    match_id   integer,
+    home_score integer,
+    away_score integer,
+    points     integer,
     CONSTRAINT unique_predict UNIQUE (user_id, match_id)
 );
 
@@ -76,10 +76,10 @@ alter table match
     add column if not exists odd_over_under numeric(6, 2);
 
 alter table match
-    add column if not exists odd_home_team_total numeric(6, 2);
+    add column if not exists odd_home_total numeric(6, 2);
 
 alter table match
-    add column if not exists odd_away_team_total numeric(6, 2);
+    add column if not exists odd_away_total numeric(6, 2);
 
 alter table match
     add column if not exists finished_at timestamp;
@@ -89,7 +89,7 @@ alter table predict
 
 create table if not exists cup_match
 (
-    public_id             integer primary key,
+    id                    integer primary key,
     competition           varchar(64) not null,
     espn_id               varchar(32) not null,
     home_team_id          integer,
@@ -100,11 +100,11 @@ create table if not exists cup_match
     away_logo_url         varchar(512),
     home_espn_code        varchar(16),
     away_espn_code        varchar(16),
-    home_team_score       integer,
-    away_team_score       integer,
+    home_score            integer,
+    away_score            integer,
     result                varchar(16),
     status                varchar(32),
-    local_date_time       timestamp,
+    starts_at             timestamp,
     finished_at           timestamp,
     live_score_message_id integer,
     constraint unique_cup_match_espn unique (competition, espn_id)
@@ -112,10 +112,10 @@ create table if not exists cup_match
 
 create table if not exists user_week_bonus_match
 (
-    user_id         integer   not null,
-    week_id         integer   not null,
-    match_public_id integer   not null,
-    created_at      timestamp not null default now(),
+    user_id    integer   not null,
+    week_id    integer   not null,
+    match_id   integer   not null,
+    created_at timestamp not null default now(),
     primary key (user_id, week_id)
 );
 
@@ -128,11 +128,11 @@ create table if not exists notification_weekly_results_sent
 create table if not exists notification_reminder_sent
 (
     user_id integer,
-    match_public_id integer,
+    match_id integer,
     reminder_minutes integer,
     sent_at timestamp not null,
     telegram_message_id integer,
-    primary key (user_id, match_public_id, reminder_minutes)
+    primary key (user_id, match_id, reminder_minutes)
 );
 
 alter table notification_reminder_sent
@@ -176,7 +176,7 @@ create table if not exists recommender_league_snapshot
 
 create table if not exists fixture_xg
 (
-    fixture_id integer primary key,
+    match_id integer primary key,
     home_team_id integer not null,
     away_team_id integer not null,
     home_xg numeric(8, 4),
@@ -186,12 +186,12 @@ create table if not exists fixture_xg
 
 create table if not exists match_recommendation
 (
-    match_public_id integer primary key,
+    match_id integer primary key,
     week_id integer not null,
     recommended_home integer not null,
     recommended_away integer not null,
-    expected_home_goals numeric(6, 3) not null,
-    expected_away_goals numeric(6, 3) not null,
+    expected_home numeric(6, 3) not null,
+    expected_away numeric(6, 3) not null,
     score_probability numeric(8, 6),
     explanation_json text not null,
     computed_at timestamp not null,
@@ -201,9 +201,6 @@ create table if not exists match_recommendation
     shadow_home integer,
     shadow_away integer
 );
-
-
-
 
 create table if not exists cup_match_tip
 (

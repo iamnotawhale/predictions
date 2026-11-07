@@ -65,7 +65,7 @@ public class AdminMatchService {
 
     public AdminMatchDetailResponse getMatch(String telegramId, int publicId) {
         adminGuard.requireAdmin(telegramId);
-        Match match = matchService.findByPublicId(publicId);
+        Match match = matchService.findById(publicId);
         if (match == null) {
             throw new MiniAppException(404, "Матч не найден.");
         }
@@ -75,7 +75,7 @@ public class AdminMatchService {
     @Transactional
     public AdminRowMutationResponse patchMatch(String telegramId, int publicId, AdminMatchPatchRequest body) {
         adminGuard.requireAdmin(telegramId);
-        Match match = matchService.findByPublicId(publicId);
+        Match match = matchService.findById(publicId);
         if (match == null) {
             throw new MiniAppException(404, "Матч не найден.");
         }
@@ -91,11 +91,11 @@ public class AdminMatchService {
         boolean scoreOrStatusChanged = false;
         String prevStatus = match.getStatus();
         if (body.homeScore() != null) {
-            match.setHomeTeamScore(body.homeScore());
+            match.setHomeScore(body.homeScore());
             scoreOrStatusChanged = true;
         }
         if (body.awayScore() != null) {
-            match.setAwayTeamScore(body.awayScore());
+            match.setAwayScore(body.awayScore());
             scoreOrStatusChanged = true;
         }
         if (body.status() != null && !body.status().isBlank()) {
@@ -103,12 +103,12 @@ public class AdminMatchService {
             scoreOrStatusChanged = true;
         }
         if (body.kickoffLocal() != null && !body.kickoffLocal().isBlank()) {
-            match.setLocalDateTime(parseKickoffLocal(body.kickoffLocal()));
+            match.setStartsAt(parseKickoffLocal(body.kickoffLocal()));
         }
         if (scoreOrStatusChanged
-                && match.getHomeTeamScore() != null
-                && match.getAwayTeamScore() != null) {
-            match.setResult(findResult(match.getHomeTeamScore(), match.getAwayTeamScore()));
+                && match.getHomeScore() != null
+                && match.getAwayScore() != null) {
+            match.setResult(findResult(match.getHomeScore(), match.getAwayScore()));
         }
         if ("ft".equals(match.getStatus()) && !"ft".equals(prevStatus) && match.getFinishedAt() == null) {
             match.setFinishedAt(LocalDateTime.now(AppTimeZones.DISPLAY));
@@ -133,8 +133,8 @@ public class AdminMatchService {
     private boolean shouldRecalc(Match match, boolean scoreOrStatusChanged) {
         return scoreOrStatusChanged
                 && "ft".equals(match.getStatus())
-                && match.getHomeTeamScore() != null
-                && match.getAwayTeamScore() != null;
+                && match.getHomeScore() != null
+                && match.getAwayScore() != null;
     }
 
     private AdminMatchListItem toListItem(Match match) {
@@ -142,27 +142,27 @@ public class AdminMatchService {
         return new AdminMatchListItem(
                 card,
                 espnSyncGuard.isEplMatchEditBlocked(match),
-                formatKickoffLocal(match.getLocalDateTime())
+                formatKickoffLocal(match.getStartsAt())
         );
     }
 
     private AdminMatchDetailResponse toDetail(Match match) {
-        List<Prediction> predictions = predictionService.getByMatchPublicId(match.getPublicId());
+        List<Prediction> predictions = predictionService.getByMatchPublicId(match.getId());
         Map<Integer, User> usersById = userService.findAll().stream()
                 .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
         List<AdminPredictionItem> rows = new ArrayList<>();
         for (Prediction p : predictions) {
             User u = usersById.get(p.getUserId());
             boolean weekBonus = userWeekBonusMatchService.findAssigned(p.getUserId(), match.getWeekId())
-                    .map(id -> id == match.getPublicId())
+                    .map(id -> id == match.getId())
                     .orElse(false);
             rows.add(new AdminPredictionItem(
                     p.getUserId(),
                     u != null ? u.getLogin() : ("user#" + p.getUserId()),
                     u != null ? u.getTelegramId() : null,
                     u != null ? u.getRole() : null,
-                    p.getHomeTeamScore(),
-                    p.getAwayTeamScore(),
+                    p.getHomeScore(),
+                    p.getAwayScore(),
                     p.getPoints(),
                     weekBonus
             ));
@@ -178,7 +178,7 @@ public class AdminMatchService {
         return new AdminMatchDetailResponse(
                 card,
                 espnSyncGuard.isEplMatchEditBlocked(match),
-                formatKickoffLocal(match.getLocalDateTime()),
+                formatKickoffLocal(match.getStartsAt()),
                 rows,
                 usersTotal,
                 predictionsCount,

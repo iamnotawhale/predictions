@@ -17,8 +17,8 @@ class MatchMessageFormatterTest {
     @BeforeEach
     void setUpTeams() {
         DaoUtil.TEAMS.clear();
-        DaoUtil.TEAMS.put(1, Team.builder().publicId(1).code("ARS").name("Arsenal").build());
-        DaoUtil.TEAMS.put(2, Team.builder().publicId(2).code("CHE").name("Chelsea").build());
+        DaoUtil.TEAMS.put(1, Team.builder().id(1).code("ARS").name("Arsenal").build());
+        DaoUtil.TEAMS.put(2, Team.builder().id(2).code("CHE").name("Chelsea").build());
     }
 
     @AfterEach
@@ -31,10 +31,10 @@ class MatchMessageFormatterTest {
         Match match = Match.builder()
                 .homeTeamId(1)
                 .awayTeamId(2)
-                .homeTeamScore(2)
-                .awayTeamScore(1)
+                .homeScore(2)
+                .awayScore(1)
                 .status("ft")
-                .localDateTime(LocalDateTime.of(2026, 8, 29, 17, 0))
+                .startsAt(LocalDateTime.of(2026, 8, 29, 17, 0))
                 .build();
         StringBuilder sb = new StringBuilder();
         assertTrue(MatchMessageFormatter.appendMatchBody(sb, match, MatchMessageFormatter.Style.TODAY));
@@ -47,7 +47,7 @@ class MatchMessageFormatterTest {
                 .homeTeamId(1)
                 .awayTeamId(2)
                 .status("ns")
-                .localDateTime(LocalDateTime.of(2026, 8, 29, 17, 30))
+                .startsAt(LocalDateTime.of(2026, 8, 29, 17, 30))
                 .build();
         StringBuilder sb = new StringBuilder();
         assertTrue(MatchMessageFormatter.appendMatchBody(sb, match, MatchMessageFormatter.Style.TODAY));
@@ -59,8 +59,8 @@ class MatchMessageFormatterTest {
         Match match = Match.builder()
                 .homeTeamId(1)
                 .awayTeamId(2)
-                .homeTeamScore(0)
-                .awayTeamScore(0)
+                .homeScore(0)
+                .awayScore(0)
                 .status("ft")
                 .build();
         StringBuilder sb = new StringBuilder();
@@ -74,7 +74,7 @@ class MatchMessageFormatterTest {
                 .homeTeamId(1)
                 .awayTeamId(2)
                 .status("pst")
-                .localDateTime(LocalDateTime.of(2026, 8, 30, 15, 0))
+                .startsAt(LocalDateTime.of(2026, 8, 30, 15, 0))
                 .build();
         StringBuilder sb = new StringBuilder();
         assertTrue(MatchMessageFormatter.appendMatchBody(sb, match, MatchMessageFormatter.Style.UPCOMING));

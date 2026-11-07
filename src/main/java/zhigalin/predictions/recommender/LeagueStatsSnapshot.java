@@ -1,13 +1,13 @@
 package zhigalin.predictions.recommender;
 
 import java.util.List;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 
-public record LeagueStatsSnapshot(List<FootyStatsTeamSnapshot> teams, FootyStatsLeagueSnapshot league) {
+public record LeagueStatsSnapshot(List<TeamStatsSnapshot> teams, LeagueAveragesSnapshot league) {
 
-    public FootyStatsLeagueSnapshot leagueForWeek(int weekId) {
-        return new FootyStatsLeagueSnapshot(
+    public LeagueAveragesSnapshot leagueForWeek(int weekId) {
+        return new LeagueAveragesSnapshot(
                 weekId,
                 league.avgHomeScored(),
                 league.avgAwayScored(),

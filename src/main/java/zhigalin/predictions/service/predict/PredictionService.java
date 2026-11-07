@@ -100,14 +100,14 @@ public class PredictionService {
         if (prediction == null) {
             return;
         }
-        Match match = matchService.findByPublicId(prediction.getMatchPublicId());
+        Match match = matchService.findById(prediction.getMatchId());
         ScoringMode mode = scoringModeForEpl(userId, match);
         int points = computePoints(
                 mode,
-                match.getHomeTeamScore(),
-                match.getAwayTeamScore(),
-                prediction.getHomeTeamScore(),
-                prediction.getAwayTeamScore()
+                match.getHomeScore(),
+                match.getAwayScore(),
+                prediction.getHomeScore(),
+                prediction.getAwayScore()
         );
         predictionDao.updatePoints(matchId, userId, points);
     }
@@ -209,7 +209,7 @@ public class PredictionService {
         }
         List<Integer> ids = matchIds instanceof List<Integer> list ? list : List.copyOf(matchIds);
         return predictionDao.findAllByMatchIdsAndTelegramId(ids, telegramId).stream()
-                .collect(Collectors.toMap(Prediction::getMatchPublicId, p -> p, (a, b) -> a));
+                .collect(Collectors.toMap(Prediction::getMatchId, p -> p, (a, b) -> a));
     }
 
     public Map<Integer, Prediction> predictionsByCupMatchForUser(String telegramId, Collection<Integer> cupMatchIds) {
@@ -229,14 +229,14 @@ public class PredictionService {
         if (match == null) {
             return ScoringMode.EPL;
         }
-        if (userWeekBonusMatchService.isWeekBonusMatch(userId, match.getWeekId(), match.getPublicId())) {
+        if (userWeekBonusMatchService.isWeekBonusMatch(userId, match.getWeekId(), match.getId())) {
             return ScoringMode.EPL_WEEK_BONUS;
         }
         return ScoringMode.EPL;
     }
 
     private void updatePredictions(Match match, List<User> users) {
-        List<Prediction> predictions = getByMatchPublicId(match.getPublicId());
+        List<Prediction> predictions = getByMatchPublicId(match.getId());
         Map<Integer, Prediction> byUser = predictions.stream()
                 .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
         List<PredictionDao.PointsUpdate> updates = new ArrayList<>();
@@ -245,12 +245,12 @@ public class PredictionService {
             ScoringMode mode = scoringModeForEpl(user.getId(), match);
             int points = computePoints(
                     mode,
-                    match.getHomeTeamScore(),
-                    match.getAwayTeamScore(),
-                    prediction != null ? prediction.getHomeTeamScore() : null,
-                    prediction != null ? prediction.getAwayTeamScore() : null
+                    match.getHomeScore(),
+                    match.getAwayScore(),
+                    prediction != null ? prediction.getHomeScore() : null,
+                    prediction != null ? prediction.getAwayScore() : null
             );
-            updates.add(new PredictionDao.PointsUpdate(match.getPublicId(), user.getId(), points));
+            updates.add(new PredictionDao.PointsUpdate(match.getId(), user.getId(), points));
         }
         predictionDao.updatePointsBatch(updates);
     }
@@ -260,23 +260,23 @@ public class PredictionService {
             return;
         }
         List<User> users = userService.findAll();
-        List<Prediction> predictions = getByCupMatchPublicId(match.getPublicId());
+        List<Prediction> predictions = getByCupMatchPublicId(match.getId());
         Map<Integer, Prediction> byUser = predictions.stream()
                 .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
         if (!predictions.isEmpty() && predictions.size() < users.size()) {
             for (User user : users) {
                 if (!byUser.containsKey(user.getId())) {
                     save(Prediction.builder()
-                            .cupMatchId(match.getPublicId())
-                            .matchPublicId(0)
+                            .cupMatchId(match.getId())
+                            .matchId(0)
                             .points(0)
-                            .homeTeamScore(null)
-                            .awayTeamScore(null)
+                            .homeScore(null)
+                            .awayScore(null)
                             .userId(user.getId())
                             .build());
                 }
             }
-            predictions = getByCupMatchPublicId(match.getPublicId());
+            predictions = getByCupMatchPublicId(match.getId());
             byUser = predictions.stream()
                     .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
         }
@@ -285,12 +285,12 @@ public class PredictionService {
             Prediction prediction = byUser.get(user.getId());
             int points = computePoints(
                     ScoringMode.CUP,
-                    match.getHomeTeamScore(),
-                    match.getAwayTeamScore(),
-                    prediction != null ? prediction.getHomeTeamScore() : null,
-                    prediction != null ? prediction.getAwayTeamScore() : null
+                    match.getHomeScore(),
+                    match.getAwayScore(),
+                    prediction != null ? prediction.getHomeScore() : null,
+                    prediction != null ? prediction.getAwayScore() : null
             );
-            updates.add(new PredictionDao.CupPointsUpdate(match.getPublicId(), user.getId(), points));
+            updates.add(new PredictionDao.CupPointsUpdate(match.getId(), user.getId(), points));
         }
         predictionDao.updateCupPointsBatch(updates);
     }
@@ -300,8 +300,8 @@ public class PredictionService {
         List<User> users = userService.findAll();
 
         getAllByMatches(allMatches).stream()
-                .collect(Collectors.groupingBy(Prediction::getMatchPublicId))
-                .forEach((matchPublicId, predictions) -> {
+                .collect(Collectors.groupingBy(Prediction::getMatchId))
+                .forEach((matchId, predictions) -> {
                             if (!predictions.isEmpty()) {
                                 Set<Integer> predictedUserIds = predictions.stream()
                                         .map(Prediction::getUserId)
@@ -312,10 +312,10 @@ public class PredictionService {
                                 for (User user : usersWithNoPredicts) {
                                     save(
                                             Prediction.builder()
-                                                    .matchPublicId(matchPublicId)
+                                                    .matchId(matchId)
                                                     .points(-1)
-                                                    .homeTeamScore(null)
-                                                    .awayTeamScore(null)
+                                                    .homeScore(null)
+                                                    .awayScore(null)
                                                     .userId(user.getId())
                                                     .build()
                                     );
@@ -328,7 +328,7 @@ public class PredictionService {
     public void updateByMatch(Match match) {
         List<User> users = userService.findAll();
         if (match != null) {
-            List<Prediction> predictions = getByMatchPublicId(match.getPublicId());
+            List<Prediction> predictions = getByMatchPublicId(match.getId());
             if (!predictions.isEmpty() && predictions.size() < users.size()) {
                 Set<Integer> predictedUserIds = predictions.stream()
                         .map(Prediction::getUserId)
@@ -340,10 +340,10 @@ public class PredictionService {
                     ScoringMode mode = scoringModeForEpl(user.getId(), match);
                     int noBet = mode == ScoringMode.EPL_WEEK_BONUS ? -1 : -1;
                     save(Prediction.builder()
-                            .matchPublicId(match.getPublicId())
+                            .matchId(match.getId())
                             .points(noBet)
-                            .homeTeamScore(null)
-                            .awayTeamScore(null)
+                            .homeScore(null)
+                            .awayScore(null)
                             .userId(user.getId())
                             .build());
                 }

@@ -12,12 +12,12 @@ final class PointsResolver {
     }
 
     static Integer reviewPoints(Match match, Prediction prediction) {
-        return resolve(match.getStatus(), match.getHomeTeamScore(), match.getAwayTeamScore(),
+        return resolve(match.getStatus(), match.getHomeScore(), match.getAwayScore(),
                 prediction, ScoringMode.EPL);
     }
 
     static Integer cupReviewPoints(CupMatch match, Prediction prediction) {
-        return resolve(match.getStatus(), match.getHomeTeamScore(), match.getAwayTeamScore(),
+        return resolve(match.getStatus(), match.getHomeScore(), match.getAwayScore(),
                 prediction, ScoringMode.CUP);
     }
 
@@ -38,8 +38,8 @@ final class PointsResolver {
                 mode,
                 homeScore,
                 awayScore,
-                prediction != null ? prediction.getHomeTeamScore() : null,
-                prediction != null ? prediction.getAwayTeamScore() : null
+                prediction != null ? prediction.getHomeScore() : null,
+                prediction != null ? prediction.getAwayScore() : null
         );
     }
 }

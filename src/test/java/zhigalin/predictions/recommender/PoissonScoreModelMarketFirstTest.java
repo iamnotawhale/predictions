@@ -6,24 +6,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.predict.ScoringMode;
 
 class PoissonScoreModelMarketFirstTest {
 
-    private static final FootyStatsLeagueSnapshot LEAGUE =
-            new FootyStatsLeagueSnapshot(8, 1.60, 1.35, 1.35, 1.60, Instant.now());
+    private static final LeagueAveragesSnapshot LEAGUE =
+            new LeagueAveragesSnapshot(8, 1.60, 1.35, 1.35, 1.60, Instant.now());
 
-    private static FootyStatsTeamSnapshot team(String code, double sh, double ch, double sa, double ca) {
-        return new FootyStatsTeamSnapshot(code, (sh + sa) / 2, sh, sa, (ch + ca) / 2, ch, ca,
-                null, null, null, null, null, FootyStatsExtendedMetrics.empty(), Instant.now());
+    private static TeamStatsSnapshot team(String code, double sh, double ch, double sa, double ca) {
+        return new TeamStatsSnapshot(code, (sh + sa) / 2, sh, sa, (ch + ca) / 2, ch, ca,
+                null, null, null, null, null, ExtendedTeamMetrics.empty(), Instant.now());
     }
 
     private static PoissonScoreModel.Result run(double h, double d, double a,
-                                                FootyStatsTeamSnapshot home, FootyStatsTeamSnapshot away,
+                                                TeamStatsSnapshot home, TeamStatsSnapshot away,
                                                 Double line) {
         return PoissonScoreModel.recommend(h, d, a, home, away, LEAGUE, null, line, null, null);
     }

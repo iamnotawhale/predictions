@@ -17,27 +17,26 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Match {
 
-    /** Canonical list order: kickoff ascending, then publicId. */
-    public static final Comparator<Match> BY_KICKOFF_THEN_PUBLIC_ID = Comparator
-            .comparing(Match::getLocalDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
-            .thenComparingInt(Match::getPublicId);
+    public static final Comparator<Match> BY_KICKOFF_THEN_ID = Comparator
+            .comparing(Match::getStartsAt, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparingInt(Match::getId);
 
-    @JsonProperty("public_id")
-    private int publicId;
+    @JsonProperty("id")
+    private int id;
     @JsonProperty("week_id")
     private int weekId;
     @JsonProperty("home_team_id")
     private int homeTeamId;
     @JsonProperty("away_team_id")
     private int awayTeamId;
-    @JsonProperty("home_team_score")
-    private Integer homeTeamScore;
-    @JsonProperty("away_team_score")
-    private Integer awayTeamScore;
+    @JsonProperty("home_score")
+    private Integer homeScore;
+    @JsonProperty("away_score")
+    private Integer awayScore;
     private String result;
     private String status;
-    @JsonProperty("local_date_time")
-    private LocalDateTime localDateTime;
+    @JsonProperty("starts_at")
+    private LocalDateTime startsAt;
     @JsonProperty("last_processed_at")
     private LocalDateTime lastProcessedAt;
     @JsonProperty("espn_id")
@@ -48,6 +47,6 @@ public class Match {
     private LocalDateTime finishedAt;
 
     public LocalDateTime sortTime() {
-        return finishedAt != null ? finishedAt : localDateTime;
+        return finishedAt != null ? finishedAt : startsAt;
     }
 }

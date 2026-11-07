@@ -27,7 +27,7 @@ class CupOddsModelTest {
         return CupOddsModel.fromEspnSummary(root()).orElseThrow();
     }
 
-    private static double expectedHomeGoals(double[][] matrix) {
+    private static double expectedHome(double[][] matrix) {
         double sum = 0;
         for (int h = 0; h < matrix.length; h++) {
             for (int a = 0; a < matrix[h].length; a++) {
@@ -108,8 +108,8 @@ class CupOddsModelTest {
         CupOddsModel.Form homeOnFire = new CupOddsModel.Form(
                 new CupOddsModel.TeamForm(30, 5, 5, "Premier League"),
                 new CupOddsModel.TeamForm(5, 30, 5, "Premier League"), null);
-        double plain = expectedHomeGoals(CupOddsModel.scoreMatrix(market, total, null));
-        double tilted = expectedHomeGoals(CupOddsModel.scoreMatrix(market, total, homeOnFire));
+        double plain = expectedHome(CupOddsModel.scoreMatrix(market, total, null));
+        double tilted = expectedHome(CupOddsModel.scoreMatrix(market, total, homeOnFire));
         assertTrue(tilted > plain, "plain=" + plain + " tilted=" + tilted);
     }
 

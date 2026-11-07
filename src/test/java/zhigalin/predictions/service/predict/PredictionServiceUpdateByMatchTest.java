@@ -51,10 +51,10 @@ class PredictionServiceUpdateByMatchTest {
     @Test
     void updateByMatch_batchesComputedPointsForAllUsers() {
         Match match = Match.builder()
-                .publicId(100)
+                .id(100)
                 .weekId(1)
-                .homeTeamScore(2)
-                .awayTeamScore(1)
+                .homeScore(2)
+                .awayScore(1)
                 .status("ft")
                 .build();
         User u1 = User.builder().id(1).login("aaa").build();
@@ -64,10 +64,10 @@ class PredictionServiceUpdateByMatchTest {
 
         when(userService.findAll()).thenReturn(List.of(u1, u2, u3, u4));
         when(predictionDao.findAllByMatchIds(List.of(100))).thenReturn(List.of(
-                Prediction.builder().matchPublicId(100).userId(1).homeTeamScore(2).awayTeamScore(1).build(),
-                Prediction.builder().matchPublicId(100).userId(2).homeTeamScore(3).awayTeamScore(2).build(),
-                Prediction.builder().matchPublicId(100).userId(3).homeTeamScore(0).awayTeamScore(1).build(),
-                Prediction.builder().matchPublicId(100).userId(4).homeTeamScore(null).awayTeamScore(null).build()
+                Prediction.builder().matchId(100).userId(1).homeScore(2).awayScore(1).build(),
+                Prediction.builder().matchId(100).userId(2).homeScore(3).awayScore(2).build(),
+                Prediction.builder().matchId(100).userId(3).homeScore(0).awayScore(1).build(),
+                Prediction.builder().matchId(100).userId(4).homeScore(null).awayScore(null).build()
         ));
 
         predictionService.updateByMatch(match);
@@ -88,10 +88,10 @@ class PredictionServiceUpdateByMatchTest {
     @Test
     void updateByMatch_fillsMissingPredictsWhenFewerThanUsers() {
         Match match = Match.builder()
-                .publicId(200)
+                .id(200)
                 .weekId(1)
-                .homeTeamScore(1)
-                .awayTeamScore(0)
+                .homeScore(1)
+                .awayScore(0)
                 .status("ft")
                 .build();
         User u1 = User.builder().id(1).login("aaa").build();
@@ -101,12 +101,12 @@ class PredictionServiceUpdateByMatchTest {
 
         when(userService.findAll()).thenReturn(List.of(u1, u2, u3, u4));
         when(predictionDao.findAllByMatchIds(List.of(200))).thenReturn(
-                List.of(Prediction.builder().matchPublicId(200).userId(1).homeTeamScore(1).awayTeamScore(0).build()),
+                List.of(Prediction.builder().matchId(200).userId(1).homeScore(1).awayScore(0).build()),
                 List.of(
-                        Prediction.builder().matchPublicId(200).userId(1).homeTeamScore(1).awayTeamScore(0).build(),
-                        Prediction.builder().matchPublicId(200).userId(2).homeTeamScore(null).awayTeamScore(null).points(-1).build(),
-                        Prediction.builder().matchPublicId(200).userId(3).homeTeamScore(null).awayTeamScore(null).points(-1).build(),
-                        Prediction.builder().matchPublicId(200).userId(4).homeTeamScore(null).awayTeamScore(null).points(-1).build()
+                        Prediction.builder().matchId(200).userId(1).homeScore(1).awayScore(0).build(),
+                        Prediction.builder().matchId(200).userId(2).homeScore(null).awayScore(null).points(-1).build(),
+                        Prediction.builder().matchId(200).userId(3).homeScore(null).awayScore(null).points(-1).build(),
+                        Prediction.builder().matchId(200).userId(4).homeScore(null).awayScore(null).points(-1).build()
                 )
         );
 

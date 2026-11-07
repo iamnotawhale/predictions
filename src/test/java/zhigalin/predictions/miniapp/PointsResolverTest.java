@@ -13,11 +13,11 @@ import zhigalin.predictions.service.predict.ScoringMode;
 class PointsResolverTest {
 
     private static Prediction prediction(Integer home, Integer away, Integer points) {
-        return Prediction.builder().homeTeamScore(home).awayTeamScore(away).points(points).build();
+        return Prediction.builder().homeScore(home).awayScore(away).points(points).build();
     }
 
     private static Match match(String status, Integer home, Integer away) {
-        return Match.builder().status(status).homeTeamScore(home).awayTeamScore(away).build();
+        return Match.builder().status(status).homeScore(home).awayScore(away).build();
     }
 
     @Test
@@ -46,7 +46,7 @@ class PointsResolverTest {
     @Test
     void missingPredictionPenalisedInEplButNotInCup() {
         assertEquals(-1, PointsResolver.reviewPoints(match("ft", 1, 0), null));
-        CupMatch cup = CupMatch.builder().status("ft").homeTeamScore(1).awayTeamScore(0).build();
+        CupMatch cup = CupMatch.builder().status("ft").homeScore(1).awayScore(0).build();
         assertEquals(0, PointsResolver.cupReviewPoints(cup, null));
     }
 

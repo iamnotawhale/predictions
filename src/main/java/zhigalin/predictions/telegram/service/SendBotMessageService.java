@@ -180,8 +180,8 @@ public class SendBotMessageService {
         Integer predictHomeScore = null;
         Integer predictAwayScore = null;
         if (prediction != null) {
-            predictHomeScore = prediction.getHomeTeamScore();
-            predictAwayScore = prediction.getAwayTeamScore();
+            predictHomeScore = prediction.getHomeScore();
+            predictAwayScore = prediction.getAwayScore();
         }
 
         InlineKeyboardMarkup keyBoard = new InlineKeyboardMarkup();
@@ -270,7 +270,7 @@ public class SendBotMessageService {
         Set<Integer> predictableMatchIds = new HashSet<>(predictableMatches);
         int matchNum = 1;
         List<InlineKeyboardButton> innerList = new ArrayList<>();
-        List<Match> ordered = matches.stream().sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID).toList();
+        List<Match> ordered = matches.stream().sorted(Match.BY_KICKOFF_THEN_ID).toList();
         for (Match match : ordered) {
             if (matchNum > 1 && matchNum % 2 == 1) {
                 listOfKeyboardRows.add(innerList);
@@ -285,7 +285,7 @@ public class SendBotMessageService {
             String awayTeam = away.getCode();
 
             String buttonName = String.join("-", homeTeam, awayTeam);
-            if (predictableMatchIds.contains(match.getPublicId())) {
+            if (predictableMatchIds.contains(match.getId())) {
                 buttonName += " *";
             }
 
@@ -311,9 +311,9 @@ public class SendBotMessageService {
         List<InlineKeyboardButton> innerList = new ArrayList<>();
         List<MatchPrediction> ordered = matchPredictions.stream()
                 .sorted(Comparator.comparing(
-                                (MatchPrediction mp) -> mp.match().getLocalDateTime(),
+                                (MatchPrediction mp) -> mp.match().getStartsAt(),
                                 Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparingInt(mp -> mp.match().getPublicId()))
+                        .thenComparingInt(mp -> mp.match().getId()))
                 .toList();
         for (MatchPrediction matchPrediction : ordered) {
             if (predictNum > 1 && predictNum % 2 == 1) {
@@ -323,8 +323,8 @@ public class SendBotMessageService {
             String homeTeam = DaoUtil.TEAMS.get(matchPrediction.match().getHomeTeamId()).getCode();
             String awayTeam = DaoUtil.TEAMS.get(matchPrediction.match().getAwayTeamId()).getCode();
 
-            String homeTeamScore = String.valueOf(matchPrediction.prediction().getHomeTeamScore());
-            String awayTeamScore = String.valueOf(matchPrediction.prediction().getAwayTeamScore());
+            String homeTeamScore = String.valueOf(matchPrediction.prediction().getHomeScore());
+            String awayTeamScore = String.valueOf(matchPrediction.prediction().getAwayScore());
 
             InlineKeyboardButton button = new InlineKeyboardButton(
                     String.join(" ",

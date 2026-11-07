@@ -165,11 +165,11 @@ public class TeamLogoCacheService {
                 continue;
             }
             try {
-                if (bytesForTeam(team.getPublicId()) != null) {
+                if (bytesForTeam(team.getId()) != null) {
                     ok++;
                 }
             } catch (Exception e) {
-                log.warn("Logo warm failed team={}: {}", team.getPublicId(), e.getMessage());
+                log.warn("Logo warm failed team={}: {}", team.getId(), e.getMessage());
             }
         }
         log.info("Team logo cache warm: {}/{} teams", ok, DaoUtil.TEAMS.size());

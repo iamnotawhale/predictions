@@ -23,7 +23,7 @@ final class LiveScoreState {
         if (hasEspnId(match)) {
             return espnKey(match);
         }
-        if (match.getPublicId() != 0) {
+        if (match.getId() != 0) {
             return publicKey(match);
         }
         String homeCode = home != null ? home.getCode() : String.valueOf(match.getHomeTeamId());
@@ -94,7 +94,7 @@ final class LiveScoreState {
     /** pub → espn → teams, in lookup order; only those that apply to this match. */
     private static List<String> aliasKeys(Match match, Team home, Team away) {
         List<String> keys = new ArrayList<>();
-        if (match.getPublicId() != 0) {
+        if (match.getId() != 0) {
             keys.add(publicKey(match));
         }
         if (hasEspnId(match)) {
@@ -115,6 +115,6 @@ final class LiveScoreState {
     }
 
     private static String publicKey(Match match) {
-        return "pub:" + match.getPublicId();
+        return "pub:" + match.getId();
     }
 }

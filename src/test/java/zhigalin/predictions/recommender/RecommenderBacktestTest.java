@@ -13,9 +13,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import org.junit.jupiter.api.Test;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.predict.ScoringMode;
 
@@ -29,12 +29,12 @@ import zhigalin.predictions.service.predict.ScoringMode;
  */
 class RecommenderBacktestTest {
 
-    private static final FootyStatsLeagueSnapshot LEAGUE =
-            new FootyStatsLeagueSnapshot(10, 1.65, 1.37, 1.37, 1.65, Instant.now());
+    private static final LeagueAveragesSnapshot LEAGUE =
+            new LeagueAveragesSnapshot(10, 1.65, 1.37, 1.37, 1.65, Instant.now());
 
-    private static FootyStatsTeamSnapshot neutralTeam(String code) {
-        return new FootyStatsTeamSnapshot(code, 1.5, 1.65, 1.37, 1.5, 1.37, 1.65,
-                null, null, null, null, null, FootyStatsExtendedMetrics.empty(), Instant.now());
+    private static TeamStatsSnapshot neutralTeam(String code) {
+        return new TeamStatsSnapshot(code, 1.5, 1.65, 1.37, 1.5, 1.37, 1.65,
+                null, null, null, null, null, ExtendedTeamMetrics.empty(), Instant.now());
     }
 
     @Test

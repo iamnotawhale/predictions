@@ -14,9 +14,9 @@ import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.input.Response;
 import zhigalin.predictions.model.input.Score;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.api.ApiFootballClient;
 import zhigalin.predictions.util.DaoUtil;
@@ -61,7 +61,7 @@ public class ApiFootballStatsSnapshotService {
         Map<Integer, ApiFootballFixtureXgDao.XgRow> xgByFixture = new HashMap<>();
         for (ApiFootballFixtureXgDao.XgRow row : fixtureXgDao.findAll()) {
             if (row.hasXg()) {
-                xgByFixture.put(row.fixtureId(), row);
+                xgByFixture.put(row.matchId(), row);
             }
         }
 
@@ -74,9 +74,9 @@ public class ApiFootballStatsSnapshotService {
             byTeam.computeIfAbsent(m.awayTeamId(), TeamAgg::new).addAway(m, awayXg, homeXg);
         }
 
-        List<FootyStatsTeamSnapshot> teams = new ArrayList<>();
+        List<TeamStatsSnapshot> teams = new ArrayList<>();
         for (TeamAgg agg : byTeam.values()) {
-            FootyStatsTeamSnapshot snap = agg.toSnapshot(fetchedAt);
+            TeamStatsSnapshot snap = agg.toSnapshot(fetchedAt);
             if (snap != null) {
                 teams.add(snap);
             }
@@ -87,7 +87,7 @@ public class ApiFootballStatsSnapshotService {
             );
         }
 
-        FootyStatsLeagueSnapshot league = buildLeagueSnapshot(teams, fetchedAt);
+        LeagueAveragesSnapshot league = buildLeagueSnapshot(teams, fetchedAt);
         log.info(
                 "ApiFootball snapshot complete: {} teams, {} finished fixtures, {} xG rows cached",
                 teams.size(),
@@ -245,11 +245,11 @@ public class ApiFootballStatsSnapshotService {
         return new FinishedMatch(r.getFixture().getPublicId(), homeId, awayId, hg, ag, htH, htA, ts);
     }
 
-    private static FootyStatsLeagueSnapshot buildLeagueSnapshot(List<FootyStatsTeamSnapshot> teams, Instant fetchedAt) {
-        double homeScored = average(teams.stream().map(FootyStatsTeamSnapshot::scoredHome).toList());
-        double awayScored = average(teams.stream().map(FootyStatsTeamSnapshot::scoredAway).toList());
-        double homeConceded = average(teams.stream().map(FootyStatsTeamSnapshot::concededHome).toList());
-        double awayConceded = average(teams.stream().map(FootyStatsTeamSnapshot::concededAway).toList());
+    private static LeagueAveragesSnapshot buildLeagueSnapshot(List<TeamStatsSnapshot> teams, Instant fetchedAt) {
+        double homeScored = average(teams.stream().map(TeamStatsSnapshot::scoredHome).toList());
+        double awayScored = average(teams.stream().map(TeamStatsSnapshot::scoredAway).toList());
+        double homeConceded = average(teams.stream().map(TeamStatsSnapshot::concededHome).toList());
+        double awayConceded = average(teams.stream().map(TeamStatsSnapshot::concededAway).toList());
         if (homeScored <= 0) {
             homeScored = 1.48;
         }
@@ -262,7 +262,7 @@ public class ApiFootballStatsSnapshotService {
         if (awayConceded <= 0) {
             awayConceded = awayScored;
         }
-        return new FootyStatsLeagueSnapshot(0, homeScored, awayScored, homeConceded, awayConceded, fetchedAt);
+        return new LeagueAveragesSnapshot(0, homeScored, awayScored, homeConceded, awayConceded, fetchedAt);
     }
 
     private static double average(List<Double> values) {
@@ -491,7 +491,7 @@ public class ApiFootballStatsSnapshotService {
             return 0;
         }
 
-        private FootyStatsTeamSnapshot toSnapshot(Instant fetchedAt) {
+        private TeamStatsSnapshot toSnapshot(Instant fetchedAt) {
             Team team = DaoUtil.TEAMS.get(teamId);
             if (team == null || team.getCode() == null || team.getCode().isBlank()) {
                 log.warn("ApiFootball snapshot: unknown team id {}", teamId);
@@ -526,7 +526,7 @@ public class ApiFootballStatsSnapshotService {
             Double actualPts = xgReady ? (double) actualPtsOnXg : null;
             Double xPtsDelta = xPts != null && actualPts != null ? actualPts - xPts : null;
 
-            FootyStatsExtendedMetrics ext = FootyStatsExtendedMetrics.builder()
+            ExtendedTeamMetrics ext = ExtendedTeamMetrics.builder()
                     .formBtts(form.bttsPct, formHome.bttsPct, formAway.bttsPct)
                     .formCs(form.csPct, formHome.csPct, formAway.csPct)
                     .formAvgGoals(form.avgGoals, formHome.avgGoals, formAway.avgGoals)
@@ -555,7 +555,7 @@ public class ApiFootballStatsSnapshotService {
                     .losingAtHtPct(pct(trailingAtHt, htSample))
                     .build();
 
-            return new FootyStatsTeamSnapshot(
+            return new TeamStatsSnapshot(
                     team.getCode(),
                     scoredOverall,
                     scoredHome,

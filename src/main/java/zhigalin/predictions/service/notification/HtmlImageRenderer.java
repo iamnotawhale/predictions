@@ -95,14 +95,14 @@ public class HtmlImageRenderer {
         return renderHtml(CardHtml.buildTodayHtml(toTodayCard(list)), "epl");
     }
 
-    public String createReminderImage(int matchPublicId, int homeTeamId, int awayTeamId, String kickoff) {
-        return createReminderImage(matchPublicId, homeTeamId, awayTeamId, kickoff, false);
+    public String createReminderImage(int matchId, int homeTeamId, int awayTeamId, String kickoff) {
+        return createReminderImage(matchId, homeTeamId, awayTeamId, kickoff, false);
     }
 
     public String createReminderImage(
-            int matchPublicId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
+            int matchId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
     ) {
-        ReminderCard card = buildReminderCard(matchPublicId, homeTeamId, awayTeamId, kickoff, weekBonus);
+        ReminderCard card = buildReminderCard(matchId, homeTeamId, awayTeamId, kickoff, weekBonus);
         return renderHtml(CardHtml.buildReminderHtml(card), card.accent());
     }
 
@@ -134,7 +134,7 @@ public class HtmlImageRenderer {
     }
 
     public String createEplResultImage(
-            int matchPublicId,
+            int matchId,
             int homeTeamId,
             int awayTeamId,
             String score,
@@ -178,8 +178,8 @@ public class HtmlImageRenderer {
         }
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
-        String kickoff = match.getLocalDateTime() != null
-                ? match.getLocalDateTime().toLocalTime().toString().substring(0, 5)
+        String kickoff = match.getStartsAt() != null
+                ? match.getStartsAt().toLocalTime().toString().substring(0, 5)
                 : "--:--";
         YourPredictCard card = new YourPredictCard(
                 home != null ? home.getCode() : "?",
@@ -194,17 +194,17 @@ public class HtmlImageRenderer {
     }
 
     private ReminderCard buildReminderCard(
-            int matchPublicId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
+            int matchId, int homeTeamId, int awayTeamId, String kickoff, boolean weekBonus
     ) {
         Team home = DaoUtil.TEAMS.get(homeTeamId);
         Team away = DaoUtil.TEAMS.get(awayTeamId);
-        Odd odd = oddsService.getOdd(matchPublicId);
+        Odd odd = oddsService.getOdd(matchId);
         if (odd == null) {
             Match matchForOdds = matchService.findByTeamIds(homeTeamId, awayTeamId);
             if (matchForOdds != null) {
                 oddsService.ensureFresh(List.of(matchForOdds));
             }
-            odd = oddsService.getOdd(matchPublicId);
+            odd = oddsService.getOdd(matchId);
         }
         List<FormChip> homeForm = formChips(matchService.findLast5MatchesByTeamId(homeTeamId), homeTeamId);
         List<FormChip> awayForm = formChips(matchService.findLast5MatchesByTeamId(awayTeamId), awayTeamId);
@@ -216,7 +216,7 @@ public class HtmlImageRenderer {
                 h2hChips.add(new H2hChip(
                         CardLogos.resolveLogoSrc(row.getHomeTeamId(), null),
                         CardLogos.resolveLogoSrc(row.getAwayTeamId(), null),
-                        row.getHomeTeamScore() + ":" + row.getAwayTeamScore()
+                        row.getHomeScore() + ":" + row.getAwayScore()
                 ));
             }
         }
@@ -244,14 +244,14 @@ public class HtmlImageRenderer {
             return chips;
         }
         for (Match m : matches) {
-            if (m.getHomeTeamScore() == null || m.getAwayTeamScore() == null) {
+            if (m.getHomeScore() == null || m.getAwayScore() == null) {
                 continue;
             }
             boolean isHome = m.getHomeTeamId() == teamId;
             int opponentId = isHome ? m.getAwayTeamId() : m.getHomeTeamId();
             String score = isHome
-                    ? m.getHomeTeamScore() + ":" + m.getAwayTeamScore()
-                    : m.getAwayTeamScore() + ":" + m.getHomeTeamScore();
+                    ? m.getHomeScore() + ":" + m.getAwayScore()
+                    : m.getAwayScore() + ":" + m.getHomeScore();
             chips.add(new FormChip(CardLogos.resolveLogoSrc(opponentId, null), score));
             if (chips.size() >= 5) {
                 break;
@@ -273,13 +273,13 @@ public class HtmlImageRenderer {
     static TodayCard toTodayCard(List<MatchRecord> list) {
         List<MatchRecord> epl = list.stream()
                 .filter(m -> !m.isCup())
-                .sorted(Comparator.comparing(MatchRecord::localDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparingInt(MatchRecord::publicId))
+                .sorted(Comparator.comparing(MatchRecord::startsAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparingInt(MatchRecord::id))
                 .toList();
         List<MatchRecord> cups = list.stream()
                 .filter(MatchRecord::isCup)
-                .sorted(Comparator.comparing(MatchRecord::localDateTime, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparingInt(MatchRecord::publicId))
+                .sorted(Comparator.comparing(MatchRecord::startsAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparingInt(MatchRecord::id))
                 .toList();
 
         List<TodaySection> sections = new ArrayList<>();
@@ -294,7 +294,7 @@ public class HtmlImageRenderer {
                 .collect(Collectors.groupingBy(MatchRecord::competition, LinkedHashMap::new, Collectors.toList()))
                 .entrySet().stream()
                 .sorted(Comparator.comparing(
-                        e -> e.getValue().getFirst().localDateTime(),
+                        e -> e.getValue().getFirst().startsAt(),
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .forEach(e -> sections.add(new TodaySection(
                         cupSectionTitle(e.getKey()),
@@ -305,8 +305,8 @@ public class HtmlImageRenderer {
     }
 
     private static TodayRow toTodayRow(MatchRecord mr) {
-        String kickoff = mr.localDateTime() != null
-                ? mr.localDateTime().toLocalTime().toString().substring(0, 5)
+        String kickoff = mr.startsAt() != null
+                ? mr.startsAt().toLocalTime().toString().substring(0, 5)
                 : "--:--";
         return new TodayRow(
                 displayCode(mr, true),

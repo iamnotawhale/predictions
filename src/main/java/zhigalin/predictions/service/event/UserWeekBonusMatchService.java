@@ -41,12 +41,12 @@ public class UserWeekBonusMatchService {
         return dao.findMatchPublicId(userId, weekId);
     }
 
-    public boolean isWeekBonusMatch(int userId, int weekId, int matchPublicId) {
+    public boolean isWeekBonusMatch(int userId, int weekId, int matchId) {
         if (!isEligibleWeek(weekId)) {
             return false;
         }
         return dao.findMatchPublicId(userId, weekId)
-                .map(id -> id == matchPublicId)
+                .map(id -> id == matchId)
                 .orElse(false);
     }
 
@@ -87,7 +87,7 @@ public class UserWeekBonusMatchService {
                 continue;
             }
             Match pick = pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
-            dao.insert(user.getId(), weekId, pick.getPublicId());
+            dao.insert(user.getId(), weekId, pick.getId());
         }
     }
 }

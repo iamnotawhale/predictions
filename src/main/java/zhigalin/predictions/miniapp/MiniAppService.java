@@ -82,9 +82,9 @@ import zhigalin.predictions.service.api.InjuryService;
 import zhigalin.predictions.service.api.InjuryService.InjuryInfo;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TeamSeasonStats;
-import zhigalin.predictions.recommender.FootyStatsStatsDao;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.RecommenderStatsDao;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.service.DataInitService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -113,7 +113,7 @@ public class MiniAppService {
     private final TeamLogoCacheService teamLogoCacheService;
     private final EspnTeamRosterService espnTeamRosterService;
     private final EspnTeamSeasonStatsService espnTeamSeasonStatsService;
-    private final FootyStatsStatsDao footyStatsStatsDao;
+    private final RecommenderStatsDao recommenderStatsDao;
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
@@ -135,7 +135,7 @@ public class MiniAppService {
             TeamLogoCacheService teamLogoCacheService,
             EspnTeamRosterService espnTeamRosterService,
             EspnTeamSeasonStatsService espnTeamSeasonStatsService,
-            FootyStatsStatsDao footyStatsStatsDao,
+            RecommenderStatsDao recommenderStatsDao,
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
@@ -156,7 +156,7 @@ public class MiniAppService {
         this.teamLogoCacheService = teamLogoCacheService;
         this.espnTeamRosterService = espnTeamRosterService;
         this.espnTeamSeasonStatsService = espnTeamSeasonStatsService;
-        this.footyStatsStatsDao = footyStatsStatsDao;
+        this.recommenderStatsDao = recommenderStatsDao;
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
@@ -252,19 +252,19 @@ public class MiniAppService {
         oddsService.refreshAsyncIfStale(matches);
         Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
                 telegramId,
-                matches.stream().map(Match::getPublicId).toList()
+                matches.stream().map(Match::getId).toList()
         );
         Integer bonusId = userWeekBonusMatchService.findAssigned(user.getId(), weekId).orElse(null);
         return matches.stream()
                 .map(match -> {
-                    Prediction prediction = predictions.get(match.getPublicId());
+                    Prediction prediction = predictions.get(match.getId());
                     return toMatchItem(
                             match,
                             telegramId,
                             prediction != null,
                             prediction,
                             null,
-                            bonusId != null && bonusId == match.getPublicId()
+                            bonusId != null && bonusId == match.getId()
                     );
                 })
                 .toList();
@@ -274,10 +274,10 @@ public class MiniAppService {
         requireUser(telegramId);
         List<MatchPrediction> rows = predictionService.getAllWeeklyPredictionsByUserTelegramId(weekId, telegramId);
         Map<Integer, int[]> kickoffs = bettingRecommendationService.kickoffScoresByMatchIds(
-                rows.stream().map(mp -> mp.match().getPublicId()).toList()
+                rows.stream().map(mp -> mp.match().getId()).toList()
         );
         return rows.stream()
-                .map(mp -> toMatchItem(mp.match(), telegramId, true, mp.prediction(), kickoffs.get(mp.match().getPublicId()), false))
+                .map(mp -> toMatchItem(mp.match(), telegramId, true, mp.prediction(), kickoffs.get(mp.match().getId()), false))
                 .toList();
     }
 
@@ -293,11 +293,11 @@ public class MiniAppService {
         boolean hasPrediction = prediction != null;
         int[] kickoff = match == null
                 ? null
-                : bettingRecommendationService.kickoffScore(match.getPublicId()).orElse(null);
+                : bettingRecommendationService.kickoffScore(match.getId()).orElse(null);
         boolean weekBonus = false;
         if (match != null) {
             User user = requireUser(telegramId);
-            weekBonus = userWeekBonusMatchService.isWeekBonusMatch(user.getId(), match.getWeekId(), match.getPublicId());
+            weekBonus = userWeekBonusMatchService.isWeekBonusMatch(user.getId(), match.getWeekId(), match.getId());
         }
         return toMatchItem(match, telegramId, hasPrediction, prediction, kickoff, weekBonus);
     }
@@ -325,7 +325,7 @@ public class MiniAppService {
                 match.getAwayTeamId()
         );
         if (lineups.isEmpty()) {
-            lineups = apiClient.getLineups(match.getPublicId());
+            lineups = apiClient.getLineups(match.getId());
         }
         if (!lineups.isEmpty()) {
             homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
@@ -334,7 +334,7 @@ public class MiniAppService {
         MatchRecommendationResponse recommendation = null;
         if (user.isBettingRecommenderEnabled()) {
             bettingRecommendationService.ensureCurrentWeekRecommendations();
-            recommendation = bettingRecommendationService.recommendationForMatch(match.getPublicId())
+            recommendation = bettingRecommendationService.recommendationForMatch(match.getId())
                     .map(this::toRecommendationResponse)
                     .orElse(null);
         }
@@ -367,8 +367,8 @@ public class MiniAppService {
         return new MatchRecommendationResponse(
                 snapshot.recommendedHome(),
                 snapshot.recommendedAway(),
-                snapshot.expectedHomeGoals(),
-                snapshot.expectedAwayGoals(),
+                snapshot.expectedHome(),
+                snapshot.expectedAway(),
                 snapshot.scoreProbability(),
                 rows,
                 notes,
@@ -379,8 +379,8 @@ public class MiniAppService {
                         toRawMatrix(distribution.matrix()),
                         snapshot.recommendedHome(),
                         snapshot.recommendedAway(),
-                        snapshot.expectedHomeGoals(),
-                        snapshot.expectedAwayGoals(),
+                        snapshot.expectedHome(),
+                        snapshot.expectedAway(),
                         notes.stream().anyMatch(n -> n != null && n.startsWith("Основа прогноза"))),
                 snapshot.computedAt() != null ? snapshot.computedAt().toEpochMilli() : null,
                 snapshot.kickoffFrozenAt() != null ? snapshot.kickoffFrozenAt().toEpochMilli() : null,
@@ -433,8 +433,8 @@ public class MiniAppService {
             return emptyLiveDetails();
         }
         boolean live = MatchStatus.isLive(match.getStatus())
-                       && match.getHomeTeamScore() != null
-                       && match.getAwayTeamScore() != null;
+                       && match.getHomeScore() != null
+                       && match.getAwayScore() != null;
         if (!live) {
             return emptyLiveDetails();
         }
@@ -444,7 +444,7 @@ public class MiniAppService {
         List<LineupPlayerItem> homeLineup = EspnSummaryParser.toLineupItemsFromFormation(homeFormation);
         List<LineupPlayerItem> awayLineup = EspnSummaryParser.toLineupItemsFromFormation(awayFormation);
         if (homeLineup.isEmpty() && awayLineup.isEmpty()) {
-            Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getPublicId());
+            Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getId());
             homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
             awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
         }
@@ -460,8 +460,8 @@ public class MiniAppService {
                 matchStats,
                 EspnSummaryParser.pitchColorFromFormation(homeFormation, "#ffffff"),
                 EspnSummaryParser.pitchColorFromFormation(awayFormation, "#c0c0c0"),
-                match.getHomeTeamScore(),
-                match.getAwayTeamScore(),
+                match.getHomeScore(),
+                match.getAwayScore(),
                 match.getStatus(),
                 null
         );
@@ -469,13 +469,13 @@ public class MiniAppService {
 
     public LiveMatchDetailsResponse liveCupMatchDetails(String telegramId, int cupPublicId) {
         requireUser(telegramId);
-        CupMatch match = cupMatchDao.findByPublicId(cupPublicId);
+        CupMatch match = cupMatchDao.findById(cupPublicId);
         if (match == null) {
             return emptyLiveDetails();
         }
         boolean live = MatchStatus.isLive(match.getStatus())
-                       && match.getHomeTeamScore() != null
-                       && match.getAwayTeamScore() != null;
+                       && match.getHomeScore() != null
+                       && match.getAwayScore() != null;
         if (!live) {
             return emptyLiveDetails();
         }
@@ -583,24 +583,24 @@ public class MiniAppService {
         oddsService.refreshAsyncIfStale(matches);
         Map<Integer, Prediction> predictions = predictionService.predictionsByMatchForUser(
                 telegramId,
-                matches.stream().map(Match::getPublicId).toList()
+                matches.stream().map(Match::getId).toList()
         );
         List<MatchItem> items = new ArrayList<>(matches.stream()
                 .map(match -> {
-                    Prediction prediction = predictions.get(match.getPublicId());
+                    Prediction prediction = predictions.get(match.getId());
                     boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
-                            user.getId(), match.getWeekId(), match.getPublicId());
+                            user.getId(), match.getWeekId(), match.getId());
                     return toMatchItem(match, telegramId, prediction != null, prediction, null, weekBonus);
                 })
                 .toList());
         List<CupMatch> cups = cupMatchDao.findAllByDate(java.time.LocalDate.now());
         if (!cups.isEmpty()) {
             Map<Integer, Prediction> cupPreds = predictionService.predictionsByCupMatchForUser(
-                    telegramId, cups.stream().map(CupMatch::getPublicId).toList());
+                    telegramId, cups.stream().map(CupMatch::getId).toList());
             Map<Integer, CupOddsModel.Odds> cupOdds = cupMatchTipService.oddsFor(
-                    cups.stream().map(CupMatch::getPublicId).toList());
+                    cups.stream().map(CupMatch::getId).toList());
             for (CupMatch cup : cups) {
-                items.add(toCupMatchItem(cup, cupPreds.get(cup.getPublicId()), cupOdds.get(cup.getPublicId())));
+                items.add(toCupMatchItem(cup, cupPreds.get(cup.getId()), cupOdds.get(cup.getId())));
             }
             items.sort(Comparator
                     .comparing((MatchItem m) -> m.kickoff() == null ? "" : m.kickoff())
@@ -610,26 +610,26 @@ public class MiniAppService {
         return new TodayMatchesResponse(items, hasLive);
     }
 
-    public CrowdMeterResponse crowdMeter(String telegramId, int matchPublicId) {
+    public CrowdMeterResponse crowdMeter(String telegramId, int matchId) {
         requireUser(telegramId);
-        Match match = matchService.findByPublicId(matchPublicId);
+        Match match = matchService.findById(matchId);
         if (match == null) {
             throw new MiniAppException(404, "Матч не найден");
         }
-        List<Prediction> predictions = predictionService.getByMatchPublicId(matchPublicId).stream()
-                .filter(p -> p.getHomeTeamScore() != null && p.getAwayTeamScore() != null)
+        List<Prediction> predictions = predictionService.getByMatchPublicId(matchId).stream()
+                .filter(p -> p.getHomeScore() != null && p.getAwayScore() != null)
                 .toList();
         int total = predictions.size();
         if (total == 0) {
-            return new CrowdMeterResponse(matchPublicId, 0, 0, 0, 0, List.of());
+            return new CrowdMeterResponse(matchId, 0, 0, 0, 0, List.of());
         }
         int homeWins = 0;
         int draws = 0;
         int awayWins = 0;
         Map<String, Integer> scoreCounts = new LinkedHashMap<>();
         for (Prediction p : predictions) {
-            int hs = p.getHomeTeamScore();
-            int as = p.getAwayTeamScore();
+            int hs = p.getHomeScore();
+            int as = p.getAwayScore();
             if (hs > as) {
                 homeWins++;
             } else if (hs < as) {
@@ -646,7 +646,7 @@ public class MiniAppService {
                 .map(e -> new CrowdScoreBucket(e.getKey(), e.getValue(), MiniAppFormat.percent(e.getValue(), total)))
                 .toList();
         return new CrowdMeterResponse(
-                matchPublicId,
+                matchId,
                 total,
                 MiniAppFormat.percent(homeWins, total),
                 MiniAppFormat.percent(draws, total),
@@ -661,34 +661,34 @@ public class MiniAppService {
         Map<Integer, Prediction> predictions = predictionService.getAllWeeklyPredictionsByUserTelegramId(weekId, telegramId)
                 .stream()
                 .collect(Collectors.toMap(
-                        mp -> mp.match().getPublicId(),
+                        mp -> mp.match().getId(),
                         MatchPrediction::prediction,
                         (a, b) -> a
                 ));
         Map<Integer, int[]> kickoffs = bettingRecommendationService.kickoffScoresByMatchIds(
-                matches.stream().map(Match::getPublicId).toList()
+                matches.stream().map(Match::getId).toList()
         );
         List<WeekReviewItem> items = new ArrayList<>();
         int total = 0;
         for (Match match : matches) {
-            Prediction prediction = predictions.get(match.getPublicId());
+            Prediction prediction = predictions.get(match.getId());
             boolean hasPrediction = prediction != null
-                    && prediction.getHomeTeamScore() != null
-                    && prediction.getAwayTeamScore() != null;
+                    && prediction.getHomeScore() != null
+                    && prediction.getAwayScore() != null;
             Integer pts = PointsResolver.reviewPoints(match, prediction);
             if (pts != null) {
                 total += pts;
             }
-            int[] kickoff = kickoffs.get(match.getPublicId());
+            int[] kickoff = kickoffs.get(match.getId());
             items.add(new WeekReviewItem(
-                    match.getPublicId(),
+                    match.getId(),
                     teamCode(match.getHomeTeamId()),
                     teamCode(match.getAwayTeamId()),
                     match.getStatus(),
-                    match.getHomeTeamScore(),
-                    match.getAwayTeamScore(),
-                    hasPrediction ? prediction.getHomeTeamScore() : null,
-                    hasPrediction ? prediction.getAwayTeamScore() : null,
+                    match.getHomeScore(),
+                    match.getAwayScore(),
+                    hasPrediction ? prediction.getHomeScore() : null,
+                    hasPrediction ? prediction.getAwayScore() : null,
                     pts,
                     hasPrediction,
                     kickoff != null ? kickoff[0] : null,
@@ -802,13 +802,13 @@ public class MiniAppService {
         requireUser(telegramId);
         Team team = requireTeam(teamCode);
 
-        List<TeamMatchItem> lastMatches = matchService.findLastFinishedByTeamId(team.getPublicId(), 5).stream()
+        List<TeamMatchItem> lastMatches = matchService.findLastFinishedByTeamId(team.getId(), 5).stream()
                 .map(this::toTeamMatchItem)
                 .toList();
-        List<TeamMatchItem> upcomingMatches = matchService.findNextByTeamId(team.getPublicId(), 5).stream()
+        List<TeamMatchItem> upcomingMatches = matchService.findNextByTeamId(team.getId(), 5).stream()
                 .map(this::toTeamMatchItem)
                 .toList();
-        List<FormItem> form = buildRecentForm(team.getPublicId(), 5);
+        List<FormItem> form = buildRecentForm(team.getId(), 5);
 
         Integer place = null;
         Integer played = null;
@@ -820,7 +820,7 @@ public class MiniAppService {
         Integer points = null;
         int idx = 1;
         for (Standing standing : matchService.getStandings()) {
-            if (standing.getTeamId() == team.getPublicId()) {
+            if (standing.getTeamId() == team.getId()) {
                 place = idx;
                 played = standing.getGames();
                 won = standing.getWon();
@@ -850,7 +850,7 @@ public class MiniAppService {
         return new TeamProfileResponse(
                 team.getCode(),
                 team.getName(),
-                teamLogoPath(team.getPublicId()),
+                teamLogoPath(team.getId()),
                 place,
                 played,
                 won,
@@ -868,12 +868,12 @@ public class MiniAppService {
     }
 
     private TeamSeasonStats buildTeamSeasonStats(String teamCode) {
-        Optional<FootyStatsTeamSnapshot> fsOpt = footyStatsStatsDao.findTeamStats(DaoUtil.currentWeekId, teamCode);
+        Optional<TeamStatsSnapshot> fsOpt = recommenderStatsDao.findTeamStats(DaoUtil.currentWeekId, teamCode);
         if (fsOpt.isEmpty()) {
-            fsOpt = footyStatsStatsDao.findLatestTeamStats(teamCode);
+            fsOpt = recommenderStatsDao.findLatestTeamStats(teamCode);
         }
-        FootyStatsTeamSnapshot fs = fsOpt.orElse(null);
-        FootyStatsExtendedMetrics ext = fs != null ? fs.extendedOrEmpty() : FootyStatsExtendedMetrics.empty();
+        TeamStatsSnapshot fs = fsOpt.orElse(null);
+        ExtendedTeamMetrics ext = fs != null ? fs.extendedOrEmpty() : ExtendedTeamMetrics.empty();
         TeamSeasonExtras espn = espnTeamSeasonStatsService.forInternalCode(teamCode);
 
         Double xg = MiniAppFormat.firstNonNull(espn.avgXg(), fs != null ? fs.xgOverall() : null);
@@ -910,11 +910,11 @@ public class MiniAppService {
         return items.stream()
                 .map(h -> new H2hItem(
                         h.getLeagueName(),
-                        h.getLocalDateTime() != null ? h.getLocalDateTime().format(KICKOFF) : "",
+                        h.getStartsAt() != null ? h.getStartsAt().format(KICKOFF) : "",
                         teamCode(h.getHomeTeamId()),
                         teamCode(h.getAwayTeamId()),
-                        h.getHomeTeamScore(),
-                        h.getAwayTeamScore()
+                        h.getHomeScore(),
+                        h.getAwayScore()
                 ))
                 .toList();
     }
@@ -925,11 +925,11 @@ public class MiniAppService {
             return new ActionResponse(false, "Счёт должен быть от 0 до 5.");
         }
         if (request.cupMatchId() != null) {
-            CupMatch cupMatch = cupMatchDao.findByPublicId(request.cupMatchId());
+            CupMatch cupMatch = cupMatchDao.findById(request.cupMatchId());
             if (!MatchStatus.canPredictCup(cupMatch)) {
                 return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
             }
-            predictionService.saveCup(telegramId, cupMatch.getPublicId(), request.homeScore(), request.awayScore());
+            predictionService.saveCup(telegramId, cupMatch.getId(), request.homeScore(), request.awayScore());
             return new ActionResponse(true, "Прогноз на кубковый матч сохранён", request.homeScore(), request.awayScore());
         }
         String home = request.homeCode().toUpperCase();
@@ -938,7 +938,7 @@ public class MiniAppService {
         if (!MatchStatus.canPredict(match)) {
             return new ActionResponse(false, "Время для прогноза истекло (принимаются до начала матча + 5 мин).");
         }
-        boolean exists = predictionService.isExist(telegramId, match.getPublicId());
+        boolean exists = predictionService.isExist(telegramId, match.getId());
         predictionService.save(telegramId, home, away, request.homeScore(), request.awayScore());
         return new ActionResponse(
                 true,
@@ -962,7 +962,7 @@ public class MiniAppService {
 
     public ActionResponse deleteCupPrediction(String telegramId, int cupMatchId) {
         requireUser(telegramId);
-        CupMatch cupMatch = cupMatchDao.findByPublicId(cupMatchId);
+        CupMatch cupMatch = cupMatchDao.findById(cupMatchId);
         if (!MatchStatus.canPredictCup(cupMatch)) {
             return new ActionResponse(false, "Время для удаления прогноза истекло.");
         }
@@ -980,9 +980,9 @@ public class MiniAppService {
     ) {
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
-        OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
+        OddsService.Odd odd = oddsService.getOdd(match.getId());
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
+        LocalDateTime until = match.getStartsAt() == null ? null : match.getStartsAt().plusMinutes(5);
         Long predictSecondsLeft = null;
         if (until != null && MatchStatus.canPredict(match)) {
             predictSecondsLeft = java.time.Duration.between(now, until).getSeconds();
@@ -991,11 +991,11 @@ public class MiniAppService {
             }
         }
         Long kickoffSecondsLeft = null;
-        if (match.getLocalDateTime() != null && MatchStatus.isNotStarted(match.getStatus())) {
-            kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
+        if (match.getStartsAt() != null && MatchStatus.isNotStarted(match.getStatus())) {
+            kickoffSecondsLeft = java.time.Duration.between(now, match.getStartsAt()).getSeconds();
         }
         return new MatchItem(
-                match.getPublicId(),
+                match.getId(),
                 match.getWeekId(),
                 home.getCode(),
                 home.getName(),
@@ -1004,13 +1004,13 @@ public class MiniAppService {
                 away.getName(),
                 teamLogoPath(match.getAwayTeamId()),
                 match.getStatus(),
-                match.getHomeTeamScore(),
-                match.getAwayTeamScore(),
-                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
+                match.getHomeScore(),
+                match.getAwayScore(),
+                match.getStartsAt() != null ? match.getStartsAt().format(KICKOFF) : "",
                 MatchStatus.canPredict(match),
                 hasPrediction,
-                prediction != null ? prediction.getHomeTeamScore() : null,
-                prediction != null ? prediction.getAwayTeamScore() : null,
+                prediction != null ? prediction.getHomeScore() : null,
+                prediction != null ? prediction.getAwayScore() : null,
                 prediction != null ? prediction.getPoints() : null,
                 odd != null ? odd.home() : null,
                 odd != null ? odd.draw() : null,
@@ -1030,7 +1030,7 @@ public class MiniAppService {
 
     private MatchItem toCupMatchItem(CupMatch match, Prediction prediction, CupOddsModel.Odds odds) {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime until = match.getLocalDateTime() == null ? null : match.getLocalDateTime().plusMinutes(5);
+        LocalDateTime until = match.getStartsAt() == null ? null : match.getStartsAt().plusMinutes(5);
         Long predictSecondsLeft = null;
         if (until != null && MatchStatus.canPredictCup(match)) {
             predictSecondsLeft = java.time.Duration.between(now, until).getSeconds();
@@ -1039,8 +1039,8 @@ public class MiniAppService {
             }
         }
         Long kickoffSecondsLeft = null;
-        if (match.getLocalDateTime() != null && MatchStatus.isNotStarted(match.getStatus())) {
-            kickoffSecondsLeft = java.time.Duration.between(now, match.getLocalDateTime()).getSeconds();
+        if (match.getStartsAt() != null && MatchStatus.isNotStarted(match.getStatus())) {
+            kickoffSecondsLeft = java.time.Duration.between(now, match.getStartsAt()).getSeconds();
         }
         String homeCode = displayCupCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
         String awayCode = displayCupCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
@@ -1051,7 +1051,7 @@ public class MiniAppService {
                 ? teamLogoPath(match.getAwayTeamId())
                 : teamLogoCacheService.pathForRemote(match.getAwayLogoUrl());
         return new MatchItem(
-                match.getPublicId(),
+                match.getId(),
                 0,
                 homeCode,
                 match.getHomeName() != null ? match.getHomeName() : homeCode,
@@ -1062,11 +1062,11 @@ public class MiniAppService {
                 match.getStatus(),
                 MiniAppFormat.cupDisplayHome(match),
                 MiniAppFormat.cupDisplayAway(match),
-                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
+                match.getStartsAt() != null ? match.getStartsAt().format(KICKOFF) : "",
                 MatchStatus.canPredictCup(match),
                 prediction != null,
-                prediction != null ? prediction.getHomeTeamScore() : null,
-                prediction != null ? prediction.getAwayTeamScore() : null,
+                prediction != null ? prediction.getHomeScore() : null,
+                prediction != null ? prediction.getAwayScore() : null,
                 prediction != null ? prediction.getPoints() : null,
                 odds != null ? CupOddsModel.decimal(odds.home()) : null,
                 odds != null ? CupOddsModel.decimal(odds.draw()) : null,
@@ -1079,7 +1079,7 @@ public class MiniAppService {
                 false,
                 true,
                 match.getCompetition(),
-                match.getPublicId(),
+                match.getId(),
                 MiniAppFormat.cupScoreNote(match)
         );
     }
@@ -1103,19 +1103,19 @@ public class MiniAppService {
         }
         List<CupMatch> liveCups = cupMatchDao.findOnline();
         for (CupMatch match : liveCups) {
-            if (match.getHomeTeamScore() == null || match.getAwayTeamScore() == null) {
+            if (match.getHomeScore() == null || match.getAwayScore() == null) {
                 continue;
             }
-            Map<Integer, Prediction> byUser = predictionService.getByCupMatchPublicId(match.getPublicId()).stream()
+            Map<Integer, Prediction> byUser = predictionService.getByCupMatchPublicId(match.getId()).stream()
                     .collect(Collectors.toMap(Prediction::getUserId, p -> p, (a, b) -> a));
             for (User user : DaoUtil.USERS.values()) {
                 Prediction p = byUser.get(user.getId());
                 int pts = PredictionService.computePoints(
                         ScoringMode.CUP,
-                        match.getHomeTeamScore(),
-                        match.getAwayTeamScore(),
-                        p != null ? p.getHomeTeamScore() : null,
-                        p != null ? p.getAwayTeamScore() : null
+                        match.getHomeScore(),
+                        match.getAwayScore(),
+                        p != null ? p.getHomeScore() : null,
+                        p != null ? p.getAwayScore() : null
                 );
                 sums.merge(user.getLogin(), pts, Integer::sum);
             }
@@ -1152,7 +1152,7 @@ public class MiniAppService {
             }
             byComp.computeIfAbsent(m.getCompetition(), k -> new ArrayList<>()).add(m);
         }
-        List<Integer> ids = all.stream().map(CupMatch::getPublicId).toList();
+        List<Integer> ids = all.stream().map(CupMatch::getId).toList();
         Map<Integer, Prediction> myPreds = predictionService.predictionsByCupMatchForUser(telegramId, ids);
         List<CupCompetitionItem> items = new ArrayList<>();
         for (Map.Entry<String, List<CupMatch>> e : byComp.entrySet()) {
@@ -1160,8 +1160,8 @@ public class MiniAppService {
                 continue;
             }
             boolean has = e.getValue().stream().anyMatch(m -> {
-                Prediction p = myPreds.get(m.getPublicId());
-                return p != null && p.getHomeTeamScore() != null && p.getAwayTeamScore() != null;
+                Prediction p = myPreds.get(m.getId());
+                return p != null && p.getHomeScore() != null && p.getAwayScore() != null;
             });
             items.add(new CupCompetitionItem(
                     e.getKey(),
@@ -1176,27 +1176,27 @@ public class MiniAppService {
     public List<MatchItem> cupMatches(String telegramId, String competition) {
         requireUser(telegramId);
         List<CupMatch> matches = cupMatchDao.findByCompetition(competition);
-        List<Integer> ids = matches.stream().map(CupMatch::getPublicId).toList();
+        List<Integer> ids = matches.stream().map(CupMatch::getId).toList();
         Map<Integer, Prediction> preds = predictionService.predictionsByCupMatchForUser(telegramId, ids);
         Map<Integer, CupOddsModel.Odds> odds = cupMatchTipService.oddsFor(ids);
         return matches.stream()
-                .sorted(CupMatch.BY_KICKOFF_THEN_PUBLIC_ID)
-                .map(m -> toCupMatchItem(m, preds.get(m.getPublicId()), odds.get(m.getPublicId())))
+                .sorted(CupMatch.BY_KICKOFF_THEN_ID)
+                .map(m -> toCupMatchItem(m, preds.get(m.getId()), odds.get(m.getId())))
                 .toList();
     }
 
     public CupReviewResponse cupReview(String telegramId, String competition) {
         requireUser(telegramId);
         List<CupMatch> matches = cupMatchDao.findByCompetition(competition);
-        List<Integer> ids = matches.stream().map(CupMatch::getPublicId).toList();
+        List<Integer> ids = matches.stream().map(CupMatch::getId).toList();
         Map<Integer, Prediction> preds = predictionService.predictionsByCupMatchForUser(telegramId, ids);
         List<WeekReviewItem> items = new ArrayList<>();
         int total = 0;
-        for (CupMatch match : matches.stream().sorted(CupMatch.BY_KICKOFF_THEN_PUBLIC_ID).toList()) {
-            Prediction prediction = preds.get(match.getPublicId());
+        for (CupMatch match : matches.stream().sorted(CupMatch.BY_KICKOFF_THEN_ID).toList()) {
+            Prediction prediction = preds.get(match.getId());
             boolean hasPrediction = prediction != null
-                    && prediction.getHomeTeamScore() != null
-                    && prediction.getAwayTeamScore() != null;
+                    && prediction.getHomeScore() != null
+                    && prediction.getAwayScore() != null;
             Integer pts = PointsResolver.cupReviewPoints(match, prediction);
             if (pts != null) {
                 total += pts;
@@ -1204,14 +1204,14 @@ public class MiniAppService {
             String home = displayCupCode(match.getHomeEspnCode(), match.getHomeTeamId(), "?");
             String away = displayCupCode(match.getAwayEspnCode(), match.getAwayTeamId(), "?");
             items.add(new WeekReviewItem(
-                    match.getPublicId(),
+                    match.getId(),
                     home,
                     away,
                     match.getStatus(),
                     MiniAppFormat.cupDisplayHome(match),
                     MiniAppFormat.cupDisplayAway(match),
-                    hasPrediction ? prediction.getHomeTeamScore() : null,
-                    hasPrediction ? prediction.getAwayTeamScore() : null,
+                    hasPrediction ? prediction.getHomeScore() : null,
+                    hasPrediction ? prediction.getAwayScore() : null,
                     pts,
                     hasPrediction,
                     null,
@@ -1229,7 +1229,7 @@ public class MiniAppService {
         }
         Map<Integer, Map<Integer, Prediction>> predictionsByMatch = predictionService.findAllByWeekId(weekId).stream()
                 .collect(Collectors.groupingBy(
-                        mp -> mp.match().getPublicId(),
+                        mp -> mp.match().getId(),
                         Collectors.toMap(
                                 mp -> mp.prediction().getUserId(),
                                 MatchPrediction::prediction,
@@ -1237,10 +1237,10 @@ public class MiniAppService {
                         )
                 ));
         List<Match> weekMatches = matchService.findAllByWeekId(weekId).stream()
-                .sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID)
+                .sorted(Match.BY_KICKOFF_THEN_ID)
                 .toList();
         for (Match match : weekMatches) {
-            Map<Integer, Prediction> byUser = predictionsByMatch.getOrDefault(match.getPublicId(), Map.of());
+            Map<Integer, Prediction> byUser = predictionsByMatch.getOrDefault(match.getId(), Map.of());
             boolean finished = MatchStatus.isFinished(match.getStatus());
             boolean liveLike = MatchStatus.isLiveLike(match);
             if (!finished && !liveLike) {
@@ -1249,19 +1249,19 @@ public class MiniAppService {
             for (User user : DaoUtil.USERS.values()) {
                 Prediction p = byUser.get(user.getId());
                 ScoringMode mode = userWeekBonusMatchService.isWeekBonusMatch(
-                        user.getId(), weekId, match.getPublicId())
+                        user.getId(), weekId, match.getId())
                         ? ScoringMode.EPL_WEEK_BONUS
                         : ScoringMode.EPL;
                 int pts;
                 if (finished && p != null && p.getPoints() != null) {
                     pts = p.getPoints();
-                } else if (match.getHomeTeamScore() != null && match.getAwayTeamScore() != null) {
+                } else if (match.getHomeScore() != null && match.getAwayScore() != null) {
                     pts = PredictionService.computePoints(
                             mode,
-                            match.getHomeTeamScore(),
-                            match.getAwayTeamScore(),
-                            p != null ? p.getHomeTeamScore() : null,
-                            p != null ? p.getAwayTeamScore() : null
+                            match.getHomeScore(),
+                            match.getAwayScore(),
+                            p != null ? p.getHomeScore() : null,
+                            p != null ? p.getAwayScore() : null
                     );
                 } else {
                     continue;
@@ -1298,7 +1298,7 @@ public class MiniAppService {
         Team home = DaoUtil.TEAMS.get(match.getHomeTeamId());
         Team away = DaoUtil.TEAMS.get(match.getAwayTeamId());
         return new TeamMatchItem(
-                match.getPublicId(),
+                match.getId(),
                 match.getWeekId(),
                 home.getCode(),
                 home.getName(),
@@ -1307,9 +1307,9 @@ public class MiniAppService {
                 away.getName(),
                 teamLogoPath(match.getAwayTeamId()),
                 match.getStatus(),
-                match.getHomeTeamScore(),
-                match.getAwayTeamScore(),
-                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : ""
+                match.getHomeScore(),
+                match.getAwayScore(),
+                match.getStartsAt() != null ? match.getStartsAt().format(KICKOFF) : ""
         );
     }
 
@@ -1358,8 +1358,8 @@ public class MiniAppService {
 
     private FormItem toFormItem(Match match, int teamId) {
         boolean teamIsHome = match.getHomeTeamId() == teamId;
-        int ownScore = teamIsHome ? match.getHomeTeamScore() : match.getAwayTeamScore();
-        int opponentScore = teamIsHome ? match.getAwayTeamScore() : match.getHomeTeamScore();
+        int ownScore = teamIsHome ? match.getHomeScore() : match.getAwayScore();
+        int opponentScore = teamIsHome ? match.getAwayScore() : match.getHomeScore();
         int opponentId = teamIsHome ? match.getAwayTeamId() : match.getHomeTeamId();
         Team opponent = DaoUtil.TEAMS.get(opponentId);
         String outcome = ownScore > opponentScore ? "W" : ownScore < opponentScore ? "L" : "D";
@@ -1368,7 +1368,7 @@ public class MiniAppService {
                 ownScore,
                 opponentScore,
                 opponent != null ? opponent.getCode() : "?",
-                match.getLocalDateTime() != null ? match.getLocalDateTime().format(KICKOFF) : "",
+                match.getStartsAt() != null ? match.getStartsAt().format(KICKOFF) : "",
                 teamIsHome
         );
     }
@@ -1384,7 +1384,7 @@ public class MiniAppService {
     public List<MatchItem> adminCupMatchesToday() {
         List<CupMatch> cups = cupMatchDao.findAllByDate(java.time.LocalDate.now(zhigalin.predictions.util.AppTimeZones.DISPLAY));
         return cups.stream()
-                .sorted(CupMatch.BY_KICKOFF_THEN_PUBLIC_ID)
+                .sorted(CupMatch.BY_KICKOFF_THEN_ID)
                 .map(c -> toCupMatchItem(c, null, null))
                 .toList();
     }

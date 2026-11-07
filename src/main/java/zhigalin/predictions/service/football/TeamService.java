@@ -28,7 +28,7 @@ public class TeamService {
         return teamDao.findByCode(code);
     }
 
-    public Team findByPublicId(int publicId) {
-        return teamDao.findByPublicId(publicId);
+    public Team findById(int publicId) {
+        return teamDao.findById(publicId);
     }
 }

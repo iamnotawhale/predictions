@@ -103,7 +103,7 @@ public class CupMatchSyncService {
             if (isFalseEplLink(m.getHomeName(), m.getHomeTeamId())
                 || isFalseEplLink(m.getAwayName(), m.getAwayTeamId())
                 || (m.getHomeTeamId() == null && m.getAwayTeamId() == null)) {
-                removedMismatch += cupMatchDao.deleteByPublicId(m.getPublicId());
+                removedMismatch += cupMatchDao.deleteByPublicId(m.getId());
                 continue;
             }
             boolean dirty = false;
@@ -220,7 +220,7 @@ public class CupMatchSyncService {
             return;
         }
 
-        CupMatch existing = cupMatchDao.findByPublicId(publicId);
+        CupMatch existing = cupMatchDao.findById(publicId);
         String state = event.getStatus() != null && event.getStatus().getType() != null
                 ? event.getStatus().getType().getState()
                 : "pre";
@@ -255,34 +255,34 @@ public class CupMatchSyncService {
         boolean wasFt = existing != null && "ft".equals(existing.getStatus());
 
         CupMatch match = CupMatch.builder()
-                .publicId(publicId)
+                .id(publicId)
                 .competition(competition)
                 .espnId(event.getId())
-                .homeTeamId(homeTeam != null ? homeTeam.getPublicId() : null)
-                .awayTeamId(awayTeam != null ? awayTeam.getPublicId() : null)
+                .homeTeamId(homeTeam != null ? homeTeam.getId() : null)
+                .awayTeamId(awayTeam != null ? awayTeam.getId() : null)
                 .homeName(nameOf(home))
                 .awayName(nameOf(away))
                 .homeLogoUrl(logoOf(home))
                 .awayLogoUrl(logoOf(away))
                 .homeEspnCode(homeCode)
                 .awayEspnCode(awayCode)
-                .homeTeamScore(homeScore)
-                .awayTeamScore(awayScore)
-                .aetHomeScore(aetHome)
-                .aetAwayScore(aetAway)
-                .penHomeScore(penHome)
-                .penAwayScore(penAway)
+                .homeScore(homeScore)
+                .awayScore(awayScore)
+                .aetHome(aetHome)
+                .aetAway(aetAway)
+                .penHome(penHome)
+                .penAway(penAway)
                 .status(status)
                 .result(resultOf(homeScore, awayScore))
-                .localDateTime(kickoff != null ? kickoff : (existing != null ? existing.getLocalDateTime() : null))
+                .startsAt(kickoff != null ? kickoff : (existing != null ? existing.getStartsAt() : null))
                 .liveScoreMessageId(existing != null ? existing.getLiveScoreMessageId() : null)
                 .finishedAt(existing != null ? existing.getFinishedAt() : null)
                 .build();
 
         boolean becameFt = "ft".equals(status) && !wasFt;
         boolean scoreCorrected = wasFt && "ft".equals(status)
-                                 && (!Objects.equals(existing.getHomeTeamScore(), homeScore)
-                                     || !Objects.equals(existing.getAwayTeamScore(), awayScore));
+                                 && (!Objects.equals(existing.getHomeScore(), homeScore)
+                                     || !Objects.equals(existing.getAwayScore(), awayScore));
         if (becameFt) {
             // A replayed fixture must not keep the timestamp of an earlier (postponed) run.
             match.setFinishedAt(LocalDateTime.now());
@@ -296,7 +296,7 @@ public class CupMatchSyncService {
         } else if (scoreCorrected) {
             log.info("Cup score corrected after FT: {} {} {}:{} -> {}:{}, recalculating points",
                     competition, publicId,
-                    existing.getHomeTeamScore(), existing.getAwayTeamScore(), homeScore, awayScore);
+                    existing.getHomeScore(), existing.getAwayScore(), homeScore, awayScore);
             predictionService.updateByCupMatch(match);
         }
     }
@@ -317,22 +317,22 @@ public class CupMatchSyncService {
         if (fromDetails != null) {
             return fromDetails;
         }
-        if (existing == null || existing.getHomeTeamScore() == null || existing.getAwayTeamScore() == null) {
+        if (existing == null || existing.getHomeScore() == null || existing.getAwayScore() == null) {
             return null;
         }
-        if (existing.getAetHomeScore() != null) {
-            return new int[] {existing.getHomeTeamScore(), existing.getAwayTeamScore()};
+        if (existing.getAetHome() != null) {
+            return new int[] {existing.getHomeScore(), existing.getAwayScore()};
         }
         String prev = existing.getStatus();
         boolean wasInRegulation = prev != null && !List.of("ns", "pst", "ft").contains(prev);
-        return wasInRegulation ? new int[] {existing.getHomeTeamScore(), existing.getAwayTeamScore()} : null;
+        return wasInRegulation ? new int[] {existing.getHomeScore(), existing.getAwayScore()} : null;
     }
 
     private void sendFullTime(CupMatch match) {
         String home = match.getHomeEspnCode() != null ? match.getHomeEspnCode() : "?";
         String away = match.getAwayEspnCode() != null ? match.getAwayEspnCode() : "?";
-        String center = nz(match.getHomeTeamScore()) + ":" + nz(match.getAwayTeamScore());
-        List<Prediction> predictions = predictionService.getByCupMatchPublicId(match.getPublicId());
+        String center = nz(match.getHomeScore()) + ":" + nz(match.getAwayScore());
+        List<Prediction> predictions = predictionService.getByCupMatchPublicId(match.getId());
         List<Result> results = predictions.stream()
                 .map(p -> {
                     User user = DaoUtil.USERS.get(p.getUserId());
@@ -341,9 +341,9 @@ public class CupMatchSyncService {
                     }
                     String login = user.getLogin();
                     String shortLogin = login.length() >= 3 ? login.substring(0, 3) : login;
-                    String predict = (p.getHomeTeamScore() != null ? p.getHomeTeamScore() : "")
+                    String predict = (p.getHomeScore() != null ? p.getHomeScore() : "")
                                      + ":"
-                                     + (p.getAwayTeamScore() != null ? p.getAwayTeamScore() : "");
+                                     + (p.getAwayScore() != null ? p.getAwayScore() : "");
                     int points = p.getPoints() == null ? 0 : p.getPoints();
                     return new Result(shortLogin, predict, points);
                 })
@@ -365,7 +365,7 @@ public class CupMatchSyncService {
                 results
         );
 
-        String caption = match.getAetHomeScore() != null
+        String caption = match.getAetHome() != null
                 ? "Основное время: " + home + " " + center + " " + away
                   + " (" + competitionLabel(match.getCompetition()) + ")"
                 : "Матч " + home + " " + center + " " + away
@@ -380,7 +380,7 @@ public class CupMatchSyncService {
             }
             apiClient.sendMessage(defaultChatId, sb.toString(), null);
         }
-        cupMatchDao.updateLiveScoreMessageId(match.getPublicId(), null);
+        cupMatchDao.updateLiveScoreMessageId(match.getId(), null);
     }
 
     private static Team resolveTeam(Competitor competitor) {

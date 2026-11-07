@@ -21,16 +21,16 @@ class LiveScoreStateTest {
 
     @Test
     void keyPrefersEspnThenPublicThenTeams() {
-        assertEquals("espn:99", state.key(match().espnId("99").publicId(5).build(), home, away));
-        assertEquals("pub:5", state.key(match().publicId(5).build(), home, away));
-        assertEquals("pub:5", state.key(match().espnId(" ").publicId(5).build(), home, away));
+        assertEquals("espn:99", state.key(match().espnId("99").id(5).build(), home, away));
+        assertEquals("pub:5", state.key(match().id(5).build(), home, away));
+        assertEquals("pub:5", state.key(match().espnId(" ").id(5).build(), home, away));
         assertEquals("teams:MCI-ARS", state.key(match().build(), home, away));
         assertEquals("teams:1-2", state.key(match().build(), null, null));
     }
 
     @Test
     void existingMessageIdIsFoundViaAnyAliasAndCachedUnderPrimaryKey() {
-        Match m = match().espnId("99").publicId(5).build();
+        Match m = match().espnId("99").id(5).build();
         state.putMessageId("pub:5", 111);
         assertEquals(111, state.existingMessageId(m, "espn:99", home, away));
         state.removeMessageId("pub:5");
@@ -39,7 +39,7 @@ class LiveScoreStateTest {
 
     @Test
     void persistedMessageIdWinsOverAliases() {
-        Match m = match().publicId(5).liveScoreMessageId(777).build();
+        Match m = match().id(5).liveScoreMessageId(777).build();
         state.putMessageId("pub:5", 111);
         assertEquals(777, state.existingMessageId(m, "espn:x", home, away));
         assertEquals(777, state.existingMessageId(m, "espn:x", home, away));
@@ -47,19 +47,19 @@ class LiveScoreStateTest {
 
     @Test
     void teamsAliasIsUsedLast() {
-        Match m = match().publicId(5).build();
+        Match m = match().id(5).build();
         state.putMessageId("teams:MCI-ARS", 42);
         assertEquals(42, state.existingMessageId(m, "pub:5", home, away));
     }
 
     @Test
     void unknownMatchHasNoMessage() {
-        assertNull(state.existingMessageId(match().publicId(8).build(), "pub:8", home, away));
+        assertNull(state.existingMessageId(match().id(8).build(), "pub:8", home, away));
     }
 
     @Test
     void clearForgetsPrimaryAndAllAliases() {
-        Match m = match().espnId("99").publicId(5).build();
+        Match m = match().espnId("99").id(5).build();
         for (String k : new String[] {"espn:99", "pub:5", "teams:MCI-ARS"}) {
             state.putMessageId(k, 1);
             state.putLastText(k, "t");
@@ -77,8 +77,8 @@ class LiveScoreStateTest {
     void clearLeavesOtherMatchesAlone() {
         state.putMessageId("pub:6", 9);
         state.putLastText("pub:6", "x");
-        state.clear(match().publicId(5).build(), home, away);
+        state.clear(match().id(5).build(), home, away);
         assertEquals("x", state.lastText("pub:6"));
-        assertTrue(state.existingMessageId(match().publicId(6).build(), "pub:6", null, null) == 9);
+        assertTrue(state.existingMessageId(match().id(6).build(), "pub:6", null, null) == 9);
     }
 }

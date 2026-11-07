@@ -60,9 +60,9 @@ class H2hStatsTest {
         return HeadToHead.builder()
                 .homeTeamId(homeId)
                 .awayTeamId(awayId)
-                .homeTeamScore(homeScore)
-                .awayTeamScore(awayScore)
-                .localDateTime(LocalDateTime.of(2025, 1, 1, 15, 0))
+                .homeScore(homeScore)
+                .awayScore(awayScore)
+                .startsAt(LocalDateTime.of(2025, 1, 1, 15, 0))
                 .leagueName("PL")
                 .build();
     }

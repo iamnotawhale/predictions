@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Locale;
 import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.ExplanationRow;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.recommender.model.ScoreDistribution;
 
 /**
@@ -62,9 +62,9 @@ public final class PoissonScoreModel {
             Double oddHome,
             Double oddDraw,
             Double oddAway,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsLeagueSnapshot league
+            TeamStatsSnapshot home,
+            TeamStatsSnapshot away,
+            LeagueAveragesSnapshot league
     ) {
         return recommend(oddHome, oddDraw, oddAway, home, away, league, null, null, null, null);
     }
@@ -73,9 +73,9 @@ public final class PoissonScoreModel {
             Double oddHome,
             Double oddDraw,
             Double oddAway,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsLeagueSnapshot league,
+            TeamStatsSnapshot home,
+            TeamStatsSnapshot away,
+            LeagueAveragesSnapshot league,
             H2hStats h2h
     ) {
         return recommend(oddHome, oddDraw, oddAway, home, away, league, h2h, null, null, null);
@@ -85,18 +85,18 @@ public final class PoissonScoreModel {
             Double oddHome,
             Double oddDraw,
             Double oddAway,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsLeagueSnapshot league,
+            TeamStatsSnapshot home,
+            TeamStatsSnapshot away,
+            LeagueAveragesSnapshot league,
             H2hStats h2h,
             Double matchOverUnder,
-            Double homeTeamTotal,
-            Double awayTeamTotal
+            Double homeTotal,
+            Double awayTotal
     ) {
         String homeCode = home.teamCode();
         String awayCode = away.teamCode();
-        FootyStatsExtendedMetrics homeExt = home.extendedOrEmpty();
-        FootyStatsExtendedMetrics awayExt = away.extendedOrEmpty();
+        ExtendedTeamMetrics homeExt = home.extendedOrEmpty();
+        ExtendedTeamMetrics awayExt = away.extendedOrEmpty();
         MarketOutcome market = marketOutcome(oddHome, oddDraw, oddAway);
 
         double leagueHome = positiveOr(league.avgHomeScored(), DEFAULT_HOME_AVG);
@@ -197,8 +197,8 @@ public final class PoissonScoreModel {
             double[] withMatchTotal = applyMatchTotalNudge(blendedHome, blendedAway, matchOverUnder);
             blendedHome = withMatchTotal[0];
             blendedAway = withMatchTotal[1];
-            blendedHome = applyTeamTotalNudge(blendedHome, homeTeamTotal);
-            blendedAway = applyTeamTotalNudge(blendedAway, awayTeamTotal);
+            blendedHome = applyTeamTotalNudge(blendedHome, homeTotal);
+            blendedAway = applyTeamTotalNudge(blendedAway, awayTotal);
 
             blendedHome = clampLambda(blendedHome);
             blendedAway = clampLambda(blendedAway);
@@ -239,11 +239,11 @@ public final class PoissonScoreModel {
         Double matchOverProb = matchOverUnder != null && matchOverUnder > 0
                 ? probabilityOverLine(matrix, matchOverUnder, TotalScope.MATCH)
                 : null;
-        Double homeOverProb = homeTeamTotal != null && homeTeamTotal > 0
-                ? probabilityOverLine(matrix, homeTeamTotal, TotalScope.HOME)
+        Double homeOverProb = homeTotal != null && homeTotal > 0
+                ? probabilityOverLine(matrix, homeTotal, TotalScope.HOME)
                 : null;
-        Double awayOverProb = awayTeamTotal != null && awayTeamTotal > 0
-                ? probabilityOverLine(matrix, awayTeamTotal, TotalScope.AWAY)
+        Double awayOverProb = awayTotal != null && awayTotal > 0
+                ? probabilityOverLine(matrix, awayTotal, TotalScope.AWAY)
                 : null;
 
         ScoreDistribution distribution = ScoreDistribution.fromNormalizedMatrix(matrix);
@@ -272,8 +272,8 @@ public final class PoissonScoreModel {
                 oddDraw,
                 oddAway,
                 matchOverUnder,
-                homeTeamTotal,
-                awayTeamTotal,
+                homeTotal,
+                awayTotal,
                 matchOverProb,
                 homeOverProb,
                 awayOverProb,
@@ -329,18 +329,18 @@ public final class PoissonScoreModel {
             Double homeXgaPerMatch,
             Double awayXgPerMatch,
             Double awayXgaPerMatch,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsExtendedMetrics homeExt,
-            FootyStatsExtendedMetrics awayExt,
+            TeamStatsSnapshot home,
+            TeamStatsSnapshot away,
+            ExtendedTeamMetrics homeExt,
+            ExtendedTeamMetrics awayExt,
             H2hStats h2h,
             MarketOutcome market,
             Double oddHome,
             Double oddDraw,
             Double oddAway,
             Double matchOverUnder,
-            Double homeTeamTotal,
-            Double awayTeamTotal,
+            Double homeTotal,
+            Double awayTotal,
             Double matchOverProb,
             Double homeOverProb,
             Double awayOverProb,
@@ -411,8 +411,8 @@ public final class PoissonScoreModel {
                 homeCode,
                 awayCode,
                 matchOverUnder,
-                homeTeamTotal,
-                awayTeamTotal,
+                homeTotal,
+                awayTotal,
                 matchOverProb,
                 homeOverProb,
                 awayOverProb
@@ -476,8 +476,8 @@ public final class PoissonScoreModel {
             String homeCode,
             String awayCode,
             Double matchOverUnder,
-            Double homeTeamTotal,
-            Double awayTeamTotal,
+            Double homeTotal,
+            Double awayTotal,
             Double matchOverProb,
             Double homeOverProb,
             Double awayOverProb
@@ -503,8 +503,8 @@ public final class PoissonScoreModel {
             ));
         }
 
-        String homePart = formatTeamTotalCell(homeTeamTotal, homeOverProb);
-        String awayPart = formatTeamTotalCell(awayTeamTotal, awayOverProb);
+        String homePart = formatTeamTotalCell(homeTotal, homeOverProb);
+        String awayPart = formatTeamTotalCell(awayTotal, awayOverProb);
         if (homePart != null || awayPart != null) {
             rows.add(new ExplanationRow(
                     "ИТБ",
@@ -550,15 +550,15 @@ public final class PoissonScoreModel {
             String homeCode,
             String awayCode,
             Double matchOverUnder,
-            Double homeTeamTotal,
-            Double awayTeamTotal,
+            Double homeTotal,
+            Double awayTotal,
             Double matchOverProb,
             Double homeOverProb,
             Double awayOverProb
     ) {
         List<ExplanationRow> rows = new ArrayList<>();
         List<String> notes = new ArrayList<>();
-        appendTotalsRows(rows, notes, homeCode, awayCode, matchOverUnder, homeTeamTotal, awayTeamTotal,
+        appendTotalsRows(rows, notes, homeCode, awayCode, matchOverUnder, homeTotal, awayTotal,
                 matchOverProb, homeOverProb, awayOverProb);
         lines.addAll(new ExplanationBreakdown(rows, notes).asLines());
     }
@@ -690,7 +690,7 @@ public final class PoissonScoreModel {
         return bayes / leagueAvg;
     }
 
-    private static double thinSampleFactor(FootyStatsTeamSnapshot home, FootyStatsTeamSnapshot away) {
+    private static double thinSampleFactor(TeamStatsSnapshot home, TeamStatsSnapshot away) {
         double homeVenue = home.scoredHome() + home.concededHome();
         double awayVenue = away.scoredAway() + away.concededAway();
         // 0 = enough venue signal, 1 = almost no venue goals yet
@@ -699,7 +699,7 @@ public final class PoissonScoreModel {
         return (homeThin + awayThin) / 2.0;
     }
 
-    private static Double perMatchRate(Double seasonOrMatchValue, FootyStatsExtendedMetrics ext) {
+    private static Double perMatchRate(Double seasonOrMatchValue, ExtendedTeamMetrics ext) {
         if (seasonOrMatchValue == null || seasonOrMatchValue <= 0) {
             return null;
         }
@@ -715,7 +715,7 @@ public final class PoissonScoreModel {
         return seasonOrMatchValue / Math.max(2.0, seasonOrMatchValue / 2.0);
     }
 
-    private static double estimateMatchesPlayed(FootyStatsExtendedMetrics ext) {
+    private static double estimateMatchesPlayed(ExtendedTeamMetrics ext) {
         if (ext.actualPts() != null && ext.homePpg() != null && ext.homePpg() > 0) {
             return Math.max(1.0, ext.actualPts() / Math.max(0.5, (nz(ext.homePpg()) + nz(ext.awayPpg())) / 2.0));
         }
@@ -747,7 +747,7 @@ public final class PoissonScoreModel {
 
     private static double applySoccerStatsLambdaNudge(
             double lambda,
-            FootyStatsExtendedMetrics ext,
+            ExtendedTeamMetrics ext,
             boolean homeSide,
             double thinSample
     ) {
@@ -871,8 +871,8 @@ public final class PoissonScoreModel {
 
     private static void appendSoccerStatsRows(
             List<ExplanationRow> rows,
-            FootyStatsExtendedMetrics home,
-            FootyStatsExtendedMetrics away
+            ExtendedTeamMetrics home,
+            ExtendedTeamMetrics away
     ) {
         boolean any = home.ssScoredFirstPct() != null || home.ssLeadPct() != null
                 || home.ssEqualiserScoredPct() != null || home.ssOgsPct() != null
@@ -907,10 +907,10 @@ public final class PoissonScoreModel {
 
     private static void appendFormRows(
             List<ExplanationRow> rows,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsExtendedMetrics homeExt,
-            FootyStatsExtendedMetrics awayExt
+            TeamStatsSnapshot home,
+            TeamStatsSnapshot away,
+            ExtendedTeamMetrics homeExt,
+            ExtendedTeamMetrics awayExt
     ) {
         if (homeExt.formBttsHome() == null && awayExt.formBttsAway() == null) {
             return;
@@ -933,10 +933,10 @@ public final class PoissonScoreModel {
 
     private static void appendSeasonRows(
             List<ExplanationRow> rows,
-            FootyStatsTeamSnapshot home,
-            FootyStatsTeamSnapshot away,
-            FootyStatsExtendedMetrics homeExt,
-            FootyStatsExtendedMetrics awayExt
+            TeamStatsSnapshot home,
+            TeamStatsSnapshot away,
+            ExtendedTeamMetrics homeExt,
+            ExtendedTeamMetrics awayExt
     ) {
         if (homeExt.seasonScoredHome() == null && awayExt.seasonScoredAway() == null
                 && homeExt.over25Home() == null
@@ -975,8 +975,8 @@ public final class PoissonScoreModel {
     private static double soccerStatsScoreWeight(
             int homeGoals,
             int awayGoals,
-            FootyStatsExtendedMetrics home,
-            FootyStatsExtendedMetrics away,
+            ExtendedTeamMetrics home,
+            ExtendedTeamMetrics away,
             double thinSample
     ) {
         double weight = 1.0;
@@ -1065,10 +1065,10 @@ public final class PoissonScoreModel {
     private static double scoreWeight(
             int homeGoals,
             int awayGoals,
-            FootyStatsTeamSnapshot homeSnap,
-            FootyStatsTeamSnapshot awaySnap,
-            FootyStatsExtendedMetrics home,
-            FootyStatsExtendedMetrics away,
+            TeamStatsSnapshot homeSnap,
+            TeamStatsSnapshot awaySnap,
+            ExtendedTeamMetrics home,
+            ExtendedTeamMetrics away,
             double thinSample
     ) {
         double weight = 1.0;

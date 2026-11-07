@@ -77,7 +77,7 @@ public class MatchDao {
 
     public void save(List<Match> matches) {
         String sql = """
-                INSERT INTO match (public_id, week_id, home_team_id, away_team_id, home_team_score, away_team_score, status, result, local_date_time)
+                INSERT INTO match (id, week_id, home_team_id, away_team_id, home_score, away_score, status, result, starts_at)
                 VALUES (:publicId, :weekId, :homeId, :awayId, :homeScore, :awayScore, :status, :result, :date)
                 ON CONFLICT ON CONSTRAINT unique_match DO NOTHING
                 """;
@@ -86,15 +86,15 @@ public class MatchDao {
 
         for (Match match : matches) {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue("publicId", match.getPublicId());
+            parameters.addValue("publicId", match.getId());
             parameters.addValue("weekId", match.getWeekId());
             parameters.addValue("homeId", match.getHomeTeamId());
             parameters.addValue("awayId", match.getAwayTeamId());
-            parameters.addValue("homeScore", match.getHomeTeamScore());
-            parameters.addValue("awayScore", match.getAwayTeamScore());
+            parameters.addValue("homeScore", match.getHomeScore());
+            parameters.addValue("awayScore", match.getAwayScore());
             parameters.addValue("status", match.getStatus());
             parameters.addValue("result", match.getResult());
-            parameters.addValue("date", match.getLocalDateTime());
+            parameters.addValue("date", match.getStartsAt());
             batchParameters.add(parameters);
         }
 
@@ -110,26 +110,26 @@ public class MatchDao {
     public void updateMatches(List<Match> matches) {
         String sql = """
                 UPDATE match
-                SET home_team_score = :homeScore,
-                    away_team_score = :awayScore,
+                SET home_score = :homeScore,
+                    away_score = :awayScore,
                     result = :result,
-                    local_date_time = :date,
+                    starts_at = :date,
                     status = :status,
                     espn_id = :espnId,
                     finished_at = COALESCE(:finishedAt, finished_at)
-                WHERE public_id = :publicId
+                WHERE id = :publicId
                 """;
 
         List<MapSqlParameterSource> batchParameters = new ArrayList<>();
 
         for (Match match : matches) {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue("homeScore", match.getHomeTeamScore());
-            parameters.addValue("awayScore", match.getAwayTeamScore());
+            parameters.addValue("homeScore", match.getHomeScore());
+            parameters.addValue("awayScore", match.getAwayScore());
             parameters.addValue("result", match.getResult());
             parameters.addValue("status", match.getStatus());
-            parameters.addValue("publicId", match.getPublicId());
-            parameters.addValue("date", match.getLocalDateTime());
+            parameters.addValue("publicId", match.getId());
+            parameters.addValue("date", match.getStartsAt());
             parameters.addValue("espnId", match.getEspnId());
             parameters.addValue("finishedAt", match.getFinishedAt());
             batchParameters.add(parameters);
@@ -143,11 +143,11 @@ public class MatchDao {
         }
     }
 
-    public Match findByPublicId(int publicId) {
+    public Match findById(int publicId) {
         try {
             String sql = """
-                    SELECT * FROM match WHERE public_id = :publicId
-                    ORDER BY local_date_time DESC
+                    SELECT * FROM match WHERE id = :publicId
+                    ORDER BY starts_at DESC
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("publicId", publicId);
@@ -168,8 +168,8 @@ public class MatchDao {
             String sql = """
                     SELECT *
                     FROM match
-                    WHERE CAST(local_date_time AS DATE) = :date
-                    ORDER BY local_date_time, public_id
+                    WHERE CAST(starts_at AS DATE) = :date
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource("date", date);
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
@@ -185,8 +185,8 @@ public class MatchDao {
             String sql = """
                     SELECT *
                     FROM match
-                    WHERE local_date_time BETWEEN :from AND :to
-                    ORDER BY local_date_time, public_id
+                    WHERE starts_at BETWEEN :from AND :to
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             LocalDateTime now = LocalDateTime.now();
@@ -206,7 +206,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE week_id = :weekId
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("weekId", weekId);
@@ -223,7 +223,7 @@ public class MatchDao {
             String sql = """
                     SELECT *
                     FROM match
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (Exception e) {
@@ -257,7 +257,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE home_team_id = :teamPublicId OR away_team_id = :teamPublicId
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("teamPublicId", teamPublicId);
@@ -276,7 +276,7 @@ public class MatchDao {
                     FROM match
                     WHERE (home_team_id = :teamPublicId OR away_team_id = :teamPublicId)
                       AND result IS NOT NULL
-                    ORDER BY local_date_time DESC, public_id DESC
+                    ORDER BY starts_at DESC, id DESC
                     LIMIT :limit
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
@@ -296,8 +296,8 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE (home_team_id = :teamPublicId OR away_team_id = :teamPublicId)
-                      AND local_date_time > :now
-                    ORDER BY local_date_time, public_id
+                      AND starts_at > :now
+                    ORDER BY starts_at, id
                     LIMIT :limit
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
@@ -343,7 +343,7 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE status = 'ft'
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (Exception e) {
@@ -359,8 +359,8 @@ public class MatchDao {
                     SELECT *
                     FROM match
                     WHERE status <> 'pst'
-                      AND local_date_time < :now
-                    ORDER BY local_date_time, public_id
+                      AND starts_at < :now
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource("now", LocalDateTime.now());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, parameters, new MatchMapper()));
@@ -376,9 +376,9 @@ public class MatchDao {
             String sql = """
                     SELECT *
                     FROM match
-                    WHERE local_date_time > :from AND local_date_time < :to
+                    WHERE starts_at > :from AND starts_at < :to
                       AND status <> 'pst'
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("from", from);
@@ -397,7 +397,7 @@ public class MatchDao {
                     SELECT *
                     FROM match JOIN weeks w ON week_id = w.id
                     WHERE w.is_current is TRUE
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (Exception e) {
@@ -423,16 +423,16 @@ public class MatchDao {
                         SELECT
                             m.home_team_id AS team_id,
                             m.away_team_id AS opponent_team_id,
-                            m.home_team_score AS team_score,
-                            m.away_team_score AS opponent_score
+                            m.home_score AS team_score,
+                            m.away_score AS opponent_score
                         FROM match m
                         WHERE %s
                         UNION ALL
                         SELECT
                             m.away_team_id AS team_id,
                             m.home_team_id AS opponent_team_id,
-                            m.away_team_score AS team_score,
-                            m.home_team_score AS opponent_score
+                            m.away_score AS team_score,
+                            m.home_score AS opponent_score
                         FROM match m
                         WHERE %s
                     )
@@ -467,10 +467,10 @@ public class MatchDao {
     public List<Integer> getPredictableMatchIdsByUserTelegramAndWeek(String telegramId, int weekId) {
         try {
             String sql = """
-                        SELECT m.public_id
+                        SELECT m.id
                         FROM match m
                         JOIN weeks w ON m.week_id = w.id
-                        JOIN predict p ON m.public_id = p.match_id
+                        JOIN predict p ON m.id = p.match_id
                         JOIN users u ON p.user_id = u.id
                         WHERE w.id = :weekId AND u.telegram_id = :telegramId
                     """;
@@ -488,12 +488,12 @@ public class MatchDao {
     public List<Integer> getPredictableTodayMatchIdsByUserTelegram(String telegramId) {
         try {
             String sql = """
-                        SELECT m.public_id
+                        SELECT m.id
                         FROM match m
-                        JOIN predict p ON m.public_id = p.match_id
+                        JOIN predict p ON m.id = p.match_id
                         JOIN users u ON p.user_id = u.id
                         WHERE u.telegram_id = :telegramId
-                        AND CAST(m.local_date_time AS DATE) = CURRENT_DATE
+                        AND CAST(m.starts_at AS DATE) = CURRENT_DATE
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("telegramId", telegramId);
@@ -510,7 +510,7 @@ public class MatchDao {
             String sql = """
                     UPDATE match
                     SET live_score_message_id = :messageId
-                    WHERE public_id = :publicId
+                    WHERE id = :publicId
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("publicId", publicId);
@@ -580,8 +580,8 @@ public class MatchDao {
                 try {
                     Match match = mapper.readValue(payload, Match.class);
 
-                    if (!isAlreadyProcessed(match.getPublicId())) {
-                        updateLastProcessedAt(match.getPublicId());
+                    if (!isAlreadyProcessed(match.getId())) {
+                        updateLastProcessedAt(match.getId());
                         matches.add(match);
                     }
 
@@ -598,7 +598,7 @@ public class MatchDao {
     private boolean isAlreadyProcessed(int publicId) {
         try {
             String sql = """
-                    SELECT last_processed_at FROM match WHERE public_id = :publicId
+                    SELECT last_processed_at FROM match WHERE id = :publicId
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("publicId", publicId);
@@ -614,7 +614,7 @@ public class MatchDao {
     /** Lets the FT card go out again when a fixture that was wrongly closed is replayed. */
     public void resetLastProcessedAt(int publicId) {
         try {
-            String sql = "UPDATE match SET last_processed_at = NULL WHERE public_id = :publicId";
+            String sql = "UPDATE match SET last_processed_at = NULL WHERE id = :publicId";
             namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource("publicId", publicId));
         } catch (Exception e) {
             panicSender.sendPanic("Error resetLastProcessedAt", e);
@@ -625,7 +625,7 @@ public class MatchDao {
     private void updateLastProcessedAt(int publicId) {
         try {
             String sql = """
-                    UPDATE match SET last_processed_at = NOW() WHERE public_id = :publicId
+                    UPDATE match SET last_processed_at = NOW() WHERE id = :publicId
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("publicId", publicId);
@@ -642,8 +642,8 @@ public class MatchDao {
             double draw,
             double away,
             Double overUnder,
-            Double homeTeamTotal,
-            Double awayTeamTotal
+            Double homeTotal,
+            Double awayTotal
     ) {
         String sql = """
                 UPDATE match
@@ -651,9 +651,9 @@ public class MatchDao {
                     odd_draw = :draw,
                     odd_away = :away,
                     odd_over_under = :overUnder,
-                    odd_home_team_total = :homeTeamTotal,
-                    odd_away_team_total = :awayTeamTotal
-                WHERE public_id = :publicId
+                    odd_home_total = :homeTotal,
+                    odd_away_total = :awayTotal
+                WHERE id = :publicId
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("publicId", publicId);
@@ -661,8 +661,8 @@ public class MatchDao {
         params.addValue("draw", draw);
         params.addValue("away", away);
         params.addValue("overUnder", overUnder);
-        params.addValue("homeTeamTotal", homeTeamTotal);
-        params.addValue("awayTeamTotal", awayTeamTotal);
+        params.addValue("homeTotal", homeTotal);
+        params.addValue("awayTotal", awayTotal);
         try {
             namedParameterJdbcTemplate.update(sql, params);
         } catch (Exception e) {
@@ -674,9 +674,9 @@ public class MatchDao {
     public MatchOdds findOdds(int publicId) {
         String sql = """
                 SELECT odd_home, odd_draw, odd_away,
-                       odd_over_under, odd_home_team_total, odd_away_team_total
+                       odd_over_under, odd_home_total, odd_away_total
                 FROM match
-                WHERE public_id = :publicId
+                WHERE id = :publicId
                   AND odd_home IS NOT NULL
                   AND odd_draw IS NOT NULL
                   AND odd_away IS NOT NULL
@@ -699,8 +699,8 @@ public class MatchDao {
 
     public java.util.Map<Integer, MatchOdds> findAllOdds() {
         String sql = """
-                SELECT public_id, odd_home, odd_draw, odd_away,
-                       odd_over_under, odd_home_team_total, odd_away_team_total
+                SELECT id, odd_home, odd_draw, odd_away,
+                       odd_over_under, odd_home_total, odd_away_total
                 FROM match
                 WHERE odd_home IS NOT NULL
                   AND odd_draw IS NOT NULL
@@ -710,7 +710,7 @@ public class MatchDao {
             return namedParameterJdbcTemplate.query(sql, rs -> {
                 java.util.Map<Integer, MatchOdds> odds = new java.util.HashMap<>();
                 while (rs.next()) {
-                    odds.put(rs.getInt("public_id"), mapOdds(rs));
+                    odds.put(rs.getInt("id"), mapOdds(rs));
                 }
                 return odds;
             });
@@ -727,8 +727,8 @@ public class MatchDao {
                 rs.getDouble("odd_draw"),
                 rs.getDouble("odd_away"),
                 nullableDouble(rs, "odd_over_under"),
-                nullableDouble(rs, "odd_home_team_total"),
-                nullableDouble(rs, "odd_away_team_total")
+                nullableDouble(rs, "odd_home_total"),
+                nullableDouble(rs, "odd_away_total")
         );
     }
 
@@ -747,17 +747,17 @@ public class MatchDao {
         @Override
         public Match mapRow(ResultSet rs, int rowNum) throws SQLException {
             return Match.builder()
-                    .publicId(rs.getInt("public_id"))
+                    .id(rs.getInt("id"))
                     .weekId(rs.getInt("week_id"))
                     .homeTeamId(rs.getInt("home_team_id"))
                     .awayTeamId(rs.getInt("away_team_id"))
-                    .homeTeamScore(rs.getInt("home_team_score"))
-                    .awayTeamScore(rs.getInt("away_team_score"))
+                    .homeScore(rs.getInt("home_score"))
+                    .awayScore(rs.getInt("away_score"))
                     .status(rs.getString("status"))
                     .result(rs.getString("result"))
                     .espnId(rs.getString("espn_id"))
                     .liveScoreMessageId((Integer) rs.getObject("live_score_message_id"))
-                    .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                    .startsAt(rs.getTimestamp("starts_at").toLocalDateTime())
                     .finishedAt(rs.getTimestamp("finished_at") != null
                             ? rs.getTimestamp("finished_at").toLocalDateTime()
                             : null)

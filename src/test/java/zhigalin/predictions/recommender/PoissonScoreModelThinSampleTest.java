@@ -7,18 +7,18 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 
 class PoissonScoreModelThinSampleTest {
 
     @Test
     void earlySeasonZeroBttsDoesNotForceOneNilEverywhere() {
-        FootyStatsLeagueSnapshot league =
-                new FootyStatsLeagueSnapshot(2, 1.45, 1.20, 1.20, 1.45, Instant.now());
+        LeagueAveragesSnapshot league =
+                new LeagueAveragesSnapshot(2, 1.45, 1.20, 1.20, 1.45, Instant.now());
         // No venue goals yet — FootyStats often still reports 0% BTTS/CS.
-        FootyStatsExtendedMetrics zeros = FootyStatsExtendedMetrics.builder()
+        ExtendedTeamMetrics zeros = ExtendedTeamMetrics.builder()
                 .formBtts(0.0, 0.0, 0.0)
                 .formCs(0.0, 0.0, 0.0)
                 .seasonBtts(0.0, 0.0, 0.0)
@@ -34,8 +34,8 @@ class PoissonScoreModelThinSampleTest {
                 {7.50, 4.80, 1.45}  // strong away
         };
         for (double[] o : odds) {
-            FootyStatsTeamSnapshot home = team("HOM", zeros);
-            FootyStatsTeamSnapshot away = team("AWY", zeros);
+            TeamStatsSnapshot home = team("HOM", zeros);
+            TeamStatsSnapshot away = team("AWY", zeros);
             PoissonScoreModel.Result result = PoissonScoreModel.recommend(
                     o[0], o[1], o[2], home, away, league, null
             );
@@ -46,8 +46,8 @@ class PoissonScoreModelThinSampleTest {
         assertNotEquals(Set.of("1:0"), tips);
     }
 
-    private static FootyStatsTeamSnapshot team(String code, FootyStatsExtendedMetrics ext) {
-        return new FootyStatsTeamSnapshot(
+    private static TeamStatsSnapshot team(String code, ExtendedTeamMetrics ext) {
+        return new TeamStatsSnapshot(
                 code,
                 0, 0, 0,
                 0, 0, 0,

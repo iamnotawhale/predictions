@@ -23,13 +23,13 @@ if [[ -z "$FIXTURE_ID" ]]; then
     DB_PASS="${SPRING_DATASOURCE_PASSWORD:-postgres}"
     DB_NAME="${DB_URL##*/}"
     FIXTURE_ID=$(PGPASSWORD="$DB_PASS" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -t -A -c "
-        SELECT m.public_id
+        SELECT m.id
         FROM match m
-        JOIN teams ht ON ht.public_id = m.home_team_id
+        JOIN teams ht ON ht.id = m.home_team_id
         WHERE ht.code = 'MUN'
-          AND CAST(m.local_date_time AS DATE) = CURRENT_DATE
+          AND CAST(m.starts_at AS DATE) = CURRENT_DATE
           AND m.status = 'ns'
-        ORDER BY m.local_date_time
+        ORDER BY m.starts_at
         LIMIT 1;
     " 2>/dev/null | tr -d '[:space:]')
 fi

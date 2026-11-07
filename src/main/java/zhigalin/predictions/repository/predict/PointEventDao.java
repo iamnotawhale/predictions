@@ -24,27 +24,27 @@ public class PointEventDao {
         String sql = """
                 SELECT u.login AS login,
                        u.id AS user_id,
-                       COALESCE(m.finished_at, m.local_date_time) AS sort_time,
-                       m.public_id AS sequence,
+                       COALESCE(m.finished_at, m.starts_at) AS sort_time,
+                       m.id AS sequence,
                        m.week_id AS week_id,
                        p.points AS points,
                        FALSE AS cup
                 FROM predict p
                 JOIN users u ON u.id = p.user_id
-                JOIN match m ON m.public_id = p.match_id
+                JOIN match m ON m.id = p.match_id
                 WHERE p.match_id IS NOT NULL
                   AND m.status = 'ft'
                 UNION ALL
                 SELECT u.login,
                        u.id,
-                       COALESCE(b.finished_at, b.local_date_time),
-                       b.public_id + 1000000000,
+                       COALESCE(b.finished_at, b.starts_at),
+                       b.id + 1000000000,
                        0,
                        p.points,
                        TRUE
                 FROM predict p
                 JOIN users u ON u.id = p.user_id
-                JOIN cup_match b ON b.public_id = p.cup_match_id
+                JOIN cup_match b ON b.id = p.cup_match_id
                 WHERE p.cup_match_id IS NOT NULL
                   AND b.status = 'ft'
                 ORDER BY login, sort_time NULLS LAST, sequence
@@ -56,14 +56,14 @@ public class PointEventDao {
         String sql = """
                 SELECT u.login AS login,
                        u.id AS user_id,
-                       COALESCE(m.finished_at, m.local_date_time) AS sort_time,
-                       m.public_id AS sequence,
+                       COALESCE(m.finished_at, m.starts_at) AS sort_time,
+                       m.id AS sequence,
                        m.week_id AS week_id,
                        p.points AS points,
                        FALSE AS cup
                 FROM predict p
                 JOIN users u ON u.id = p.user_id
-                JOIN match m ON m.public_id = p.match_id
+                JOIN match m ON m.id = p.match_id
                 WHERE p.match_id IS NOT NULL
                   AND m.status = 'ft'
                   AND m.week_id = :weekId

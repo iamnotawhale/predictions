@@ -37,16 +37,16 @@ public class NotificationDedupDao {
         }
     }
 
-    public boolean tryMarkReminderSent(int userId, int matchPublicId, int reminderMinutes) {
+    public boolean tryMarkReminderSent(int userId, int matchId, int reminderMinutes) {
         try {
             String sql = """
-                    INSERT INTO notification_reminder_sent (user_id, match_public_id, reminder_minutes, sent_at)
-                    VALUES (:userId, :matchPublicId, :reminderMinutes, NOW())
-                    ON CONFLICT (user_id, match_public_id, reminder_minutes) DO NOTHING
+                    INSERT INTO notification_reminder_sent (user_id, match_id, reminder_minutes, sent_at)
+                    VALUES (:userId, :matchId, :reminderMinutes, NOW())
+                    ON CONFLICT (user_id, match_id, reminder_minutes) DO NOTHING
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", userId);
-            params.addValue("matchPublicId", matchPublicId);
+            params.addValue("matchId", matchId);
             params.addValue("reminderMinutes", reminderMinutes);
             return namedParameterJdbcTemplate.update(sql, params) > 0;
         } catch (Exception e) {
@@ -57,20 +57,20 @@ public class NotificationDedupDao {
     }
 
     /** Latest stored Telegram message id for a prior reminder on this user+match (any window). */
-    public Integer findLatestReminderTelegramMessageId(int userId, int matchPublicId) {
+    public Integer findLatestReminderTelegramMessageId(int userId, int matchId) {
         try {
             String sql = """
                     SELECT telegram_message_id
                     FROM notification_reminder_sent
                     WHERE user_id = :userId
-                      AND match_public_id = :matchPublicId
+                      AND match_id = :matchId
                       AND telegram_message_id IS NOT NULL
                     ORDER BY sent_at DESC
                     LIMIT 1
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("userId", userId)
-                    .addValue("matchPublicId", matchPublicId);
+                    .addValue("matchId", matchId);
             List<Integer> ids = namedParameterJdbcTemplate.query(
                     sql,
                     params,
@@ -86,7 +86,7 @@ public class NotificationDedupDao {
         }
     }
 
-    public void saveReminderTelegramMessageId(int userId, int matchPublicId, int reminderMinutes, Integer messageId) {
+    public void saveReminderTelegramMessageId(int userId, int matchId, int reminderMinutes, Integer messageId) {
         if (messageId == null) {
             return;
         }
@@ -95,13 +95,13 @@ public class NotificationDedupDao {
                     UPDATE notification_reminder_sent
                     SET telegram_message_id = :messageId
                     WHERE user_id = :userId
-                      AND match_public_id = :matchPublicId
+                      AND match_id = :matchId
                       AND reminder_minutes = :reminderMinutes
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("messageId", messageId)
                     .addValue("userId", userId)
-                    .addValue("matchPublicId", matchPublicId)
+                    .addValue("matchId", matchId)
                     .addValue("reminderMinutes", reminderMinutes);
             namedParameterJdbcTemplate.update(sql, params);
         } catch (Exception e) {
@@ -110,26 +110,26 @@ public class NotificationDedupDao {
     }
 
     /** A sent reminder whose Telegram message should disappear once predictions are closed. */
-    public record ExpiredReminder(int userId, int matchPublicId, int reminderMinutes, int messageId) {
+    public record ExpiredReminder(int userId, int matchId, int reminderMinutes, int messageId) {
     }
 
     /** Reminders still visible in chat for matches whose prediction window (kickoff + graceMinutes) is over. */
     public List<ExpiredReminder> findExpiredReminders(int graceMinutes) {
         try {
             String sql = """
-                    SELECT r.user_id, r.match_public_id, r.reminder_minutes, r.telegram_message_id
+                    SELECT r.user_id, r.match_id, r.reminder_minutes, r.telegram_message_id
                     FROM notification_reminder_sent r
-                    JOIN match m ON m.public_id = r.match_public_id
+                    JOIN match m ON m.id = r.match_id
                     WHERE r.telegram_message_id IS NOT NULL
                       AND r.message_deleted_at IS NULL
-                      AND m.local_date_time + make_interval(mins => :grace) < NOW()
+                      AND m.starts_at + make_interval(mins => :grace) < NOW()
                     """;
             return namedParameterJdbcTemplate.query(
                     sql,
                     new MapSqlParameterSource("grace", graceMinutes),
                     (rs, rowNum) -> new ExpiredReminder(
                             rs.getInt("user_id"),
-                            rs.getInt("match_public_id"),
+                            rs.getInt("match_id"),
                             rs.getInt("reminder_minutes"),
                             rs.getInt("telegram_message_id"))
             );
@@ -139,16 +139,16 @@ public class NotificationDedupDao {
         }
     }
 
-    public void markReminderMessageDeleted(int userId, int matchPublicId, int reminderMinutes) {
+    public void markReminderMessageDeleted(int userId, int matchId, int reminderMinutes) {
         try {
             namedParameterJdbcTemplate.update("""
                     UPDATE notification_reminder_sent
                     SET message_deleted_at = NOW()
-                    WHERE user_id = :userId AND match_public_id = :matchPublicId
+                    WHERE user_id = :userId AND match_id = :matchId
                       AND reminder_minutes = :reminderMinutes
                     """, new MapSqlParameterSource()
                     .addValue("userId", userId)
-                    .addValue("matchPublicId", matchPublicId)
+                    .addValue("matchId", matchId)
                     .addValue("reminderMinutes", reminderMinutes));
         } catch (Exception e) {
             serverLogger.warn("markReminderMessageDeleted: {}", e.getMessage());

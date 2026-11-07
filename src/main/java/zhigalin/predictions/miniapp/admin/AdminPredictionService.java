@@ -75,7 +75,7 @@ public class AdminPredictionService {
             }
             for (Match match : matchService.findAllByWeekId(weekId)) {
                 MatchItem card = miniAppService.adminMatchCard(match);
-                for (Prediction p : predictionService.getByMatchPublicId(match.getPublicId())) {
+                for (Prediction p : predictionService.getByMatchPublicId(match.getId())) {
                     if (userId != null && userId > 0 && p.getUserId() != userId) {
                         continue;
                     }
@@ -84,7 +84,7 @@ public class AdminPredictionService {
             }
         } else if ("cups".equals(normalized)) {
             for (MatchItem card : miniAppService.adminCupMatchesToday()) {
-                CupMatch cup = cupMatchDao.findByPublicId(card.publicId());
+                CupMatch cup = cupMatchDao.findById(card.publicId());
                 String status = cup != null ? cup.getStatus() : null;
                 for (Prediction p : predictionService.getByCupMatchPublicId(card.publicId())) {
                     if (userId != null && userId > 0 && p.getUserId() != userId) {
@@ -114,10 +114,10 @@ public class AdminPredictionService {
         boolean weekBonus = false;
         if ("epl".equals(kind) && weekId != null && u != null) {
             weekBonus = userWeekBonusMatchService.findAssigned(u.getId(), weekId)
-                    .map(id -> id == p.getMatchPublicId())
+                    .map(id -> id == p.getMatchId())
                     .orElse(false);
         }
-        Integer matchPublicId = "epl".equals(kind) ? p.getMatchPublicId() : null;
+        Integer matchId = "epl".equals(kind) ? p.getMatchId() : null;
         Integer cupMatchId = "cup".equals(kind) ? p.getCupMatchId() : null;
         return new AdminPredictionListItem(
                 kind,
@@ -125,10 +125,10 @@ public class AdminPredictionService {
                 u != null ? u.getLogin() : ("user#" + p.getUserId()),
                 u != null ? u.getTelegramId() : null,
                 u != null ? u.getRole() : null,
-                matchPublicId,
+                matchId,
                 cupMatchId,
-                p.getHomeTeamScore(),
-                p.getAwayTeamScore(),
+                p.getHomeScore(),
+                p.getAwayScore(),
                 p.getPoints(),
                 weekBonus,
                 matchStatus,
@@ -148,28 +148,28 @@ public class AdminPredictionService {
         if (body == null) {
             throw new MiniAppException(400, "Пустой запрос.");
         }
-        boolean hasMatch = body.matchPublicId() != null && body.matchPublicId() > 0;
+        boolean hasMatch = body.matchId() != null && body.matchId() > 0;
         boolean hasCup = body.cupMatchId() != null && body.cupMatchId() > 0;
         if (hasMatch == hasCup) {
-            throw new MiniAppException(400, "Укажите ровно одно: matchPublicId или cupMatchId.");
+            throw new MiniAppException(400, "Укажите ровно одно: matchId или cupMatchId.");
         }
         if (body.userId() <= 0) {
             throw new MiniAppException(400, "Нужен userId.");
         }
         Prediction prediction = Prediction.builder()
                 .userId(body.userId())
-                .homeTeamScore(body.homeScore())
-                .awayTeamScore(body.awayScore())
+                .homeScore(body.homeScore())
+                .awayScore(body.awayScore())
                 .build();
         if (hasCup) {
             prediction.setCupMatchId(body.cupMatchId());
-            prediction.setMatchPublicId(0);
+            prediction.setMatchId(0);
             predictionService.save(prediction);
             refreshCupPointsIfFinished(body.cupMatchId(), body.userId());
         } else {
-            prediction.setMatchPublicId(body.matchPublicId());
+            prediction.setMatchId(body.matchId());
             predictionService.save(prediction);
-            refreshEplPointsIfFinished(body.matchPublicId(), body.userId());
+            refreshEplPointsIfFinished(body.matchId(), body.userId());
         }
         return new AdminRowMutationResponse(true, "Прогноз сохранён");
     }
@@ -180,29 +180,29 @@ public class AdminPredictionService {
         if (body == null) {
             throw new MiniAppException(400, "Пустой запрос.");
         }
-        boolean hasMatch = body.matchPublicId() != null && body.matchPublicId() > 0;
+        boolean hasMatch = body.matchId() != null && body.matchId() > 0;
         boolean hasCup = body.cupMatchId() != null && body.cupMatchId() > 0;
         if (hasMatch == hasCup) {
-            throw new MiniAppException(400, "Укажите ровно одно: matchPublicId или cupMatchId.");
+            throw new MiniAppException(400, "Укажите ровно одно: matchId или cupMatchId.");
         }
         if (hasCup) {
             predictionDao.deleteCup(body.userId(), body.cupMatchId());
         } else {
-            predictionDao.delete(body.userId(), body.matchPublicId());
+            predictionDao.delete(body.userId(), body.matchId());
         }
         return new AdminRowMutationResponse(true, "Прогноз удалён");
     }
 
-    private void refreshEplPointsIfFinished(int matchPublicId, int userId) {
-        Match match = matchService.findByPublicId(matchPublicId);
+    private void refreshEplPointsIfFinished(int matchId, int userId) {
+        Match match = matchService.findById(matchId);
         if (match == null || !"ft".equals(match.getStatus())) {
             return;
         }
-        predictionService.updatePoints(matchPublicId, userId);
+        predictionService.updatePoints(matchId, userId);
     }
 
     private void refreshCupPointsIfFinished(int cupMatchId, int userId) {
-        CupMatch cup = cupMatchDao.findByPublicId(cupMatchId);
+        CupMatch cup = cupMatchDao.findById(cupMatchId);
         if (cup == null || !"ft".equals(cup.getStatus())) {
             return;
         }
@@ -212,10 +212,10 @@ public class AdminPredictionService {
         }
         int points = PredictionService.computePoints(
                 ScoringMode.CUP,
-                cup.getHomeTeamScore(),
-                cup.getAwayTeamScore(),
-                prediction.getHomeTeamScore(),
-                prediction.getAwayTeamScore()
+                cup.getHomeScore(),
+                cup.getAwayScore(),
+                prediction.getHomeScore(),
+                prediction.getAwayScore()
         );
         predictionDao.updateCupPointsBatch(List.of(new PredictionDao.CupPointsUpdate(cupMatchId, userId, points)));
     }

@@ -30,7 +30,7 @@ final class MatchStatus {
 
     /** In-play EPL match that feeds provisional week points (same gate as computeCurrentWeekProvisionalPoints). */
     static boolean isLiveLike(Match match) {
-        return match != null && isLiveLike(match.getStatus(), match.getHomeTeamScore(), match.getAwayTeamScore());
+        return match != null && isLiveLike(match.getStatus(), match.getHomeScore(), match.getAwayScore());
     }
 
     static boolean isLiveLike(String status, Integer homeScore, Integer awayScore) {
@@ -40,11 +40,11 @@ final class MatchStatus {
     }
 
     static boolean canPredict(Match match) {
-        return match != null && canPredictAt(match.getStatus(), match.getLocalDateTime(), LocalDateTime.now());
+        return match != null && canPredictAt(match.getStatus(), match.getStartsAt(), LocalDateTime.now());
     }
 
     static boolean canPredictCup(CupMatch match) {
-        return match != null && canPredictAt(match.getStatus(), match.getLocalDateTime(), LocalDateTime.now());
+        return match != null && canPredictAt(match.getStatus(), match.getStartsAt(), LocalDateTime.now());
     }
 
     static boolean canPredictAt(String status, LocalDateTime kickoff, LocalDateTime now) {

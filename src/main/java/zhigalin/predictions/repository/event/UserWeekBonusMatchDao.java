@@ -22,35 +22,35 @@ public class UserWeekBonusMatchDao {
 
     public Optional<Integer> findMatchPublicId(int userId, int weekId) {
         String sql = """
-                SELECT match_public_id FROM user_week_bonus_match
+                SELECT match_id FROM user_week_bonus_match
                 WHERE user_id = :userId AND week_id = :weekId
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("userId", userId)
                 .addValue("weekId", weekId);
         try {
-            List<Integer> rows = jdbc.query(sql, params, (rs, i) -> rs.getInt("match_public_id"));
+            List<Integer> rows = jdbc.query(sql, params, (rs, i) -> rs.getInt("match_id"));
             return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
         } catch (Exception e) {
             return Optional.empty();
         }
     }
 
-    public void insert(int userId, int weekId, int matchPublicId) {
+    public void insert(int userId, int weekId, int matchId) {
         String sql = """
-                INSERT INTO user_week_bonus_match (user_id, week_id, match_public_id)
-                VALUES (:userId, :weekId, :matchPublicId)
+                INSERT INTO user_week_bonus_match (user_id, week_id, match_id)
+                VALUES (:userId, :weekId, :matchId)
                 ON CONFLICT (user_id, week_id) DO NOTHING
                 """;
         jdbc.update(sql, new MapSqlParameterSource()
                 .addValue("userId", userId)
                 .addValue("weekId", weekId)
-                .addValue("matchPublicId", matchPublicId));
+                .addValue("matchId", matchId));
     }
 
     public List<Integer> findAllMatchIdsForWeek(int weekId) {
         String sql = """
-                SELECT DISTINCT match_public_id FROM user_week_bonus_match WHERE week_id = :weekId
+                SELECT DISTINCT match_id FROM user_week_bonus_match WHERE week_id = :weekId
                 """;
         try {
             return DaoUtil.getNullableResult(() -> jdbc.query(

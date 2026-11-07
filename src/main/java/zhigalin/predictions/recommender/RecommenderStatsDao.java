@@ -12,23 +12,23 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import zhigalin.predictions.recommender.model.ExplanationBreakdown;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
 
 @Repository
-public class FootyStatsStatsDao {
+public class RecommenderStatsDao {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
-    public FootyStatsStatsDao(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public RecommenderStatsDao(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
     }
 
-    public void replaceTeamStats(int weekId, List<FootyStatsTeamSnapshot> teams) {
+    public void replaceTeamStats(int weekId, List<TeamStatsSnapshot> teams) {
         jdbcTemplate.update("DELETE FROM recommender_team_stats WHERE week_id = ?", weekId);
         if (teams == null || teams.isEmpty()) {
             return;
@@ -63,7 +63,7 @@ public class FootyStatsStatsDao {
                 });
     }
 
-    private String serializeExtended(FootyStatsExtendedMetrics extended) {
+    private String serializeExtended(ExtendedTeamMetrics extended) {
         try {
             return objectMapper.writeValueAsString(extended);
         } catch (Exception e) {
@@ -71,18 +71,18 @@ public class FootyStatsStatsDao {
         }
     }
 
-    private FootyStatsExtendedMetrics deserializeExtended(String json) {
+    private ExtendedTeamMetrics deserializeExtended(String json) {
         if (json == null || json.isBlank()) {
-            return FootyStatsExtendedMetrics.empty();
+            return ExtendedTeamMetrics.empty();
         }
         try {
-            return objectMapper.readValue(json, FootyStatsExtendedMetrics.class);
+            return objectMapper.readValue(json, ExtendedTeamMetrics.class);
         } catch (Exception e) {
-            return FootyStatsExtendedMetrics.empty();
+            return ExtendedTeamMetrics.empty();
         }
     }
 
-    public void saveLeagueSnapshot(FootyStatsLeagueSnapshot snapshot) {
+    public void saveLeagueSnapshot(LeagueAveragesSnapshot snapshot) {
         jdbcTemplate.update("""
                         INSERT INTO recommender_league_snapshot (
                             week_id, avg_home_scored, avg_away_scored, avg_home_conceded, avg_away_conceded, fetched_at
@@ -102,8 +102,8 @@ public class FootyStatsStatsDao {
                 Timestamp.from(snapshot.fetchedAt()));
     }
 
-    public Optional<FootyStatsLeagueSnapshot> findLeagueSnapshot(int weekId) {
-        List<FootyStatsLeagueSnapshot> rows = jdbcTemplate.query(
+    public Optional<LeagueAveragesSnapshot> findLeagueSnapshot(int weekId) {
+        List<LeagueAveragesSnapshot> rows = jdbcTemplate.query(
                 "SELECT * FROM recommender_league_snapshot WHERE week_id = ?",
                 leagueMapper(),
                 weekId
@@ -111,7 +111,7 @@ public class FootyStatsStatsDao {
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
     }
 
-    public List<FootyStatsTeamSnapshot> findTeamStats(int weekId) {
+    public List<TeamStatsSnapshot> findTeamStats(int weekId) {
         return jdbcTemplate.query(
                 "SELECT * FROM recommender_team_stats WHERE week_id = ?",
                 teamMapper(),
@@ -119,8 +119,8 @@ public class FootyStatsStatsDao {
         );
     }
 
-    public Optional<FootyStatsTeamSnapshot> findTeamStats(int weekId, String teamCode) {
-        List<FootyStatsTeamSnapshot> rows = jdbcTemplate.query(
+    public Optional<TeamStatsSnapshot> findTeamStats(int weekId, String teamCode) {
+        List<TeamStatsSnapshot> rows = jdbcTemplate.query(
                 "SELECT * FROM recommender_team_stats WHERE week_id = ? AND team_code = ?",
                 teamMapper(),
                 weekId,
@@ -129,11 +129,11 @@ public class FootyStatsStatsDao {
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
     }
 
-    public Optional<FootyStatsTeamSnapshot> findLatestTeamStats(String teamCode) {
+    public Optional<TeamStatsSnapshot> findLatestTeamStats(String teamCode) {
         if (teamCode == null || teamCode.isBlank()) {
             return Optional.empty();
         }
-        List<FootyStatsTeamSnapshot> rows = jdbcTemplate.query(
+        List<TeamStatsSnapshot> rows = jdbcTemplate.query(
                 """
                         SELECT * FROM recommender_team_stats
                         WHERE team_code = ?
@@ -152,18 +152,18 @@ public class FootyStatsStatsDao {
         }
         jdbcTemplate.batchUpdate("""
                         INSERT INTO match_recommendation (
-                            match_public_id, week_id,
+                            match_id, week_id,
                             recommended_home, recommended_away,
-                            expected_home_goals, expected_away_goals,
+                            expected_home, expected_away,
                             score_probability, explanation_json, computed_at,
                             shadow_home, shadow_away
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT (match_public_id) DO UPDATE SET
+                        ON CONFLICT (match_id) DO UPDATE SET
                             week_id = EXCLUDED.week_id,
                             recommended_home = EXCLUDED.recommended_home,
                             recommended_away = EXCLUDED.recommended_away,
-                            expected_home_goals = EXCLUDED.expected_home_goals,
-                            expected_away_goals = EXCLUDED.expected_away_goals,
+                            expected_home = EXCLUDED.expected_home,
+                            expected_away = EXCLUDED.expected_away,
                             score_probability = EXCLUDED.score_probability,
                             explanation_json = EXCLUDED.explanation_json,
                             computed_at = EXCLUDED.computed_at,
@@ -182,12 +182,12 @@ public class FootyStatsStatsDao {
                     } catch (Exception e) {
                         explanationJson = "{\"rows\":[],\"notes\":[]}";
                     }
-                    ps.setInt(1, recommendation.matchPublicId());
+                    ps.setInt(1, recommendation.matchId());
                     ps.setInt(2, recommendation.weekId());
                     ps.setInt(3, recommendation.recommendedHome());
                     ps.setInt(4, recommendation.recommendedAway());
-                    ps.setDouble(5, recommendation.expectedHomeGoals());
-                    ps.setDouble(6, recommendation.expectedAwayGoals());
+                    ps.setDouble(5, recommendation.expectedHome());
+                    ps.setDouble(6, recommendation.expectedAway());
                     ps.setDouble(7, recommendation.scoreProbability());
                     ps.setString(8, explanationJson);
                     ps.setTimestamp(9, Timestamp.from(recommendation.computedAt()));
@@ -196,11 +196,11 @@ public class FootyStatsStatsDao {
                 });
     }
 
-    public Optional<MatchRecommendationSnapshot> findRecommendation(int matchPublicId) {
+    public Optional<MatchRecommendationSnapshot> findRecommendation(int matchId) {
         List<MatchRecommendationSnapshot> rows = jdbcTemplate.query(
-                "SELECT * FROM match_recommendation WHERE match_public_id = ?",
+                "SELECT * FROM match_recommendation WHERE match_id = ?",
                 recommendationMapper(),
-                matchPublicId
+                matchId
         );
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
     }
@@ -210,16 +210,16 @@ public class FootyStatsStatsDao {
      *
      * @return true if this call performed the freeze
      */
-    public boolean freezeAtKickoff(int matchPublicId) {
+    public boolean freezeAtKickoff(int matchId) {
         int updated = jdbcTemplate.update("""
                         UPDATE match_recommendation
                         SET kickoff_home = recommended_home,
                             kickoff_away = recommended_away,
                             kickoff_frozen_at = NOW()
-                        WHERE match_public_id = ?
+                        WHERE match_id = ?
                           AND kickoff_frozen_at IS NULL
                         """,
-                matchPublicId
+                matchId
         );
         return updated > 0;
     }
@@ -227,7 +227,7 @@ public class FootyStatsStatsDao {
     public java.util.Set<Integer> findFrozenMatchPublicIds(int weekId) {
         List<Integer> ids = jdbcTemplate.queryForList(
                 """
-                        SELECT match_public_id FROM match_recommendation
+                        SELECT match_id FROM match_recommendation
                         WHERE week_id = ? AND kickoff_frozen_at IS NOT NULL
                         """,
                 Integer.class,
@@ -236,28 +236,28 @@ public class FootyStatsStatsDao {
         return new java.util.HashSet<>(ids);
     }
 
-    public java.util.Map<Integer, int[]> findKickoffScoresByMatchIds(java.util.Collection<Integer> matchPublicIds) {
+    public java.util.Map<Integer, int[]> findKickoffScoresByMatchIds(java.util.Collection<Integer> matchIds) {
         java.util.Map<Integer, int[]> result = new java.util.HashMap<>();
-        if (matchPublicIds == null || matchPublicIds.isEmpty()) {
+        if (matchIds == null || matchIds.isEmpty()) {
             return result;
         }
-        List<Integer> ids = matchPublicIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        List<Integer> ids = matchIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
         if (ids.isEmpty()) {
             return result;
         }
         String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
         jdbcTemplate.query(
                 """
-                        SELECT match_public_id, kickoff_home, kickoff_away
+                        SELECT match_id, kickoff_home, kickoff_away
                         FROM match_recommendation
                         WHERE kickoff_frozen_at IS NOT NULL
                           AND kickoff_home IS NOT NULL
                           AND kickoff_away IS NOT NULL
-                          AND match_public_id IN (%s)
+                          AND match_id IN (%s)
                         """.formatted(placeholders),
                 rs -> {
                     result.put(
-                            rs.getInt("match_public_id"),
+                            rs.getInt("match_id"),
                             new int[]{rs.getInt("kickoff_home"), rs.getInt("kickoff_away")}
                     );
                 },
@@ -269,21 +269,21 @@ public class FootyStatsStatsDao {
     public List<int[]> findFrozenTipResultsForCurrentSeason() {
         return jdbcTemplate.query(
                 """
-                        SELECT mr.kickoff_home, mr.kickoff_away, m.home_team_score, m.away_team_score
+                        SELECT mr.kickoff_home, mr.kickoff_away, m.home_score, m.away_score
                         FROM match_recommendation mr
-                        JOIN match m ON m.public_id = mr.match_public_id
+                        JOIN match m ON m.id = mr.match_id
                         JOIN weeks w ON w.id = mr.week_id
                         WHERE mr.kickoff_frozen_at IS NOT NULL
                           AND mr.kickoff_home IS NOT NULL
                           AND mr.kickoff_away IS NOT NULL
                           AND m.status = 'ft'
-                          AND m.home_team_score IS NOT NULL
-                          AND m.away_team_score IS NOT NULL
+                          AND m.home_score IS NOT NULL
+                          AND m.away_score IS NOT NULL
                           AND w.season_id = (SELECT season_id FROM weeks WHERE is_current LIMIT 1)
                         """,
                 (rs, rowNum) -> new int[]{
                         rs.getInt("kickoff_home"), rs.getInt("kickoff_away"),
-                        rs.getInt("home_team_score"), rs.getInt("away_team_score")
+                        rs.getInt("home_score"), rs.getInt("away_score")
                 }
         );
     }
@@ -309,8 +309,8 @@ public class FootyStatsStatsDao {
         return count != null && count > 0;
     }
 
-    private RowMapper<FootyStatsTeamSnapshot> teamMapper() {
-        return (rs, rowNum) -> new FootyStatsTeamSnapshot(
+    private RowMapper<TeamStatsSnapshot> teamMapper() {
+        return (rs, rowNum) -> new TeamStatsSnapshot(
                 rs.getString("team_code"),
                 rs.getDouble("scored_overall"),
                 rs.getDouble("scored_home"),
@@ -328,8 +328,8 @@ public class FootyStatsStatsDao {
         );
     }
 
-    private RowMapper<FootyStatsLeagueSnapshot> leagueMapper() {
-        return (rs, rowNum) -> new FootyStatsLeagueSnapshot(
+    private RowMapper<LeagueAveragesSnapshot> leagueMapper() {
+        return (rs, rowNum) -> new LeagueAveragesSnapshot(
                 rs.getInt("week_id"),
                 rs.getDouble("avg_home_scored"),
                 rs.getDouble("avg_away_scored"),
@@ -346,12 +346,12 @@ public class FootyStatsStatsDao {
             Integer kickoffHome = getNullableInt(rs, "kickoff_home");
             Integer kickoffAway = getNullableInt(rs, "kickoff_away");
             return new MatchRecommendationSnapshot(
-                    rs.getInt("match_public_id"),
+                    rs.getInt("match_id"),
                     rs.getInt("week_id"),
                     rs.getInt("recommended_home"),
                     rs.getInt("recommended_away"),
-                    rs.getDouble("expected_home_goals"),
-                    rs.getDouble("expected_away_goals"),
+                    rs.getDouble("expected_home"),
+                    rs.getDouble("expected_away"),
                     rs.getDouble("score_probability"),
                     explanation,
                     buildSummary(rs.getInt("recommended_home"), rs.getInt("recommended_away")),

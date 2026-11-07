@@ -141,14 +141,15 @@ public class CupMatchTipDao {
 
     public List<int[]> findFinishedTipResults() {
         String sql = """
-                SELECT t.home_score, t.away_score, c.home_team_score, c.away_team_score
+                SELECT t.home_score AS tip_home, t.away_score AS tip_away,
+                       c.home_score AS actual_home, c.away_score AS actual_away
                 FROM cup_match_tip t
-                JOIN cup_match c ON c.public_id = t.cup_match_id
-                WHERE c.status = 'ft' AND c.home_team_score IS NOT NULL AND c.away_team_score IS NOT NULL
+                JOIN cup_match c ON c.id = t.cup_match_id
+                WHERE c.status = 'ft' AND c.home_score IS NOT NULL AND c.away_score IS NOT NULL
                 """;
         return namedParameterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> new int[]{
-                rs.getInt("home_score"), rs.getInt("away_score"),
-                rs.getInt("home_team_score"), rs.getInt("away_team_score")});
+                rs.getInt("tip_home"), rs.getInt("tip_away"),
+                rs.getInt("actual_home"), rs.getInt("actual_away")});
     }
 
     public Map<Integer, LocalDateTime> updatedAtByCupMatchIds(Collection<Integer> cupMatchIds) {

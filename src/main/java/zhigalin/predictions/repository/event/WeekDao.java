@@ -140,7 +140,7 @@ public class WeekDao {
             String sql = """
                     SELECT weeks.* FROM weeks
                     JOIN match m ON weeks.id = m.week_id
-                    WHERE m.public_id = :matchId
+                    WHERE m.id = :matchId
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("matchId", matchId);

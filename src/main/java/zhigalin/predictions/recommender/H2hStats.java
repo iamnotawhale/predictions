@@ -40,7 +40,7 @@ public record H2hStats(
         int venueAwayGoalsSum = 0;
 
         for (HeadToHead meeting : meetings) {
-            if (meeting == null || meeting.getHomeTeamScore() < 0 || meeting.getAwayTeamScore() < 0) {
+            if (meeting == null || meeting.getHomeScore() < 0 || meeting.getAwayScore() < 0) {
                 continue;
             }
             boolean homeWasHome = meeting.getHomeTeamId() == currentHomeId
@@ -51,8 +51,8 @@ public record H2hStats(
                 continue;
             }
 
-            int goalsCurrentHome = homeWasHome ? meeting.getHomeTeamScore() : meeting.getAwayTeamScore();
-            int goalsCurrentAway = homeWasHome ? meeting.getAwayTeamScore() : meeting.getHomeTeamScore();
+            int goalsCurrentHome = homeWasHome ? meeting.getHomeScore() : meeting.getAwayScore();
+            int goalsCurrentAway = homeWasHome ? meeting.getAwayScore() : meeting.getHomeScore();
 
             overall++;
             homeGoalsSum += goalsCurrentHome;

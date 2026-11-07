@@ -24,7 +24,7 @@ import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.predict.Prediction;
 import zhigalin.predictions.model.user.User;
-import zhigalin.predictions.recommender.FootyStatsStatsDao;
+import zhigalin.predictions.recommender.RecommenderStatsDao;
 import zhigalin.predictions.repository.event.CupMatchDao;
 import zhigalin.predictions.repository.predict.PredictionDao.MatchPrediction;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
@@ -47,13 +47,13 @@ class UserPredictionStatsTeamTest {
     @Mock
     TeamLogoCacheService logos;
     @Mock
-    FootyStatsStatsDao statsDao;
+    RecommenderStatsDao statsDao;
     @Mock
     CupMatchTipService tipService;
 
-    private final Team ars = Team.builder().publicId(1).code("ARS").name("Arsenal").build();
-    private final Team che = Team.builder().publicId(2).code("CHE").name("Chelsea").build();
-    private final Team liv = Team.builder().publicId(3).code("LIV").name("Liverpool").build();
+    private final Team ars = Team.builder().id(1).code("ARS").name("Arsenal").build();
+    private final Team che = Team.builder().id(2).code("CHE").name("Chelsea").build();
+    private final Team liv = Team.builder().id(3).code("LIV").name("Liverpool").build();
 
     @BeforeEach
     void teams() {
@@ -70,17 +70,17 @@ class UserPredictionStatsTeamTest {
     }
 
     private static MatchPrediction mp(int id, int home, int away, Integer rh, Integer ra, String status, int ph, int pa) {
-        Match m = Match.builder().publicId(id).weekId(7).homeTeamId(home).awayTeamId(away)
-                .homeTeamScore(rh).awayTeamScore(ra).status(status)
-                .localDateTime(LocalDateTime.of(2026, 10, id, 17, 30)).build();
-        Prediction p = Prediction.builder().matchPublicId(id).userId(5).homeTeamScore(ph).awayTeamScore(pa).build();
+        Match m = Match.builder().id(id).weekId(7).homeTeamId(home).awayTeamId(away)
+                .homeScore(rh).awayScore(ra).status(status)
+                .startsAt(LocalDateTime.of(2026, 10, id, 17, 30)).build();
+        Prediction p = Prediction.builder().matchId(id).userId(5).homeScore(ph).awayScore(pa).build();
         return new MatchPrediction(m, p);
     }
 
     private static Match match(int id, int home, int away, Integer rh, Integer ra, String status) {
-        return Match.builder().publicId(id).weekId(7).homeTeamId(home).awayTeamId(away)
-                .homeTeamScore(rh).awayTeamScore(ra).status(status)
-                .localDateTime(LocalDateTime.of(2026, 10, id, 17, 30)).build();
+        return Match.builder().id(id).weekId(7).homeTeamId(home).awayTeamId(away)
+                .homeScore(rh).awayScore(ra).status(status)
+                .startsAt(LocalDateTime.of(2026, 10, id, 17, 30)).build();
     }
 
     @Test
@@ -134,20 +134,20 @@ class UserPredictionStatsTeamTest {
         User user = User.builder().id(5).login("nik").build();
         when(predictionService.findAllByUserId(5)).thenReturn(List.of());
         when(predictionService.findAllCupByUserId(5)).thenReturn(List.of(
-                Prediction.builder().cupMatchId(900).userId(5).homeTeamScore(2).awayTeamScore(1).build(),
-                Prediction.builder().cupMatchId(902).userId(5).homeTeamScore(1).awayTeamScore(1).build()
+                Prediction.builder().cupMatchId(900).userId(5).homeScore(2).awayScore(1).build(),
+                Prediction.builder().cupMatchId(902).userId(5).homeScore(1).awayScore(1).build()
         ));
         when(matchService.findAllByTeamPublicId(1)).thenReturn(List.of());
         when(cupMatchDao.findAllByTeamPublicId(1)).thenReturn(List.of(
-                CupMatch.builder().publicId(900).homeTeamId(1).homeName("Arsenal")
-                        .awayName("Lower Club").homeTeamScore(2).awayTeamScore(1).status("ft")
-                        .localDateTime(LocalDateTime.of(2026, 10, 20, 18, 0)).build(),
-                CupMatch.builder().publicId(901).homeTeamId(1).awayTeamId(2).homeName("Arsenal")
+                CupMatch.builder().id(900).homeTeamId(1).homeName("Arsenal")
+                        .awayName("Lower Club").homeScore(2).awayScore(1).status("ft")
+                        .startsAt(LocalDateTime.of(2026, 10, 20, 18, 0)).build(),
+                CupMatch.builder().id(901).homeTeamId(1).awayTeamId(2).homeName("Arsenal")
                         .awayName("Chelsea").status("ns")
-                        .localDateTime(LocalDateTime.of(2026, 10, 21, 18, 0)).build(),
-                CupMatch.builder().publicId(902).homeTeamId(1).awayTeamId(2).homeName("Arsenal")
+                        .startsAt(LocalDateTime.of(2026, 10, 21, 18, 0)).build(),
+                CupMatch.builder().id(902).homeTeamId(1).awayTeamId(2).homeName("Arsenal")
                         .awayName("Chelsea").status("ns")
-                        .localDateTime(LocalDateTime.of(2026, 10, 30, 18, 0)).build()
+                        .startsAt(LocalDateTime.of(2026, 10, 30, 18, 0)).build()
         ));
         when(statsDao.findKickoffScoresByMatchIds(anyCollection())).thenReturn(Map.of());
         when(predictionService.othersPointsByCupMatchIds(anyCollection(), eq(5))).thenReturn(Map.of());
@@ -161,7 +161,7 @@ class UserPredictionStatsTeamTest {
         assertEquals(2.0, r.avgPoints(), 1e-9);
 
         var upcoming = r.items().get(0);
-        assertEquals(902, upcoming.matchPublicId());
+        assertEquals(902, upcoming.matchId());
         assertFalse(upcoming.finished());
         assertEquals(1, upcoming.predictHome());
         assertNull(upcoming.points());
@@ -178,18 +178,18 @@ class UserPredictionStatsTeamTest {
         User user = User.builder().id(5).login("nik").build();
         when(predictionService.findAllByUserId(5)).thenReturn(List.of(mp(1, 1, 3, 2, 0, "ft", 2, 1)));
         when(predictionService.findAllCupByUserId(5)).thenReturn(List.of(
-                Prediction.builder().cupMatchId(900).userId(5).homeTeamScore(2).awayTeamScore(1).build()
+                Prediction.builder().cupMatchId(900).userId(5).homeScore(2).awayScore(1).build()
         ));
         when(cupMatchDao.findAllByPublicIds(anyCollection())).thenReturn(List.of(
-                CupMatch.builder().publicId(900).homeTeamId(1).homeName("Arsenal").awayName("Lower Club")
-                        .homeTeamScore(2).awayTeamScore(1).status("ft")
-                        .localDateTime(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
+                CupMatch.builder().id(900).homeTeamId(1).homeName("Arsenal").awayName("Lower Club")
+                        .homeScore(2).awayScore(1).status("ft")
+                        .startsAt(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
         ));
         when(matchService.findAllByTeamPublicId(1)).thenReturn(List.of(match(1, 1, 3, 2, 0, "ft")));
         when(cupMatchDao.findAllByTeamPublicId(1)).thenReturn(List.of(
-                CupMatch.builder().publicId(900).homeTeamId(1).homeName("Arsenal").awayName("Lower Club")
-                        .homeTeamScore(2).awayTeamScore(1).status("ft")
-                        .localDateTime(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
+                CupMatch.builder().id(900).homeTeamId(1).homeName("Arsenal").awayName("Lower Club")
+                        .homeScore(2).awayScore(1).status("ft")
+                        .startsAt(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
         ));
 
         UserPredictionStatsService service =
@@ -206,18 +206,18 @@ class UserPredictionStatsTeamTest {
     @Test
     void espnCodeCollidingWithEplCodeFallsBackToName() {
         User user = User.builder().id(5).login("nik").build();
-        Team bri = Team.builder().publicId(9).code("BRI").name("Brighton").build();
+        Team bri = Team.builder().id(9).code("BRI").name("Brighton").build();
         DaoUtil.TEAMS.put(9, bri);
         try {
             when(predictionService.findAllByUserId(5)).thenReturn(List.of());
             when(predictionService.findAllCupByUserId(5)).thenReturn(List.of(
-                    Prediction.builder().cupMatchId(910).userId(5).homeTeamScore(1).awayTeamScore(0).build()
+                    Prediction.builder().cupMatchId(910).userId(5).homeScore(1).awayScore(0).build()
             ));
             when(matchService.findAllByTeamPublicId(1)).thenReturn(List.of());
             when(cupMatchDao.findAllByTeamPublicId(1)).thenReturn(List.of(
-                    CupMatch.builder().publicId(910).homeTeamId(1).awayTeamId(null).homeName("Arsenal")
-                            .awayName("Bristol Rovers").awayEspnCode("BRI").homeTeamScore(1).awayTeamScore(0)
-                            .status("ft").localDateTime(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
+                    CupMatch.builder().id(910).homeTeamId(1).awayTeamId(null).homeName("Arsenal")
+                            .awayName("Bristol Rovers").awayEspnCode("BRI").homeScore(1).awayScore(0)
+                            .status("ft").startsAt(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
             ));
             UserPredictionStatsService service =
                     new UserPredictionStatsService(predictionService, matchService, cupMatchDao, bonusService, logos, statsDao, tipService);
@@ -230,18 +230,18 @@ class UserPredictionStatsTeamTest {
     @Test
     void bayernEspnCodeMunDoesNotLabelAsManchesterUnited() {
         User user = User.builder().id(5).login("nik").build();
-        Team mun = Team.builder().publicId(8).code("MUN").name("Manchester United").build();
+        Team mun = Team.builder().id(8).code("MUN").name("Manchester United").build();
         DaoUtil.TEAMS.put(8, mun);
         try {
             when(predictionService.findAllByUserId(5)).thenReturn(List.of());
             when(predictionService.findAllCupByUserId(5)).thenReturn(List.of(
-                    Prediction.builder().cupMatchId(911).userId(5).homeTeamScore(1).awayTeamScore(0).build()
+                    Prediction.builder().cupMatchId(911).userId(5).homeScore(1).awayScore(0).build()
             ));
             when(matchService.findAllByTeamPublicId(1)).thenReturn(List.of());
             when(cupMatchDao.findAllByTeamPublicId(1)).thenReturn(List.of(
-                    CupMatch.builder().publicId(911).homeTeamId(1).awayTeamId(null).homeName("Arsenal")
-                            .awayName("Bayern Munich").awayEspnCode("MUN").homeTeamScore(1).awayTeamScore(0)
-                            .status("ft").localDateTime(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
+                    CupMatch.builder().id(911).homeTeamId(1).awayTeamId(null).homeName("Arsenal")
+                            .awayName("Bayern Munich").awayEspnCode("MUN").homeScore(1).awayScore(0)
+                            .status("ft").startsAt(LocalDateTime.of(2026, 10, 20, 18, 0)).build()
             ));
             UserPredictionStatsService service =
                     new UserPredictionStatsService(predictionService, matchService, cupMatchDao, bonusService, logos, statsDao, tipService);

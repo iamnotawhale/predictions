@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
 import zhigalin.predictions.recommender.model.TipTrackRecord;
 import zhigalin.predictions.service.event.HeadToHeadService;
@@ -34,7 +34,7 @@ public class BettingRecommendationService {
     private final SoccerStatsScraperService soccerStatsScraperService;
     private static final long TRACK_RECORD_TTL_MS = 10 * 60 * 1000L;
 
-    private final FootyStatsStatsDao statsDao;
+    private final RecommenderStatsDao statsDao;
     private volatile CachedTrackRecord trackRecordCache;
     private final MatchService matchService;
     private final OddsService oddsService;
@@ -44,7 +44,7 @@ public class BettingRecommendationService {
     public BettingRecommendationService(
             ApiFootballStatsSnapshotService statsSnapshotService,
             SoccerStatsScraperService soccerStatsScraperService,
-            FootyStatsStatsDao statsDao,
+            RecommenderStatsDao statsDao,
             MatchService matchService,
             OddsService oddsService,
             HeadToHeadService headToHeadService
@@ -96,7 +96,7 @@ public class BettingRecommendationService {
     private int doRefreshForWeek(int weekId) {
         try {
             LeagueStatsSnapshot snapshot = statsSnapshotService.fetchSnapshot();
-            List<FootyStatsTeamSnapshot> teams;
+            List<TeamStatsSnapshot> teams;
             try {
                 teams = soccerStatsScraperService.enrich(snapshot.teams());
             } catch (Exception e) {
@@ -110,16 +110,16 @@ public class BettingRecommendationService {
 
             List<Match> matches = matchService.findAllByWeekId(weekId);
             oddsService.ensureFresh(matches);
-            Optional<FootyStatsLeagueSnapshot> league = statsDao.findLeagueSnapshot(weekId);
+            Optional<LeagueAveragesSnapshot> league = statsDao.findLeagueSnapshot(weekId);
             if (league.isEmpty()) {
                 log.warn("Betting recommender: no league snapshot for week {}", weekId);
                 return 0;
             }
-            Map<String, FootyStatsTeamSnapshot> statsByCode = statsDao.findTeamStats(weekId).stream()
-                    .collect(Collectors.toMap(FootyStatsTeamSnapshot::teamCode, Function.identity(), (a, b) -> a));
+            Map<String, TeamStatsSnapshot> statsByCode = statsDao.findTeamStats(weekId).stream()
+                    .collect(Collectors.toMap(TeamStatsSnapshot::teamCode, Function.identity(), (a, b) -> a));
             List<MatchRecommendationSnapshot> toStore = new ArrayList<>();
             for (Match match : matches) {
-                if (frozenIds.contains(match.getPublicId())) {
+                if (frozenIds.contains(match.getId())) {
                     continue;
                 }
                 Optional<MatchRecommendationSnapshot> recommendation =
@@ -155,8 +155,8 @@ public class BettingRecommendationService {
         }
     }
 
-    public Optional<MatchRecommendationSnapshot> recommendationForMatch(int matchPublicId) {
-        return statsDao.findRecommendation(matchPublicId);
+    public Optional<MatchRecommendationSnapshot> recommendationForMatch(int matchId) {
+        return statsDao.findRecommendation(matchId);
     }
 
     public TipTrackRecord seasonTrackRecord() {
@@ -188,38 +188,38 @@ public class BettingRecommendationService {
     }
 
     /** Freeze live recommendation into kickoff_* once (no-op if already frozen or missing). */
-    public boolean freezeAtKickoffIfNeeded(int matchPublicId) {
+    public boolean freezeAtKickoffIfNeeded(int matchId) {
         try {
-            boolean frozen = statsDao.freezeAtKickoff(matchPublicId);
+            boolean frozen = statsDao.freezeAtKickoff(matchId);
             if (frozen) {
-                log.info("Betting recommender kickoff freeze for match {}", matchPublicId);
+                log.info("Betting recommender kickoff freeze for match {}", matchId);
             }
             return frozen;
         } catch (Exception e) {
-            log.warn("Betting recommender kickoff freeze failed for match {}: {}", matchPublicId, e.getMessage());
+            log.warn("Betting recommender kickoff freeze failed for match {}: {}", matchId, e.getMessage());
             return false;
         }
     }
 
-    public Map<Integer, int[]> kickoffScoresByMatchIds(java.util.Collection<Integer> matchPublicIds) {
-        return statsDao.findKickoffScoresByMatchIds(matchPublicIds);
+    public Map<Integer, int[]> kickoffScoresByMatchIds(java.util.Collection<Integer> matchIds) {
+        return statsDao.findKickoffScoresByMatchIds(matchIds);
     }
 
-    public Optional<int[]> kickoffScore(int matchPublicId) {
-        Map<Integer, int[]> map = statsDao.findKickoffScoresByMatchIds(List.of(matchPublicId));
-        return Optional.ofNullable(map.get(matchPublicId));
+    public Optional<int[]> kickoffScore(int matchId) {
+        Map<Integer, int[]> map = statsDao.findKickoffScoresByMatchIds(List.of(matchId));
+        return Optional.ofNullable(map.get(matchId));
     }
 
     private Optional<MatchRecommendationSnapshot> computeAndStore(
             Match match,
             int weekId,
-            FootyStatsLeagueSnapshot league,
-            Map<String, FootyStatsTeamSnapshot> statsByCode
+            LeagueAveragesSnapshot league,
+            Map<String, TeamStatsSnapshot> statsByCode
     ) {
         String homeCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();
         String awayCode = DaoUtil.TEAMS.get(match.getAwayTeamId()).getCode();
-        FootyStatsTeamSnapshot home = statsByCode.get(homeCode);
-        FootyStatsTeamSnapshot away = statsByCode.get(awayCode);
+        TeamStatsSnapshot home = statsByCode.get(homeCode);
+        TeamStatsSnapshot away = statsByCode.get(awayCode);
         if (home == null || away == null) {
             return Optional.empty();
         }
@@ -228,16 +228,16 @@ public class BettingRecommendationService {
         Double oddDraw = null;
         Double oddAway = null;
         Double matchOverUnder = null;
-        Double homeTeamTotal = null;
-        Double awayTeamTotal = null;
-        OddsService.Odd odd = oddsService.getOdd(match.getPublicId());
+        Double homeTotal = null;
+        Double awayTotal = null;
+        OddsService.Odd odd = oddsService.getOdd(match.getId());
         if (odd != null) {
             oddHome = odd.home();
             oddDraw = odd.draw();
             oddAway = odd.away();
             matchOverUnder = odd.overUnder();
-            homeTeamTotal = odd.homeTeamTotal();
-            awayTeamTotal = odd.awayTeamTotal();
+            homeTotal = odd.homeTotal();
+            awayTotal = odd.awayTotal();
         }
 
         H2hStats h2h = H2hStats.from(
@@ -255,12 +255,12 @@ public class BettingRecommendationService {
                 league,
                 h2h,
                 matchOverUnder,
-                homeTeamTotal,
-                awayTeamTotal
+                homeTotal,
+                awayTotal
         );
 
         return Optional.of(new MatchRecommendationSnapshot(
-                match.getPublicId(),
+                match.getId(),
                 weekId,
                 result.recommendedHome(),
                 result.recommendedAway(),

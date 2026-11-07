@@ -58,7 +58,7 @@ public class PredictCommand implements Command {
             }
 
             Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
-            if (LocalDateTime.now().isAfter(match.getLocalDateTime().plusMinutes(5))) {
+            if (LocalDateTime.now().isAfter(match.getStartsAt().plusMinutes(5))) {
                 return "Время для прогноза истекло. Матч уже начался";
             } else {
                 if (matchToUpdate[1].equals("delete")) {
@@ -69,7 +69,7 @@ public class PredictCommand implements Command {
                     int awayPredict = Integer.parseInt(matchToUpdate[5]);
 
                     String action;
-                    if (predictionService.isExist(chatId, match.getPublicId())) {
+                    if (predictionService.isExist(chatId, match.getId())) {
                         action = "обновлен";
                     } else {
                         action = "сохранен";

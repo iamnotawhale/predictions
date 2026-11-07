@@ -52,7 +52,7 @@ public class NotificationPredictCommand implements Command {
             }
 
             match = matchService.findByTeamCodes(homeTeam, awayTeam);
-            if (LocalDateTime.now().isAfter(match.getLocalDateTime().plusMinutes(5))) {
+            if (LocalDateTime.now().isAfter(match.getStartsAt().plusMinutes(5))) {
                 message = "Время для прогноза истекло. Матч уже начался";
                 messageService.sendMessage(chatId, message);
                 return;
@@ -62,7 +62,7 @@ public class NotificationPredictCommand implements Command {
                 awayPredict = Integer.parseInt(matchToUpdate[5]);
 
                 String action;
-                if (predictionService.isExist(chatId, match.getPublicId())) {
+                if (predictionService.isExist(chatId, match.getId())) {
                     action = "обновлен";
                 } else {
                     action = "сохранен";

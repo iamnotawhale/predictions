@@ -42,33 +42,33 @@ public class PredictionDao {
         try {
             if (prediction.getCupMatchId() != null) {
                 String sql = """
-                        INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
+                        INSERT INTO predict (user_id, match_id, cup_match_id, home_score, away_score, points)
                         VALUES (:userId, NULL, :cupMatchId, :homeTeamScore, :awayTeamScore, :points)
                         ON CONFLICT (user_id, cup_match_id) WHERE cup_match_id IS NOT NULL DO UPDATE SET
-                        home_team_score = excluded.home_team_score,
-                        away_team_score = excluded.away_team_score
+                        home_score = excluded.home_score,
+                        away_score = excluded.away_score
                         """;
                 MapSqlParameterSource params = new MapSqlParameterSource();
                 params.addValue("userId", prediction.getUserId());
                 params.addValue("cupMatchId", prediction.getCupMatchId());
-                params.addValue("homeTeamScore", prediction.getHomeTeamScore());
-                params.addValue("awayTeamScore", prediction.getAwayTeamScore());
+                params.addValue("homeTeamScore", prediction.getHomeScore());
+                params.addValue("awayTeamScore", prediction.getAwayScore());
                 params.addValue("points", prediction.getPoints());
                 namedParameterJdbcTemplate.update(sql, params);
                 return;
             }
             String sql = """
-                    INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
+                    INSERT INTO predict (user_id, match_id, cup_match_id, home_score, away_score, points)
                     VALUES (:userId, :matchId, NULL, :homeTeamScore, :awayTeamScore, :points)
                     ON CONFLICT (user_id, match_id) WHERE match_id IS NOT NULL DO UPDATE SET
-                    home_team_score = excluded.home_team_score,
-                    away_team_score = excluded.away_team_score
+                    home_score = excluded.home_score,
+                    away_score = excluded.away_score
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", prediction.getUserId());
-            params.addValue("matchId", prediction.getMatchPublicId());
-            params.addValue("homeTeamScore", prediction.getHomeTeamScore());
-            params.addValue("awayTeamScore", prediction.getAwayTeamScore());
+            params.addValue("matchId", prediction.getMatchId());
+            params.addValue("homeTeamScore", prediction.getHomeScore());
+            params.addValue("awayTeamScore", prediction.getAwayScore());
             params.addValue("points", prediction.getPoints());
             namedParameterJdbcTemplate.update(sql, params);
         } catch (Exception e) {
@@ -83,22 +83,22 @@ public class PredictionDao {
                     WITH user_id AS (
                         SELECT id FROM users WHERE telegram_id = :telegramId
                     ), match_id AS (
-                        SELECT public_id FROM match
-                        WHERE home_team_id IN (SELECT public_id FROM teams WHERE code = :homeTeam)
-                        AND away_team_id IN (SELECT public_id FROM teams WHERE code = :awayTeam)
+                        SELECT id FROM match
+                        WHERE home_team_id IN (SELECT id FROM teams WHERE code = :homeTeam)
+                        AND away_team_id IN (SELECT id FROM teams WHERE code = :awayTeam)
                     )
-                    INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
+                    INSERT INTO predict (user_id, match_id, cup_match_id, home_score, away_score, points)
                     VALUES (
                         (SELECT id FROM user_id),
-                        (SELECT public_id FROM match_id),
+                        (SELECT id FROM match_id),
                         NULL,
                         :homeTeamScore,
                         :awayTeamScore,
                         :points
                     )
                     ON CONFLICT (user_id, match_id) WHERE match_id IS NOT NULL DO UPDATE SET
-                    home_team_score = excluded.home_team_score,
-                    away_team_score = excluded.away_team_score;
+                    home_score = excluded.home_score,
+                    away_score = excluded.away_score;
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("telegramId", telegramId);
@@ -117,7 +117,7 @@ public class PredictionDao {
     public void saveCup(String telegramId, int cupMatchId, int homeTeamScore, int awayTeamScore) {
         try {
             String sql = """
-                    INSERT INTO predict (user_id, match_id, cup_match_id, home_team_score, away_team_score, points)
+                    INSERT INTO predict (user_id, match_id, cup_match_id, home_score, away_score, points)
                     VALUES (
                         (SELECT id FROM users WHERE telegram_id = :telegramId),
                         NULL,
@@ -127,8 +127,8 @@ public class PredictionDao {
                         NULL
                     )
                     ON CONFLICT (user_id, cup_match_id) WHERE cup_match_id IS NOT NULL DO UPDATE SET
-                    home_team_score = excluded.home_team_score,
-                    away_team_score = excluded.away_team_score
+                    home_score = excluded.home_score,
+                    away_score = excluded.away_score
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("telegramId", telegramId)
@@ -208,8 +208,8 @@ public class PredictionDao {
                 WHERE cup_match_id IN (:ids)
                   AND user_id <> :userId
                   AND points IS NOT NULL
-                  AND home_team_score IS NOT NULL
-                  AND away_team_score IS NOT NULL
+                  AND home_score IS NOT NULL
+                  AND away_score IS NOT NULL
                 GROUP BY cup_match_id
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource();
@@ -246,14 +246,14 @@ public class PredictionDao {
     public record CupPointsUpdate(int cupMatchId, int userId, int points) {
     }
 
-    public void delete(int userId, int matchPublicId) {
+    public void delete(int userId, int matchId) {
         try {
             String sql = """
-                    DELETE FROM predict WHERE user_id = :userId AND match_id = :matchPublicId
+                    DELETE FROM predict WHERE user_id = :userId AND match_id = :matchId
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", userId);
-            params.addValue("matchPublicId", matchPublicId);
+            params.addValue("matchId", matchId);
             namedParameterJdbcTemplate.update(sql, params);
         } catch (Exception e) {
             panicSender.sendPanic("Error deleting prediction", e);
@@ -301,15 +301,15 @@ public class PredictionDao {
                         WHERE telegram_id = :telegramId
                     )
                     AND match_id IN (
-                        SELECT public_id
+                        SELECT id
                         FROM match
                         WHERE home_team_id IN (
-                            SELECT public_id
+                            SELECT id
                             FROM teams
                             WHERE code = :homeTeam
                         )
                           AND away_team_id IN (
-                            SELECT public_id
+                            SELECT id
                             FROM teams
                             WHERE code = :awayTeam
                         )
@@ -349,9 +349,9 @@ public class PredictionDao {
         try {
             String sql = """
                     SELECT * FROM predict
-                    JOIN match m ON match_id = m.public_id
+                    JOIN match m ON match_id = m.id
                     WHERE match_id IN (:matchIds)
-                    ORDER BY m.local_date_time, m.public_id
+                    ORDER BY m.starts_at, m.id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("matchIds", matchIds);
@@ -397,8 +397,8 @@ public class PredictionDao {
                 WHERE match_id IN (:ids)
                   AND user_id <> :userId
                   AND points IS NOT NULL
-                  AND home_team_score IS NOT NULL
-                  AND away_team_score IS NOT NULL
+                  AND home_score IS NOT NULL
+                  AND away_score IS NOT NULL
                 GROUP BY match_id
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource();
@@ -413,13 +413,13 @@ public class PredictionDao {
     public List<MatchPrediction> findAllByUserId(int userId) {
         try {
             String sql = """
-                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
-                       m.status, m.week_id, m.local_date_time,
-                       p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
+                    SELECT m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.id, m.result,
+                       m.status, m.week_id, m.starts_at,
+                       p.user_id, p.home_score as predict_hts, p.away_score as predict_ats, p.points
                     FROM match m
-                    JOIN predict p ON m.public_id = p.match_id
+                    JOIN predict p ON m.id = p.match_id
                     WHERE user_id = :userId
-                    ORDER BY m.local_date_time DESC
+                    ORDER BY m.starts_at DESC
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("userId", userId);
@@ -480,7 +480,7 @@ public class PredictionDao {
                     WHERE match_id IN (:matchIds)
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("matchIds", matches.stream().map(Match::getPublicId).toList());
+            params.addValue("matchIds", matches.stream().map(Match::getId).toList());
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(sql, params, new PredictionMapper()));
         } catch (Exception e) {
             panicSender.sendPanic("Error finding prediction by matches", e);
@@ -492,13 +492,13 @@ public class PredictionDao {
     public List<MatchPrediction> findAllByWeekId(int weekId) {
         try {
             String sql = """
-                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
-                       m.status, m.week_id, m.local_date_time,
-                       p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
+                    SELECT m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.id, m.result,
+                       m.status, m.week_id, m.starts_at,
+                       p.user_id, p.home_score as predict_hts, p.away_score as predict_ats, p.points
                     FROM match m
-                    JOIN predict p ON m.public_id = p.match_id
+                    JOIN predict p ON m.id = p.match_id
                     WHERE m.week_id = :weekId
-                    ORDER BY m.local_date_time, m.public_id, p.user_id
+                    ORDER BY m.starts_at, m.id, p.user_id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("weekId", weekId);
@@ -513,14 +513,14 @@ public class PredictionDao {
     public List<MatchPrediction> findAllByWeekIdAndUserTelegramId(int weekId, String telegramId) {
         try {
             String sql = """
-                    SELECT m.home_team_id, m.away_team_id, m.home_team_score, m.away_team_score, m.public_id, m.result,
-                       m.status, m.week_id, m.local_date_time,
-                       p.user_id, p.home_team_score as predict_hts, p.away_team_score as predict_ats, p.points
+                    SELECT m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.id, m.result,
+                       m.status, m.week_id, m.starts_at,
+                       p.user_id, p.home_score as predict_hts, p.away_score as predict_ats, p.points
                     FROM match m
-                    JOIN predict p ON m.public_id = p.match_id
+                    JOIN predict p ON m.id = p.match_id
                     JOIN users u ON p.user_id = u.id
                     WHERE m.week_id = :weekId AND u.telegram_id = :telegramId
-                    ORDER BY m.local_date_time, m.public_id
+                    ORDER BY m.starts_at, m.id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("weekId", weekId);
@@ -595,12 +595,12 @@ public class PredictionDao {
                     WHERE user_id IN (SELECT id
                                       FROM users
                                       WHERE telegram_id = :telegramId)
-                      AND match_id IN (SELECT public_id
+                      AND match_id IN (SELECT id
                                        FROM match
-                                       WHERE home_team_id IN (SELECT public_id
+                                       WHERE home_team_id IN (SELECT id
                                                               FROM teams
                                                               WHERE code = :homeTeam)
-                                         AND away_team_id IN (SELECT public_id
+                                         AND away_team_id IN (SELECT id
                                                               FROM teams
                                                               WHERE code = :awayTeam))
                     """;
@@ -624,7 +624,7 @@ public class PredictionDao {
                     JOIN (
                         SELECT DISTINCT m.week_id
                         FROM predict p
-                        JOIN match m ON p.match_id = m.public_id
+                        JOIN match m ON p.match_id = m.id
                         WHERE p.user_id IN (SELECT id FROM users WHERE telegram_id = :telegramId)
                     ) AS subquery ON w.id = subquery.week_id;
                     """;
@@ -645,7 +645,7 @@ public class PredictionDao {
                     FROM (
                         SELECT p.user_id, m.week_id, SUM(p.points) AS total_points
                         FROM match m
-                        JOIN predict p ON m.public_id = p.match_id
+                        JOIN predict p ON m.id = p.match_id
                         WHERE status = 'ft'
                         GROUP BY p.user_id, m.week_id
                     ) subquery
@@ -679,19 +679,19 @@ public class PredictionDao {
             Match match = Match.builder()
                     .homeTeamId(rs.getInt("home_team_id"))
                     .awayTeamId(rs.getInt("away_team_id"))
-                    .homeTeamScore(rs.getInt("home_team_score"))
-                    .awayTeamScore(rs.getInt("away_team_score"))
-                    .publicId(rs.getInt("public_id"))
+                    .homeScore(rs.getInt("home_score"))
+                    .awayScore(rs.getInt("away_score"))
+                    .id(rs.getInt("id"))
                     .result(rs.getString("result"))
                     .status(rs.getString("status"))
                     .weekId(rs.getInt("week_id"))
-                    .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                    .startsAt(rs.getTimestamp("starts_at").toLocalDateTime())
                     .build();
 
             Prediction prediction = Prediction.builder()
                     .userId(rs.getInt("user_id"))
-                    .homeTeamScore(rs.getObject("predict_hts", Integer.class))
-                    .awayTeamScore(rs.getObject("predict_ats", Integer.class))
+                    .homeScore(rs.getObject("predict_hts", Integer.class))
+                    .awayScore(rs.getObject("predict_ats", Integer.class))
                     .points(rs.getObject("points", Integer.class))
                     .build();
             return new MatchPrediction(match, prediction);
@@ -710,10 +710,10 @@ public class PredictionDao {
             }
             return Prediction.builder()
                     .userId(rs.getInt("user_id"))
-                    .matchPublicId(matchId != null ? matchId : 0)
+                    .matchId(matchId != null ? matchId : 0)
                     .cupMatchId(cupId)
-                    .homeTeamScore(rs.getObject("home_team_score", Integer.class))
-                    .awayTeamScore(rs.getObject("away_team_score", Integer.class))
+                    .homeScore(rs.getObject("home_score", Integer.class))
+                    .awayScore(rs.getObject("away_score", Integer.class))
                     .points(rs.getObject("points", Integer.class))
                     .build();
         }

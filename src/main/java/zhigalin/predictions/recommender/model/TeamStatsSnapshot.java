@@ -2,7 +2,7 @@ package zhigalin.predictions.recommender.model;
 
 import java.time.Instant;
 
-public record FootyStatsTeamSnapshot(
+public record TeamStatsSnapshot(
         String teamCode,
         double scoredOverall,
         double scoredHome,
@@ -15,15 +15,15 @@ public record FootyStatsTeamSnapshot(
         Double xgdOverall,
         Double xgHome,
         Double xgAway,
-        FootyStatsExtendedMetrics extended,
+        ExtendedTeamMetrics extended,
         Instant fetchedAt
 ) {
-    public FootyStatsExtendedMetrics extendedOrEmpty() {
-        return extended != null ? extended : FootyStatsExtendedMetrics.empty();
+    public ExtendedTeamMetrics extendedOrEmpty() {
+        return extended != null ? extended : ExtendedTeamMetrics.empty();
     }
 
-    public FootyStatsTeamSnapshot withExtended(FootyStatsExtendedMetrics patch) {
-        return new FootyStatsTeamSnapshot(
+    public TeamStatsSnapshot withExtended(ExtendedTeamMetrics patch) {
+        return new TeamStatsSnapshot(
                 teamCode,
                 scoredOverall,
                 scoredHome,
@@ -41,8 +41,8 @@ public record FootyStatsTeamSnapshot(
         );
     }
 
-    public FootyStatsTeamSnapshot withXg(Double xg, Double xga, Double xgd, Double xgVsActual) {
-        return new FootyStatsTeamSnapshot(
+    public TeamStatsSnapshot withXg(Double xg, Double xga, Double xgd, Double xgVsActual) {
+        return new TeamStatsSnapshot(
                 teamCode,
                 scoredOverall,
                 scoredHome,
@@ -56,7 +56,7 @@ public record FootyStatsTeamSnapshot(
                 xgHome,
                 xgAway,
                 extendedOrEmpty().merge(
-                        FootyStatsExtendedMetrics.builder().xgVsActual(xgVsActual).build()
+                        ExtendedTeamMetrics.builder().xgVsActual(xgVsActual).build()
                 ),
                 fetchedAt
         );

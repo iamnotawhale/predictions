@@ -2,7 +2,7 @@ package zhigalin.predictions.recommender.model;
 
 import java.time.Instant;
 
-public record FootyStatsLeagueSnapshot(
+public record LeagueAveragesSnapshot(
         int weekId,
         double avgHomeScored,
         double avgAwayScored,

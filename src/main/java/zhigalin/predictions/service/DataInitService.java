@@ -212,7 +212,7 @@ public class DataInitService {
                             .atZone(AppTimeZones.DISPLAY)
                             .toLocalDateTime();
                     match.setStatus("ns");
-                    match.setLocalDateTime(espnDate);
+                    match.setStartsAt(espnDate);
                     updated = true;
                     serverLogger.info("Match {}-{} rescheduled: pst -> ns, date={}", homeTeam, awayTeam, espnDate);
                 }
@@ -228,19 +228,19 @@ public class DataInitService {
 
                 Integer homeScore = findScore(event, "home");
                 Integer awayScore = findScore(event, "away");
-                Integer prevHome = match.getHomeTeamScore();
-                Integer prevAway = match.getAwayTeamScore();
+                Integer prevHome = match.getHomeScore();
+                Integer prevAway = match.getAwayScore();
                 int prevTotal = (prevHome == null ? 0 : prevHome) + (prevAway == null ? 0 : prevAway);
                 int nextTotal = homeScore + awayScore;
 
-                match.setHomeTeamScore(homeScore);
-                match.setAwayTeamScore(awayScore);
+                match.setHomeScore(homeScore);
+                match.setAwayScore(awayScore);
                 match.setStatus(status);
                 match.setEspnId(event.getId());
                 match.setResult(findResult(homeScore, awayScore));
 
                 matchService.update(match);
-                bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
+                bettingRecommendationService.freezeAtKickoffIfNeeded(match.getId());
                 if (nextTotal != prevTotal) {
                     notificationService.sendLiveScoreUpdate(match, prevHome, prevAway);
                 }
@@ -250,16 +250,16 @@ public class DataInitService {
                 if (match == null) {
                     continue;
                 }
-                apiClient.evictLineups(match.getPublicId());
+                apiClient.evictLineups(match.getId());
 
                 Integer homeScore = findScore(event, "home");
                 Integer awayScore = findScore(event, "away");
-                Integer prevHome = match.getHomeTeamScore();
-                Integer prevAway = match.getAwayTeamScore();
+                Integer prevHome = match.getHomeScore();
+                Integer prevAway = match.getAwayScore();
                 int prevTotal = (prevHome == null ? 0 : prevHome) + (prevAway == null ? 0 : prevAway);
                 int nextTotal = homeScore + awayScore;
-                match.setHomeTeamScore(homeScore);
-                match.setAwayTeamScore(awayScore);
+                match.setHomeScore(homeScore);
+                match.setAwayScore(awayScore);
 
                 boolean becameFinished = !status.equals(match.getStatus());
                 boolean scoreCorrected = !becameFinished
@@ -291,7 +291,7 @@ public class DataInitService {
                         panicSender.sendPanic("updateByMatch after score correction", e);
                     }
                 }
-                bettingRecommendationService.freezeAtKickoffIfNeeded(match.getPublicId());
+                bettingRecommendationService.freezeAtKickoffIfNeeded(match.getId());
                 if (becameFinished) {
                     // Drop live GIF/text; FT result card arrives via LISTEN→sendFullTime.
                     notificationService.removeLiveScoreNoise(match);
@@ -313,14 +313,14 @@ public class DataInitService {
             return;
         }
         serverLogger.info("Match {}-{} postponed by ESPN: {} -> pst", homeTeam, awayTeam, match.getStatus());
-        match.setHomeTeamScore(null);
-        match.setAwayTeamScore(null);
+        match.setHomeScore(null);
+        match.setAwayScore(null);
         match.setResult(null);
         boolean wasFinished = "ft".equals(match.getStatus());
         match.setStatus("pst");
         matchService.update(match);
         if (wasFinished) {
-            matchService.resetLastProcessedAt(match.getPublicId());
+            matchService.resetLastProcessedAt(match.getId());
         }
     }
 
@@ -485,9 +485,9 @@ public class DataInitService {
 
         if (response.getGoals().getHome() == null) {
             match = Match.builder()
-                    .publicId(publicId)
+                    .id(publicId)
                     .status(status)
-                    .localDateTime(matchDateTime)
+                    .startsAt(matchDateTime)
                     .weekId(weekId)
                     .homeTeamId(htPublicId)
                     .awayTeamId(atPublicId)
@@ -502,14 +502,14 @@ public class DataInitService {
                 result = homeTeamScore > awayTeamScore ? "H" : "A";
             }
             match = Match.builder()
-                    .publicId(publicId)
+                    .id(publicId)
                     .status(status)
-                    .localDateTime(matchDateTime)
+                    .startsAt(matchDateTime)
                     .weekId(weekId)
                     .homeTeamId(htPublicId)
                     .awayTeamId(atPublicId)
-                    .homeTeamScore(homeTeamScore)
-                    .awayTeamScore(awayTeamScore)
+                    .homeScore(homeTeamScore)
+                    .awayScore(awayTeamScore)
                     .result(result)
                     .build();
         }
@@ -581,11 +581,11 @@ public class DataInitService {
                     Integer awayTeamScore = response.getGoals().getAway();
                     HeadToHead headToHead = HeadToHead.builder()
                             .leagueName(leagueName)
-                            .homeTeamId(homeTeam.getPublicId())
-                            .awayTeamId(awayTeam.getPublicId())
-                            .homeTeamScore(homeTeamScore)
-                            .awayTeamScore(awayTeamScore)
-                            .localDateTime(matchDateTime)
+                            .homeTeamId(homeTeam.getId())
+                            .awayTeamId(awayTeam.getId())
+                            .homeScore(homeTeamScore)
+                            .awayScore(awayTeamScore)
+                            .startsAt(matchDateTime)
                             .build();
                     headToHeadService.save(headToHead);
                 }
@@ -601,7 +601,7 @@ public class DataInitService {
                 logo = response.getTeam().getLogo();
             }
             Team team = Team.builder()
-                    .publicId(response.getTeam().getId())
+                    .id(response.getTeam().getId())
                     .logo(logo)
                     .name(response.getTeam().getName())
                     .code(code)

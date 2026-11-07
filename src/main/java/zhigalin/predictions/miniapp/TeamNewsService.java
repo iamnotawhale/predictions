@@ -89,7 +89,7 @@ public class TeamNewsService {
             return news;
         } catch (Exception e) {
             log.warn("MiniApp match news load failed: matchId={}, error={}",
-                    match.getPublicId(), e.getMessage());
+                    match.getId(), e.getMessage());
             return List.of();
         }
     }

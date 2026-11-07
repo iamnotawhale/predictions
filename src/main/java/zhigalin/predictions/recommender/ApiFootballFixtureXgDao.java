@@ -37,7 +37,7 @@ public class ApiFootballFixtureXgDao {
             args[i++] = id;
         }
         List<Integer> rows = jdbcTemplate.query(
-                "SELECT fixture_id FROM fixture_xg WHERE fixture_id IN (" + placeholders + ")",
+                "SELECT match_id FROM fixture_xg WHERE match_id IN (" + placeholders + ")",
                 (rs, rowNum) -> rs.getInt(1),
                 args
         );
@@ -63,9 +63,9 @@ public class ApiFootballFixtureXgDao {
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO fixture_xg (
-                        fixture_id, home_team_id, away_team_id, home_xg, away_xg, fetched_at
+                        match_id, home_team_id, away_team_id, home_xg, away_xg, fetched_at
                     ) VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT (fixture_id) DO UPDATE SET
+                    ON CONFLICT (match_id) DO UPDATE SET
                         home_team_id = EXCLUDED.home_team_id,
                         away_team_id = EXCLUDED.away_team_id,
                         home_xg = EXCLUDED.home_xg,
@@ -84,9 +84,9 @@ public class ApiFootballFixtureXgDao {
 
     public List<XgRow> findAll() {
         return jdbcTemplate.query(
-                "SELECT fixture_id, home_team_id, away_team_id, home_xg, away_xg FROM fixture_xg",
+                "SELECT match_id, home_team_id, away_team_id, home_xg, away_xg FROM fixture_xg",
                 (rs, rowNum) -> new XgRow(
-                        rs.getInt("fixture_id"),
+                        rs.getInt("match_id"),
                         rs.getInt("home_team_id"),
                         rs.getInt("away_team_id"),
                         getNullableDouble(rs, "home_xg"),
@@ -108,7 +108,7 @@ public class ApiFootballFixtureXgDao {
         }
     }
 
-    public record XgRow(int fixtureId, int homeTeamId, int awayTeamId, Double homeXg, Double awayXg) {
+    public record XgRow(int matchId, int homeTeamId, int awayTeamId, Double homeXg, Double awayXg) {
         boolean hasXg() {
             return homeXg != null && awayXg != null;
         }

@@ -113,11 +113,13 @@
 - `espn_id` — ESPN event id (заполняется уже на стадии `pre`).
 - `live_score_message_id` — id Telegram-сообщения live-счёта (переживает рестарт).
 - `odd_home`, `odd_draw`, `odd_away` — коэффициенты 1/X/2 (`NUMERIC(6,2)`), заполняются `OddsService`, читаются в miniapp и разборе тура.
-- `odd_over_under` — линия тотала матча; `odd_home_team_total` / `odd_away_team_total` — индивидуальные тоталы.
+- `odd_over_under` — линия тотала матча; `odd_home_total` / `odd_away_total` — индивидуальные тоталы.
+- `starts_at` — kickoff (бывш. `local_date_time`); `home_score` / `away_score` (бывш. `*_team_score`); `id` — внешний id матча (бывш. `public_id` на `match`/`cup_match`/`teams`).
 - `finished_at` — время фиксации FT для скользящего пола очков.
-- `cup_match` — кубковые матчи с участием клубов АПЛ; `predict.cup_match_id` — прогноз на них.
+- `cup_match` — кубковые матчи с участием клубов АПЛ; `predict.cup_match_id` — прогноз на них; AET/пен. — `aet_home`/`aet_away`/`pen_home`/`pen_away`.
 - Кубковые команды сопоставляются с клубами АПЛ по ESPN team id через `EspnTeamLogos` (не по коду: коды ESPN коллидируют — `BRI` у Bristol Rovers, Brighton это `BHA`). Новый клуб АПЛ обязательно добавить в `EspnTeamLogos`, иначе его матчи с клубами вне АПЛ в кубке не попадут в `cup_match`.
-- `user_week_bonus_match` — персональный бонус-матч тура (user_id, week_id → match_public_id).
+- `user_week_bonus_match` — персональный бонус-матч тура (user_id, week_id → match_id).
+- Миграция колонок: `SchemaColumnRename` (идемпотентный `RENAME COLUMN`) в `DBConfig` до `tablesInit.sql`, плюс в `CupMatchesSchemaMigration` / `MatchOddsSchemaMigration` / `BettingRecommenderSchemaMigration`. DDL новых имён в `tablesInit.sql`. Miniapp JSON DTO по-прежнему отдаёт `publicId` (FE).
 - Миграция: `MatchOddsSchemaMigration`, `CupMatchesSchemaMigration` + `ALTER`/`CREATE` в `tablesInit.sql`.
 - Переименование кубковых объектов `bonus_match` → `cup_match` (недельный бонус `user_week_bonus_match` не меняется): `CupSchemaRename.apply` одним `DO $$`-блоком переименовывает таблицу, колонку `predict.bonus_match_id` → `cup_match_id`, ограничения и PK таблицы (`bonus_match_*` → `cup_match_*`), индекс `unique_predict_bonus` → `unique_predict_cup` и ограничение `predict_match_xor_bonus` → `predict_match_xor_cup`. Вызывается первым шагом `CupMatchesSchemaMigration` и в `DBConfig` до `tablesInit.sql`: Spring создаёт бин миграции раньше `DataSourceInitializer`, поэтому переименование должно стоять в обоих местах (повторный вызов ничего не делает). На пустой базе ничего не делает. Инвариант: имена `unique_predict_cup`/`predict_match_xor_cup` должны совпадать в `CupMatchesSchemaMigration` и `CupSchemaRename`, иначе миграция создаст дубли. Откат кубковых объектов (проверен на копии прода, PostgreSQL 18): старый jar создаёт пустые `bonus_match` и `predict.bonus_match_id`, поэтому откат выполнять до запуска старого jar. Скрипт проверяет, что `bonus_match` пуста и `predict.bonus_match_id` отсутствует, и иначе останавливается. Запуск: `psql -v ON_ERROR_STOP=1 -f scripts/rollback-cup-match.sql`.
 
@@ -125,13 +127,13 @@
 - `users.betting_recommender_enabled` — per-user toggle (default `false`).
 - `recommender_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (…); источник — API-Football + SoccerSTATS enrich.
 - `recommender_league_snapshot` — средние лиги home/away scored/conceded на тур.
-- `fixture_xg` — кэш `expected_goals` по `fixture_id` (инкрементальный backfill, до ~25 новых матчей за refresh).
-- `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_public_id`; при kickoff копируется в `kickoff_home` / `kickoff_away` / `kickoff_frozen_at` (не перезаписывается refresh тура).
-- Миграция: `RecommenderTableRename` (`footystats_*` → `recommender_*`, `api_football_fixture_xg` → `fixture_xg`) в `DBConfig` до `tablesInit.sql` и в `BettingRecommenderSchemaMigration`; DDL новых имён в `tablesInit.sql`.
+- `fixture_xg` — кэш `expected_goals` по `match_id` (инкрементальный backfill, до ~25 новых матчей за refresh).
+- `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_id`; `expected_home`/`expected_away`; при kickoff копируется в `kickoff_home` / `kickoff_away` / `kickoff_frozen_at` (не перезаписывается refresh тура).
+- Миграция: `RecommenderTableRename` (`footystats_*` → `recommender_*`, `api_football_fixture_xg` → `fixture_xg`) + `SchemaColumnRename` в `DBConfig` до `tablesInit.sql` и в `BettingRecommenderSchemaMigration`; DDL новых имён в `tablesInit.sql`.
 
 **Дедуп уведомлений:**
 - `notification_weekly_results_sent` (по `week_id`)
-- `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`)
+- `notification_reminder_sent` (по `user_id + match_id + reminder_minutes`)
 
 ## Прод-окружение (без секретов)
 - Прод (primary) крутится на домашнем сервере: Spring Boot jar + PostgreSQL + Caddy (HTTPS на нестандартном порту).
@@ -252,15 +254,15 @@
 - `DataInitService` сохраняет `espn_id` в `match` уже на стадии `pre` (не только `in`), чтобы можно было заранее использовать ESPN summary по конкретному событию.
 - live-обновления счёта в Telegram редактируют одно сообщение на матч: ключ состояния строится с приоритетом `espnId` (fallback: `publicId`/пара команд), чтобы избежать дублей при разных источниках id.
 - `message_id` live-сообщения хранится в БД (`match.live_score_message_id`), поэтому после рестарта приложения обновления продолжают редактировать старое сообщение, а не создавать новое.
-- дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_public_id + reminder_minutes`), чтобы после рестарта не было дублей. У reminder сохраняется `telegram_message_id`; при следующем окне (60→40→20) предыдущее сообщение в ЛС удаляется и шлётся новое.
+- дедуп отправки итогов тура и remind-уведомлений вынесен в БД: `notification_weekly_results_sent` (по `week_id`) и `notification_reminder_sent` (по `user_id + match_id + reminder_minutes`), чтобы после рестарта не было дублей. У reminder сохраняется `telegram_message_id`; при следующем окне (60→40→20) предыдущее сообщение в ЛС удаляется и шлётся новое.
 - Напоминания без прогноза: за 60/40/20 минут до kickoff; одна картинка на (матч, окно); `Set` predicted user ids; матч из notification без повторного `findByPublicId`. Caption: стартовый XI (ESPN summary → API-Football fallback, monospace-колонки); предыдущее reminder-сообщение в ЛС удаляется. Caption уходит multipart-полем (не queryString).
 - **Травмы/отсутствия:** `InjuryService` — FPL `bootstrap-static` (1 запрос на всю лигу, TTL 6ч; при ошибке TTL 30м) → fallback ESPN eng.1 `/injuries`. Фильтр трансферов/аренды/уходов. В API только `playerName` + `kind` (`injury` / `suspension` / `doubt` / `other`), без дат возвращения и длинных причин. **API-Football injuries не используется**. UI: `#score-modal` → блок «Отсутствия» (✕ травма, ▮ дисквал, ? сомнение).
-- **Порядок списков матчей:** всегда `Match.BY_KICKOFF_THEN_PUBLIC_ID` (kickoff ASC, затем `publicId`); DAO/MatchService/Telegram keyboards/miniapp сортируют одинаково.
+- **Порядок списков матчей:** всегда `Match.BY_KICKOFF_THEN_ID` (kickoff ASC, затем `id`); DAO/MatchService/Telegram keyboards/miniapp сортируют одинаково.
 - `MatchService`: team-scoped `findLastFinishedByTeamId` / `findNextByTeamId` (SQL LIMIT); `findFinishedMatches` / `findPastNonPostponedMatches` для points/H2H backfill.
 - `PredictionService`: bulk `predictionsByMatchForUser`; FT/recalc через `updatePointsBatch`; scoring — `computePoints` с режимами **EPL** (4/2/1/−1), **EPL week-bonus** (5/3/2/0/−1), **CUP** (2/1/0/0).
-- **Скользящий пол очков:** только **общий зачёт / график** — `running = max(0, running + points)` в порядке `coalesce(finished_at, local_date_time)` (`FlooredPointsService` / `PointEventDao`). **Очки за тур** (leaderboard `?weekId=`, Telegram `/total N`, weekly card, live provisional тура) — **сырая сумма** `predict.points` (может быть отрицательной). Сырые `predict.points` не затираются.
+- **Скользящий пол очков:** только **общий зачёт / график** — `running = max(0, running + points)` в порядке `coalesce(finished_at, starts_at)` (`FlooredPointsService` / `PointEventDao`). **Очки за тур** (leaderboard `?weekId=`, Telegram `/total N`, weekly card, live provisional тура) — **сырая сумма** `predict.points` (может быть отрицательной). Сырые `predict.points` не затираются.
 - **Персональный бонус тура:** `user_week_bonus_match` — у каждого игрока свой случайный матч **только текущего** тура; выдача **один раз** при смене current week (`updateCurrent` → `onCurrentWeekRollover` → `assignForNewCurrentWeek`); строки на будущие туры удаляются; прошлые назначения остаются для скоринга/бейджа в архиве. UI не создаёт бонус при открытии чужого тура. С **5 тура** (`MIN_WEEK_ID`).
-- **Кубковые матчи:** таблица `cup_match` (FA / Carabao / UCL / UEL / UECL), sync через `CupMatchSyncService` + ESPN multi-league scoreboard; для всех кубков дополнительно окно **30 дней** (раз в 30 мин; default board часто залипает); в матче ≥1 клуб АПЛ (**по `team_id` из ростера**, не по голому ESPN-коду); ingest: `TeamCodeMapper.fromEspnAbbreviation` (`MAN`→`MUN`, `MUN`→`BAY` для Bayern); **только `event.season.year == DataInitService.SEASON`** (ESPN FA часто залипает на SEASON−1 / финал прошлого розыгрыша); списки/purge с **`seasonStartDate()` = 1 авг SEASON**; purge удаляет pre-season, без EPL-link и ложные Bayern→Man United; прогнозы в `predict.cup_match_id`; без live-уведомлений о счёте; **cup FT** через `HtmlImageRenderer.createResultImage` (accent по турниру); очки в общий зачёт. ESPN `post` + `completed=false` (POSTPONED/CANCELED/SUSPENDED/ABANDONED, `EspnStatus`) → `pst` без счёта и очков, и для кубков, и для АПЛ; правка счёта ESPN после FT → пересчёт очков (АПЛ: ESPN опрашивается ещё 2 ч после FT). Кубки считаются **по основному времени (90 мин + компенсация)**: при доп. времени/серии в `home/away_team_score` лежит счёт после 90 минут (из `competitions[].details` ESPN, иначе последний снимок в основное время), счёт после ДВ и пенальти — в `aet_*_score` / `pen_*_score` (только для информации); FT-картинка тоже по 90 минутам. Mini App показывает кубковый матч до конца: счёт с ДВ (`MiniAppFormat.cupDisplayHome/Away`) + `scoreNote` «осн. время 1:1 · пен. 4:3» в карточках, live-модалке и разборе кубка. Mini App: карточки Home/Today с цветами турнира; `GET /api/miniapp/cups` + matches/review; live Общий зачёт учитывает in-play cup provisional.
+- **Кубковые матчи:** таблица `cup_match` (FA / Carabao / UCL / UEL / UECL), sync через `CupMatchSyncService` + ESPN multi-league scoreboard; для всех кубков дополнительно окно **30 дней** (раз в 30 мин; default board часто залипает); в матче ≥1 клуб АПЛ (**по `team_id` из ростера**, не по голому ESPN-коду); ingest: `TeamCodeMapper.fromEspnAbbreviation` (`MAN`→`MUN`, `MUN`→`BAY` для Bayern); **только `event.season.year == DataInitService.SEASON`** (ESPN FA часто залипает на SEASON−1 / финал прошлого розыгрыша); списки/purge с **`seasonStartDate()` = 1 авг SEASON**; purge удаляет pre-season, без EPL-link и ложные Bayern→Man United; прогнозы в `predict.cup_match_id`; без live-уведомлений о счёте; **cup FT** через `HtmlImageRenderer.createResultImage` (accent по турниру); очки в общий зачёт. ESPN `post` + `completed=false` (POSTPONED/CANCELED/SUSPENDED/ABANDONED, `EspnStatus`) → `pst` без счёта и очков, и для кубков, и для АПЛ; правка счёта ESPN после FT → пересчёт очков (АПЛ: ESPN опрашивается ещё 2 ч после FT). Кубки считаются **по основному времени (90 мин + компенсация)**: при доп. времени/серии в `home_score`/`away_score` лежит счёт после 90 минут (из `competitions[].details` ESPN, иначе последний снимок в основное время), счёт после ДВ и пенальти — в `aet_home`/`aet_away` / `pen_home`/`pen_away` (только для информации); FT-картинка тоже по 90 минутам. Mini App показывает кубковый матч до конца: счёт с ДВ (`MiniAppFormat.cupDisplayHome/Away`) + `scoreNote` «осн. время 1:1 · пен. 4:3» в карточках, live-модалке и разборе кубка. Mini App: карточки Home/Today с цветами турнира; `GET /api/miniapp/cups` + matches/review; live Общий зачёт учитывает in-play cup provisional.
 - **Временный алиас `bonusMatchId`** (удалить в следующем релизе): клиенты с закешированным старым `app.js` читают и шлют `bonusMatchId`. Ответ мини-приложения содержит оба поля (`MatchItem.bonusMatchId()` = `cupMatchId`), в `PredictRequest` `@JsonAlias("bonusMatchId")`, в DELETE `/predictions` параметр `bonusMatchId`. Тесты: `CupMatchIdAliasTest`.
 - `match.finished_at` проставляется при переходе в `ft` (для порядка пола).
 - **`HtmlImageRenderer`**: все Telegram-карточки 1080×1080 HTML→PNG (Playwright/Chromium): сегодняшние матчи, напоминание без прогноза, FT EPL/кубки, weekly results, «твой прогноз». CSS: `src/main/resources/notification-cards/base.css`. Класс `card-narrow` (поля 90px, панели `min(900px,100%)`, `align-items: center`) — today/FT/weekly/predict; **reminder без сужения**. Chrome: `notification.cards.chromeExecutable` / `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` / `/usr/bin/google-chrome`. Семафор на 1 рендер. Превью: `./mvnw -Dtest=HtmlCardPreviewTest test` → `target/preview-cards/`.
@@ -287,7 +289,7 @@
 | GET | `/admin/data/tables` | **Admin**: список таблиц БД, доступных для правки |
 | GET | `/admin/data/{tableId}/columns` | **Admin**: колонки таблицы (`information_schema`) |
 | GET | `/admin/data/{tableId}/rows` | **Admin**: постраничный список строк (`limit`≤100, `q` — поиск по полю сортировки) |
-| PUT | `/admin/data/{tableId}/row` | **Admin**: `{ values, primaryKey?, mode: create\|update }` (без silent upsert); типы колонок приводятся на сервере; create `match` — 409 при дубликате `public_id`; create `predict` — ровно одно из `match_id` / `cup_match_id` |
+| PUT | `/admin/data/{tableId}/row` | **Admin**: `{ values, primaryKey?, mode: create\|update }` (без silent upsert); типы колонок приводятся на сервере; create `match` — 409 при дубликате `id`; create `predict` — ровно одно из `match_id` / `cup_match_id` |
 | DELETE | `/admin/data/{tableId}/row` | **Admin**: удаление по `{ primaryKey }`; admin API требует валидный `initData` (без dev-bypass) |
 
 ### Admin UI v2 (2026-11-05)
@@ -317,7 +319,7 @@
 | GET | `/match/.../live-details` | Live: составы, события, stats, цвета |
 | GET | `/leaderboard?weekId=` | Общий / туровой зачёт (+ live provisional) |
 | GET | `/standings` | Таблица АПЛ |
-| GET | `/team/{teamCode}` | Профиль клуба: место в таблице, форма, seasonStats (FootyStats+ESPN), ESPN leaders (Г/А/сейвы), last/next матчи |
+| GET | `/team/{teamCode}` | Профиль клуба: место в таблице, форма, seasonStats (recommender cache + ESPN), ESPN leaders (Г/А/сейвы), last/next матчи |
 | GET | `/team/{teamCode}/matches` | Thin wrapper: только last/next (совместимость) |
 | GET | `/h2h/{homeCode}/{awayCode}` | Личные встречи |
 | GET | `/today` | Матчи сегодня |
@@ -348,13 +350,13 @@
 
 **Пакет `zhigalin.predictions.recommender` + HTTP-клиент:**
 - `ApiFootballClient` — единый HTTP к v3.football.api-sports.io (throttle ~350мс; fixtures/teams/lineups/statistics). Используется DataInit, ApiClient (lineups) и снимок рекомендатора.
-- `ApiFootballStatsSnapshotService` — сезон EPL (league 39, `DataInitService.SEASON`): FT-матчи → агрегаты scored/conceded/BTTS/CS/FTS/OU/PPG/HT + xG из `fixture_xg` (до 25 новых `/fixtures/statistics` за refresh). DTO-классы пока `FootyStatsTeamSnapshot` / `FootyStatsLeagueSnapshot` (имя legacy).
+- `ApiFootballStatsSnapshotService` — сезон EPL (league 39, `DataInitService.SEASON`): FT-матчи → агрегаты scored/conceded/BTTS/CS/FTS/OU/PPG/HT + xG из `fixture_xg` (до 25 новых `/fixtures/statistics` за refresh). DTO: `TeamStatsSnapshot` / `LeagueAveragesSnapshot` / `ExtendedTeamMetrics` (нейтральные имена; раньше `FootyStats*`).
 - `ApiFootballFixtureXgDao` — upsert/lookup кэша xG.
 - `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с). Out of scope для замены модели; enrich после AF-снимка, ошибки не валят refresh.
-- `FootyStatsTableParser` / `FootyStatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц SoccerSTATS + legacy тесты; scrape FootyStats удалён (Cloudflare 403).
-- `FootyStatsStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
+- `StatsTableParser` / `StatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц SoccerSTATS + legacy тесты; scrape FootyStats удалён (Cloudflare 403).
+- `RecommenderStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
 - `PoissonScoreModel` — λ + коррекции матрицы счёта.
-- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_public_id` (API-Football snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId`; refresh **не трогает** матчи с `kickoff_frozen_at`; `freezeAtKickoffIfNeeded` копирует `recommended_*` → `kickoff_*` один раз; HTTP ensure по-прежнему ждёт результат (не empty+async).
+- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_id` (API-Football snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId`; refresh **не трогает** матчи с `kickoff_frozen_at`; `freezeAtKickoffIfNeeded` копирует `recommended_*` → `kickoff_*` один раз; HTTP ensure по-прежнему ждёт результат (не empty+async).
 - `RecommenderWarmupOnStartup` — `@Async` на `ApplicationReady`: если у текущего тура нет recommendations — `ensureCurrentWeekRecommendations` в фоне.
 
 **Источники API-Football (основной снимок):**
@@ -417,7 +419,7 @@ psql … -f deploy/recommender-calibration-report.sql
 | `tip_draw_pct` ≪ `fact_draw_pct` | `scoreWeight` draws | усилить вес ничьих в матрице |
 | слишком много 1:0 / 0:1 | CS/FTS в `scoreWeight` | ослабить clean-sheet / FTS boost (уже почти off при thinSample≥0.55) |
 | outcome плохой при «толстой» форме | `statsWeight`/`marketWeight` | больше рынка или меньше stats |
-| нет tip у матча | mapper кодов | имена FootyStats → коды `teams` (был баг City `MAC` vs `MCI`) |
+| нет tip у матча | mapper кодов | имена из таблиц статов → коды `teams` (был баг City `MAC` vs `MCI`) |
 
 Не калибровать на live `recommended_*` после kickoff — для пользователей важен freeze.
 
@@ -432,7 +434,7 @@ psql … -f deploy/recommender-calibration-report.sql
 - `#score-modal` — прогноз, odds 1/X/2, кнопка AI-рекомендации (если AI вкл.) → `#ai-modal`, кнопка «Удалить» под сеткой счёта, **стартовые составы** (если доступны) и **отсутствия** (имя + значок kind), H2H, форма, новости Sports.ru. Сохранение/удаление прогноза **не закрывает** модалку (обновляет выделение счёта и списки под ней).
 - `#ai-modal` — Poisson-калькулятор style: λ, 1X2 + fair odds, BTTS/OU, heatmap взвешенной матрицы 0–5, топ-счета, «Почему так» (explanation rows/notes).
 - `#live-modal` — только live: счёт, составы, мини-поле, лента событий (без odds/H2H/новостей).
-- `#team-modal` — профиль клуба: hero (лого/имя/место·очки·ИВНП), форма WDL, **статистика сезона** (FootyStats кэш + ESPN team stats: xG/xGA, Г/М, ОЗ, СМ, ТБ2.5, PPG, владение, удары, сухие), лидеры ESPN roster (`EspnTeamRosterService`, TTL 6ч), последние/ближайшие матчи (разный UI: счёт+форма vs время kickoff). Открытие: строка таблицы АПЛ; лого/код в `#score-modal` и `#live-modal`.
+- `#team-modal` — профиль клуба: hero (лого/имя/место·очки·ИВНП), форма WDL, **статистика сезона** (кэш рекомендатора + ESPN team stats: xG/xGA, Г/М, ОЗ, СМ, ТБ2.5, PPG, владение, удары, сухие), лидеры ESPN roster (`EspnTeamRosterService`, TTL 6ч), последние/ближайшие матчи (разный UI: счёт+форма vs время kickoff). Открытие: строка таблицы АПЛ; лого/код в `#score-modal` и `#live-modal`.
 - `#h2h-modal`, `#player-modal` — карточка игрока по тапу на расстановке.
 
 **Файлы:** `static/miniapp/js/app.js`, `index.html`, `css/app.css`.
@@ -466,7 +468,7 @@ psql … -f deploy/recommender-calibration-report.sql
 ### Коэффициенты (odds)
 - `OddsService.ensureFresh(...)` — ESPN scoreboard через `EspnScoreboardClient` **по датам kickoff матчей** (не только «сегодня»), TTL 60с.
 - `DataInitService` на каждом цикле дергает `ensureFresh` для `ns`/`pst` текущего тура — линии появляются ASAP, как только ESPN публикует.
-- Odds сохраняются в БД (`match.odd_home/draw/away`, `odd_over_under`, `odd_home_team_total` / `odd_away_team_total`) для miniapp, разбора тура и Poisson.
+- Odds сохраняются в БД (`match.odd_home/draw/away`, `odd_over_under`, `odd_home_total` / `odd_away_total`) для miniapp, разбора тура и Poisson.
 - Индивидуальный тотал команды: ESPN DraftKings propBets `Team Total Goals` (основная линия — самая «ровная» пара котировок, обычно 1.5).
 - В модалке прогноза показываются 1X2 из API матча.
 

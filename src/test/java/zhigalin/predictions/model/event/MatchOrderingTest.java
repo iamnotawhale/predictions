@@ -11,26 +11,26 @@ class MatchOrderingTest {
     @Test
     void sortsByKickoffThenPublicId() {
         Match later = Match.builder()
-                .publicId(1)
-                .localDateTime(LocalDateTime.of(2026, 8, 29, 18, 0))
+                .id(1)
+                .startsAt(LocalDateTime.of(2026, 8, 29, 18, 0))
                 .build();
         Match earlierSameTimeHigherId = Match.builder()
-                .publicId(20)
-                .localDateTime(LocalDateTime.of(2026, 8, 29, 16, 0))
+                .id(20)
+                .startsAt(LocalDateTime.of(2026, 8, 29, 16, 0))
                 .build();
         Match earlierSameTimeLowerId = Match.builder()
-                .publicId(10)
-                .localDateTime(LocalDateTime.of(2026, 8, 29, 16, 0))
+                .id(10)
+                .startsAt(LocalDateTime.of(2026, 8, 29, 16, 0))
                 .build();
         Match nullTime = Match.builder()
-                .publicId(5)
-                .localDateTime(null)
+                .id(5)
+                .startsAt(null)
                 .build();
 
         List<Match> sorted = List.of(later, earlierSameTimeHigherId, nullTime, earlierSameTimeLowerId).stream()
-                .sorted(Match.BY_KICKOFF_THEN_PUBLIC_ID)
+                .sorted(Match.BY_KICKOFF_THEN_ID)
                 .toList();
 
-        assertEquals(List.of(10, 20, 1, 5), sorted.stream().map(Match::getPublicId).toList());
+        assertEquals(List.of(10, 20, 1, 5), sorted.stream().map(Match::getId).toList());
     }
 }

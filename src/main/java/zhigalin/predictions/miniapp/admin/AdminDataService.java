@@ -357,8 +357,8 @@ public class AdminDataService {
     }
 
     private void insertRow(TableSpec spec, Map<String, Object> row) {
-        if ("match".equals(spec.id()) && row.get("public_id") != null) {
-            insertMatchIfPublicIdFree(row);
+        if ("match".equals(spec.id()) && row.get("id") != null) {
+            insertMatchIfIdFree(row);
             return;
         }
         List<String> cols = new ArrayList<>();
@@ -385,11 +385,11 @@ public class AdminDataService {
         jdbc.update(sql, params);
     }
 
-    private void insertMatchIfPublicIdFree(Map<String, Object> row) {
+    private void insertMatchIfIdFree(Map<String, Object> row) {
         List<String> cols = new ArrayList<>();
         List<String> selectParts = new ArrayList<>();
         MapSqlParameterSource params = new MapSqlParameterSource();
-        Object publicId = row.get("public_id");
+        Object matchId = row.get("id");
         for (Map.Entry<String, Object> e : row.entrySet()) {
             if (e.getValue() == null) {
                 continue;
@@ -406,11 +406,11 @@ public class AdminDataService {
         String sql = "INSERT INTO " + tableSql + " (" + String.join(", ", cols) + ") SELECT "
                 + String.join(", ", selectParts)
                 + " WHERE NOT EXISTS (SELECT 1 FROM " + tableSql
-                + " WHERE public_id IS NOT DISTINCT FROM :i_public_id_guard)";
-        params.addValue("i_public_id_guard", publicId);
+                + " WHERE id IS NOT DISTINCT FROM :i_id_guard)";
+        params.addValue("i_id_guard", matchId);
         int n = jdbc.update(sql, params);
         if (n == 0) {
-            throw new MiniAppException(409, "Матч с таким public_id уже существует.");
+            throw new MiniAppException(409, "Матч с таким id уже существует.");
         }
     }
 

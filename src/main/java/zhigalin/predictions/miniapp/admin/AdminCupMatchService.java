@@ -59,7 +59,7 @@ public class AdminCupMatchService {
 
     public AdminCupMatchDetailResponse getMatch(String telegramId, int publicId) {
         adminGuard.requireAdmin(telegramId);
-        CupMatch cup = cupMatchDao.findByPublicId(publicId);
+        CupMatch cup = cupMatchDao.findById(publicId);
         if (cup == null) {
             throw new MiniAppException(404, "Кубковый матч не найден.");
         }
@@ -69,7 +69,7 @@ public class AdminCupMatchService {
     @Transactional
     public AdminRowMutationResponse patchMatch(String telegramId, int publicId, AdminMatchPatchRequest body) {
         adminGuard.requireAdmin(telegramId);
-        CupMatch cup = cupMatchDao.findByPublicId(publicId);
+        CupMatch cup = cupMatchDao.findById(publicId);
         if (cup == null) {
             throw new MiniAppException(404, "Кубковый матч не найден.");
         }
@@ -85,11 +85,11 @@ public class AdminCupMatchService {
         boolean scoreOrStatusChanged = false;
         String prevStatus = cup.getStatus();
         if (body.homeScore() != null) {
-            cup.setHomeTeamScore(body.homeScore());
+            cup.setHomeScore(body.homeScore());
             scoreOrStatusChanged = true;
         }
         if (body.awayScore() != null) {
-            cup.setAwayTeamScore(body.awayScore());
+            cup.setAwayScore(body.awayScore());
             scoreOrStatusChanged = true;
         }
         if (body.status() != null && !body.status().isBlank()) {
@@ -97,7 +97,7 @@ public class AdminCupMatchService {
             scoreOrStatusChanged = true;
         }
         if (body.kickoffLocal() != null && !body.kickoffLocal().isBlank()) {
-            cup.setLocalDateTime(parseKickoffLocal(body.kickoffLocal()));
+            cup.setStartsAt(parseKickoffLocal(body.kickoffLocal()));
         }
         if ("ft".equals(cup.getStatus()) && !"ft".equals(prevStatus) && cup.getFinishedAt() == null) {
             cup.setFinishedAt(LocalDateTime.now(AppTimeZones.DISPLAY));
@@ -120,16 +120,16 @@ public class AdminCupMatchService {
     }
 
     private AdminMatchListItem toListItemFromCard(MatchItem card) {
-        CupMatch cup = cupMatchDao.findByPublicId(card.publicId());
+        CupMatch cup = cupMatchDao.findById(card.publicId());
         return new AdminMatchListItem(
                 card,
                 cup != null && espnSyncGuard.isCupMatchEditBlocked(cup),
-                cup != null ? formatKickoffLocal(cup.getLocalDateTime()) : ""
+                cup != null ? formatKickoffLocal(cup.getStartsAt()) : ""
         );
     }
 
     private AdminCupMatchDetailResponse toDetail(CupMatch cup) {
-        List<Prediction> predictions = predictionService.getByCupMatchPublicId(cup.getPublicId());
+        List<Prediction> predictions = predictionService.getByCupMatchPublicId(cup.getId());
         Map<Integer, User> usersById = userService.findAll().stream()
                 .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
         List<AdminPredictionItem> rows = new ArrayList<>();
@@ -140,8 +140,8 @@ public class AdminCupMatchService {
                     u != null ? u.getLogin() : ("user#" + p.getUserId()),
                     u != null ? u.getTelegramId() : null,
                     u != null ? u.getRole() : null,
-                    p.getHomeTeamScore(),
-                    p.getAwayTeamScore(),
+                    p.getHomeScore(),
+                    p.getAwayScore(),
                     p.getPoints(),
                     false
             ));
@@ -157,23 +157,23 @@ public class AdminCupMatchService {
         return new AdminCupMatchDetailResponse(
                 card,
                 espnSyncGuard.isCupMatchEditBlocked(cup),
-                formatKickoffLocal(cup.getLocalDateTime()),
+                formatKickoffLocal(cup.getStartsAt()),
                 rows,
                 usersTotal,
                 predictionsCount,
                 missingOnRecalc,
-                cup.getAetHomeScore(),
-                cup.getAetAwayScore(),
-                cup.getPenHomeScore(),
-                cup.getPenAwayScore()
+                cup.getAetHome(),
+                cup.getAetAway(),
+                cup.getPenHome(),
+                cup.getPenAway()
         );
     }
 
     private static boolean shouldRecalc(CupMatch cup, boolean scoreOrStatusChanged) {
         return scoreOrStatusChanged
                 && "ft".equals(cup.getStatus())
-                && cup.getHomeTeamScore() != null
-                && cup.getAwayTeamScore() != null;
+                && cup.getHomeScore() != null
+                && cup.getAwayScore() != null;
     }
 
     private static String formatKickoffLocal(LocalDateTime ldt) {

@@ -192,11 +192,11 @@ class HtmlCardPreviewTest {
         copy(renderer.createWeeklyImage(5, weekly), outDir.resolve("weekly-results.png"));
 
         Match sample = Match.builder()
-                .publicId(1)
+                .id(1)
                 .homeTeamId(50)
                 .awayTeamId(33)
                 .weekId(5)
-                .localDateTime(LocalDateTime.of(2026, 9, 20, 17, 30))
+                .startsAt(LocalDateTime.of(2026, 9, 20, 17, 30))
                 .build();
         copy(renderer.createYourPredictImage(sample, "2:1"), outDir.resolve("your-predict.png"));
 
@@ -235,15 +235,15 @@ class HtmlCardPreviewTest {
     }
 
     private static void put(int id, String code, String name) {
-        DaoUtil.TEAMS.put(id, Team.builder().publicId(id).code(code).name(name).build());
+        DaoUtil.TEAMS.put(id, Team.builder().id(id).code(code).name(name).build());
     }
 
     private static Match finished(int home, int away, int hs, int as) {
         return Match.builder()
                 .homeTeamId(home)
                 .awayTeamId(away)
-                .homeTeamScore(hs)
-                .awayTeamScore(as)
+                .homeScore(hs)
+                .awayScore(as)
                 .status("ft")
                 .build();
     }
@@ -252,8 +252,8 @@ class HtmlCardPreviewTest {
         return HeadToHead.builder()
                 .homeTeamId(home)
                 .awayTeamId(away)
-                .homeTeamScore(hs)
-                .awayTeamScore(as)
+                .homeScore(hs)
+                .awayScore(as)
                 .build();
     }
 }

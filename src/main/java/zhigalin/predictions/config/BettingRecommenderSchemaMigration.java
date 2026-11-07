@@ -8,6 +8,7 @@ public class BettingRecommenderSchemaMigration {
 
     public BettingRecommenderSchemaMigration(JdbcTemplate jdbcTemplate) {
         RecommenderTableRename.apply(jdbcTemplate);
+        SchemaColumnRename.apply(jdbcTemplate);
         jdbcTemplate.execute("""
                 ALTER TABLE users
                     ADD COLUMN IF NOT EXISTS betting_recommender_enabled BOOLEAN DEFAULT FALSE
@@ -53,7 +54,7 @@ public class BettingRecommenderSchemaMigration {
                 """);
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS fixture_xg (
-                    fixture_id INTEGER PRIMARY KEY,
+                    match_id INTEGER PRIMARY KEY,
                     home_team_id INTEGER NOT NULL,
                     away_team_id INTEGER NOT NULL,
                     home_xg NUMERIC(8, 4),
@@ -71,12 +72,12 @@ public class BettingRecommenderSchemaMigration {
                 """);
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS match_recommendation (
-                    match_public_id INTEGER PRIMARY KEY,
+                    match_id INTEGER PRIMARY KEY,
                     week_id INTEGER NOT NULL,
                     recommended_home INTEGER NOT NULL,
                     recommended_away INTEGER NOT NULL,
-                    expected_home_goals NUMERIC(6, 3) NOT NULL,
-                    expected_away_goals NUMERIC(6, 3) NOT NULL,
+                    expected_home NUMERIC(6, 3) NOT NULL,
+                    expected_away NUMERIC(6, 3) NOT NULL,
                     score_probability NUMERIC(8, 6),
                     explanation_json TEXT NOT NULL,
                     computed_at TIMESTAMP NOT NULL

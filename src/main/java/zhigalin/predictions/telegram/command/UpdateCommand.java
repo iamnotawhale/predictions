@@ -51,8 +51,8 @@ public class UpdateCommand implements Command {
         int awayScore = Integer.parseInt(matchToUpdate[5]);
         String result = homeScore > awayScore ? "H" : homeScore < awayScore ? "A" : "D";
         Match match = matchService.findByTeamCodes(homeTeam, awayTeam);
-        match.setHomeTeamScore(homeScore);
-        match.setAwayTeamScore(awayScore);
+        match.setHomeScore(homeScore);
+        match.setAwayScore(awayScore);
         match.setStatus("ft");
         match.setResult(result);
         return match;

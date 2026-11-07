@@ -74,17 +74,17 @@ public class OddsService {
         }
     }
 
-    public Odd getOdd(int matchPublicId) {
-        Odd cached = oddsCache.get(matchPublicId);
+    public Odd getOdd(int matchId) {
+        Odd cached = oddsCache.get(matchId);
         if (cached != null) {
             return cached;
         }
-        MatchOdds stored = matchDao.findOdds(matchPublicId);
+        MatchOdds stored = matchDao.findOdds(matchId);
         if (stored == null) {
             return null;
         }
         Odd odd = toOdd(stored);
-        oddsCache.put(matchPublicId, odd);
+        oddsCache.put(matchId, odd);
         return odd;
     }
 
@@ -96,10 +96,10 @@ public class OddsService {
             LocalDate from = null;
             LocalDate to = null;
             for (Match match : matches) {
-                if (match.getLocalDateTime() == null) {
+                if (match.getStartsAt() == null) {
                     continue;
                 }
-                LocalDate day = match.getLocalDateTime().toLocalDate();
+                LocalDate day = match.getStartsAt().toLocalDate();
                 if (from == null || day.isBefore(from)) {
                     from = day;
                 }
@@ -183,11 +183,11 @@ public class OddsService {
         }
 
         Double overUnder = oddV2.getOverUnder();
-        Odd prev = oddsCache.get(match.getPublicId());
-        Double homeTeamTotal = prev != null ? prev.homeTeamTotal() : null;
-        Double awayTeamTotal = prev != null ? prev.awayTeamTotal() : null;
+        Odd prev = oddsCache.get(match.getId());
+        Double homeTotal = prev != null ? prev.homeTotal() : null;
+        Double awayTotal = prev != null ? prev.awayTotal() : null;
         // Team totals come from paginated propBets — fetch once until both lines exist.
-        if ((homeTeamTotal == null || awayTeamTotal == null)
+        if ((homeTotal == null || awayTotal == null)
             && event.getId() != null) {
             String homeEspnTeamId = competitorTeamId(competition, "home");
             String awayEspnTeamId = competitorTeamId(competition, "away");
@@ -196,10 +196,10 @@ public class OddsService {
                         espnTeamTotalsClient.fetchMainLines(event.getId(), homeEspnTeamId, awayEspnTeamId);
                 if (teamTotals != null) {
                     if (teamTotals.homeLine() != null) {
-                        homeTeamTotal = teamTotals.homeLine();
+                        homeTotal = teamTotals.homeLine();
                     }
                     if (teamTotals.awayLine() != null) {
-                        awayTeamTotal = teamTotals.awayLine();
+                        awayTotal = teamTotals.awayLine();
                     }
                 }
             }
@@ -210,11 +210,11 @@ public class OddsService {
                 base.draw(),
                 base.away(),
                 overUnder,
-                homeTeamTotal,
-                awayTeamTotal
+                homeTotal,
+                awayTotal
         );
-        storeOdd(match.getPublicId(), odd);
-        updated.add(match.getPublicId());
+        storeOdd(match.getId(), odd);
+        updated.add(match.getId());
         log.info(
                 "Odds loaded for {}-{}: {} / {} / {} · OU {} · team totals {}/{}",
                 home,
@@ -223,8 +223,8 @@ public class OddsService {
                 odd.draw(),
                 odd.away(),
                 odd.overUnder(),
-                odd.homeTeamTotal(),
-                odd.awayTeamTotal()
+                odd.homeTotal(),
+                odd.awayTotal()
         );
     }
 
@@ -277,8 +277,8 @@ public class OddsService {
                 odd.draw(),
                 odd.away(),
                 odd.overUnder(),
-                odd.homeTeamTotal(),
-                odd.awayTeamTotal()
+                odd.homeTotal(),
+                odd.awayTotal()
         );
     }
 
@@ -288,8 +288,8 @@ public class OddsService {
                 stored.draw(),
                 stored.away(),
                 stored.overUnder(),
-                stored.homeTeamTotal(),
-                stored.awayTeamTotal()
+                stored.homeTotal(),
+                stored.awayTotal()
         );
     }
 
@@ -368,8 +368,8 @@ public class OddsService {
             double draw,
             double away,
             Double overUnder,
-            Double homeTeamTotal,
-            Double awayTeamTotal
+            Double homeTotal,
+            Double awayTotal
     ) {
         public Odd(double home, double draw, double away) {
             this(home, draw, away, null, null, null);

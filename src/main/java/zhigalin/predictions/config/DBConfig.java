@@ -36,6 +36,7 @@ public class DBConfig {
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         CupSchemaRename.apply(jdbcTemplate);
         RecommenderTableRename.apply(jdbcTemplate);
+        SchemaColumnRename.apply(jdbcTemplate);
         DataSourceInitializer initializer = new DataSourceInitializer();
         initializer.setDataSource(dataSource);
 

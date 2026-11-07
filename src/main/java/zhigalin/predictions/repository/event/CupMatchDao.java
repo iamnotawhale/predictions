@@ -34,13 +34,13 @@ public class CupMatchDao {
     public void upsert(CupMatch match) {
         String sql = """
                 INSERT INTO cup_match (
-                    public_id, competition, espn_id,
+                    id, competition, espn_id,
                     home_team_id, away_team_id,
                     home_name, away_name, home_logo_url, away_logo_url,
                     home_espn_code, away_espn_code,
-                    home_team_score, away_team_score, result, status,
-                    local_date_time, finished_at, live_score_message_id,
-                    aet_home_score, aet_away_score, pen_home_score, pen_away_score
+                    home_score, away_score, result, status,
+                    starts_at, finished_at, live_score_message_id,
+                    aet_home, aet_away, pen_home, pen_away
                 ) VALUES (
                     :publicId, :competition, :espnId,
                     :homeTeamId, :awayTeamId,
@@ -48,10 +48,10 @@ public class CupMatchDao {
                     :homeEspnCode, :awayEspnCode,
                     :homeScore, :awayScore, :result, :status,
                     :localDateTime, :finishedAt, :liveScoreMessageId,
-                    :aetHomeScore, :aetAwayScore, :penHomeScore, :penAwayScore
+                    :aetHome, :aetAway, :penHome, :penAway
                 )
                 ON CONFLICT (competition, espn_id) DO UPDATE SET
-                    public_id = EXCLUDED.public_id,
+                    id = EXCLUDED.id,
                     home_team_id = EXCLUDED.home_team_id,
                     away_team_id = EXCLUDED.away_team_id,
                     home_name = EXCLUDED.home_name,
@@ -60,17 +60,17 @@ public class CupMatchDao {
                     away_logo_url = EXCLUDED.away_logo_url,
                     home_espn_code = EXCLUDED.home_espn_code,
                     away_espn_code = EXCLUDED.away_espn_code,
-                    home_team_score = EXCLUDED.home_team_score,
-                    away_team_score = EXCLUDED.away_team_score,
+                    home_score = EXCLUDED.home_score,
+                    away_score = EXCLUDED.away_score,
                     result = EXCLUDED.result,
                     status = EXCLUDED.status,
-                    local_date_time = EXCLUDED.local_date_time,
+                    starts_at = EXCLUDED.starts_at,
                     finished_at = COALESCE(EXCLUDED.finished_at, cup_match.finished_at),
                     live_score_message_id = COALESCE(EXCLUDED.live_score_message_id, cup_match.live_score_message_id),
-                    aet_home_score = EXCLUDED.aet_home_score,
-                    aet_away_score = EXCLUDED.aet_away_score,
-                    pen_home_score = EXCLUDED.pen_home_score,
-                    pen_away_score = EXCLUDED.pen_away_score
+                    aet_home = EXCLUDED.aet_home,
+                    aet_away = EXCLUDED.aet_away,
+                    pen_home = EXCLUDED.pen_home,
+                    pen_away = EXCLUDED.pen_away
                 """;
         try {
             namedParameterJdbcTemplate.update(sql, params(match));
@@ -83,11 +83,11 @@ public class CupMatchDao {
     public void update(CupMatch match) {
         String sql = """
                 UPDATE cup_match SET
-                    home_team_score = :homeScore,
-                    away_team_score = :awayScore,
+                    home_score = :homeScore,
+                    away_score = :awayScore,
                     result = :result,
                     status = :status,
-                    local_date_time = :localDateTime,
+                    starts_at = :localDateTime,
                     finished_at = :finishedAt,
                     live_score_message_id = :liveScoreMessageId,
                     home_team_id = :homeTeamId,
@@ -98,7 +98,7 @@ public class CupMatchDao {
                     away_logo_url = :awayLogoUrl,
                     home_espn_code = :homeEspnCode,
                     away_espn_code = :awayEspnCode
-                WHERE public_id = :publicId
+                WHERE id = :publicId
                 """;
         try {
             namedParameterJdbcTemplate.update(sql, params(match));
@@ -108,9 +108,9 @@ public class CupMatchDao {
         }
     }
 
-    public CupMatch findByPublicId(int publicId) {
+    public CupMatch findById(int publicId) {
         try {
-            String sql = "SELECT * FROM cup_match WHERE public_id = :publicId";
+            String sql = "SELECT * FROM cup_match WHERE id = :publicId";
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.queryForObject(
                     sql, new MapSqlParameterSource("publicId", publicId), new CupMatchMapper()));
         } catch (Exception e) {
@@ -124,7 +124,7 @@ public class CupMatchDao {
             return List.of();
         }
         try {
-            String sql = "SELECT * FROM cup_match WHERE public_id IN (:ids)";
+            String sql = "SELECT * FROM cup_match WHERE id IN (:ids)";
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, new MapSqlParameterSource("ids", publicIds), new CupMatchMapper()));
         } catch (Exception e) {
@@ -138,7 +138,7 @@ public class CupMatchDao {
             String sql = """
                     SELECT * FROM cup_match
                     WHERE home_team_id = :teamPublicId OR away_team_id = :teamPublicId
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, new MapSqlParameterSource("teamPublicId", teamPublicId), new CupMatchMapper()));
@@ -152,9 +152,9 @@ public class CupMatchDao {
         try {
             String sql = """
                     SELECT * FROM cup_match
-                    WHERE CAST(local_date_time AS DATE) = :date
+                    WHERE CAST(starts_at AS DATE) = :date
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, new MapSqlParameterSource("date", date), new CupMatchMapper()));
@@ -171,7 +171,7 @@ public class CupMatchDao {
                     WHERE status IS NOT NULL
                       AND status NOT IN ('ns', 'ft', 'pst', 'aet', 'pen')
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, new CupMatchMapper()));
@@ -202,12 +202,12 @@ public class CupMatchDao {
                     SELECT * FROM cup_match
                     WHERE competition = :competition
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
-                      AND CAST(local_date_time AS DATE) >= :seasonStart
+                      AND CAST(starts_at AS DATE) >= :seasonStart
                       AND (
                             status IN ('ft', 'aet', 'pen')
-                            OR CAST(local_date_time AS DATE) >= :fromDate
+                            OR CAST(starts_at AS DATE) >= :fromDate
                       )
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("competition", competition)
@@ -233,12 +233,12 @@ public class CupMatchDao {
             String sql = """
                     SELECT * FROM cup_match
                     WHERE (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
-                      AND CAST(local_date_time AS DATE) >= :seasonStart
+                      AND CAST(starts_at AS DATE) >= :seasonStart
                       AND (
                             status IN ('ft', 'aet', 'pen')
-                            OR CAST(local_date_time AS DATE) >= :fromDate
+                            OR CAST(starts_at AS DATE) >= :fromDate
                       )
-                    ORDER BY local_date_time, public_id
+                    ORDER BY starts_at, id
                     """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("fromDate", fromDate)
@@ -254,8 +254,8 @@ public class CupMatchDao {
         try {
             String sql = """
                     SELECT * FROM cup_match
-                    WHERE CAST(local_date_time AS DATE) >= :fromDate
-                    ORDER BY local_date_time, public_id
+                    WHERE CAST(starts_at AS DATE) >= :fromDate
+                    ORDER BY starts_at, id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql, new MapSqlParameterSource("fromDate", fromDate), new CupMatchMapper()));
@@ -267,7 +267,7 @@ public class CupMatchDao {
     public int deleteBeforeDate(LocalDateTime before) {
         try {
             return namedParameterJdbcTemplate.update(
-                    "DELETE FROM cup_match WHERE local_date_time IS NOT NULL AND local_date_time < :before",
+                    "DELETE FROM cup_match WHERE starts_at IS NOT NULL AND starts_at < :before",
                     new MapSqlParameterSource("before", before)
             );
         } catch (Exception e) {
@@ -298,7 +298,7 @@ public class CupMatchDao {
     public int deleteByPublicId(int publicId) {
         try {
             return namedParameterJdbcTemplate.update(
-                    "DELETE FROM cup_match WHERE public_id = :id",
+                    "DELETE FROM cup_match WHERE id = :id",
                     new MapSqlParameterSource("id", publicId)
             );
         } catch (Exception e) {
@@ -311,7 +311,7 @@ public class CupMatchDao {
     public List<CupMatch> findAllRaw() {
         try {
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
-                    "SELECT * FROM cup_match ORDER BY public_id",
+                    "SELECT * FROM cup_match ORDER BY id",
                     new CupMatchMapper()));
         } catch (Exception e) {
             return List.of();
@@ -324,8 +324,8 @@ public class CupMatchDao {
                     SELECT * FROM cup_match
                     WHERE status = 'ft'
                       AND (home_team_id IS NOT NULL OR away_team_id IS NOT NULL)
-                      AND CAST(local_date_time AS DATE) >= :seasonStart
-                    ORDER BY COALESCE(finished_at, local_date_time), public_id
+                      AND CAST(starts_at AS DATE) >= :seasonStart
+                    ORDER BY COALESCE(finished_at, starts_at), id
                     """;
             return DaoUtil.getNullableResult(() -> namedParameterJdbcTemplate.query(
                     sql,
@@ -341,7 +341,7 @@ public class CupMatchDao {
     public void updateLiveScoreMessageId(int publicId, Integer messageId) {
         try {
             namedParameterJdbcTemplate.update(
-                    "UPDATE cup_match SET live_score_message_id = :mid WHERE public_id = :id",
+                    "UPDATE cup_match SET live_score_message_id = :mid WHERE id = :id",
                     new MapSqlParameterSource().addValue("mid", messageId).addValue("id", publicId));
         } catch (Exception e) {
             serverLogger.error("updateLiveScoreMessageId cup: {}", e.getMessage());
@@ -350,7 +350,7 @@ public class CupMatchDao {
 
     private static MapSqlParameterSource params(CupMatch match) {
         return new MapSqlParameterSource()
-                .addValue("publicId", match.getPublicId())
+                .addValue("publicId", match.getId())
                 .addValue("competition", match.getCompetition())
                 .addValue("espnId", match.getEspnId())
                 .addValue("homeTeamId", match.getHomeTeamId())
@@ -361,26 +361,26 @@ public class CupMatchDao {
                 .addValue("awayLogoUrl", match.getAwayLogoUrl())
                 .addValue("homeEspnCode", match.getHomeEspnCode())
                 .addValue("awayEspnCode", match.getAwayEspnCode())
-                .addValue("homeScore", match.getHomeTeamScore())
-                .addValue("awayScore", match.getAwayTeamScore())
+                .addValue("homeScore", match.getHomeScore())
+                .addValue("awayScore", match.getAwayScore())
                 .addValue("result", match.getResult())
                 .addValue("status", match.getStatus())
-                .addValue("localDateTime", match.getLocalDateTime())
+                .addValue("localDateTime", match.getStartsAt())
                 .addValue("finishedAt", match.getFinishedAt())
                 .addValue("liveScoreMessageId", match.getLiveScoreMessageId())
-                .addValue("aetHomeScore", match.getAetHomeScore())
-                .addValue("aetAwayScore", match.getAetAwayScore())
-                .addValue("penHomeScore", match.getPenHomeScore())
-                .addValue("penAwayScore", match.getPenAwayScore());
+                .addValue("aetHome", match.getAetHome())
+                .addValue("aetAway", match.getAetAway())
+                .addValue("penHome", match.getPenHome())
+                .addValue("penAway", match.getPenAway());
     }
 
     private static final class CupMatchMapper implements RowMapper<CupMatch> {
         @Override
         public CupMatch mapRow(ResultSet rs, int rowNum) throws SQLException {
-            Timestamp ldt = rs.getTimestamp("local_date_time");
+            Timestamp ldt = rs.getTimestamp("starts_at");
             Timestamp fat = rs.getTimestamp("finished_at");
             return CupMatch.builder()
-                    .publicId(rs.getInt("public_id"))
+                    .id(rs.getInt("id"))
                     .competition(rs.getString("competition"))
                     .espnId(rs.getString("espn_id"))
                     .homeTeamId((Integer) rs.getObject("home_team_id"))
@@ -391,17 +391,17 @@ public class CupMatchDao {
                     .awayLogoUrl(rs.getString("away_logo_url"))
                     .homeEspnCode(rs.getString("home_espn_code"))
                     .awayEspnCode(rs.getString("away_espn_code"))
-                    .homeTeamScore((Integer) rs.getObject("home_team_score"))
-                    .awayTeamScore((Integer) rs.getObject("away_team_score"))
+                    .homeScore((Integer) rs.getObject("home_score"))
+                    .awayScore((Integer) rs.getObject("away_score"))
                     .result(rs.getString("result"))
                     .status(rs.getString("status"))
-                    .localDateTime(ldt != null ? ldt.toLocalDateTime() : null)
+                    .startsAt(ldt != null ? ldt.toLocalDateTime() : null)
                     .finishedAt(fat != null ? fat.toLocalDateTime() : null)
                     .liveScoreMessageId((Integer) rs.getObject("live_score_message_id"))
-                    .aetHomeScore((Integer) rs.getObject("aet_home_score"))
-                    .aetAwayScore((Integer) rs.getObject("aet_away_score"))
-                    .penHomeScore((Integer) rs.getObject("pen_home_score"))
-                    .penAwayScore((Integer) rs.getObject("pen_away_score"))
+                    .aetHome((Integer) rs.getObject("aet_home"))
+                    .aetAway((Integer) rs.getObject("aet_away"))
+                    .penHome((Integer) rs.getObject("pen_home"))
+                    .penAway((Integer) rs.getObject("pen_away"))
                     .build();
         }
     }

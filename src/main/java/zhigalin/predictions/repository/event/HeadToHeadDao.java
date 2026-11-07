@@ -38,17 +38,17 @@ public class HeadToHeadDao {
     public void save(HeadToHead headToHead) {
         try {
             String sql = """
-                    INSERT INTO h2h (home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time)
+                    INSERT INTO h2h (home_team_id, away_team_id, home_score, away_score, league_name, starts_at)
                     VALUES (:homeTeamId, :awayTeamId, :homeTeamScore, :awayTeamScore, :leagueName, :localDateTime)
                     ON CONFLICT ON CONSTRAINT unique_h2h DO NOTHING
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homeTeamId", headToHead.getHomeTeamId());
             parameters.addValue("awayTeamId", headToHead.getAwayTeamId());
-            parameters.addValue("homeTeamScore", headToHead.getHomeTeamScore());
-            parameters.addValue("awayTeamScore", headToHead.getAwayTeamScore());
+            parameters.addValue("homeTeamScore", headToHead.getHomeScore());
+            parameters.addValue("awayTeamScore", headToHead.getAwayScore());
             parameters.addValue("leagueName", headToHead.getLeagueName());
-            parameters.addValue("localDateTime", headToHead.getLocalDateTime());
+            parameters.addValue("localDateTime", headToHead.getStartsAt());
             int update = namedParameterJdbcTemplate.update(sql, parameters);
             if (update == 1) {
                 serverLogger.info("Saved head to head: {}", headToHead);
@@ -63,10 +63,10 @@ public class HeadToHeadDao {
     public List<HeadToHead> getH2hByTeamsCode(String homeTeamCode, String awayTeamCode) {
         try {
             String sql = """
-                        SELECT home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time
+                        SELECT home_team_id, away_team_id, home_score, away_score, league_name, starts_at
                         FROM h2h
-                                 JOIN teams ht on ht.public_id = home_team_id
-                                 JOIN teams at on at.public_id = away_team_id
+                                 JOIN teams ht on ht.id = home_team_id
+                                 JOIN teams at on at.id = away_team_id
                         WHERE ht.code in (:homeTeamCode, :awayTeamCode)
                         AND at.code in (:homeTeamCode, :awayTeamCode);
                     """;
@@ -84,12 +84,12 @@ public class HeadToHeadDao {
     public List<HeadToHead> getAllByTeamsIds(int homeTeamId, int awayTeamId) {
         try {
             String sql = """
-                        SELECT home_team_id, away_team_id, home_team_score, away_team_score, league_name, local_date_time
+                        SELECT home_team_id, away_team_id, home_score, away_score, league_name, starts_at
                         FROM h2h
-                                 JOIN teams ht on ht.public_id = home_team_id
-                                 JOIN teams at on at.public_id = away_team_id
-                        WHERE ht.public_id in (:homeTeamId, :awayTeamId)
-                        AND at.public_id in (:homeTeamId, :awayTeamId);
+                                 JOIN teams ht on ht.id = home_team_id
+                                 JOIN teams at on at.id = away_team_id
+                        WHERE ht.id in (:homeTeamId, :awayTeamId)
+                        AND at.id in (:homeTeamId, :awayTeamId);
                     """;
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homeTeamId", homeTeamId);
@@ -106,13 +106,13 @@ public class HeadToHeadDao {
         try {
             String sql = """
                         SELECT
-                            m.public_id,
+                            m.id,
                             h2h.home_team_id,
                             h2h.away_team_id,
-                            h2h.home_team_score,
-                            h2h.away_team_score,
+                            h2h.home_score,
+                            h2h.away_score,
                             h2h.league_name,
-                            h2h.local_date_time
+                            h2h.starts_at
                         FROM match m
                         JOIN weeks w ON m.week_id = w.id
                         JOIN h2h ON
@@ -120,23 +120,23 @@ public class HeadToHeadDao {
                                 OR
                             (m.home_team_id = h2h.away_team_id AND m.away_team_id = h2h.home_team_id)
                         WHERE w.is_current = TRUE
-                        ORDER BY m.local_date_time, h2h.local_date_time DESC
+                        ORDER BY m.starts_at, h2h.starts_at DESC
                     """;
             List<MatchHeadToHead> allMatchHeadToHeads = DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchHeadToHeadMapper()));
 
             if (allMatchHeadToHeads != null && !allMatchHeadToHeads.isEmpty()) {
                 Map<Integer, List<HeadToHead>> headToHeadsByMatch = new HashMap<>();
                 for (MatchHeadToHead matchHeadToHead : allMatchHeadToHeads) {
-                    headToHeadsByMatch.computeIfAbsent(matchHeadToHead.matchPublicId, k -> new ArrayList<>()).add(matchHeadToHead.headToHead);
+                    headToHeadsByMatch.computeIfAbsent(matchHeadToHead.matchId, k -> new ArrayList<>()).add(matchHeadToHead.headToHead);
                 }
 
 
                 Map<Integer, List<HeadToHead>> result = new HashMap<>();
-                headToHeadsByMatch.forEach((matchPublicId, headToHeads) -> {
+                headToHeadsByMatch.forEach((matchId, headToHeads) -> {
                     result.put(
-                            matchPublicId,
+                            matchId,
                             headToHeads.stream()
-                                    .sorted(Comparator.comparing(HeadToHead::getLocalDateTime).reversed())
+                                    .sorted(Comparator.comparing(HeadToHead::getStartsAt).reversed())
                                     .limit(7)
                                     .toList()
                     );
@@ -159,10 +159,10 @@ public class HeadToHeadDao {
             return HeadToHead.builder()
                     .homeTeamId(rs.getInt("home_team_id"))
                     .awayTeamId(rs.getInt("away_team_id"))
-                    .homeTeamScore(rs.getInt("home_team_score"))
-                    .awayTeamScore(rs.getInt("away_team_score"))
+                    .homeScore(rs.getInt("home_score"))
+                    .awayScore(rs.getInt("away_score"))
                     .leagueName(rs.getString("league_name"))
-                    .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                    .startsAt(rs.getTimestamp("starts_at").toLocalDateTime())
                     .build();
         }
     }
@@ -172,19 +172,19 @@ public class HeadToHeadDao {
         @Override
         public MatchHeadToHead mapRow(ResultSet rs, int rowNum) throws SQLException {
             return new MatchHeadToHead(
-                    rs.getInt("public_id"),
+                    rs.getInt("id"),
                     HeadToHead.builder()
                             .homeTeamId(rs.getInt("home_team_id"))
                             .awayTeamId(rs.getInt("away_team_id"))
-                            .homeTeamScore(rs.getInt("home_team_score"))
-                            .awayTeamScore(rs.getInt("away_team_score"))
+                            .homeScore(rs.getInt("home_score"))
+                            .awayScore(rs.getInt("away_score"))
                             .leagueName(rs.getString("league_name"))
-                            .localDateTime(rs.getTimestamp("local_date_time").toLocalDateTime())
+                            .startsAt(rs.getTimestamp("starts_at").toLocalDateTime())
                             .build()
             );
         }
     }
 
-    private record MatchHeadToHead(int matchPublicId, HeadToHead headToHead) {
+    private record MatchHeadToHead(int matchId, HeadToHead headToHead) {
     }
 }

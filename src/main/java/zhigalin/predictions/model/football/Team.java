@@ -7,7 +7,7 @@ import lombok.Data;
 @Builder
 public class Team {
 
-    private int publicId;
+    private int id;
     private String name;
     private String code;
     private String logo;

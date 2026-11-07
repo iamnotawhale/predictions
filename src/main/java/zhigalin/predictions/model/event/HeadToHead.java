@@ -11,8 +11,8 @@ public class HeadToHead {
 
     private int homeTeamId;
     private int awayTeamId;
-    private int homeTeamScore;
-    private int awayTeamScore;
-    private LocalDateTime localDateTime;
+    private int homeScore;
+    private int awayScore;
+    private LocalDateTime startsAt;
     private String leagueName;
 }

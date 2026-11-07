@@ -60,10 +60,10 @@ public class AdminUserService {
             Match m = mp.match();
             Prediction p = mp.prediction();
             MatchItem card = miniAppService.adminMatchCard(m);
-            predictions.add(fromMatchCard("epl", m.getPublicId(), null, m.getStatus(), p, card));
+            predictions.add(fromMatchCard("epl", m.getId(), null, m.getStatus(), p, card));
         }
         for (Prediction p : predictionDao.findAllCupByUserId(userId)) {
-            CupMatch c = cupMatchDao.findByPublicId(p.getCupMatchId());
+            CupMatch c = cupMatchDao.findById(p.getCupMatchId());
             MatchItem card = c != null ? miniAppService.adminCupCard(c) : null;
             predictions.add(fromMatchCard(
                     "cup",
@@ -79,7 +79,7 @@ public class AdminUserService {
 
     private static AdminUserPredictionRow fromMatchCard(
             String kind,
-            Integer matchPublicId,
+            Integer matchId,
             Integer cupMatchId,
             String matchStatus,
             Prediction p,
@@ -105,12 +105,12 @@ public class AdminUserService {
         }
         return new AdminUserPredictionRow(
                 kind,
-                matchPublicId,
+                matchId,
                 cupMatchId,
                 label,
                 matchStatus,
-                p.getHomeTeamScore(),
-                p.getAwayTeamScore(),
+                p.getHomeScore(),
+                p.getAwayScore(),
                 p.getPoints(),
                 homeCode,
                 awayCode,

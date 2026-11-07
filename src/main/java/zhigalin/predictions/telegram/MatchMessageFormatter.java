@@ -44,8 +44,8 @@ public final class MatchMessageFormatter {
 
     private static void appendToday(StringBuilder builder, Match match, Team awayTeam) {
         if (!Objects.equals(match.getStatus(), "ns") && !Objects.equals(match.getStatus(), "pst")) {
-            builder.append(match.getHomeTeamScore()).append(" - ")
-                    .append(match.getAwayTeamScore()).append(" ")
+            builder.append(match.getHomeScore()).append(" - ")
+                    .append(match.getAwayScore()).append(" ")
                     .append(awayTeam.getCode()).append(" ")
                     .append(match.getStatus()).append(" ");
         } else if (Objects.equals(match.getStatus(), "pst")) {
@@ -53,26 +53,26 @@ public final class MatchMessageFormatter {
                     .append(" ⏰ ").append(match.getStatus());
         } else {
             builder.append("- ").append(awayTeam.getCode())
-                    .append(" ⏱ ").append(match.getLocalDateTime().toLocalTime());
+                    .append(" ⏱ ").append(match.getStartsAt().toLocalTime());
         }
     }
 
     private static void appendTour(StringBuilder builder, Match match, Team awayTeam) {
         if (Objects.equals(match.getStatus(), "ft")) {
-            builder.append(match.getHomeTeamScore())
+            builder.append(match.getHomeScore())
                     .append(" - ")
-                    .append(match.getAwayTeamScore())
+                    .append(match.getAwayScore())
                     .append(" ")
                     .append(awayTeam.getCode());
         } else if (Objects.equals(match.getStatus(), "ns") || Objects.equals(match.getStatus(), "pst")) {
             builder.append("- ")
                     .append(awayTeam.getCode()).append(" ")
                     .append("\uD83D\uDDD3 ")
-                    .append(match.getLocalDateTime().format(DATE_TIME));
+                    .append(match.getStartsAt().format(DATE_TIME));
         } else {
-            builder.append(match.getHomeTeamScore())
+            builder.append(match.getHomeScore())
                     .append(" - ")
-                    .append(match.getAwayTeamScore())
+                    .append(match.getAwayScore())
                     .append(" ")
                     .append(awayTeam.getCode())
                     .append(" ")
@@ -85,7 +85,7 @@ public final class MatchMessageFormatter {
         if (Objects.equals(match.getStatus(), "pst")) {
             builder.append(" ⏰ ").append(match.getStatus());
         } else {
-            builder.append(" ⏱ ").append(match.getLocalDateTime().format(DATE_TIME));
+            builder.append(" ⏱ ").append(match.getStartsAt().format(DATE_TIME));
         }
     }
 }

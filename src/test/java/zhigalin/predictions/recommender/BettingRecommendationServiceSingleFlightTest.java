@@ -23,9 +23,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsLeagueSnapshot;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.odds.OddsService;
@@ -39,7 +39,7 @@ class BettingRecommendationServiceSingleFlightTest {
     @Mock
     private SoccerStatsScraperService soccerStatsScraperService;
     @Mock
-    private FootyStatsStatsDao statsDao;
+    private RecommenderStatsDao statsDao;
     @Mock
     private MatchService matchService;
     @Mock
@@ -53,16 +53,16 @@ class BettingRecommendationServiceSingleFlightTest {
     @Test
     void refreshForWeek_singleFlightSharesOneScrape() throws Exception {
         DaoUtil.TEAMS.clear();
-        DaoUtil.TEAMS.put(1, Team.builder().publicId(1).code("ARS").name("Arsenal").build());
-        DaoUtil.TEAMS.put(2, Team.builder().publicId(2).code("CHE").name("Chelsea").build());
+        DaoUtil.TEAMS.put(1, Team.builder().id(1).code("ARS").name("Arsenal").build());
+        DaoUtil.TEAMS.put(2, Team.builder().id(2).code("CHE").name("Chelsea").build());
 
         AtomicInteger scrapeCalls = new AtomicInteger();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
 
-        FootyStatsLeagueSnapshot league = new FootyStatsLeagueSnapshot(1, 1.4, 1.2, 1.2, 1.4, Instant.now());
-        FootyStatsTeamSnapshot ars = emptyTeam("ARS");
-        FootyStatsTeamSnapshot che = emptyTeam("CHE");
+        LeagueAveragesSnapshot league = new LeagueAveragesSnapshot(1, 1.4, 1.2, 1.2, 1.4, Instant.now());
+        TeamStatsSnapshot ars = emptyTeam("ARS");
+        TeamStatsSnapshot che = emptyTeam("CHE");
         LeagueStatsSnapshot snapshot = new LeagueStatsSnapshot(List.of(ars, che), league);
 
         when(statsSnapshotService.fetchSnapshot()).thenAnswer(inv -> {
@@ -77,7 +77,7 @@ class BettingRecommendationServiceSingleFlightTest {
         when(statsDao.findLeagueSnapshot(1)).thenReturn(java.util.Optional.of(league));
         when(statsDao.findTeamStats(1)).thenReturn(List.of(ars, che));
         when(matchService.findAllByWeekId(1)).thenReturn(List.of(
-                Match.builder().publicId(10).weekId(1).homeTeamId(1).awayTeamId(2).status("ns").build()
+                Match.builder().id(10).weekId(1).homeTeamId(1).awayTeamId(2).status("ns").build()
         ));
         when(oddsService.getOdd(anyInt())).thenReturn(null);
         when(headToHeadService.findForRecommender(anyInt(), anyInt())).thenReturn(List.of());
@@ -108,11 +108,11 @@ class BettingRecommendationServiceSingleFlightTest {
         }
     }
 
-    private static FootyStatsTeamSnapshot emptyTeam(String code) {
-        return new FootyStatsTeamSnapshot(
+    private static TeamStatsSnapshot emptyTeam(String code) {
+        return new TeamStatsSnapshot(
                 code, 1, 1, 1, 1, 1, 1,
                 1.0, 1.0, 0.0, 1.0, 1.0,
-                FootyStatsExtendedMetrics.empty(),
+                ExtendedTeamMetrics.empty(),
                 Instant.now()
         );
     }

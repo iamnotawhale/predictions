@@ -45,23 +45,23 @@ public class CupMatchTipService {
         LocalDateTime until = now.plusDays(HORIZON_DAYS);
         List<CupMatch> upcoming = new ArrayList<>();
         for (CupMatch match : cupMatchDao.findAllFrom(now.toLocalDate())) {
-            LocalDateTime kickoff = match.getLocalDateTime();
+            LocalDateTime kickoff = match.getStartsAt();
             if (kickoff != null && kickoff.isAfter(now) && !kickoff.isAfter(until)) {
                 upcoming.add(match);
             }
         }
         Map<Integer, LocalDateTime> updatedAt = tipDao.updatedAtByCupMatchIds(
-                upcoming.stream().map(CupMatch::getPublicId).toList());
+                upcoming.stream().map(CupMatch::getId).toList());
         for (CupMatch match : upcoming) {
-            LocalDateTime last = updatedAt.get(match.getPublicId());
-            Duration interval = match.getLocalDateTime().isBefore(now.plusHours(1)) ? NEAR_KICKOFF : REGULAR;
+            LocalDateTime last = updatedAt.get(match.getId());
+            Duration interval = match.getStartsAt().isBefore(now.plusHours(1)) ? NEAR_KICKOFF : REGULAR;
             if (last != null && last.isAfter(now.minus(interval))) {
                 continue;
             }
             try {
                 refresh(match, now);
             } catch (Exception e) {
-                log.warn("Cup tip refresh failed for {}: {}", match.getPublicId(), e.getMessage());
+                log.warn("Cup tip refresh failed for {}: {}", match.getId(), e.getMessage());
             }
         }
     }
@@ -102,9 +102,9 @@ public class CupMatchTipService {
         if (odds.isEmpty()) {
             return;
         }
-        Instant kickoff = match.getLocalDateTime().atZone(AppTimeZones.DISPLAY).toInstant();
+        Instant kickoff = match.getStartsAt().atZone(AppTimeZones.DISPLAY).toInstant();
         CupOddsModel.Form form = CupOddsModel.formFromEspnSummary(root, kickoff);
         CupOddsModel.recommend(odds.get(), form).ifPresent(tip -> tipDao.upsert(
-                new CupMatchTipDao.Tip(match.getPublicId(), tip, odds.get(), form, now)));
+                new CupMatchTipDao.Tip(match.getId(), tip, odds.get(), form, now)));
     }
 }

@@ -1,14 +1,14 @@
 -- Shadow mode report: final recommender tip (stats-shaped) vs pure-market tip, EPL points (4/2/1/-1).
 -- Usage: psql "$DATABASE_URL" -f deploy/shadow-report.sql
 WITH t AS (
-    SELECT m.public_id,
-           m.home_team_score AS rh, m.away_team_score AS ra,
+    SELECT m.id,
+           m.home_score AS rh, m.away_score AS ra,
            COALESCE(mr.kickoff_home, mr.recommended_home) AS fh,
            COALESCE(mr.kickoff_away, mr.recommended_away) AS fa,
            mr.shadow_home AS sh, mr.shadow_away AS sa
     FROM match m
-    JOIN match_recommendation mr ON mr.match_public_id = m.public_id
-    WHERE m.status IN ('ft') AND m.home_team_score IS NOT NULL
+    JOIN match_recommendation mr ON mr.match_id = m.id
+    WHERE m.status IN ('ft') AND m.home_score IS NOT NULL
       AND mr.shadow_home IS NOT NULL
 ), p AS (
     SELECT *,

@@ -18,8 +18,8 @@ import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import zhigalin.predictions.recommender.model.FootyStatsExtendedMetrics;
-import zhigalin.predictions.recommender.model.FootyStatsTeamSnapshot;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 
 /**
  * Scrapes high-value SoccerSTATS.com game-state metrics and merges them into team snapshots.
@@ -36,13 +36,13 @@ public class SoccerStatsScraperService {
 
     private static final Pattern OUT_OF = Pattern.compile("(\\d+)\\s+out\\s+of\\s+(\\d+)", Pattern.CASE_INSENSITIVE);
 
-    public List<FootyStatsTeamSnapshot> enrich(List<FootyStatsTeamSnapshot> teams) {
+    public List<TeamStatsSnapshot> enrich(List<TeamStatsSnapshot> teams) {
         if (teams == null || teams.isEmpty()) {
             return teams;
         }
-        Map<String, FootyStatsExtendedMetrics.Builder> patches = new LinkedHashMap<>();
-        for (FootyStatsTeamSnapshot team : teams) {
-            patches.put(team.teamCode(), FootyStatsExtendedMetrics.builder());
+        Map<String, ExtendedTeamMetrics.Builder> patches = new LinkedHashMap<>();
+        for (TeamStatsSnapshot team : teams) {
+            patches.put(team.teamCode(), ExtendedTeamMetrics.builder());
         }
 
         mergeSafe("firstgoal", () -> mergeFirstGoal(patches, fetchDocument(BASE + "/firstgoal.asp?league=" + LEAGUE)));
@@ -52,10 +52,10 @@ public class SoccerStatsScraperService {
         mergeSafe("equalisers-conceded", () -> mergeEqualisers(patches, fetchDocument(BASE + "/table.asp?league=" + LEAGUE + "&tid=w"), false));
         mergeSafe("favourite-ppg", () -> mergeFavouritePpg(patches, fetchDocument(BASE + "/fstats.asp?league=" + LEAGUE)));
 
-        List<FootyStatsTeamSnapshot> enriched = new ArrayList<>(teams.size());
+        List<TeamStatsSnapshot> enriched = new ArrayList<>(teams.size());
         int withSoccerStats = 0;
-        for (FootyStatsTeamSnapshot team : teams) {
-            FootyStatsExtendedMetrics patch = patches.get(team.teamCode()).build();
+        for (TeamStatsSnapshot team : teams) {
+            ExtendedTeamMetrics patch = patches.get(team.teamCode()).build();
             if (hasAnySoccerStats(patch)) {
                 withSoccerStats++;
             }
@@ -73,7 +73,7 @@ public class SoccerStatsScraperService {
         }
     }
 
-    private void mergeFirstGoal(Map<String, FootyStatsExtendedMetrics.Builder> patches, Document doc) {
+    private void mergeFirstGoal(Map<String, ExtendedTeamMetrics.Builder> patches, Document doc) {
         if (doc == null) {
             return;
         }
@@ -127,7 +127,7 @@ public class SoccerStatsScraperService {
         return out;
     }
 
-    private void mergeScoredConcededFirst(Map<String, FootyStatsExtendedMetrics.Builder> patches, String html) {
+    private void mergeScoredConcededFirst(Map<String, ExtendedTeamMetrics.Builder> patches, String html) {
         if (html == null || html.isBlank()) {
             return;
         }
@@ -136,7 +136,7 @@ public class SoccerStatsScraperService {
         if (conceded.isEmpty()) {
             conceded = parseWhenFirstSection(html, "When team conceded first");
         }
-        for (Map.Entry<String, FootyStatsExtendedMetrics.Builder> entry : patches.entrySet()) {
+        for (Map.Entry<String, ExtendedTeamMetrics.Builder> entry : patches.entrySet()) {
             Double[] s = scored.get(entry.getKey());
             Double[] c = conceded.get(entry.getKey());
             if (s != null) {
@@ -202,7 +202,7 @@ public class SoccerStatsScraperService {
         return out;
     }
 
-    private void mergeLeadDurations(Map<String, FootyStatsExtendedMetrics.Builder> patches, Document doc) {
+    private void mergeLeadDurations(Map<String, ExtendedTeamMetrics.Builder> patches, Document doc) {
         if (doc == null) {
             return;
         }
@@ -231,7 +231,7 @@ public class SoccerStatsScraperService {
         }
     }
 
-    private void mergeEqualisers(Map<String, FootyStatsExtendedMetrics.Builder> patches, Document doc, boolean scored) {
+    private void mergeEqualisers(Map<String, ExtendedTeamMetrics.Builder> patches, Document doc, boolean scored) {
         if (doc == null) {
             return;
         }
@@ -265,7 +265,7 @@ public class SoccerStatsScraperService {
         }
     }
 
-    private void mergeFavouritePpg(Map<String, FootyStatsExtendedMetrics.Builder> patches, Document doc) {
+    private void mergeFavouritePpg(Map<String, ExtendedTeamMetrics.Builder> patches, Document doc) {
         if (doc == null) {
             return;
         }
@@ -321,7 +321,7 @@ public class SoccerStatsScraperService {
         return anyDecimal || (c != null && c >= 0 && c <= 3.01);
     }
 
-    private static boolean hasAnySoccerStats(FootyStatsExtendedMetrics m) {
+    private static boolean hasAnySoccerStats(ExtendedTeamMetrics m) {
         return m.ssScoredFirstPct() != null
                 || m.ssLeadPct() != null
                 || m.ssEqualiserScoredPct() != null

@@ -62,7 +62,7 @@ public class DaoUtil {
         if (teamServiceRef == null) {
             return null;
         }
-        Team loaded = teamServiceRef.findByPublicId(publicId);
+        Team loaded = teamServiceRef.findById(publicId);
         if (loaded != null) {
             TEAMS.put(publicId, loaded);
         }
@@ -72,7 +72,7 @@ public class DaoUtil {
     public static void reloadTeams() {
         TEAMS.clear();
         if (teamServiceRef != null) {
-            teamServiceRef.findAll().forEach(team -> TEAMS.put(team.getPublicId(), team));
+            teamServiceRef.findAll().forEach(team -> TEAMS.put(team.getId(), team));
         }
     }
 
