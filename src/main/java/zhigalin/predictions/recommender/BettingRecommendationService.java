@@ -30,7 +30,7 @@ public class BettingRecommendationService {
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
-    private final FootyStatsScraperService scraperService;
+    private final ApiFootballStatsSnapshotService statsSnapshotService;
     private final SoccerStatsScraperService soccerStatsScraperService;
     private static final long TRACK_RECORD_TTL_MS = 10 * 60 * 1000L;
 
@@ -42,14 +42,14 @@ public class BettingRecommendationService {
     private final ConcurrentHashMap<Integer, CompletableFuture<Integer>> refreshInFlight = new ConcurrentHashMap<>();
 
     public BettingRecommendationService(
-            FootyStatsScraperService scraperService,
+            ApiFootballStatsSnapshotService statsSnapshotService,
             SoccerStatsScraperService soccerStatsScraperService,
             FootyStatsStatsDao statsDao,
             MatchService matchService,
             OddsService oddsService,
             HeadToHeadService headToHeadService
     ) {
-        this.scraperService = scraperService;
+        this.statsSnapshotService = statsSnapshotService;
         this.soccerStatsScraperService = soccerStatsScraperService;
         this.statsDao = statsDao;
         this.matchService = matchService;
@@ -95,7 +95,7 @@ public class BettingRecommendationService {
 
     private int doRefreshForWeek(int weekId) {
         try {
-            FootyStatsScraperService.ParsedSnapshot snapshot = scraperService.fetchSnapshot();
+            LeagueStatsSnapshot snapshot = statsSnapshotService.fetchSnapshot();
             List<FootyStatsTeamSnapshot> teams;
             try {
                 teams = soccerStatsScraperService.enrich(snapshot.teams());

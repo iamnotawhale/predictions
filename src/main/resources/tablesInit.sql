@@ -174,6 +174,16 @@ create table if not exists footystats_league_snapshot
     fetched_at timestamp not null
 );
 
+create table if not exists api_football_fixture_xg
+(
+    fixture_id integer primary key,
+    home_team_id integer not null,
+    away_team_id integer not null,
+    home_xg numeric(8, 4),
+    away_xg numeric(8, 4),
+    fetched_at timestamp not null
+);
+
 create table if not exists match_recommendation
 (
     match_public_id integer primary key,

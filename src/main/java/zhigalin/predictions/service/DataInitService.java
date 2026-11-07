@@ -16,18 +16,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import kong.unirest.HttpResponse;
-import kong.unirest.Unirest;
-import kong.unirest.UnirestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.HeadToHead;
@@ -36,7 +31,6 @@ import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.input.Fixture;
 import zhigalin.predictions.model.input.Response;
 import zhigalin.predictions.model.input.ResponseTeam;
-import zhigalin.predictions.model.input.Root;
 import zhigalin.predictions.model.news.News;
 import zhigalin.predictions.model.v2.Competitor;
 import zhigalin.predictions.model.v2.Event;
@@ -50,6 +44,7 @@ import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.event.WeekService;
 import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.api.ApiClient;
+import zhigalin.predictions.service.api.ApiFootballClient;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
 import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.odds.OddsService;
@@ -62,9 +57,6 @@ import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
 public class DataInitService {
-    @Value("${api.football.token}")
-    private String apiFootballToken;
-
     private final TeamService teamService;
     private final WeekService weekService;
     private final MatchService matchService;
@@ -72,6 +64,7 @@ public class DataInitService {
     private final NotificationService notificationService;
     private final PanicSender panicSender;
     private final ApiClient apiClient;
+    private final ApiFootballClient apiFootballClient;
     private final BettingRecommendationService bettingRecommendationService;
     private final EspnScoreboardClient espnScoreboardClient;
     private final CupMatchSyncService cupMatchSyncService;
@@ -85,16 +78,11 @@ public class DataInitService {
     public static java.time.LocalDate seasonStartDate() {
         return java.time.LocalDate.of(SEASON, 8, 1);
     }
-    private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
-    private static final String HOST_NAME = "x-rapidapi-host";
-    private static final String HOST = "v3.football.api-sports.io";
-    private static final String FIXTURES_URL = "https://v3.football.api-sports.io/fixtures";
     private static final long LIVE_INTERVAL_MS = 30_000L;
     private static final long IDLE_INTERVAL_MS = 120_000L;
     /** Keep polling ESPN this long after FT to pick up score corrections. */
     private static final int SCORE_CORRECTION_WINDOW_HOURS = 2;
     private static final long NEWS_CACHE_MS = 120_000L;
-    private static final ObjectMapper mapper = new ObjectMapper();
     private final Logger serverLogger = LoggerFactory.getLogger("server");
 
     private volatile long lastDataInitAtMs = 0L;
@@ -103,7 +91,7 @@ public class DataInitService {
 
     public DataInitService(TeamService teamService, WeekService weekService, MatchService matchService,
                            HeadToHeadService headToHeadService, NotificationService notificationService,
-                           PanicSender panicSender, ApiClient apiClient,
+                           PanicSender panicSender, ApiClient apiClient, ApiFootballClient apiFootballClient,
                            BettingRecommendationService bettingRecommendationService,
                            EspnScoreboardClient espnScoreboardClient,
                            PredictionService predictionService,
@@ -118,6 +106,7 @@ public class DataInitService {
         this.notificationService = notificationService;
         this.panicSender = panicSender;
         this.apiClient = apiClient;
+        this.apiFootballClient = apiFootballClient;
         this.bettingRecommendationService = bettingRecommendationService;
         this.espnScoreboardClient = espnScoreboardClient;
         this.predictionService = predictionService;
@@ -423,7 +412,7 @@ public class DataInitService {
         return result;
     }
 
-    private void matchUpdateFromApiFootball() throws JsonProcessingException {
+    private void matchUpdateFromApiFootball() {
         List<Match> currentWeekMatches = matchService.findAllByCurrentWeek();
         if (!currentWeekMatches.isEmpty() && currentWeekMatches.stream()
                 .allMatch(m -> Objects.equals(m.getStatus(), "ft")
@@ -434,45 +423,25 @@ public class DataInitService {
         }
         if (!matchService.findOnlineMatches().isEmpty()) {
             serverLogger.info("Matches to update found");
-            HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                    .header(X_RAPIDAPI_KEY, apiFootballToken)
-                    .header(HOST_NAME, HOST)
-                    .queryString("league", 39)
-                    .queryString("season", SEASON)
-                    .queryString("from", LocalDate.now().minusDays(1L).toString())
-                    .queryString("to", LocalDate.now().toString())
-                    .asString();
-            Root root = mapper.readValue(resp.getBody(), Root.class);
-            List<Match> matches = root.getResponse().stream().map(this::getMatch)
+            List<Match> matches = apiFootballClient
+                    .fetchLeagueFixtures(39, SEASON, LocalDate.now().minusDays(1L).toString(), LocalDate.now().toString())
+                    .stream()
+                    .map(this::getMatch)
                     .toList();
             matchService.updateAll(matches);
         }
     }
 
-    private void matchInitFromApiFootball() throws JsonProcessingException {
-        HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                .header(X_RAPIDAPI_KEY, apiFootballToken)
-                .header(HOST_NAME, HOST)
-                .queryString("league", 39)
-                .queryString("season", SEASON)
-                .asString();
-        Root root = mapper.readValue(resp.getBody(), Root.class);
-        List<Match> matches = root.getResponse().stream()
+    private void matchInitFromApiFootball() {
+        List<Match> matches = apiFootballClient.fetchLeagueFixtures(39, SEASON).stream()
                 .map(this::getMatch)
                 .toList();
         matchService.save(matches);
     }
 
-    private void matchDateTimeStatusUpdate() throws JsonProcessingException {
-        HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                .header(X_RAPIDAPI_KEY, apiFootballToken)
-                .header(HOST_NAME, HOST)
-                .queryString("league", 39)
-                .queryString("season", SEASON)
-                .asString();
-        Root root = mapper.readValue(resp.getBody(), Root.class);
+    private void matchDateTimeStatusUpdate() {
         int currentWeekId = weekService.findCurrentWeek().getId();
-        List<Match> matches = root.getResponse().stream()
+        List<Match> matches = apiFootballClient.fetchLeagueFixtures(39, SEASON).stream()
                 .filter(r -> isFutureMatch(currentWeekId, r))
                 .map(this::getMatch)
                 .toList();
@@ -586,16 +555,10 @@ public class DataInitService {
     private record CachedLeagueNews(List<News> news, long fetchedAtMs) {
     }
 
-    private void headToHeadInitFromApiFootball() throws UnirestException, JsonProcessingException {
+    private void headToHeadInitFromApiFootball() {
         for (int league : List.of(39, 45, 48, 2, 40)) {
             for (int season : IntStream.rangeClosed(2020, SEASON).toArray()) {
-                HttpResponse<String> resp = Unirest.get(FIXTURES_URL)
-                        .header(X_RAPIDAPI_KEY, apiFootballToken)
-                        .queryString("league", league)
-                        .queryString("season", season)
-                        .asString();
-                Root root = mapper.readValue(resp.getBody(), Root.class);
-                for (Response response : root.getResponse()) {
+                for (Response response : apiFootballClient.fetchLeagueFixtures(league, season)) {
                     LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(response.getFixture().getTimestamp()),
                             AppTimeZones.DISPLAY);
                     String leagueName = switch (response.getLeague().getName()) {
@@ -630,15 +593,8 @@ public class DataInitService {
         }
     }
 
-    private void teamsInitFromApiFootball() throws UnirestException, JsonProcessingException {
-        HttpResponse<String> resp = Unirest.get("https://v3.football.api-sports.io/teams")
-                .header(X_RAPIDAPI_KEY, apiFootballToken)
-                .header(HOST_NAME, HOST)
-                .queryString("league", 39)
-                .queryString("season", SEASON)
-                .asString();
-        Root root = mapper.readValue(resp.getBody(), Root.class);
-        for (Response response : root.getResponse()) {
+    private void teamsInitFromApiFootball() {
+        for (Response response : apiFootballClient.fetchLeagueTeams(39, SEASON)) {
             String code = response.getTeam().getCode();
             String logo = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(code));
             if (logo == null) {

@@ -102,6 +102,25 @@ final class MarketScoreMatrix {
         return m;
     }
 
+    static double expectedPoints(double lambdaFor, double lambdaAgainst, int maxGoals) {
+        if (lambdaFor < 0 || lambdaAgainst < 0 || maxGoals < 0) {
+            return 0;
+        }
+        double[][] m = poisson(lambdaFor, lambdaAgainst, maxGoals);
+        double win = 0;
+        double draw = 0;
+        for (int i = 0; i <= maxGoals; i++) {
+            for (int j = 0; j <= maxGoals; j++) {
+                if (i > j) {
+                    win += m[i][j];
+                } else if (i == j) {
+                    draw += m[i][j];
+                }
+            }
+        }
+        return 3.0 * win + draw;
+    }
+
     /**
      * Rescales home-win / draw / away-win cells so their totals equal the market's probabilities
      * (the shape of the scorelines inside each outcome is kept). Returns a normalized matrix.

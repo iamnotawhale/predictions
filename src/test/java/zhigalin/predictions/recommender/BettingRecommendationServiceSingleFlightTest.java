@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,7 +35,7 @@ import zhigalin.predictions.util.DaoUtil;
 class BettingRecommendationServiceSingleFlightTest {
 
     @Mock
-    private FootyStatsScraperService scraperService;
+    private ApiFootballStatsSnapshotService statsSnapshotService;
     @Mock
     private SoccerStatsScraperService soccerStatsScraperService;
     @Mock
@@ -64,10 +63,9 @@ class BettingRecommendationServiceSingleFlightTest {
         FootyStatsLeagueSnapshot league = new FootyStatsLeagueSnapshot(1, 1.4, 1.2, 1.2, 1.4, Instant.now());
         FootyStatsTeamSnapshot ars = emptyTeam("ARS");
         FootyStatsTeamSnapshot che = emptyTeam("CHE");
-        FootyStatsScraperService.ParsedSnapshot snapshot =
-                new FootyStatsScraperService.ParsedSnapshot(List.of(ars, che), league);
+        LeagueStatsSnapshot snapshot = new LeagueStatsSnapshot(List.of(ars, che), league);
 
-        when(scraperService.fetchSnapshot()).thenAnswer(inv -> {
+        when(statsSnapshotService.fetchSnapshot()).thenAnswer(inv -> {
             scrapeCalls.incrementAndGet();
             started.countDown();
             if (!release.await(5, TimeUnit.SECONDS)) {
@@ -76,7 +74,7 @@ class BettingRecommendationServiceSingleFlightTest {
             return snapshot;
         });
         when(soccerStatsScraperService.enrich(anyList())).thenAnswer(inv -> inv.getArgument(0));
-        when(statsDao.findLeagueSnapshot(1)).thenReturn(Optional.of(league));
+        when(statsDao.findLeagueSnapshot(1)).thenReturn(java.util.Optional.of(league));
         when(statsDao.findTeamStats(1)).thenReturn(List.of(ars, che));
         when(matchService.findAllByWeekId(1)).thenReturn(List.of(
                 Match.builder().publicId(10).weekId(1).homeTeamId(1).awayTeamId(2).status("ns").build()
@@ -101,7 +99,7 @@ class BettingRecommendationServiceSingleFlightTest {
             release.countDown();
             assertEquals(first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS));
             assertEquals(1, scrapeCalls.get());
-            verify(scraperService, times(1)).fetchSnapshot();
+            verify(statsSnapshotService, times(1)).fetchSnapshot();
             verify(statsDao, atLeastOnce()).saveRecommendations(anyList());
         } finally {
             release.countDown();

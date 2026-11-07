@@ -44,6 +44,18 @@ class MarketScoreMatrixTest {
     }
 
     @Test
+    void expectedPointsFromXgIsSymmetricAndFavoursStrongerAttack() {
+        double even = MarketScoreMatrix.expectedPoints(1.4, 1.4, 10);
+        assertEquals(1.4, even, 0.15);
+        double strong = MarketScoreMatrix.expectedPoints(2.2, 0.8, 10);
+        double weak = MarketScoreMatrix.expectedPoints(0.8, 2.2, 10);
+        assertTrue(strong > 2.0);
+        assertTrue(weak < 1.0);
+        assertTrue(strong + weak < 3.0);
+        assertTrue(strong + weak > 2.7);
+    }
+
+    @Test
     void calibrationReproducesTheMarketExactlyAndKeepsTheShapeInsideEachOutcome() {
         double[][] raw = MarketScoreMatrix.poisson(1.4, 1.2, 5);
         PoissonScoreModel.MarketOutcome market = new PoissonScoreModel.MarketOutcome(0.50, 0.30, 0.20);

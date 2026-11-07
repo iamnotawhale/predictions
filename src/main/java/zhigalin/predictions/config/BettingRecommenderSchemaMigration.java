@@ -51,6 +51,24 @@ public class BettingRecommenderSchemaMigration {
                 )
                 """);
         jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS api_football_fixture_xg (
+                    fixture_id INTEGER PRIMARY KEY,
+                    home_team_id INTEGER NOT NULL,
+                    away_team_id INTEGER NOT NULL,
+                    home_xg NUMERIC(8, 4),
+                    away_xg NUMERIC(8, 4),
+                    fetched_at TIMESTAMP NOT NULL
+                )
+                """);
+        jdbcTemplate.execute("""
+                ALTER TABLE api_football_fixture_xg
+                    ALTER COLUMN home_xg DROP NOT NULL
+                """);
+        jdbcTemplate.execute("""
+                ALTER TABLE api_football_fixture_xg
+                    ALTER COLUMN away_xg DROP NOT NULL
+                """);
+        jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS match_recommendation (
                     match_public_id INTEGER PRIMARY KEY,
                     week_id INTEGER NOT NULL,

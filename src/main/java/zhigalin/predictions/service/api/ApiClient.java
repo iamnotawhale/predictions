@@ -23,13 +23,10 @@ import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Player;
 import zhigalin.predictions.model.input.Response;
 import zhigalin.predictions.model.input.ResponseTeam;
-import zhigalin.predictions.model.input.Root;
 import zhigalin.predictions.util.TelegramMarkdownV2;
 
 @Service
 public class ApiClient {
-    @Value("${api.football.token}")
-    private String apiFootballToken;
     @Value("${bot.urlMessage}")
     private String urlMessage;
     @Value("${bot.urlPhoto}")
@@ -42,14 +39,10 @@ public class ApiClient {
     private String urlEditMessageMedia;
 
     private final ObjectMapper mapper;
+    private final ApiFootballClient apiFootballClient;
     private final ConcurrentHashMap<Integer, Map<Integer, List<Lineup>>> lineupsCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CachedEspnSummary> espnSummaryCache = new ConcurrentHashMap<>();
 
-    private static final String X_RAPIDAPI_KEY = "x-rapidapi-key";
-    private static final String HOST_NAME = "x-rapidapi-host";
-    private static final String HOST = "v3.football.api-sports.io";
-    private static final String BASE_URL = "https://v3.football.api-sports.io/fixtures/";
-    private static final String LINEUPS = "lineups";
     private static final String ESPN_SUMMARY_BASE = "https://site.web.api.espn.com/apis/site/v2/sports/soccer/";
     private static final String ESPN_SUMMARY_DEFAULT_LEAGUE = "eng.1";
     private static final long ESPN_SUMMARY_TTL_MS = 8_000L;
@@ -69,8 +62,9 @@ public class ApiClient {
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
-    public ApiClient(ObjectMapper objectMapper) {
+    public ApiClient(ObjectMapper objectMapper, ApiFootballClient apiFootballClient) {
         this.mapper = objectMapper;
+        this.apiFootballClient = apiFootballClient;
     }
 
     public boolean sendMessage(String chatId, String text, String replyMarkupJson) {
@@ -244,20 +238,14 @@ public class ApiClient {
             return cached;
         }
         try {
-            HttpResponse<String> resp = Unirest.get(BASE_URL + LINEUPS)
-                    .header(X_RAPIDAPI_KEY, apiFootballToken)
-                    .header(HOST_NAME, HOST)
-                    .queryString("fixture", publicId)
-                    .queryString("type", "startXI")
-                    .asString();
-            Root root = mapper.readValue(resp.getBody(), Root.class);
-
             Map<Integer, List<Lineup>> lineups = new HashMap<>();
-            for (Response response : root.getResponse()) {
+            for (Response response : apiFootballClient.fetchFixtureLineups(publicId)) {
                 ResponseTeam team = response.getTeam();
+                if (team == null) {
+                    continue;
+                }
                 int teamId = team.getId();
                 List<Lineup> lineup = response.getLineup();
-
                 lineups.put(teamId, lineup == null ? List.of() : List.copyOf(lineup));
             }
             if (!lineups.isEmpty()) {
