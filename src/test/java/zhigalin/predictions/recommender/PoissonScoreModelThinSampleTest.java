@@ -17,7 +17,7 @@ class PoissonScoreModelThinSampleTest {
     void earlySeasonZeroBttsDoesNotForceOneNilEverywhere() {
         LeagueAveragesSnapshot league =
                 new LeagueAveragesSnapshot(2, 1.45, 1.20, 1.20, 1.45, Instant.now());
-        // No venue goals yet — FootyStats often still reports 0% BTTS/CS.
+        // No venue goals yet — form BTTS/CS may still be 0%.
         ExtendedTeamMetrics zeros = ExtendedTeamMetrics.builder()
                 .formBtts(0.0, 0.0, 0.0)
                 .formCs(0.0, 0.0, 0.0)

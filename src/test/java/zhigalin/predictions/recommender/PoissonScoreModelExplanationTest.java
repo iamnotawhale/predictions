@@ -2,13 +2,9 @@ package zhigalin.predictions.recommender;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
-import java.util.List;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
 import org.junit.jupiter.api.Test;
 import zhigalin.predictions.recommender.PoissonScoreModel.MarketOutcome;
 import zhigalin.predictions.recommender.model.ExplanationBreakdown;
@@ -146,22 +142,6 @@ class PoissonScoreModelExplanationTest {
         assertTrue(joined.contains("ещё недоступны"));
         assertFalse(joined.contains("Букмекеры:"));
         assertFalse(joined.contains("Шанс победы"));
-    }
-
-    @Test
-    void blankAwayCellDoesNotShiftHomeIntoAwayColumn() {
-        Element row = Jsoup.parseBodyFragment("""
-                <table><tbody><tr>
-                  <td class="team"><a href="/clubs/x">Newcastle United</a></td>
-                  <td>1</td><td>2.00</td><td>2.00</td><td></td>
-                </tr></tbody></table>
-                """).selectFirst("tr");
-        List<String> cells = StatsTableParser.dataCells(row);
-        assertEquals(List.of("1", "2.00", "2.00", ""), cells);
-        assertEquals(1, StatsTableParser.mpOffset(cells));
-        assertEquals(2.0, StatsTableParser.cellAfterMp(cells, 0));
-        assertEquals(2.0, StatsTableParser.cellAfterMp(cells, 1));
-        assertNull(StatsTableParser.cellAfterMp(cells, 2));
     }
 
     private static TeamStatsSnapshot team(

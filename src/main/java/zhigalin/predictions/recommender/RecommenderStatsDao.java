@@ -295,11 +295,6 @@ public class RecommenderStatsDao {
         );
     }
 
-    /** @deprecated use {@link #deleteUnfrozenRecommendationsForWeek(int)} */
-    public void deleteRecommendationsForWeek(int weekId) {
-        deleteUnfrozenRecommendationsForWeek(weekId);
-    }
-
     public boolean hasRecommendationsForWeek(int weekId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM match_recommendation WHERE week_id = ?",

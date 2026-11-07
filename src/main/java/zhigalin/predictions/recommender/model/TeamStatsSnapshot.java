@@ -40,25 +40,4 @@ public record TeamStatsSnapshot(
                 fetchedAt
         );
     }
-
-    public TeamStatsSnapshot withXg(Double xg, Double xga, Double xgd, Double xgVsActual) {
-        return new TeamStatsSnapshot(
-                teamCode,
-                scoredOverall,
-                scoredHome,
-                scoredAway,
-                concededOverall,
-                concededHome,
-                concededAway,
-                xg,
-                xga,
-                xgd,
-                xgHome,
-                xgAway,
-                extendedOrEmpty().merge(
-                        ExtendedTeamMetrics.builder().xgVsActual(xgVsActual).build()
-                ),
-                fetchedAt
-        );
-    }
 }

@@ -703,8 +703,7 @@ public final class PoissonScoreModel {
         if (seasonOrMatchValue == null || seasonOrMatchValue <= 0) {
             return null;
         }
-        // FootyStats xG table is usually season totals; early season totals look like per-match.
-        // If value is clearly a season sum, divide by estimated matches from xPts/actual pts.
+        // Values > ~3.5 treated as season totals; divide by estimated matches when possible.
         if (seasonOrMatchValue <= 3.5) {
             return seasonOrMatchValue;
         }

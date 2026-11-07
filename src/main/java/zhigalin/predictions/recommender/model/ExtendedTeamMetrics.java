@@ -49,7 +49,6 @@ public record ExtendedTeamMetrics(
         Double secondHalfPpg,
         Double winningAtHtPct,
         Double losingAtHtPct,
-        // SoccerSTATS (ss*) — game-state metrics not covered well by FootyStats
         Double ssScoredFirstPct,
         Double ssScoredFirstPpg,
         Double ssConcededFirstPct,

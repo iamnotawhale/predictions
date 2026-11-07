@@ -353,7 +353,7 @@
 - `ApiFootballStatsSnapshotService` — сезон EPL (league 39, `DataInitService.SEASON`): FT-матчи → агрегаты scored/conceded/BTTS/CS/FTS/OU/PPG/HT + xG из `fixture_xg` (до 25 новых `/fixtures/statistics` за refresh). DTO: `TeamStatsSnapshot` / `LeagueAveragesSnapshot` / `ExtendedTeamMetrics` (нейтральные имена; раньше `FootyStats*`).
 - `ApiFootballFixtureXgDao` — upsert/lookup кэша xG.
 - `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с). Out of scope для замены модели; enrich после AF-снимка, ошибки не валят refresh.
-- `StatsTableParser` / `StatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц SoccerSTATS + legacy тесты; scrape FootyStats удалён (Cloudflare 403).
+- `SoccerStatsTeamNameMapper` — имена команд SoccerSTATS → коды `teams`; scrape FootyStats удалён (Cloudflare 403).
 - `RecommenderStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
 - `PoissonScoreModel` — λ + коррекции матрицы счёта.
 - `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_id` (API-Football snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId`; refresh **не трогает** матчи с `kickoff_frozen_at`; `freezeAtKickoffIfNeeded` копирует `recommended_*` → `kickoff_*` один раз; HTTP ensure по-прежнему ждёт результат (не empty+async).
