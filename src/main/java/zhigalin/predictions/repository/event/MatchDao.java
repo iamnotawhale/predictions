@@ -394,10 +394,10 @@ public class MatchDao {
     public List<Match> findAllByCurrentWeek() {
         try {
             String sql = """
-                    SELECT *
-                    FROM match JOIN weeks w ON week_id = w.id
+                    SELECT match.*
+                    FROM match JOIN weeks w ON match.week_id = w.id
                     WHERE w.is_current is TRUE
-                    ORDER BY starts_at, id
+                    ORDER BY match.starts_at, match.id
                     """;
             return DaoUtil.getNullableResult(() -> jdbcTemplate.query(sql, new MatchMapper()));
         } catch (Exception e) {
