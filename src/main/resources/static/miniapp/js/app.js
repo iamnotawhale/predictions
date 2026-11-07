@@ -3925,7 +3925,7 @@
                         key: 'gdelta',
                         label: 'Δ голы',
                         value: fmtStatDelta(stats.goalsDelta),
-                        tip: 'Голы минус xG. Плюс — забивают больше ожидаемого',
+                        tip: 'Средние голы за матч минус xG. Плюс — забивают больше ожидаемого',
                         tone: stats.goalsDelta != null && Number(stats.goalsDelta) > 0
                             ? 'pos'
                             : (stats.goalsDelta != null && Number(stats.goalsDelta) < 0 ? 'neg' : null)

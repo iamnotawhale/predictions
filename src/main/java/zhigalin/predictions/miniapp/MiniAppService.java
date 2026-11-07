@@ -878,9 +878,20 @@ public class MiniAppService {
 
         Double xg = MiniAppFormat.firstNonNull(espn.avgXg(), fs != null ? fs.xgOverall() : null);
         Double xga = MiniAppFormat.firstNonNull(espn.avgXga(), fs != null ? fs.xgaOverall() : null);
-        Double scoredPm = MiniAppFormat.firstNonNull(ext.seasonScoredPerMatch(), fs != null ? fs.scoredOverall() : null);
-        Double concededPm = MiniAppFormat.firstNonNull(ext.seasonConcededPerMatch(), fs != null ? fs.concededOverall() : null);
-        Double goalsDelta = scoredPm != null && xg != null ? scoredPm - xg : null;
+        Double scoredPm = MiniAppFormat.firstNonNull(
+                espn.avgGoals(),
+                ext.seasonScoredPerMatch(),
+                fs != null ? fs.scoredOverall() : null);
+        Double concededPm = MiniAppFormat.firstNonNull(
+                espn.avgGoalsConceded(),
+                ext.seasonConcededPerMatch(),
+                fs != null ? fs.concededOverall() : null);
+        Double goalsDelta = null;
+        if (espn.avgGoals() != null && espn.avgXg() != null) {
+            goalsDelta = espn.avgGoals() - espn.avgXg();
+        } else if (scoredPm != null && xg != null) {
+            goalsDelta = scoredPm - xg;
+        }
         Integer cleanSheets = espn.cleanSheets();
         Double csPct = ext.seasonCsOverall();
 

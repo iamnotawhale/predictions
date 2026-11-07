@@ -28,6 +28,8 @@ public class EspnTeamSeasonStatsService {
             Double shotsPerMatch,
             Double shotsOnTargetPerMatch,
             Integer cleanSheets,
+            Double avgGoals,
+            Double avgGoalsConceded,
             Double avgXg,
             Double avgXga
     ) {
@@ -36,6 +38,8 @@ public class EspnTeamSeasonStatsService {
                     && shotsPerMatch == null
                     && shotsOnTargetPerMatch == null
                     && cleanSheets == null
+                    && avgGoals == null
+                    && avgGoalsConceded == null
                     && avgXg == null
                     && avgXga == null;
         }
@@ -98,6 +102,8 @@ public class EspnTeamSeasonStatsService {
             Double shotsOnTarget = null;
             Double appearances = null;
             Integer cleanSheets = null;
+            Double avgGoals = null;
+            Double avgGoalsConceded = null;
             Double avgXg = null;
             Double avgXga = null;
             for (JsonNode cat : categories) {
@@ -114,6 +120,8 @@ public class EspnTeamSeasonStatsService {
                         case "shotsOnTarget" -> shotsOnTarget = value;
                         case "appearances" -> appearances = value;
                         case "cleanSheet" -> cleanSheets = (int) Math.round(value);
+                        case "avgGoals" -> avgGoals = value;
+                        case "avgGoalsConceded" -> avgGoalsConceded = value;
                         case "avgExpectedGoals" -> avgXg = value;
                         case "avgExpectedGoalsConceded" -> avgXga = value;
                         default -> {
@@ -123,7 +131,8 @@ public class EspnTeamSeasonStatsService {
             }
             Double shotsPm = perMatch(totalShots, appearances);
             Double sotPm = perMatch(shotsOnTarget, appearances);
-            return new TeamSeasonExtras(possession, shotsPm, sotPm, cleanSheets, avgXg, avgXga);
+            return new TeamSeasonExtras(
+                    possession, shotsPm, sotPm, cleanSheets, avgGoals, avgGoalsConceded, avgXg, avgXga);
         } catch (Exception e) {
             log.warn("ESPN team stats error team={}: {}", espnTeamId, e.getMessage());
             return empty();
@@ -138,6 +147,6 @@ public class EspnTeamSeasonStatsService {
     }
 
     private static TeamSeasonExtras empty() {
-        return new TeamSeasonExtras(null, null, null, null, null, null);
+        return new TeamSeasonExtras(null, null, null, null, null, null, null, null);
     }
 }

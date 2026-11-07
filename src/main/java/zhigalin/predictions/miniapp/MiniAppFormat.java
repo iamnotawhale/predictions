@@ -32,6 +32,10 @@ final class MiniAppFormat {
         return a != null ? a : b;
     }
 
+    static Double firstNonNull(Double a, Double b, Double c) {
+        return a != null ? a : firstNonNull(b, c);
+    }
+
     static Double round1(Double v) {
         if (v == null || v.isNaN() || v.isInfinite()) {
             return null;
