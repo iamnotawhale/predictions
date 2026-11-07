@@ -7,12 +7,13 @@ import org.springframework.stereotype.Component;
 public class BettingRecommenderSchemaMigration {
 
     public BettingRecommenderSchemaMigration(JdbcTemplate jdbcTemplate) {
+        RecommenderTableRename.apply(jdbcTemplate);
         jdbcTemplate.execute("""
                 ALTER TABLE users
                     ADD COLUMN IF NOT EXISTS betting_recommender_enabled BOOLEAN DEFAULT FALSE
                 """);
         jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS footystats_team_stats (
+                CREATE TABLE IF NOT EXISTS recommender_team_stats (
                     week_id INTEGER NOT NULL,
                     team_code VARCHAR(8) NOT NULL,
                     scored_overall NUMERIC(6, 2),
@@ -29,19 +30,19 @@ public class BettingRecommenderSchemaMigration {
                 )
                 """);
         jdbcTemplate.execute("""
-                ALTER TABLE footystats_team_stats
+                ALTER TABLE recommender_team_stats
                     ADD COLUMN IF NOT EXISTS xga_overall NUMERIC(6, 2)
                 """);
         jdbcTemplate.execute("""
-                ALTER TABLE footystats_team_stats
+                ALTER TABLE recommender_team_stats
                     ADD COLUMN IF NOT EXISTS xgd_overall NUMERIC(6, 2)
                 """);
         jdbcTemplate.execute("""
-                ALTER TABLE footystats_team_stats
+                ALTER TABLE recommender_team_stats
                     ADD COLUMN IF NOT EXISTS extended_json TEXT
                 """);
         jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS footystats_league_snapshot (
+                CREATE TABLE IF NOT EXISTS recommender_league_snapshot (
                     week_id INTEGER PRIMARY KEY,
                     avg_home_scored NUMERIC(6, 2),
                     avg_away_scored NUMERIC(6, 2),
@@ -51,7 +52,7 @@ public class BettingRecommenderSchemaMigration {
                 )
                 """);
         jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS api_football_fixture_xg (
+                CREATE TABLE IF NOT EXISTS fixture_xg (
                     fixture_id INTEGER PRIMARY KEY,
                     home_team_id INTEGER NOT NULL,
                     away_team_id INTEGER NOT NULL,
@@ -61,11 +62,11 @@ public class BettingRecommenderSchemaMigration {
                 )
                 """);
         jdbcTemplate.execute("""
-                ALTER TABLE api_football_fixture_xg
+                ALTER TABLE fixture_xg
                     ALTER COLUMN home_xg DROP NOT NULL
                 """);
         jdbcTemplate.execute("""
-                ALTER TABLE api_football_fixture_xg
+                ALTER TABLE fixture_xg
                     ALTER COLUMN away_xg DROP NOT NULL
                 """);
         jdbcTemplate.execute("""

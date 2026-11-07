@@ -35,8 +35,8 @@ LEFT JOIN match_recommendation mr ON mr.match_public_id = m.public_id
 WHERE m.home_team_score IS NOT NULL
 ORDER BY m.week_id, m.local_date_time"
 
-export_csv team_stats "SELECT * FROM footystats_team_stats ORDER BY week_id, team_code"
-export_csv league "SELECT * FROM footystats_league_snapshot ORDER BY week_id"
+export_csv team_stats "SELECT * FROM recommender_team_stats ORDER BY week_id, team_code"
+export_csv league "SELECT * FROM recommender_league_snapshot ORDER BY week_id"
 
 export_csv h2h "
 SELECT th.code AS home, ta.code AS away, h.home_team_score, h.away_team_score, h.league_name, h.local_date_time

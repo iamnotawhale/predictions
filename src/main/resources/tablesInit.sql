@@ -144,7 +144,7 @@ alter table notification_reminder_sent
 alter table users
     add column if not exists betting_recommender_enabled boolean default false;
 
-create table if not exists footystats_team_stats
+create table if not exists recommender_team_stats
 (
     week_id integer not null,
     team_code varchar(8) not null,
@@ -164,7 +164,7 @@ create table if not exists footystats_team_stats
     primary key (week_id, team_code)
 );
 
-create table if not exists footystats_league_snapshot
+create table if not exists recommender_league_snapshot
 (
     week_id integer primary key,
     avg_home_scored numeric(6, 2),
@@ -174,7 +174,7 @@ create table if not exists footystats_league_snapshot
     fetched_at timestamp not null
 );
 
-create table if not exists api_football_fixture_xg
+create table if not exists fixture_xg
 (
     fixture_id integer primary key,
     home_team_id integer not null,

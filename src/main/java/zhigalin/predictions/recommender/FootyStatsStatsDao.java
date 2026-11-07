@@ -29,12 +29,12 @@ public class FootyStatsStatsDao {
     }
 
     public void replaceTeamStats(int weekId, List<FootyStatsTeamSnapshot> teams) {
-        jdbcTemplate.update("DELETE FROM footystats_team_stats WHERE week_id = ?", weekId);
+        jdbcTemplate.update("DELETE FROM recommender_team_stats WHERE week_id = ?", weekId);
         if (teams == null || teams.isEmpty()) {
             return;
         }
         jdbcTemplate.batchUpdate("""
-                        INSERT INTO footystats_team_stats (
+                        INSERT INTO recommender_team_stats (
                             week_id, team_code,
                             scored_overall, scored_home, scored_away,
                             conceded_overall, conceded_home, conceded_away,
@@ -84,7 +84,7 @@ public class FootyStatsStatsDao {
 
     public void saveLeagueSnapshot(FootyStatsLeagueSnapshot snapshot) {
         jdbcTemplate.update("""
-                        INSERT INTO footystats_league_snapshot (
+                        INSERT INTO recommender_league_snapshot (
                             week_id, avg_home_scored, avg_away_scored, avg_home_conceded, avg_away_conceded, fetched_at
                         ) VALUES (?, ?, ?, ?, ?, ?)
                         ON CONFLICT (week_id) DO UPDATE SET
@@ -104,7 +104,7 @@ public class FootyStatsStatsDao {
 
     public Optional<FootyStatsLeagueSnapshot> findLeagueSnapshot(int weekId) {
         List<FootyStatsLeagueSnapshot> rows = jdbcTemplate.query(
-                "SELECT * FROM footystats_league_snapshot WHERE week_id = ?",
+                "SELECT * FROM recommender_league_snapshot WHERE week_id = ?",
                 leagueMapper(),
                 weekId
         );
@@ -113,7 +113,7 @@ public class FootyStatsStatsDao {
 
     public List<FootyStatsTeamSnapshot> findTeamStats(int weekId) {
         return jdbcTemplate.query(
-                "SELECT * FROM footystats_team_stats WHERE week_id = ?",
+                "SELECT * FROM recommender_team_stats WHERE week_id = ?",
                 teamMapper(),
                 weekId
         );
@@ -121,7 +121,7 @@ public class FootyStatsStatsDao {
 
     public Optional<FootyStatsTeamSnapshot> findTeamStats(int weekId, String teamCode) {
         List<FootyStatsTeamSnapshot> rows = jdbcTemplate.query(
-                "SELECT * FROM footystats_team_stats WHERE week_id = ? AND team_code = ?",
+                "SELECT * FROM recommender_team_stats WHERE week_id = ? AND team_code = ?",
                 teamMapper(),
                 weekId,
                 teamCode
@@ -135,7 +135,7 @@ public class FootyStatsStatsDao {
         }
         List<FootyStatsTeamSnapshot> rows = jdbcTemplate.query(
                 """
-                        SELECT * FROM footystats_team_stats
+                        SELECT * FROM recommender_team_stats
                         WHERE team_code = ?
                         ORDER BY week_id DESC
                         LIMIT 1

@@ -123,11 +123,11 @@
 
 **Рекомендатор ставок (API-Football snapshot + cache):**
 - `users.betting_recommender_enabled` — per-user toggle (default `false`).
-- `footystats_team_stats` — снимок команды на тур (имя таблицы историческое): scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (BTTS, CS, FTS, draws, over/under, PPG, SoccerSTATS first-goal/lead/equalisers, …). Источник снимка — API-Football fixtures + кэш xG, не scrape FootyStats.
-- `footystats_league_snapshot` — средние лиги home/away scored/conceded на тур.
-- `api_football_fixture_xg` — кэш `expected_goals` по `fixture_id` (инкрементальный backfill, до ~25 новых матчей за refresh).
+- `recommender_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (…); источник — API-Football + SoccerSTATS enrich.
+- `recommender_league_snapshot` — средние лиги home/away scored/conceded на тур.
+- `fixture_xg` — кэш `expected_goals` по `fixture_id` (инкрементальный backfill, до ~25 новых матчей за refresh).
 - `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_public_id`; при kickoff копируется в `kickoff_home` / `kickoff_away` / `kickoff_frozen_at` (не перезаписывается refresh тура).
-- Миграция: `BettingRecommenderSchemaMigration` + DDL в `tablesInit.sql`.
+- Миграция: `RecommenderTableRename` (`footystats_*` → `recommender_*`, `api_football_fixture_xg` → `fixture_xg`) в `DBConfig` до `tablesInit.sql` и в `BettingRecommenderSchemaMigration`; DDL новых имён в `tablesInit.sql`.
 
 **Дедуп уведомлений:**
 - `notification_weekly_results_sent` (по `week_id`)
@@ -348,7 +348,7 @@
 
 **Пакет `zhigalin.predictions.recommender` + HTTP-клиент:**
 - `ApiFootballClient` — единый HTTP к v3.football.api-sports.io (throttle ~350мс; fixtures/teams/lineups/statistics). Используется DataInit, ApiClient (lineups) и снимок рекомендатора.
-- `ApiFootballStatsSnapshotService` — сезон EPL (league 39, `DataInitService.SEASON`): FT-матчи → агрегаты scored/conceded/BTTS/CS/FTS/OU/PPG/HT + xG из `api_football_fixture_xg` (до 25 новых `/fixtures/statistics` за refresh). DTO остаются `FootyStatsTeamSnapshot` / `FootyStatsLeagueSnapshot` / `extended_json`.
+- `ApiFootballStatsSnapshotService` — сезон EPL (league 39, `DataInitService.SEASON`): FT-матчи → агрегаты scored/conceded/BTTS/CS/FTS/OU/PPG/HT + xG из `fixture_xg` (до 25 новых `/fixtures/statistics` за refresh). DTO-классы пока `FootyStatsTeamSnapshot` / `FootyStatsLeagueSnapshot` (имя legacy).
 - `ApiFootballFixtureXgDao` — upsert/lookup кэша xG.
 - `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с). Out of scope для замены модели; enrich после AF-снимка, ошибки не валят refresh.
 - `FootyStatsTableParser` / `FootyStatsTeamNameMapper` / `SoccerStatsTeamNameMapper` — разбор таблиц SoccerSTATS + legacy тесты; scrape FootyStats удалён (Cloudflare 403).
@@ -359,7 +359,7 @@
 
 **Источники API-Football (основной снимок):**
 - `/fixtures` season EPL — FT/AET/PEN голы + HT для агрегатов формы/BTTS/CS/FTS/OU/PPG/HT PPG / homeAdvantage из PPG
-- `/fixtures/statistics` → `expected_goals` в `api_football_fixture_xg` (инкрементально, **≤25 HTTP-вызовов**/refresh); два team-блока без xG → tombstone (`home_xg`/`away_xg` NULL); null/`errors`/пустой response → retry позже без tombstone, но вызов считается в cap
+- `/fixtures/statistics` → `expected_goals` в `fixture_xg` (инкрементально, **≤25 HTTP-вызовов**/refresh); два team-блока без xG → tombstone (`home_xg`/`away_xg` NULL); null/`errors`/пустой response → retry позже без tombstone, но вызов считается в cap
 - xG / xPts в снимок только при покрытии `xgSamples/mp ≥ 0.8` и `xgSamples ≥ 8`; иначе null (голы/BTTS/PPG остаются)
 - xPts / actualPts / xPtsDelta — независимый Пуассон по xG матча (`MarketScoreMatrix.expectedPoints`), сумма только по матчам с xG; delta = actual − xPts
 - Коэффициенты букмекеров — из уже существующего `OddsService`: 1X2 + match OU + team totals; Poisson мягко подтягивает λ к линиям тотала.

@@ -37,7 +37,7 @@ public class ApiFootballFixtureXgDao {
             args[i++] = id;
         }
         List<Integer> rows = jdbcTemplate.query(
-                "SELECT fixture_id FROM api_football_fixture_xg WHERE fixture_id IN (" + placeholders + ")",
+                "SELECT fixture_id FROM fixture_xg WHERE fixture_id IN (" + placeholders + ")",
                 (rs, rowNum) -> rs.getInt(1),
                 args
         );
@@ -62,7 +62,7 @@ public class ApiFootballFixtureXgDao {
     ) {
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
-                    INSERT INTO api_football_fixture_xg (
+                    INSERT INTO fixture_xg (
                         fixture_id, home_team_id, away_team_id, home_xg, away_xg, fetched_at
                     ) VALUES (?, ?, ?, ?, ?, ?)
                     ON CONFLICT (fixture_id) DO UPDATE SET
@@ -84,7 +84,7 @@ public class ApiFootballFixtureXgDao {
 
     public List<XgRow> findAll() {
         return jdbcTemplate.query(
-                "SELECT fixture_id, home_team_id, away_team_id, home_xg, away_xg FROM api_football_fixture_xg",
+                "SELECT fixture_id, home_team_id, away_team_id, home_xg, away_xg FROM fixture_xg",
                 (rs, rowNum) -> new XgRow(
                         rs.getInt("fixture_id"),
                         rs.getInt("home_team_id"),
