@@ -394,7 +394,7 @@
 **UI:**
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
 - Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
-- В `#score-modal` компактная кнопка `#modal-recommendation-section` (tip + λ + %); детали — в отдельной `#ai-modal` (блок **Обзор** из `analysis`, heatmap 0–5, 1X2/BTTS/OU, топ-счета, таблица explanation). Только при включённом AI toggle. Distribution + `analysis` лежат в `explanation_json`; после деплоя нужен refresh тура (неперезаписанные kickoff-frozen tips остаются без `analysis` — секция скрыта).
+- В `#score-modal` компактная кнопка `#modal-recommendation-section` (tip + λ + %); tip грузится отдельно через `GET /match/{home}/{away}/recommendation` (без ESPN/новостей), а `#ai-modal` открывается из кнопки. Insights (`/insights`) больше не отдают recommendation — только форма/новости/составы/травмы (медленный путь). В `#ai-modal`: блок **Обзор** из `analysis`, heatmap 0–5, 1X2/BTTS/OU, топ-счета, таблица explanation. Только при включённом AI toggle. Distribution + `analysis` в `explanation_json`; kickoff-frozen tips без `analysis` — секция Обзор скрыта.
 - На **«Профиль» → Мои прогнозы / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
 - Картинка FT: `HtmlImageRenderer` RESULT (EPL + кубки с разными accent); строка `AI h:a` для EPL, если freeze есть.
 - Mini App кубки: цвета турниров на карточках; категория «Кубки» (карточки турниров, вся FT-история + матчи с сегодня и будущие); live-детали/составы/комментарии через ESPN summary по league slug; live Общий зачёт += provisional cup.

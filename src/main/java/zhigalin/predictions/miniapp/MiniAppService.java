@@ -302,8 +302,23 @@ public class MiniAppService {
         return toMatchItem(match, telegramId, hasPrediction, prediction, kickoff, weekBonus);
     }
 
-    public MatchInsightsResponse matchInsights(String telegramId, String homeCode, String awayCode) {
+    public MatchRecommendationResponse matchRecommendation(String telegramId, String homeCode, String awayCode) {
         User user = requireUser(telegramId);
+        if (!user.isBettingRecommenderEnabled()) {
+            return null;
+        }
+        Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
+        if (match == null) {
+            return null;
+        }
+        bettingRecommendationService.ensureCurrentWeekRecommendations();
+        return bettingRecommendationService.recommendationForMatch(match.getId())
+                .map(this::toRecommendationResponse)
+                .orElse(null);
+    }
+
+    public MatchInsightsResponse matchInsights(String telegramId, String homeCode, String awayCode) {
+        requireUser(telegramId);
         Match match = matchService.findByTeamCodes(homeCode.toUpperCase(), awayCode.toUpperCase());
         if (match == null) {
             return new MatchInsightsResponse(List.of(), List.of(), List.of(), null, List.of(), List.of(), List.of());
@@ -331,15 +346,8 @@ public class MiniAppService {
             homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
             awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
         }
-        MatchRecommendationResponse recommendation = null;
-        if (user.isBettingRecommenderEnabled()) {
-            bettingRecommendationService.ensureCurrentWeekRecommendations();
-            recommendation = bettingRecommendationService.recommendationForMatch(match.getId())
-                    .map(this::toRecommendationResponse)
-                    .orElse(null);
-        }
         return new MatchInsightsResponse(
-                homeForm, awayForm, news, recommendation, injuries, homeLineup, awayLineup);
+                homeForm, awayForm, news, null, injuries, homeLineup, awayLineup);
     }
 
     private List<InjuryItem> toInjuryItems(List<InjuryInfo> injuries) {

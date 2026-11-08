@@ -53,6 +53,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.LeaderboardResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.LiveMatchDetailsResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchItem;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchInsightsResponse;
+import zhigalin.predictions.miniapp.dto.MiniAppDtos.MatchRecommendationResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PointsChartResponse;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.PredictRequest;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ProfileResponse;
@@ -315,6 +316,18 @@ public class MiniAppController {
             @PathVariable String awayCode
     ) {
         return miniAppService.match(requireTelegramId(initData), homeCode, awayCode);
+    }
+
+    @GetMapping(value = "/match/{homeCode}/{awayCode}/recommendation", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<MatchRecommendationResponse> matchRecommendation(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @PathVariable String homeCode,
+            @PathVariable String awayCode
+    ) {
+        MatchRecommendationResponse body = miniAppService.matchRecommendation(
+                requireTelegramId(initData), homeCode, awayCode
+        );
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body);
     }
 
     @GetMapping("/match/{homeCode}/{awayCode}/insights")

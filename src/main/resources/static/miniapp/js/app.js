@@ -1960,7 +1960,7 @@
 
     function clearInsightsCache() {
         Object.keys(state.apiCache).forEach((key) => {
-            if (key.startsWith('/match/') && key.endsWith('/insights')) {
+            if (key.startsWith('/match/') && (key.endsWith('/insights') || key.endsWith('/recommendation'))) {
                 delete state.apiCache[key];
             }
         });
@@ -2007,7 +2007,11 @@
                 showToast(res.message);
             }
             if (state.selectedMatch && !$('#score-modal').classList.contains('hidden')) {
-                loadScoreModalInsights(state.selectedMatch, true).catch(() => {});
+                if (state.selectedMatch.cup) {
+                    loadCupModalTip(state.selectedMatch).catch(() => {});
+                } else {
+                    loadScoreModalInsights(state.selectedMatch, true).catch(() => {});
+                }
             }
         } catch (e) {
             syncRecommenderToggle(state.profile && state.profile.bettingRecommenderEnabled);
@@ -2579,7 +2583,11 @@
         const cupMatchId = match.cupMatchId || match.publicId;
         const modalMatchId = match.publicId;
         const tip = await api('/cups/match/' + encodeURIComponent(cupMatchId) + '/tip');
-        if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId || !tip.available) return;
+        if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) return;
+        if (!(state.profile && state.profile.bettingRecommenderEnabled) || !tip.available) {
+            section.classList.add('hidden');
+            return;
+        }
         $('#modal-recommendation-score').textContent = tip.recommendedHome + ':' + tip.recommendedAway;
         const pct = (v) => Math.round(Number(v) * 100) + '%';
         $('#modal-recommendation-summary').textContent = 'П1 ' + pct(tip.pHome) + ' · X ' + pct(tip.pDraw)
@@ -3323,8 +3331,35 @@
         }
     }
 
+    async function loadScoreModalRecommendation(match, forceFresh) {
+        if (match.cup) {
+            return;
+        }
+        const modalMatchId = match.publicId;
+        if (!(state.profile && state.profile.bettingRecommenderEnabled)) {
+            if (state.selectedMatch && state.selectedMatch.publicId === modalMatchId) {
+                renderModalRecommendation(null);
+            }
+            return;
+        }
+        const path = '/match/' + encodeURIComponent(match.homeCode) + '/'
+            + encodeURIComponent(match.awayCode) + '/recommendation';
+        try {
+            const recommendation = forceFresh ? await api(path) : await apiCached(path);
+            if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
+                return;
+            }
+            renderModalRecommendation(recommendation || null);
+        } catch (_) {
+            if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
+                return;
+            }
+        }
+    }
+
     async function loadScoreModalInsights(match, forceFresh) {
         const modalMatchId = match.publicId;
+        loadScoreModalRecommendation(match, forceFresh).catch(() => {});
         const path = '/match/' + encodeURIComponent(match.homeCode) + '/' + encodeURIComponent(match.awayCode) + '/insights';
         try {
             const insights = forceFresh ? await api(path) : await apiCached(path);
@@ -3340,7 +3375,6 @@
                 insights.awayLineup || [],
                 match
             );
-            renderModalRecommendation(insights.recommendation || null);
         } catch (_) {
             if (!state.selectedMatch || state.selectedMatch.publicId !== modalMatchId) {
                 return;
@@ -3349,7 +3383,6 @@
             renderTeamFormDots('#modal-away-form', match.awayCode, []);
             renderModalNews([]);
             renderModalPrematch([], [], [], match);
-            renderModalRecommendation(null);
         }
     }
 
@@ -3360,7 +3393,10 @@
         if (!section || !summaryEl || !scoreEl) return;
 
         const enabled = state.profile && state.profile.bettingRecommenderEnabled;
-        state.currentRecommendation = (enabled && recommendation) ? recommendation : null;
+        const hasTip = recommendation
+            && recommendation.recommendedHome != null
+            && recommendation.recommendedAway != null;
+        state.currentRecommendation = (enabled && hasTip) ? recommendation : null;
         if (!state.currentRecommendation) {
             section.classList.add('hidden');
             return;
