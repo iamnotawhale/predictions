@@ -593,7 +593,7 @@ public class NotificationService {
             log.warn("widget demo: no user for telegramId={}", telegramChatId);
             return null;
         }
-        List<Match> upcoming = matchService.findAllByUpcomingDays(14);
+        List<Match> upcoming = matchService.findAllByUpcomingDays(35);
         if (upcoming == null || upcoming.isEmpty()) {
             upcoming = matchService.findAllByCurrentWeek();
         }
@@ -604,13 +604,12 @@ public class NotificationService {
         Match match = upcoming.stream()
                 .filter(m -> predictionService.findByMatchIdAndUserId(m.getId(), user.getId()) == null)
                 .findFirst()
-                .orElse(upcoming.get(0));
-        Prediction existing = predictionService.findByMatchIdAndUserId(match.getId(), user.getId());
-        String predicted = existing != null
-                && existing.getHomeScore() != null
-                && existing.getAwayScore() != null
-                ? existing.getHomeScore() + ":" + existing.getAwayScore()
-                : null;
+                .orElse(null);
+        if (match == null) {
+            log.warn("widget demo: all upcoming matches already predicted for userId={}", user.getId());
+            match = upcoming.get(0);
+        }
+        String predicted = null;
         String matchTime = match.getStartsAt() == null
                 ? "--:--"
                 : match.getStartsAt().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
