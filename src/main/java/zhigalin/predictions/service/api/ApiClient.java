@@ -208,6 +208,132 @@ public class ApiClient {
         }
     }
 
+    public Integer sendWidget(
+            String chatId,
+            String html,
+            String chatData,
+            Integer height,
+            String caption,
+            String replyMarkupJson,
+            boolean allowQueries
+    ) {
+        try {
+            String url = urlMessage.replace("sendMessage", "sendWidget");
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("chat_id", chatId);
+            payload.put("html", html);
+            if (chatData != null) {
+                payload.put("chat_data", chatData);
+            }
+            if (height != null) {
+                payload.put("height", height);
+            }
+            if (caption != null) {
+                payload.put("caption", TelegramMarkdownV2.escape(caption));
+                payload.put("parse_mode", "MarkdownV2");
+            }
+            if (replyMarkupJson != null) {
+                payload.put("reply_markup", mapper.readTree(replyMarkupJson));
+            }
+            if (allowQueries) {
+                payload.put("allow_queries", true);
+            }
+            HttpResponse<String> resp = Unirest.post(url)
+                    .headers(Map.of("accept", "application/json", "content-type", "application/json"))
+                    .body(mapper.writeValueAsString(payload))
+                    .asString();
+            if (!isTelegramOk("sendWidget", resp)) {
+                return null;
+            }
+            return extractMessageId(resp.getBody());
+        } catch (Exception e) {
+            log.error("sendWidget error: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public boolean answerWidgetQuery(String widgetQueryId, String resultData) {
+        try {
+            String url = urlMessage.replace("sendMessage", "answerWidgetQuery");
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("widget_query_id", widgetQueryId);
+            if (resultData != null) {
+                payload.put("data", resultData);
+            }
+            HttpResponse<String> resp = Unirest.post(url)
+                    .headers(Map.of("accept", "application/json", "content-type", "application/json"))
+                    .body(mapper.writeValueAsString(payload))
+                    .asString();
+            return isTelegramOk("answerWidgetQuery", resp);
+        } catch (Exception e) {
+            log.error("answerWidgetQuery error: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean deleteWebhook() {
+        try {
+            String url = urlMessage.replace("sendMessage", "deleteWebhook");
+            HttpResponse<String> resp = Unirest.post(url)
+                    .headers(Map.of("accept", "application/json", "content-type", "application/json"))
+                    .queryString("drop_pending_updates", false)
+                    .asString();
+            return isTelegramOk("deleteWebhook", resp);
+        } catch (Exception e) {
+            log.error("deleteWebhook error: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public JsonNode getUpdates(long offset, int timeoutSec, List<String> allowedUpdates) {
+        try {
+            String url = urlMessage.replace("sendMessage", "getUpdates");
+            var req = Unirest.get(url)
+                    .header("accept", "application/json")
+                    .socketTimeout((timeoutSec + 5) * 1000)
+                    .queryString("offset", offset)
+                    .queryString("timeout", timeoutSec)
+                    .queryString("limit", 100);
+            if (allowedUpdates != null && !allowedUpdates.isEmpty()) {
+                req = req.queryString("allowed_updates", mapper.writeValueAsString(allowedUpdates));
+            }
+            HttpResponse<String> resp = req.asString();
+            if (resp.getBody() == null) {
+                return null;
+            }
+            return mapper.readTree(resp.getBody());
+        } catch (Exception e) {
+            log.warn("getUpdates error: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public boolean editMessageWidgetData(String chatId, int messageId, String chatData) {
+        try {
+            String url = urlMessage.replace("sendMessage", "editMessageWidgetData");
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("chat_id", chatId);
+            payload.put("message_id", messageId);
+            if (chatData != null) {
+                payload.put("chat_data", chatData);
+            }
+            HttpResponse<String> resp = Unirest.post(url)
+                    .headers(Map.of("accept", "application/json", "content-type", "application/json"))
+                    .body(mapper.writeValueAsString(payload))
+                    .asString();
+            String body = resp.getBody();
+            if (body != null && body.contains("message is not modified")) {
+                log.info("editMessageWidgetData: not modified (ok)");
+                return true;
+            }
+            return isTelegramOk("editMessageWidgetData", resp);
+        } catch (Exception e) {
+            log.error("editMessageWidgetData error: chatId={}, messageId={}, err={}",
+                    chatId, messageId, e.getMessage());
+            return false;
+        }
+    }
+
     private boolean checkOk(String op, HttpResponse<String> resp) {
         if (resp.getStatus() == 200) {
             log.info("{}: ok", op);
@@ -216,6 +342,22 @@ public class ApiClient {
             log.warn("{}: status={} body={}", op, resp.getStatus(), resp.getBody());
             return false;
         }
+    }
+
+    private boolean isTelegramOk(String op, HttpResponse<String> resp) {
+        String body = resp.getBody();
+        try {
+            if (body != null) {
+                JsonNode root = mapper.readTree(body);
+                if (root.path("ok").asBoolean(false)) {
+                    log.info("{}: ok", op);
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        log.warn("{}: status={} body={}", op, resp.getStatus(), body);
+        return false;
     }
 
     private Integer extractMessageId(String body) {
@@ -260,31 +402,59 @@ public class ApiClient {
         }
     }
 
+    public record EspnLineups(
+            Map<Integer, List<Lineup>> byTeam,
+            String homeFormation,
+            String awayFormation
+    ) {
+        public static EspnLineups empty() {
+            return new EspnLineups(Map.of(), null, null);
+        }
+
+        public boolean isEmpty() {
+            return byTeam == null || byTeam.isEmpty();
+        }
+    }
+
     public Map<Integer, List<Lineup>> getLineupsFromEspnSummary(String espnEventId, int homeTeamId, int awayTeamId) {
+        return getEspnLineups(espnEventId, homeTeamId, awayTeamId).byTeam();
+    }
+
+    public EspnLineups getEspnLineups(String espnEventId, int homeTeamId, int awayTeamId) {
         if (espnEventId == null || espnEventId.isBlank()) {
-            return Map.of();
+            return EspnLineups.empty();
         }
         try {
             JsonNode root = fetchEspnSummary(espnEventId);
             if (root == null) {
-                return Map.of();
+                return EspnLineups.empty();
             }
             JsonNode rosters = root.path("rosters");
             if (!rosters.isArray() || rosters.isEmpty()) {
-                return Map.of();
+                return EspnLineups.empty();
             }
             Map<Integer, List<Lineup>> result = new HashMap<>();
+            String homeFormation = null;
+            String awayFormation = null;
             for (JsonNode rosterNode : rosters) {
                 String homeAway = rosterNode.path("homeAway").asText("");
                 int teamId = "home".equalsIgnoreCase(homeAway) ? homeTeamId : "away".equalsIgnoreCase(homeAway) ? awayTeamId : 0;
                 if (teamId == 0) {
                     continue;
                 }
+                String formation = rosterNode.path("formation").asText("").trim();
+                if (!formation.isEmpty()) {
+                    if ("home".equalsIgnoreCase(homeAway)) {
+                        homeFormation = formation;
+                    } else {
+                        awayFormation = formation;
+                    }
+                }
                 JsonNode roster = rosterNode.path("roster");
                 if (!roster.isArray() || roster.isEmpty()) {
                     continue;
                 }
-                List<Lineup> starters = new java.util.ArrayList<>();
+                List<Lineup> starters = new ArrayList<>();
                 for (JsonNode athleteNode : roster) {
                     if (!athleteNode.path("starter").asBoolean(false)) {
                         continue;
@@ -297,6 +467,7 @@ public class ApiClient {
                     player.setName(name);
                     player.setNumber(athleteNode.path("jersey").asInt(0));
                     player.setPos(athleteNode.path("position").path("abbreviation").asText("").trim());
+                    player.setFormationPlace(athleteNode.path("formationPlace").asInt(0));
                     Lineup lineup = new Lineup();
                     lineup.setPlayer(player);
                     starters.add(lineup);
@@ -305,10 +476,13 @@ public class ApiClient {
                     result.put(teamId, List.copyOf(starters));
                 }
             }
-            return result;
+            if (result.isEmpty()) {
+                return EspnLineups.empty();
+            }
+            return new EspnLineups(Map.copyOf(result), homeFormation, awayFormation);
         } catch (Exception e) {
             log.warn("ESPN lineups error: {}", e.getMessage());
-            return Map.of();
+            return EspnLineups.empty();
         }
     }
 

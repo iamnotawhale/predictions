@@ -1,0 +1,10 @@
+{
+  "name": "predictions-widget-minify",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Minify reminder Telegram widget HTML for classpath resource",
+  "dependencies": {
+    "html-minifier-terser": "7.2.0",
+    "terser": "5.44.0"
+  }
+}

@@ -42,6 +42,7 @@ public class CommandContainer {
     private final Command generateCommand;
     private final Command todayNotifyCommand;
     private final Command cardStyleCommand;
+    private final Command widgetDemoCommand;
 
     public CommandContainer(SendBotMessageService sendBotMessageService, MatchService matchService,
                             TeamService teamService, HeadToHeadService headToHeadService, DataInitService dataInitService,
@@ -75,10 +76,15 @@ public class CommandContainer {
         this.generateCommand = new GenerateCommand(matchService, notificationService, panicSender, adminChatId);
         this.todayNotifyCommand = new TodayNotifyCommand(sendBotMessageService, notificationService, panicSender, adminChatId);
         this.cardStyleCommand = new CardStyleCommand(sendBotMessageService, cardStyleSettings, adminChatId);
+        this.widgetDemoCommand = new WidgetDemoCommand(sendBotMessageService, notificationService, adminChatId);
     }
 
     public Command retrieveCardStyleCommand() {
         return cardStyleCommand;
+    }
+
+    public Command retrieveWidgetDemoCommand() {
+        return widgetDemoCommand;
     }
 
     public Command retrieveCommand(String commandIdentifier) {

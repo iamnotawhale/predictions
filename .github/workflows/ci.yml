@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - 'src/**'
+      - 'scripts/**'
+      - 'widget-minify/**'
       - 'pom.xml'
       - 'application.yml'
       - 'application-prod.yml'
@@ -39,6 +41,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: widget-minify/package-lock.json
+
+      - name: Reminder widget minify freshness
+        run: |
+          npm --prefix widget-minify ci
+          node scripts/minify-reminder-widget.mjs --check
 
       - name: Java unit tests
         # Card preview test needs Chrome + network (it only writes preview PNGs), so it is not a gate.

@@ -1,0 +1,87 @@
+<html><head><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;margin:0;background:#0b0910;color:#e8dff5}
+body{padding:10px;display:flex;flex-direction:column}
+.title{font-size:12px;font-weight:700;margin-bottom:4px}
+.bonus,.place{font-weight:700;color:#c9b4ff;background:#2a2040;border-radius:8px}
+.bonus{margin-left:6px;font-size:9px;padding:2px 7px}.place{font-size:10px;padding:2px 6px}
+.sheet{background:#14111a;border:1px solid #3a2f55;border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.match{display:flex;align-items:center;gap:8px}.team{flex:1;text-align:center}
+.coderow{display:inline-flex;align-items:center;gap:4px}.code{font-size:22px;font-weight:800}
+.cen{min-width:52px;text-align:center}.kick{font-size:9px;color:#b4a9c9}
+.mins,.score{font-weight:800}.mins{font-size:11px;color:#b08cff}.score{font-size:20px;color:#c9b4ff}
+.tipc{font-size:12px;color:#c9b4ff;text-align:center}
+.odds{display:flex;gap:4px}
+.odd{flex:1;text-align:center;background:#1c1824;border-radius:8px;padding:3px 2px;font-size:9px;color:#b4a9c9}
+.odd b{display:block;color:#e8dff5;font-size:12px}
+.blk{background:#1c1824;border-radius:8px;padding:5px}
+.blk .lab{font-size:8px;text-transform:uppercase;color:#888;margin-bottom:3px;text-align:center}
+.formrow{display:flex;gap:8px;align-items:flex-start}
+.formrow .chips{flex:1;display:flex;flex-wrap:wrap;gap:2px}
+.formrow .chips.h{justify-content:flex-end}.formrow .chips.a{justify-content:flex-start}
+.chips{display:flex;flex-wrap:wrap;gap:2px;justify-content:center}
+.chip{display:inline-block;font-size:11px;font-weight:700;padding:3px 6px;border-radius:6px;background:#444;color:#ccc}
+.chip.W{background:#1e3d2a;color:#7dffa3}.chip.D{background:#3d3520;color:#ffe08a}.chip.L{background:#3d1e1e;color:#ff9a9a}
+.det,.empty{font-size:9px;text-align:center;color:#b4a9c9}
+.det{height:12px}.empty{color:#888}
+.pitch{position:relative;aspect-ratio:1.75;border-radius:8px;overflow:hidden;background:#163526;border:1px solid #fff4}
+.pitch:before{content:"";position:absolute;left:50%;top:50%;width:17%;aspect-ratio:1;border:1px solid #fff4;border-radius:50%;transform:translate(-50%,-50%)}
+.mk{position:absolute;border:1px solid #fff4}.mk.c{left:50%;top:0;bottom:0;width:0;border:0;border-left:1px solid #fff4}
+.mk.b{top:20%;height:59%;width:16%}.mk.l{left:0;border-left:0}.mk.r{right:0;border-right:0}
+.pl{position:absolute;transform:translate(-50%,-50%);text-align:center}
+.pl i{display:block;width:6px;height:6px;border-radius:50%;margin:1px auto;background:#b08cff}
+.pl.a i{background:#ffe08a}.pl span{display:block;font-size:8px;white-space:nowrap}
+.lab{font-size:11px;color:#b4a9c9}
+#v-card,#v-grid{display:flex;flex-direction:column}#v-grid{min-height:380px}
+.grid,.grow{flex:1;min-height:0;display:flex}.grid{flex-direction:column;gap:4px}.grow{flex-direction:row;gap:4px}
+button.cell{flex:1;min-width:0;min-height:0;border:0;border-radius:8px;font-size:13px;font-weight:700;background:#1c1824;color:#e8dff5}
+button.cta{width:100%;border:0;border-radius:12px;padding:10px;margin-top:8px;font-size:14px;font-weight:700;background:#b08cff;color:#0b0910}
+.err{color:#f88;height:14px}.hidden{display:none}
+</style></head><body>
+<div id="v-card">
+<div class="title"><span id="ttl">Не проставлен прогноз</span><span id="b1" class="bonus hidden">бонус</span></div>
+<div class="sheet">
+<div class="match"><div class="team"><div class="coderow"><div id="h1" class="code"></div><div id="ph1" class="place hidden"></div></div></div><div class="cen"><div id="k1" class="kick"></div><div id="m1" class="mins"></div><div id="sc" class="score hidden"></div></div><div class="team"><div class="coderow"><div id="a1" class="code"></div><div id="pa1" class="place hidden"></div></div></div></div>
+<div id="odds1" class="odds hidden"><div class="odd">1<b id="o11">-</b></div><div class="odd">X<b id="ox1">-</b></div><div class="odd">2<b id="o21">-</b></div></div>
+<div id="lu1" class="blk hidden"><div class="lab" id="lul">lineups</div><div id="luc" class="pitch"></div><div id="lue" class="empty hidden">нет составов</div></div>
+<div id="form1" class="blk hidden"><div class="lab">last 5</div><div class="formrow"><div id="fh1" class="chips h"></div><div id="fa1" class="chips a"></div></div><div id="fdet" class="det"></div></div>
+<div id="h2h1" class="blk hidden"><div class="lab">h2h</div><div id="h2hc" class="chips"></div><div id="h2hd" class="det"></div></div>
+</div>
+<button class="cta" id="cta">Сделать прогноз</button>
+</div>
+<div id="v-grid" class="hidden">
+<div class="title"><span id="h2"></span> - <span id="a2"></span></div>
+<div id="tip2" class="tipc hidden"></div>
+<div class="lab">Выбери счёт</div>
+<div id="g" class="grid"></div>
+<div id="e" class="err"></div>
+</div>
+<script>
+var phase='card',busy=false,detT={};
+function $(id){return document.getElementById(id);}
+function chrome(done){$('ttl').textContent=done?'Твой прогноз':'Не проставлен прогноз';$('cta').textContent=done?'Изменить прогноз':'Сделать прогноз';$('m1').classList.toggle('hidden',!!done);$('sc').classList.toggle('hidden',!done);}
+function show(n){phase=n;var g=n==='grid';$('v-card').classList.toggle('hidden',g);$('v-grid').classList.toggle('hidden',!g);$('v-card').style.display=g?'none':'';$('v-grid').style.display=g?'flex':'none';if(!g)chrome(n==='done');}
+function fillOdds(d){var box=$('odds1');if(!d.o){box.classList.add('hidden');return;}var p=String(d.o).split('/');$('o11').textContent=p[0]||'-';$('ox1').textContent=p[1]||'-';$('o21').textContent=p[2]||'-';box.classList.remove('hidden');}
+function resultOk(a){return a=='ok'||a&&a.result=='ok'}
+function resultText(a){return a?typeof a=='string'?a:a.result||'err':'нет'}
+function fmtMins(m){m=+m||0;return m>1439?Math.round(m/1440)+' д':m>59?Math.round(m/60)+' ч':m+' мин'}
+function clear(n){while(n&&n.firstChild)n.removeChild(n.firstChild)}
+function el(tag,cls,txt){var n=document.createElement(tag);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n}
+function setOn(id,on){var n=$(id);if(!n)return null;n.classList.toggle('hidden',!on);return on?n:null}
+function scoreText(head){return String(head||'').slice(1).replace('-',':')||'?'}
+function showDet(id,txt){var d=$(id);if(!d)return;d.textContent=txt||'';clearTimeout(detT[id]);if(txt)detT[id]=setTimeout(function(){d.textContent=''},2e3)}
+function fillSide(box,s,self){clear(box);if(!s)return;String(s).split(',').forEach(function(t){if(!t)return;var p=t.split('@'),h=p[0]||'',r=h.charAt(0),btn=el('span','chip '+('WDL'.indexOf(r)>=0?r:''),scoreText(h)),opp=p[1]||'?',ven=p[2]||'',dt=p[3]||'';btn.onclick=function(){var fx=ven=='A'?opp+'-'+self:self+'-'+opp;showDet('fdet',dt?fx+' '+dt:fx)};box.appendChild(btn)})}
+function parseLu(s){var out=[];if(!s)return out;String(s).split('|').forEach(function(t){if(!t)return;var place=0,name=t,num=0,at=t.lastIndexOf('@');if(at>=0){place=+t.slice(at+1)||0;name=t.slice(0,at);}var dot=name.indexOf('.');if(dot>0&&/^[0-9]+$/.test(name.slice(0,dot))){num=+name.slice(0,dot);name=name.slice(dot+1);}if(name)out.push({num:num,name:name,place:place});});return out;}
+function rowsFor(form,players){var gk=[],rest=[];players.forEach(function(p){(p.place===1?gk:rest).push(p)});rest.sort(function(a,b){return(a.place||99)-(b.place||99)});var parts=String(form||'').split('-').map(function(n){return +n|0}).filter(function(n){return n>0}),rows=[],i=0;if(parts.length){parts.forEach(function(c){rows.push(rest.slice(i,i+c));i+=c});if(i<rest.length)rows.push(rest.slice(i));rows=rows.filter(function(r){return r.length}).reverse()}else rows=[rest];if(gk.length)rows.push(gk);return rows}
+function paintHalf(pitch,players,form,home){var rows=rowsFor(form,players);if(!rows.length)return;var n=rows.length;rows.forEach(function(row,ri){var x=n===1?50:14+ri/(n-1)*72;if(home)x=100-x;var abs=home?x*.5:50+x*.5;row.forEach(function(p,pi){var d=el('div','pl '+(home?'h':'a'));d.style.left=abs+'%';d.style.top=((pi+1)/(row.length+1)*100)+'%';d.appendChild(el('i'));d.appendChild(el('span',null,(p.num?p.num+'.':'')+(p.name||'')));pitch.appendChild(d)})})}
+function fixLabs(p){for(var a=p.querySelectorAll('.pl'),i=1,j;i<a.length;i++)for(j=0;j<i;j++)if(Math.abs(parseFloat(a[i].style.left)-parseFloat(a[j].style.left))<10&&Math.abs(parseFloat(a[i].style.top)-parseFloat(a[j].style.top))<12){a[i].insertBefore(a[i].children[1],a[i].firstChild);break}}
+function fillLineup(d){setOn('lu1',true);var has=!!(d.lh||d.la),pitch=$('luc');setOn('lue',!has);clear(pitch);pitch.appendChild(el('i','mk c'));pitch.appendChild(el('i','mk b l'));pitch.appendChild(el('i','mk b r'));if(!has)return;paintHalf(pitch,parseLu(d.lh),d.hf||'',true);paintHalf(pitch,parseLu(d.la),d.af||'',false);fixLabs(pitch)}
+function fillH2h(box,s){clear(box);if(!s){box.appendChild(el('span','empty','нет встреч'));return;}String(s).split('|').forEach(function(tok){if(!tok)return;var p=tok.split('@'),btn=el('span','chip',scoreText(p[0]||'')),a3=p[3]||'',a4=p[4]||'',c='',y='';if((a3.length==5&&a3.charAt(2)=='/')||a3.indexOf('.')>=0)y=a3;else{c=a3;y=a4;}btn.onclick=function(){var b=[(p[1]||'?')+'-'+(p[2]||'?')];if(y)b.push(y);if(c)b.push(c);showDet('h2hd',b.join(' '));};box.appendChild(btn);});}
+function en(cs,v){for(var i=0;i<cs.length;i++)cs[i].disabled=v;}
+function buildGrid(d){var g=$('g');clear(g);busy=false;for(var aw=0;aw<6;aw++){var row=el('div','grow');for(var ho=0;ho<6;ho++){var btn=el('button','cell',ho+':'+aw);btn._h=ho;btn._a=aw;btn.onclick=function(){if(busy)return;busy=true;var hh=this._h,aa=this._a;$('e').textContent='';var cs=g.querySelectorAll('button');en(cs,true);TelegramWidget.request('s:'+d.mid+':'+hh+':'+aa).then(function(a){if(resultOk(a)){$('sc').textContent=hh+':'+aa;show('done');return;}busy=false;en(cs,false);$('e').textContent=resultText(a);},function(){busy=false;en(cs,false);$('e').textContent='err';});};row.appendChild(btn);}g.appendChild(row);}}
+function data(){var raw=TelegramWidget.chatData;if(!raw)return null;if(typeof raw==='string'){try{return JSON.parse(raw);}catch(e){return null;}}return raw;}
+function paint(){var d=data();if(!d)return;$('h1').textContent=d.h||'';$('a1').textContent=d.a||'';$('h2').textContent=d.h||'';$('a2').textContent=d.a||'';$('k1').textContent=d.k||'';$('m1').textContent=fmtMins(d.m);$('b1').classList.toggle('hidden',!d.b);fillOdds(d);if(d.p)$('sc').textContent=d.p;var tip=setOn('tip2',!!d.tip);if(tip)tip.textContent='AI '+d.tip;function mark(id,v){var n=$(id);if(!n)return;n.classList.toggle('hidden',v==null);n.textContent=v==null?'':'#'+v;}mark('ph1',d.th);mark('pa1',d.ta);showDet('fdet','');showDet('h2hd','');var hasF=!!(d.fh||d.fa);setOn('form1',hasF);if(hasF){fillSide($('fh1'),d.fh,d.h||'');fillSide($('fa1'),d.fa,d.a||'');}fillLineup(d);setOn('h2h1',true);fillH2h($('h2hc'),d.h2h);if(phase==='grid')return;show(d.p?'done':'card');}
+$('cta').onclick=function(){var d=data();if(!d)return;buildGrid(d);show('grid');};
+TelegramWidget.onEvent('chatDataChanged',function(){paint();});paint();
+</script></body></html>
+

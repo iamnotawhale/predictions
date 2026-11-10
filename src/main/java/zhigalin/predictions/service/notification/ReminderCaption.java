@@ -17,9 +17,15 @@ final class ReminderCaption {
     static String formattedName(Lineup l) {
         Player player = l.getPlayer();
         String number = String.valueOf(player.getNumber());
-        String name = player.getName();
-        String shown = name.contains(" ") ? name.substring(name.lastIndexOf(' ') + 1) : name;
-        return padRight(number + ". ", 4) + shown;
+        return padRight(number + ". ", 4) + surname(player);
+    }
+
+    static String surname(Player player) {
+        if (player == null || player.getName() == null || player.getName().isBlank()) {
+            return "";
+        }
+        String name = player.getName().trim();
+        return name.contains(" ") ? name.substring(name.lastIndexOf(' ') + 1) : name;
     }
 
     static String trimCaption(String text, int maxLen) {

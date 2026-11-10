@@ -32,6 +32,9 @@ build/
 ### VS Code ###
 .vscode/
 
+### Node (widget minify) ###
+widget-minify/node_modules/
+
 ### Runtime artifacts ###
 cloudflared
 logs/

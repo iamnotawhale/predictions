@@ -4,8 +4,10 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,6 +23,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import zhigalin.predictions.model.event.CupMatch;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.model.event.Player;
 import zhigalin.predictions.model.football.Team;
 import zhigalin.predictions.model.notification.Notification;
 import zhigalin.predictions.model.predict.Prediction;
@@ -46,6 +49,15 @@ public class NotificationService {
     @Value("${bot.chatId}")
     private String defaultChatId;
 
+    @Value("${notification.reminder.widget.enabled:false}")
+    private boolean reminderWidgetEnabled;
+
+    @Value("${notification.reminder.widget.telegram-id:}")
+    private String reminderWidgetTelegramId;
+
+    @Value("${miniapp.dev-telegram-id:}")
+    private String miniappDevTelegramId;
+
     private final MatchService matchService;
     private final CupMatchDao cupMatchDao;
     private final PredictionService predictionService;
@@ -57,6 +69,7 @@ public class NotificationService {
     private final ObjectMapper objectMapper;
     private final BettingRecommendationService bettingRecommendationService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
+    private final ReminderWidgetFactory reminderWidgetFactory;
 
     private static final int[] REMINDER_MINUTES_BEFORE = {60, 40, 20};
 
@@ -74,7 +87,8 @@ public class NotificationService {
                                ObjectMapper objectMapper,
                                NotificationDedupDao notificationDedupDao,
                                BettingRecommendationService bettingRecommendationService,
-                               UserWeekBonusMatchService userWeekBonusMatchService) {
+                               UserWeekBonusMatchService userWeekBonusMatchService,
+                               ReminderWidgetFactory reminderWidgetFactory) {
         this.matchService = matchService;
         this.cupMatchDao = cupMatchDao;
         this.predictionService = predictionService;
@@ -87,6 +101,7 @@ public class NotificationService {
         this.notificationDedupDao = notificationDedupDao;
         this.bettingRecommendationService = bettingRecommendationService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
+        this.reminderWidgetFactory = reminderWidgetFactory;
     }
 
     public boolean sendTodayMatchNotification() {
@@ -401,11 +416,14 @@ public class NotificationService {
                 if (!ReminderCaption.isReminderWindow(minutesLeft, reminderMinutes)) {
                     continue;
                 }
-                Map<Integer, List<Lineup>> lineups = api.getLineupsFromEspnSummary(
+                ApiClient.EspnLineups espnLineups = api.getEspnLineups(
                         match.getEspnId(),
                         match.getHomeTeamId(),
                         match.getAwayTeamId()
                 );
+                Map<Integer, List<Lineup>> lineups = espnLineups.byTeam();
+                String homeFormation = espnLineups.homeFormation();
+                String awayFormation = espnLineups.awayFormation();
                 if (lineups.isEmpty()) {
                     lineups = api.getLineups(match.getId());
                 }
@@ -424,30 +442,6 @@ public class NotificationService {
                     }
                     boolean weekBonus = userWeekBonusMatchService.isWeekBonusMatch(
                             user.getId(), match.getWeekId(), match.getId());
-                    String imagePath;
-                    if (weekBonus) {
-                        if (imagePathBonus == null) {
-                            imagePathBonus = htmlImages.createReminderImage(
-                                    match.getId(),
-                                    match.getHomeTeamId(),
-                                    match.getAwayTeamId(),
-                                    matchTime,
-                                    true
-                            );
-                        }
-                        imagePath = imagePathBonus;
-                    } else {
-                        if (imagePathPlain == null) {
-                            imagePathPlain = htmlImages.createReminderImage(
-                                    match.getId(),
-                                    match.getHomeTeamId(),
-                                    match.getAwayTeamId(),
-                                    matchTime,
-                                    false
-                            );
-                        }
-                        imagePath = imagePathPlain;
-                    }
                     Notification notification = Notification.builder()
                             .user(user)
                             .match(match)
@@ -457,10 +451,44 @@ public class NotificationService {
                             reminderMinutes, user.getId(), match.getId(), weekBonus);
                     Integer prevMessageId = notificationDedupDao.findLatestReminderTelegramMessageId(
                             user.getId(), match.getId());
-                    if (prevMessageId != null && user.getTelegramId() != null && !user.getTelegramId().isBlank()) {
-                        api.deleteMessage(user.getTelegramId(), prevMessageId);
+                    Integer messageId = null;
+                    if (useReminderWidget(user)) {
+                        messageId = sendReminderWidget(
+                                notification, prevMessageId, minutesLeft, matchTime,
+                                homeFormation, awayFormation);
                     }
-                    Integer messageId = sendNotification(notification, imagePath);
+                    if (messageId == null) {
+                        String imagePath;
+                        if (weekBonus) {
+                            if (imagePathBonus == null) {
+                                imagePathBonus = htmlImages.createReminderImage(
+                                        match.getId(),
+                                        match.getHomeTeamId(),
+                                        match.getAwayTeamId(),
+                                        matchTime,
+                                        true
+                                );
+                            }
+                            imagePath = imagePathBonus;
+                        } else {
+                            if (imagePathPlain == null) {
+                                imagePathPlain = htmlImages.createReminderImage(
+                                        match.getId(),
+                                        match.getHomeTeamId(),
+                                        match.getAwayTeamId(),
+                                        matchTime,
+                                        false
+                                );
+                            }
+                            imagePath = imagePathPlain;
+                        }
+                        if (prevMessageId != null
+                                && user.getTelegramId() != null
+                                && !user.getTelegramId().isBlank()) {
+                            api.deleteMessage(user.getTelegramId(), prevMessageId);
+                        }
+                        messageId = sendNotification(notification, imagePath);
+                    }
                     notificationDedupDao.saveReminderTelegramMessageId(
                             user.getId(), match.getId(), reminderMinutes, messageId);
                 }
@@ -486,7 +514,146 @@ public class NotificationService {
         }
     }
 
-    /** Окно для проверки раз в 30 с: напоминание «за N минут» срабатывает при N…N-1 мин до старта. */
+    private boolean useReminderWidget(User user) {
+        if (!reminderWidgetEnabled || user == null) {
+            return false;
+        }
+        String target = reminderWidgetTelegramId;
+        if (target == null || target.isBlank()) {
+            target = miniappDevTelegramId;
+        }
+        if (target == null || target.isBlank()) {
+            return false;
+        }
+        String telegramId = user.getTelegramId();
+        return telegramId != null && !telegramId.isBlank() && telegramId.equals(target.trim());
+    }
+
+    private Integer sendReminderWidget(
+            Notification notification,
+            Integer prevMessageId,
+            long minutesLeft,
+            String matchTime,
+            String homeFormation,
+            String awayFormation
+    ) {
+        try {
+            Match match = notification.getMatch();
+            String chatId = notification.getUser().getTelegramId();
+            if (chatId == null || chatId.isBlank()) {
+                return null;
+            }
+            Map<Integer, List<Lineup>> lineups = notification.getLineups();
+            ReminderWidgetFactory.Payload payload = reminderWidgetFactory.build(
+                    match,
+                    notification.getUser().getId(),
+                    minutesLeft,
+                    matchTime,
+                    null,
+                    lineups,
+                    homeFormation,
+                    awayFormation);
+            if (prevMessageId != null) {
+                api.deleteMessage(chatId, prevMessageId);
+            }
+            Integer messageId = api.sendWidget(
+                    chatId,
+                    payload.html(),
+                    payload.chatData(),
+                    null,
+                    null,
+                    null,
+                    true
+            );
+            if (messageId != null) {
+                ReminderWidgetFactory.rememberLineups(
+                        chatId, messageId, lineups, homeFormation, awayFormation);
+            }
+            return messageId;
+        } catch (Exception e) {
+            panicSender.sendPanic("Sending reminder widget error", e);
+            log.error("Sending reminder widget error: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Admin/dev: send reminder widget for the nearest upcoming EPL match without touching
+     * {@code notification_reminder_sent}. Prefer matches the user has not predicted yet.
+     */
+    public Integer sendReminderWidgetDemo(String telegramChatId) {
+        if (telegramChatId == null || telegramChatId.isBlank()) {
+            return null;
+        }
+        User user = DaoUtil.USERS.values().stream()
+                .filter(u -> telegramChatId.equals(u.getTelegramId()))
+                .findFirst()
+                .orElse(null);
+        if (user == null) {
+            log.warn("widget demo: no user for telegramId={}", telegramChatId);
+            return null;
+        }
+        List<Match> upcoming = matchService.findAllByUpcomingDays(14);
+        if (upcoming == null || upcoming.isEmpty()) {
+            upcoming = matchService.findAllByCurrentWeek();
+        }
+        if (upcoming == null || upcoming.isEmpty()) {
+            log.warn("widget demo: no upcoming matches");
+            return null;
+        }
+        Match match = upcoming.stream()
+                .filter(m -> predictionService.findByMatchIdAndUserId(m.getId(), user.getId()) == null)
+                .findFirst()
+                .orElse(upcoming.get(0));
+        Prediction existing = predictionService.findByMatchIdAndUserId(match.getId(), user.getId());
+        String predicted = existing != null
+                && existing.getHomeScore() != null
+                && existing.getAwayScore() != null
+                ? existing.getHomeScore() + ":" + existing.getAwayScore()
+                : null;
+        String matchTime = match.getStartsAt() == null
+                ? "--:--"
+                : match.getStartsAt().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+        long minutesLeft = match.getStartsAt() == null
+                ? 60
+                : Math.max(1, java.time.Duration.between(
+                        java.time.LocalDateTime.now(), match.getStartsAt()).toMinutes());
+        try {
+            Map<Integer, List<Lineup>> lineups = mockLineupsForDemo(
+                    match.getHomeTeamId(), match.getAwayTeamId());
+            String homeFormation = "4-3-3";
+            String awayFormation = "4-2-3-1";
+            ReminderWidgetFactory.Payload payload = reminderWidgetFactory.build(
+                    match, user.getId(), minutesLeft, matchTime, predicted, lineups,
+                    homeFormation, awayFormation);
+            int zlib = ReminderWidgetHtml.zlib9(ReminderWidgetHtml.utf8(payload.html())).length;
+            log.info("widget demo html zlib={} jpeg={} chatDataBytes={}",
+                    zlib,
+                    payload.html().contains("data:image/jpeg"),
+                    payload.chatData().getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+            Integer messageId = api.sendWidget(
+                    telegramChatId,
+                    payload.html(),
+                    payload.chatData(),
+                    null,
+                    null,
+                    null,
+                    true
+            );
+            if (messageId != null) {
+                ReminderWidgetFactory.rememberLineups(
+                        telegramChatId, messageId, lineups, homeFormation, awayFormation);
+            }
+            log.info("widget demo sent chatId={} matchId={} messageId={}",
+                    telegramChatId, match.getId(), messageId);
+            return messageId;
+        } catch (Exception e) {
+            panicSender.sendPanic("Sending reminder widget demo error", e);
+            log.error("Sending reminder widget demo error: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private Integer sendNotification(Notification notification, String imagePath) {
         log.info("Send notification");
         try {
@@ -495,7 +662,6 @@ public class NotificationService {
             String chatId = notification.getUser().getTelegramId();
 
             if (chatId != null && !chatId.isEmpty()) {
-
                 Team home = DaoUtil.team(match.getHomeTeamId());
                 Team away = DaoUtil.team(match.getAwayTeamId());
                 if (home == null || away == null) {
@@ -503,64 +669,8 @@ public class NotificationService {
                 }
                 String homeTeam = home.getCode();
                 String awayTeam = away.getCode();
-
-                Map<String, Integer> sorting = Map.of("G", 1, "D", 2, "M", 3, "F", 4);
-                Comparator<Lineup> lineupComparator = Comparator.comparingInt(
-                        l -> sorting.getOrDefault(l.getPlayer().getPos(), 99)
-                );
-
-                InlineKeyboardButton button = InlineKeyboardButton.builder()
-                        .text("Сделать прогноз")
-                        .callbackData("/" + homeTeam + ":" + awayTeam + "_")
-                        .build();
-                InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
-                        .keyboard(Collections.singleton(List.of(button)))
-                        .build();
-
-                StringBuilder caption = new StringBuilder()
-                        .append("Не проставлен прогноз на матч").append("\n")
-                        .append("Осталось ").append(minutesLeft)
-                        .append(minutesLeft % 10 == 1 ? " минута" : minutesLeft > 20 && List.of(2L, 3L, 4L).contains(minutesLeft % 10) ? " минуты" : " минут");
-
-                Map<Integer, List<Lineup>> lineups = notification.getLineups();
-                List<Lineup> homeLineup = lineups != null
-                        ? lineups.getOrDefault(match.getHomeTeamId(), List.of())
-                        : List.of();
-                List<Lineup> awayLineup = lineups != null
-                        ? lineups.getOrDefault(match.getAwayTeamId(), List.of())
-                        : List.of();
-                if (!homeLineup.isEmpty() || !awayLineup.isEmpty()) {
-                    List<String> homeLineups = homeLineup.stream()
-                            .sorted(lineupComparator)
-                            .map(ReminderCaption::formattedName)
-                            .toList();
-
-                    List<String> awayLineups = awayLineup.stream()
-                            .sorted(lineupComparator)
-                            .map(ReminderCaption::formattedName)
-                            .toList();
-
-                    int maxLength = 0;
-                    for (String player : homeLineups) {
-                        if (player.length() > maxLength) {
-                            maxLength = player.length();
-                        }
-                    }
-
-                    caption.append("\n\n")
-                            .append("`")
-                            .append(ReminderCaption.padRight(homeTeam, maxLength)).append("  ")
-                            .append(awayTeam)
-                            .append("`").append("\n");
-                    for (int i = 0; i < homeLineups.size(); i++) {
-                        String left = homeLineups.get(i);
-                        String right = i < awayLineups.size() ? awayLineups.get(i) : "";
-                        caption.append("`").append(ReminderCaption.padRight(left, maxLength)).append("  ").append(right).append("`").append("\n");
-                    }
-                }
-
-                String text = ReminderCaption.trimCaption(caption.toString(), 900);
-                String replyMarkupJson = objectMapper.writeValueAsString(markup);
+                String text = buildReminderCaption(notification, homeTeam, awayTeam, minutesLeft);
+                String replyMarkupJson = objectMapper.writeValueAsString(predictMarkup(homeTeam, awayTeam));
                 if (imagePath != null) {
                     return api.sendPhoto(chatId, text, imagePath, replyMarkupJson);
                 }
@@ -570,6 +680,122 @@ public class NotificationService {
             log.error("Sending reminder error: {}", e.getMessage());
         }
         return null;
+    }
+
+    private static InlineKeyboardMarkup predictMarkup(String homeTeam, String awayTeam) {
+        InlineKeyboardButton button = InlineKeyboardButton.builder()
+                .text("Сделать прогноз")
+                .callbackData("/" + homeTeam + ":" + awayTeam + "_")
+                .build();
+        return InlineKeyboardMarkup.builder()
+                .keyboard(Collections.singleton(List.of(button)))
+                .build();
+    }
+
+    private String buildReminderCaption(
+            Notification notification, String homeTeam, String awayTeam, long minutesLeft
+    ) {
+        Match match = notification.getMatch();
+        StringBuilder caption = new StringBuilder()
+                .append("Не проставлен прогноз на матч").append("\n")
+                .append("Осталось ").append(minutesLeft)
+                .append(minutesLeft % 10 == 1 ? " минута"
+                        : minutesLeft > 20 && List.of(2L, 3L, 4L).contains(minutesLeft % 10)
+                        ? " минуты" : " минут");
+
+        Map<String, Integer> sorting = Map.of("G", 1, "D", 2, "M", 3, "F", 4);
+        Comparator<Lineup> lineupComparator = Comparator.comparingInt(
+                l -> sorting.getOrDefault(l.getPlayer().getPos(), 99)
+        );
+
+        Map<Integer, List<Lineup>> lineups = notification.getLineups();
+        List<Lineup> homeLineup = lineups != null
+                ? lineups.getOrDefault(match.getHomeTeamId(), List.of())
+                : List.of();
+        List<Lineup> awayLineup = lineups != null
+                ? lineups.getOrDefault(match.getAwayTeamId(), List.of())
+                : List.of();
+        if (!homeLineup.isEmpty() || !awayLineup.isEmpty()) {
+            List<String> homeLineups = homeLineup.stream()
+                    .sorted(lineupComparator)
+                    .map(ReminderCaption::formattedName)
+                    .toList();
+            List<String> awayLineups = awayLineup.stream()
+                    .sorted(lineupComparator)
+                    .map(ReminderCaption::formattedName)
+                    .toList();
+
+            int maxLength = 0;
+            for (String player : homeLineups) {
+                if (player.length() > maxLength) {
+                    maxLength = player.length();
+                }
+            }
+
+            caption.append("\n\n")
+                    .append("`")
+                    .append(ReminderCaption.padRight(homeTeam, maxLength)).append("  ")
+                    .append(awayTeam)
+                    .append("`").append("\n");
+            for (int i = 0; i < homeLineups.size(); i++) {
+                String left = homeLineups.get(i);
+                String right = i < awayLineups.size() ? awayLineups.get(i) : "";
+                caption.append("`")
+                        .append(ReminderCaption.padRight(left, maxLength))
+                        .append("  ")
+                        .append(right)
+                        .append("`")
+                        .append("\n");
+            }
+        }
+
+        return ReminderCaption.trimCaption(caption.toString(), 900);
+    }
+
+    public static Map<Integer, List<Lineup>> mockLineupsForDemo(int homeTeamId, int awayTeamId) {
+        Map<Integer, List<Lineup>> out = new HashMap<>();
+        out.put(homeTeamId, mockSide(
+                "Ederson", "G", 1, 31,
+                "Walker", "D", 2, 2,
+                "Dias", "D", 5, 3,
+                "Ake", "D", 6, 6,
+                "Gvardiol", "D", 3, 24,
+                "Rodri", "M", 4, 16,
+                "Silva", "M", 10, 20,
+                "De Bruyne", "M", 8, 17,
+                "Foden", "F", 7, 47,
+                "Haaland", "F", 9, 9,
+                "Doku", "F", 11, 11
+        ));
+        out.put(awayTeamId, mockSide(
+                "Leno", "G", 1, 1,
+                "Tete", "D", 2, 2,
+                "Andersen", "D", 5, 5,
+                "Bassey", "D", 6, 3,
+                "Robinson", "D", 3, 33,
+                "Pereira", "M", 8, 18,
+                "Berge", "M", 4, 6,
+                "Iwobi", "M", 10, 17,
+                "Traore", "M", 7, 11,
+                "Jimenez", "F", 11, 7,
+                "Muniz", "F", 9, 19
+        ));
+        return out;
+    }
+
+    private static List<Lineup> mockSide(Object... namePosPlaceNum) {
+        List<Lineup> rows = new ArrayList<>();
+        for (int i = 0; i + 3 < namePosPlaceNum.length; i += 4) {
+            Player player = new Player();
+            player.setName((String) namePosPlaceNum[i]);
+            player.setPos((String) namePosPlaceNum[i + 1]);
+            player.setFormationPlace((Integer) namePosPlaceNum[i + 2]);
+            player.setNumber((Integer) namePosPlaceNum[i + 3]);
+            Lineup row = new Lineup();
+            row.setPlayer(player);
+            rows.add(row);
+        }
+        return rows;
     }
 
 }

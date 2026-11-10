@@ -13,11 +13,12 @@ fi
 fuser -k 8080/tcp 2>/dev/null || true
 sleep 1
 
-config_locations() {
-    local loc="file:./application.yml,file:./application-local.yml"
-    [[ -f deploy/local.env ]] && loc="$loc,file:./deploy/local.env"
-    echo "$loc"
-}
+if [[ -f deploy/local.env ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source deploy/local.env
+    set +a
+fi
 
 echo "Бот: @eplinfodevbot (не @eplinfobot)"
 echo "Лог приложения: tail -f logs/server-$(date +%Y-%m-%d).log"
@@ -25,5 +26,5 @@ echo "(не перенаправляйте stdout в этот файл — ин�
 echo ""
 
 exec java -Duser.timezone=Europe/Moscow -jar target/predictions-1.0.0.jar \
-    --spring.config.location="$(config_locations)" \
+    --spring.config.location=file:./application.yml,file:./application-local.yml \
     --spring.profiles.active=local

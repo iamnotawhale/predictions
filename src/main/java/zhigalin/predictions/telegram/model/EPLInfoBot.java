@@ -53,6 +53,7 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     private final PanicSender panicSender;
     private final CommandContainer commandContainer;
     private final SendBotMessageService sendBotMessageService;
+    private final boolean reminderWidgetEnabled;
     private volatile boolean registered;
 
     private static final String COMMAND_PREFIX = "/";
@@ -66,12 +67,14 @@ public class EPLInfoBot extends TelegramLongPollingBot {
                       @Value("${bot.chatId}") String botChatId,
                       @Value("${chatId:0}") String adminChatId,
                       @Value("${bot.webAppUrl:}") String webAppUrl,
+                      @Value("${notification.reminder.widget.enabled:false}") boolean reminderWidgetEnabled,
                       MatchService matchService, TeamService teamService,
                       HeadToHeadService headToHeadService, DataInitService dataInitService,
                       PredictionService predictionService, PanicSender panicSender, NotificationService notificationService,
                       HtmlImageRenderer htmlImageRenderer, CardStyleSettings cardStyleSettings) {
         super(token);
         this.name = name;
+        this.reminderWidgetEnabled = reminderWidgetEnabled;
         this.sendBotMessageService = new SendBotMessageService(this, htmlImageRenderer, webAppUrl);
         this.panicSender = panicSender;
         long adminId = 0L;
@@ -87,6 +90,11 @@ public class EPLInfoBot extends TelegramLongPollingBot {
     @EventListener(ApplicationReadyEvent.class)
     public void registerWhenReady() {
         if (registered) {
+            return;
+        }
+        if (reminderWidgetEnabled) {
+            registered = true;
+            log.info("Telegram bot @{} uses widget getUpdates poller (DefaultBotSession skipped)", name);
             return;
         }
         try {
@@ -157,6 +165,8 @@ public class EPLInfoBot extends TelegramLongPollingBot {
         messageToDelete.clear();
         if (message.startsWith("/cardstyle")) {
             commandContainer.retrieveCardStyleCommand().execute(update);
+        } else if (message.startsWith("/widgetdemo")) {
+            commandContainer.retrieveWidgetDemoCommand().execute(update);
         } else if (message.contains("menu")) {
             commandContainer.retrieveMenuCommand().execute(update);
         } else if (message.contains("update")) {

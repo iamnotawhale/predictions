@@ -41,6 +41,10 @@ bot:
 notification:
   goal-gif:
     enabled: ${NOTIFICATION_GOAL_GIF_ENABLED:true}
+  reminder:
+    widget:
+      enabled: ${NOTIFICATION_REMINDER_WIDGET_ENABLED:false}
+      telegram-id: ${NOTIFICATION_REMINDER_WIDGET_TELEGRAM_ID:}
 
 chatId: ${ADMIN_CHAT_ID:}
 
