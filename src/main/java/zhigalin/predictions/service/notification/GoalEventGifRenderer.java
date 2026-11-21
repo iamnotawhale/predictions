@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import zhigalin.predictions.util.EspnKitColors;
+import zhigalin.predictions.util.ProcessLaunch;
 import zhigalin.predictions.service.api.TeamLogoCacheService;
 
 @Service
@@ -173,8 +174,7 @@ public class GoalEventGifRenderer {
         }
         try {
             Path optimized = Files.createTempFile("goal-event-opt-", ".gif");
-            // -O0: keep full frames. -O2/-O3 crop+transparency → stacking ghosts in Telegram.
-            ProcessBuilder pb = new ProcessBuilder(
+            ProcessLaunch.Result r = ProcessLaunch.run(List.of(
                     gifsicle,
                     "-O0",
                     "--disposal=background",
@@ -182,11 +182,8 @@ public class GoalEventGifRenderer {
                     "--colors", "128",
                     "-o", optimized.toAbsolutePath().toString(),
                     raw.toAbsolutePath().toString()
-            );
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            int code = p.waitFor();
-            if (code == 0 && Files.size(optimized) > 0) {
+            ), 30);
+            if (r.exitCode() == 0 && Files.size(optimized) > 0) {
                 Files.deleteIfExists(raw);
                 return optimized;
             }
@@ -199,19 +196,18 @@ public class GoalEventGifRenderer {
 
     private static String resolveGifsicleBinary() {
         for (String candidate : new String[]{
-                "gifsicle",
                 "/usr/bin/gifsicle",
                 "/usr/local/bin/gifsicle",
-                System.getProperty("user.home") + "/bin/gifsicle"
+                System.getProperty("user.home") + "/bin/gifsicle",
+                "gifsicle"
         }) {
             try {
-                ProcessBuilder pb = new ProcessBuilder(candidate, "--version");
-                pb.redirectErrorStream(true);
-                Process p = pb.start();
-                if (p.waitFor() == 0) {
-                    return candidate;
+                ProcessLaunch.runCapture(List.of(candidate, "--version"), 5);
+                return candidate;
+            } catch (Exception e) {
+                if (ProcessLaunch.isSpawnHelperFailure(e)) {
+                    log.warn("gifsicle probe spawn helper failed for {}: {}", candidate, e.getMessage());
                 }
-            } catch (Exception ignored) {
             }
         }
         return null;

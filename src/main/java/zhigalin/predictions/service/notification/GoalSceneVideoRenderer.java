@@ -13,6 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import zhigalin.predictions.util.EspnKitColors;
+import zhigalin.predictions.util.ProcessLaunch;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.ScreenshotType;
 import org.slf4j.Logger;
@@ -20,12 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-/**
- * Goal / cancelled-goal animation: the broadcast-style HTML scene ({@code goal-scene.html}) is played
- * frame by frame in headless Chromium (animations are seeked, so timing is exact) and encoded to H.264
- * with ffmpeg. Telegram plays the mp4 as an animation, smoother and ~5x lighter than a GIF.
- * Returns null whenever Chromium or ffmpeg is unavailable so the caller can fall back to the Java GIF.
- */
 @Service
 public class GoalSceneVideoRenderer {
 
@@ -57,7 +52,6 @@ public class GoalSceneVideoRenderer {
         return enabled && ffmpegPath != null;
     }
 
-    /** Renders the scene to a temp .mp4; the caller deletes the file. Null on any failure. */
     public String render(GoalEventGifRenderer.Request req) {
         if (!isAvailable() || req == null) {
             return null;
@@ -71,6 +65,7 @@ public class GoalSceneVideoRenderer {
             Map<String, Object> config = config(req);
             Boolean ok = html.withPage(SIZE, SIZE, p -> captureFrames(p, page, config, dir));
             if (!Boolean.TRUE.equals(ok)) {
+                log.warn("Goal video: Chromium frame capture failed");
                 return null;
             }
             Path out = Files.createTempFile("goal-event-", ".mp4");
@@ -136,23 +131,16 @@ public class GoalSceneVideoRenderer {
     }
 
     private boolean encode(Path dir, Path out) throws IOException, InterruptedException {
-        Process p = new ProcessBuilder(
+        List<String> cmd = List.of(
                 ffmpegPath, "-y", "-loglevel", "error",
                 "-framerate", String.valueOf(FPS),
-                "-i", dir.resolve("%04d.jpg").toString(),
+                "-i", dir.resolve("%04d.jpg").toAbsolutePath().toString(),
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
                 "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an",
-                out.toString())
-                .redirectErrorStream(true)
-                .start();
-        String output = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        if (!p.waitFor(60, TimeUnit.SECONDS)) {
-            p.destroyForcibly();
-            log.warn("ffmpeg timed out");
-            return false;
-        }
-        if (p.exitValue() != 0 || Files.size(out) == 0) {
-            log.warn("ffmpeg failed ({}): {}", p.exitValue(), output.strip());
+                out.toAbsolutePath().toString());
+        ProcessLaunch.Result r = ProcessLaunch.run(cmd, 60);
+        if (r.exitCode() != 0 || Files.size(out) == 0) {
+            log.warn("ffmpeg failed ({}): {}", r.exitCode(), r.output().strip());
             return false;
         }
         return true;
@@ -168,14 +156,18 @@ public class GoalSceneVideoRenderer {
     }
 
     private static String findFfmpeg() {
-        for (String candidate : new String[]{"ffmpeg", "/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"}) {
+        for (String candidate : new String[]{"/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "ffmpeg"}) {
             try {
-                Process p = new ProcessBuilder(candidate, "-version").redirectErrorStream(true).start();
-                p.getInputStream().readAllBytes();
-                if (p.waitFor(5, TimeUnit.SECONDS) && p.exitValue() == 0) {
-                    return candidate;
+                ProcessLaunch.runCapture(List.of(candidate, "-version"), 5);
+                Path abs = Path.of(candidate);
+                if (abs.isAbsolute() && Files.isExecutable(abs)) {
+                    return abs.toString();
                 }
-            } catch (Exception ignored) {
+                return candidate;
+            } catch (Exception e) {
+                if (ProcessLaunch.isSpawnHelperFailure(e)) {
+                    log.warn("ffmpeg probe spawn helper failed for {}: {}", candidate, e.getMessage());
+                }
             }
         }
         return null;
