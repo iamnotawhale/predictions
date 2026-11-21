@@ -66,13 +66,17 @@ class MatchNarrativeCompactPromptTest {
         assertTrue(compact.contains("MS|2:1|"));
         assertTrue(compact.contains("SS.HA|ARS|home|ptsShare%=100%|gfPm=2.00|gaPm=0.40|tgPm=2.40|o25%=50%"));
         assertTrue(compact.contains("SS.HA|MCI|away|"));
-        assertFalse(compact.contains("SS.OV|"));
+        assertTrue(compact.contains("SS.OV|ARS|all|"));
+        assertTrue(compact.contains("T.ARS|form=overall|gfPm=1.80|gaPm=0.90|f8Ppg=1.75"));
         assertTrue(compact.contains("T.ARS|venue=home|gfPm=2|gaPm=0.70"));
-        assertFalse(compact.contains("f8Ppg="));
         assertFalse(compact.contains("|xPts="));
+        assertTrue(compact.contains("T.MCI|form=overall|"));
         assertTrue(compact.contains("T.MCI|venue=away|gfPm=1.40|gaPm=1.10"));
         assertFalse(compact.contains("{"));
         assertFalse(compact.contains("\"homeTeam\""));
+        assertTrue(GroqNarrativeClient.SYSTEM_PROMPT.contains("без любых цифр из overall/f8"));
+        assertTrue(GroqNarrativeClient.SYSTEM_PROMPT.contains("китайские иероглифы"));
+        assertFalse(GroqNarrativeClient.SYSTEM_PROMPT.contains("почти"));
     }
 
     @Test

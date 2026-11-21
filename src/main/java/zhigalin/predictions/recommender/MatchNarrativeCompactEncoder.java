@@ -67,14 +67,14 @@ final class MatchNarrativeCompactEncoder {
         }
 
         appendPreview(lines, "SS.HA", homeAwayPreview);
-        if (homeAwayPreview == null) {
-            appendPreview(lines, "SS.OV", overallPreview);
-        }
+        appendPreview(lines, "SS.OV", overallPreview);
 
         if (homeTeam != null) {
+            lines.add(formLine(homeTeam));
             lines.add(teamLine(homeTeam, true));
         }
         if (awayTeam != null) {
+            lines.add(formLine(awayTeam));
             lines.add(teamLine(awayTeam, false));
         }
         return String.join("\n", lines);
@@ -115,6 +115,22 @@ final class MatchNarrativeCompactEncoder {
             return sb.toString();
         }
         sb.append('|').append(esc(stats == null ? "" : stats.replace('·', ',').replace("|", "/")));
+        return sb.toString();
+    }
+
+    private static String formLine(TeamStatsSnapshot team) {
+        ExtendedTeamMetrics e = team.extendedOrEmpty();
+        StringBuilder sb = new StringBuilder();
+        sb.append("T.").append(team.teamCode()).append("|form=overall");
+        sb.append("|gfPm=").append(num(team.scoredOverall()));
+        sb.append("|gaPm=").append(num(team.concededOverall()));
+        if (e.ssForm8Ppg() != null || e.ssForm8GfPm() != null) {
+            sb.append("|f8Ppg=").append(num(e.ssForm8Ppg()));
+            sb.append("|f8GfPm=").append(num(e.ssForm8GfPm()));
+            sb.append("|f8GaPm=").append(num(e.ssForm8GaPm()));
+        }
+        append(sb, "o25%", e.over25Overall());
+        append(sb, "btts%", e.seasonBttsOverall());
         return sb.toString();
     }
 
