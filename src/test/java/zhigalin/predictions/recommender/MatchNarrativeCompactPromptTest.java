@@ -20,6 +20,7 @@ class MatchNarrativeCompactPromptTest {
                 .ssLeadDurations(40.0, 25.0)
                 .ssTiming(22.0, 18.0, 58.0, 51.0, 48.0)
                 .ssForm8(1.75, 1.5, 1.1, 1.2)
+                .xPts(15.52, 14.0, 1.52)
                 .build();
         TeamStatsSnapshot home = new TeamStatsSnapshot(
                 "ARS", 1.8, 2.0, 1.6, 0.9, 0.7, 1.1,
@@ -63,13 +64,17 @@ class MatchNarrativeCompactPromptTest {
         assertTrue(compact.startsWith("M|Arsenal|ARS|home|Man City|MCI|away"));
         assertTrue(compact.contains("TIP|2:1|"));
         assertTrue(compact.contains("MS|2:1|"));
-        assertTrue(compact.contains("SS.HA|ARS|home|100%,2.00,0.40,2.40,50%"));
+        assertTrue(compact.contains("SS.HA|ARS|home|ptsShare%=100%|gfPm=2.00|gaPm=0.40|tgPm=2.40|o25%=50%"));
         assertTrue(compact.contains("SS.HA|MCI|away|"));
-        assertTrue(compact.contains("SS.OV|ARS|all|"));
+        assertTrue(compact.contains("SS.OV|ARS|all|ptsShare%=90%|gfPm=1.90"));
         assertTrue(compact.contains("T.ARS|"));
+        assertTrue(compact.contains("gfPm=1.80/2/1.60"));
         assertTrue(compact.contains("sf%=55"));
         assertTrue(compact.contains("late%=22"));
-        assertTrue(compact.contains("f8=1.75/1.50/1.10/1.20"));
+        assertTrue(compact.contains("f8Ppg=1.75"));
+        assertTrue(compact.contains("f8GfPm=1.50"));
+        assertTrue(compact.contains("f8GaPm=1.10"));
+        assertFalse(compact.contains("|xPts="));
         assertTrue(compact.contains("T.MCI|"));
         assertFalse(compact.contains("{"));
         assertFalse(compact.contains("\"homeTeam\""));

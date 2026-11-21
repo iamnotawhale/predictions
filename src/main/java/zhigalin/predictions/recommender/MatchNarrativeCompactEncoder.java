@@ -86,39 +86,48 @@ final class MatchNarrativeCompactEncoder {
         if (preview == null) {
             return;
         }
-        lines.add(String.join("|",
-                tag,
-                preview.homeCode(),
-                safeScope(preview.homeScope()),
-                cellsOrStats(preview.homeCells(), preview.homeStats())
-        ));
-        lines.add(String.join("|",
-                tag,
-                preview.awayCode(),
-                safeScope(preview.awayScope()),
-                cellsOrStats(preview.awayCells(), preview.awayStats())
-        ));
+        lines.add(previewTeamLine(tag, preview.homeCode(), preview.homeScope(),
+                preview.homeCells(), preview.homeStats()));
+        lines.add(previewTeamLine(tag, preview.awayCode(), preview.awayScope(),
+                preview.awayCells(), preview.awayStats()));
     }
 
-    private static String cellsOrStats(List<String> cells, String stats) {
+    private static String previewTeamLine(
+            String tag,
+            String code,
+            String scope,
+            List<String> cells,
+            String stats
+    ) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(tag).append('|').append(code).append('|').append(safeScope(scope));
         if (cells != null && !cells.isEmpty()) {
-            return String.join(",", cells.stream().map(MatchNarrativeCompactEncoder::esc).toList());
+            String[] keys = metricKeysFor(cells);
+            if (keys != null) {
+                for (int i = 0; i < keys.length; i++) {
+                    sb.append('|').append(keys[i]).append('=').append(esc(cells.get(i)));
+                }
+                return sb.toString();
+            }
+            sb.append('|').append(String.join(",", cells.stream().map(MatchNarrativeCompactEncoder::esc).toList()));
+            return sb.toString();
         }
-        return esc(stats == null ? "" : stats.replace('·', ',').replace("|", "/"));
+        sb.append('|').append(esc(stats == null ? "" : stats.replace('·', ',').replace("|", "/")));
+        return sb.toString();
     }
 
     private static String teamLine(TeamStatsSnapshot team) {
         ExtendedTeamMetrics e = team.extendedOrEmpty();
         StringBuilder sb = new StringBuilder();
         sb.append("T.").append(team.teamCode());
-        sb.append("|s=").append(num(team.scoredOverall())).append('/')
+        sb.append("|gfPm=").append(num(team.scoredOverall())).append('/')
                 .append(num(team.scoredHome())).append('/')
                 .append(num(team.scoredAway()));
-        sb.append("|c=").append(num(team.concededOverall())).append('/')
+        sb.append("|gaPm=").append(num(team.concededOverall())).append('/')
                 .append(num(team.concededHome())).append('/')
                 .append(num(team.concededAway()));
         if (team.xgOverall() != null || team.xgaOverall() != null) {
-            sb.append("|xg=").append(num(team.xgOverall())).append('/')
+            sb.append("|xgPm=").append(num(team.xgOverall())).append('/')
                     .append(num(team.xgaOverall()));
         }
         append(sb, "sf%", e.ssScoredFirstPct());
@@ -129,42 +138,62 @@ final class MatchNarrativeCompactEncoder {
         append(sb, "trail%", e.ssTrailPct());
         append(sb, "eqS%", e.ssEqualiserScoredPct());
         append(sb, "eqC%", e.ssEqualiserConcededPct());
-        append(sb, "ogs%", e.ssOgsPct());
-        append(sb, "ogc%", e.ssOgcPct());
-        append(sb, "avg1st", e.ssAvgFirstGoalMin());
-        append(sb, "favPpg", e.ssFavouritePpg());
         append(sb, "late%", e.ssLateScoredPct());
         append(sb, "lateGA%", e.ssLateConcededPct());
         append(sb, "2hGF%", e.ssSecondHalfGfSharePct());
-        append(sb, "avgGF", e.ssAvgGfMinute());
-        append(sb, "avgGA", e.ssAvgGaMinute());
         if (e.ssForm8Ppg() != null || e.ssForm8GfPm() != null) {
-            sb.append("|f8=").append(num(e.ssForm8Ppg())).append('/')
-                    .append(num(e.ssForm8GfPm())).append('/')
-                    .append(num(e.ssForm8GaPm()));
+            sb.append("|f8Ppg=").append(num(e.ssForm8Ppg()));
+            sb.append("|f8GfPm=").append(num(e.ssForm8GfPm()));
+            sb.append("|f8GaPm=").append(num(e.ssForm8GaPm()));
             if (e.ssForm8OppPpg() != null) {
-                sb.append('/').append(num(e.ssForm8OppPpg()));
+                sb.append("|f8OppPpg=").append(num(e.ssForm8OppPpg()));
             }
         }
-        append(sb, "htPpg", e.htPpg());
-        append(sb, "winHt%", e.winningAtHtPct());
-        append(sb, "2hPpg", e.ssSecondHalfPpg());
         append(sb, "hPpg", e.homePpg());
         append(sb, "aPpg", e.awayPpg());
         append(sb, "btts%", e.seasonBttsOverall());
         append(sb, "cs%", e.seasonCsOverall());
         append(sb, "o25%", e.over25Overall());
-        append(sb, "draw%", e.drawPctOverall());
         if (e.recentXgPerMatch() != null) {
-            sb.append("|rxg=").append(num(e.recentXgPerMatch())).append('/')
+            sb.append("|rxgPm=").append(num(e.recentXgPerMatch())).append('/')
                     .append(num(e.recentXgaPerMatch()));
-            if (e.recentXgSamples() != null) {
-                sb.append('/').append(e.recentXgSamples());
-            }
         }
-        append(sb, "xPts", e.xPts());
-        append(sb, "xPtsD", e.xPtsDelta());
         return sb.toString();
+    }
+
+    private static String[] metricKeysFor(List<String> cells) {
+        if (cells.size() == 5
+                && isPct(cells.get(0)) && isNum(cells.get(1)) && isNum(cells.get(2))
+                && isNum(cells.get(3)) && isPct(cells.get(4))) {
+            return new String[]{"ptsShare%", "gfPm", "gaPm", "tgPm", "o25%"};
+        }
+        if (cells.size() == 3 && isPct(cells.get(0)) && isNum(cells.get(1)) && isNum(cells.get(2))) {
+            return new String[]{"ptsShare%", "gfPm", "gaPm"};
+        }
+        if (cells.size() == 2 && isPct(cells.get(0)) && isNum(cells.get(1))) {
+            return new String[]{"ptsShare%", "gfPm"};
+        }
+        return null;
+    }
+
+    private static boolean isPct(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String c = raw.trim();
+        return c.endsWith("%") && isNum(c.substring(0, c.length() - 1).trim());
+    }
+
+    private static boolean isNum(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        try {
+            Double.parseDouble(raw.trim().replace(',', '.'));
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private static void append(StringBuilder sb, String key, Double value) {

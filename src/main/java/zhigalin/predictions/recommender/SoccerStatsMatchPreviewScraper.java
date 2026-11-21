@@ -172,12 +172,25 @@ public class SoccerStatsMatchPreviewScraper {
                     || c.equalsIgnoreCase("home") || c.equalsIgnoreCase("away")) {
                 continue;
             }
+            if (looksLikeKickoffDate(c)) {
+                continue;
+            }
             parts.add(c);
             if (parts.size() >= 12) {
                 break;
             }
         }
         return List.copyOf(parts);
+    }
+
+    static boolean looksLikeKickoffDate(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        String c = raw.trim();
+        return c.matches("(?i)(Mo|Tu|We|Th|Fr|Sa|Su)\\s+\\d{1,2}\\s+[A-Za-z]{3}.*")
+                || c.matches("\\d{1,2}/\\d{1,2}(/\\d{2,4})?")
+                || c.matches("\\d{1,2}-\\d{1,2}(-\\d{2,4})?");
     }
 
     private static String scopeOf(List<String> cells) {
