@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.ArrayList;
+import java.util.List;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import org.slf4j.Logger;
@@ -33,8 +35,8 @@ public class GroqNarrativeClient {
         try {
             ObjectNode body = MAPPER.createObjectNode();
             body.put("model", modelId());
-            body.put("temperature", 0.55);
-            body.put("max_tokens", 2200);
+            body.put("temperature", 0.45);
+            body.put("max_tokens", 700);
             ArrayNode messages = body.putArray("messages");
             ObjectNode system = messages.addObject();
             system.put("role", "system");
@@ -64,37 +66,108 @@ public class GroqNarrativeClient {
             if (content.isMissingNode() || content.asText().isBlank()) {
                 return new Result(null, false);
             }
-            String text = content.asText().trim();
-            if (text.length() > 3_200) {
-                text = text.substring(0, 3_200);
-            }
-            return new Result(text, false);
+            return new Result(trimToThreeParagraphs(content.asText()), false);
         } catch (Exception e) {
             log.warn("Groq narrative failed: {}", e.getMessage());
             return new Result(null, false);
         }
     }
 
+    static String trimToThreeParagraphs(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return raw;
+        }
+        String[] parts = raw.trim().split("\\n\\s*\\n+");
+        List<String> paras = new ArrayList<>();
+        for (String part : parts) {
+            String p = part.trim();
+            if (!p.isEmpty()) {
+                paras.add(p.replaceAll("[ \\t]+", " "));
+            }
+            if (paras.size() == 3) {
+                break;
+            }
+        }
+        if (paras.isEmpty()) {
+            return raw.trim();
+        }
+        if (paras.size() == 1) {
+            return keepTail(paras.get(0), 1_400);
+        }
+        String joined = String.join("\n\n", paras);
+        if (joined.length() <= 1_400 || paras.size() < 3) {
+            return joined.length() <= 1_400 ? joined : keepTail(joined, 1_400);
+        }
+        String close = paras.get(2);
+        String intro = paras.get(0);
+        int budget = 1_400 - intro.length() - close.length() - 4;
+        if (budget < 40) {
+            return intro + "\n\n" + close;
+        }
+        String form = paras.get(1);
+        if (form.length() > budget) {
+            form = shortenAtSentence(form, budget);
+        }
+        return intro + "\n\n" + form + "\n\n" + close;
+    }
+
+    private static String keepTail(String text, int maxLen) {
+        if (text.length() <= maxLen) {
+            return text;
+        }
+        String tail = text.substring(text.length() - maxLen);
+        int first = indexOfSentenceStart(tail);
+        if (first > 0 && first < tail.length() - 40) {
+            return tail.substring(first).trim();
+        }
+        int sp = tail.indexOf(' ');
+        return (sp > 0 && sp < tail.length() - 20 ? tail.substring(sp + 1) : tail).trim();
+    }
+
+    private static int indexOfSentenceStart(String text) {
+        for (int i = 0; i < text.length() - 1; i++) {
+            char c = text.charAt(i);
+            if ((c == '.' || c == '!' || c == '?') && text.charAt(i + 1) == ' ') {
+                return i + 2;
+            }
+        }
+        return -1;
+    }
+
+    private static String shortenAtSentence(String text, int maxLen) {
+        if (text.length() <= maxLen) {
+            return text;
+        }
+        String cut = text.substring(0, maxLen);
+        int last = Math.max(cut.lastIndexOf(". "), Math.max(cut.lastIndexOf("! "), cut.lastIndexOf("? ")));
+        if (last >= 40) {
+            return cut.substring(0, last + 1).trim();
+        }
+        int sp = cut.lastIndexOf(' ');
+        return (sp > 20 ? cut.substring(0, sp) : cut).trim();
+    }
+
     static final String SYSTEM_PROMPT =
             "Вход — компактный протокол матча (не JSON). Легенда:\n"
                     + "M|homeName|homeCode|home|awayName|awayCode|away\n"
-                    + "TIP|h:a|p=scoreProb|lam=λh/λa  (внутренний ориентир, не цитировать как tip/λ)\n"
-                    + "MS|h:a|p=modelProb|1x2=h/d/a  (внутренний ориентир, не цитировать)\n"
-                    + "SS.HA|code|scope|cell,cell,…  Statistical Preview home/away; "
-                    + "обычно ppg%,gf,ga,tg,o25 (o25=доля матчей с тоталом >2.5, НЕ минуты)\n"
-                    + "SS.OV|code|scope|…  overall preview, те же поля\n"
-                    + "T.code|s=ov/h/a|c=ov/h/a|xg=xg/xga|sf%=scored-first%|cf%=conceded-first%|"
-                    + "lead%|trail%|eqS%|eqC%|ogs%|ogc%|avg1st|favPpg|late%=доля голов 76-90|"
-                    + "lateGA%|2hGF%=доля своих голов во 2 тайме|avgGF|avgGA|"
-                    + "f8=ppg/gf/ga[/oppPpg] форма last8|htPpg|winHt%|2hPpg|hPpg|aPpg|"
-                    + "btts%|cs%|o25%|draw%|rxg=recentXg/xga[/n]|xPts|xPtsD\n"
-                    + "Пиши текстовый Statistical Preview на русском как на SoccerSTATS: "
-                    + "газетный pre-match, 4–6 абзацев. Структура: зацепка; хозяева; гости; "
-                    + "тенденции матча; мягкий финал без ставки и без слов tip/λ/model/1X2/протокол. "
-                    + "Цифры только внутри фраз. Не печатай вход и markdown. "
-                    + "ppg% — доля набранных очков. Коды — полными названиями. "
-                    + "Не выдумывай травмы, составы, авторов голов и точные счёты прошлых игр, "
-                    + "если их нет во входе.";
+                    + "TIP|h:a|… — целевой счёт прогноза (ориентир для заключения)\n"
+                    + "MS|h:a|… — запасной ориентир, если TIP нет\n"
+                    + "SS.HA / SS.OV / T.* — форма и превью; o25%=доля матчей с тоталом >2.5 "
+                    + "(не минуты); f8=форма last8; late%=голы на 76–90\n"
+                    + "Ровно 3 абзаца на русском, без заголовков и markdown, "
+                    + "между абзацами пустая строка:\n"
+                    + "1) Вводная — короткое лирическое описание предстоящего матча "
+                    + "(атмосфера, интрига, характер встречи), без цифр и без прогноза.\n"
+                    + "2) Форма — небольшой текстовый обзор текущей формы хозяев и гостей "
+                    + "по данным входа; 2–4 ключевые цифры максимум, внутри фраз; "
+                    + "ppg%/XX% в SS — доля набранных очков, не процент побед; "
+                    + "не перечисляй все поля протокола.\n"
+                    + "3) Заключение — прогноз: назови вероятный счёт из TIP (иначе MS) "
+                    + "и одной фразой почему; без слов tip/λ/model/1X2/протокол.\n"
+                    + "Коды команд — полными названиями. "
+                    + "Не выдумывай травмы, составы, авторов голов, погоду, стадионы "
+                    + "и точные счёты прошлых игр, если их нет во входе. "
+                    + "Не путай gf с ga.";
 
     private static String apiKey() {
         String key = System.getenv("GROQ_API_KEY");
