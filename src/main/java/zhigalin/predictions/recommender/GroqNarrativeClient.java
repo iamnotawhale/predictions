@@ -36,7 +36,7 @@ public class GroqNarrativeClient {
             ObjectNode body = MAPPER.createObjectNode();
             body.put("model", modelId());
             body.put("temperature", 0.45);
-            body.put("max_tokens", 700);
+            body.put("max_tokens", 1600);
             ArrayNode messages = body.putArray("messages");
             ObjectNode system = messages.addObject();
             system.put("role", "system");
