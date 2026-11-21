@@ -235,6 +235,9 @@ public class MiniAppService {
         if (!matchNarrativeService.isConfigured()) {
             throw new MiniAppException(503, "GROQ_API_KEY не задан на сервере.");
         }
+        if (!matchNarrativeService.tryMarkScheduled(targetWeek)) {
+            return new ActionResponse(true, "Обзор для тура " + targetWeek + " уже запущен");
+        }
         matchNarrativeService.generateForWeekAsync(targetWeek);
         return new ActionResponse(true, "Обзор для тура " + targetWeek + " запущен в фоне");
     }

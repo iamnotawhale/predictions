@@ -100,7 +100,14 @@ public class BettingRecommendationService {
                 return false;
             }
             MatchRecommendationSnapshot row = current.get();
+            if (row.hasKickoffFreeze()) {
+                return false;
+            }
             if (row.recommendedHome() != tipHome || row.recommendedAway() != tipAway) {
+                return false;
+            }
+            Match match = matchService.findById(matchId);
+            if (match == null || !isUpcomingStatus(match.getStatus())) {
                 return false;
             }
             ExplanationBreakdown explanation = row.explanation() != null
@@ -110,6 +117,14 @@ public class BettingRecommendationService {
             statsDao.saveRecommendations(List.of(updated));
             return true;
         }
+    }
+
+    private static boolean isUpcomingStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return false;
+        }
+        String s = status.trim().toLowerCase();
+        return "ns".equals(s) || "pst".equals(s) || "tbd".equals(s);
     }
 
     private int joinRefresh(CompletableFuture<Integer> future, int weekId) {
@@ -158,7 +173,6 @@ public class BettingRecommendationService {
             }
             statsDao.replaceTeamStats(weekId, teams);
             statsDao.saveLeagueSnapshot(snapshot.leagueForWeek(weekId));
-            statsDao.deleteUnfrozenRecommendationsForWeek(weekId);
             java.util.Set<Integer> frozenIds = statsDao.findFrozenMatchPublicIds(weekId);
 
             List<Match> matches = matchService.findAllByWeekId(weekId);
@@ -192,6 +206,7 @@ public class BettingRecommendationService {
                 }
                 toStore.add(row);
             }
+            statsDao.deleteUnfrozenRecommendationsForWeek(weekId);
             statsDao.saveRecommendations(toStore);
             log.info(
                     "Betting recommender refreshed for week {} ({} recomputed, {} frozen / {} matches)",

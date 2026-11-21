@@ -65,6 +65,8 @@ public class MatchNarrativeService {
             generateForWeek(weekId);
         } catch (Exception e) {
             log.warn("Groq narrative job failed for week {}: {}", weekId, e.getMessage());
+        } finally {
+            scheduledWeeks.remove(weekId);
         }
     }
 
@@ -159,7 +161,7 @@ public class MatchNarrativeService {
     private static boolean isUpcoming(Match match) {
         String status = match.getStatus();
         if (status == null || status.isBlank()) {
-            return true;
+            return false;
         }
         String s = status.trim().toLowerCase();
         return "ns".equals(s) || "pst".equals(s) || "tbd".equals(s);
