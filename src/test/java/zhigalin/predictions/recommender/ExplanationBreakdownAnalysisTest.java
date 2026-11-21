@@ -53,4 +53,17 @@ class ExplanationBreakdownAnalysisTest {
         ExplanationBreakdown withDist = base.withDistribution(ScoreDistribution.empty());
         assertEquals("проза", withDist.analysis());
     }
+
+    @Test
+    void withMethodsPreserveModelScoreAndLegacyJsonOmitsItAsNull() throws Exception {
+        ExplanationBreakdown.ModelScore model = new ExplanationBreakdown.ModelScore(
+                2, 1, 0.11, 0.48, 0.27, 0.25
+        );
+        ExplanationBreakdown base = new ExplanationBreakdown(List.of(), List.of("n"), null, null, model);
+        assertEquals(model, base.withDistribution(ScoreDistribution.empty()).modelScore());
+        assertEquals(model, base.withAnalysis("a").modelScore());
+        String json = mapper.writeValueAsString(new ExplanationBreakdown(List.of(), List.of(), null, null));
+        ExplanationBreakdown parsed = mapper.readValue(json, ExplanationBreakdown.class);
+        assertNull(parsed.modelScore());
+    }
 }

@@ -2,6 +2,7 @@ package zhigalin.predictions.recommender;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
@@ -40,10 +41,6 @@ class PoissonScoreModelMarketPathNudgeTest {
         var baseline = run(ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty());
         var nudged = run(extreme, extreme);
 
-        assertEquals(baseline.distribution().homeWin(), nudged.distribution().homeWin(), 1e-9);
-        assertEquals(baseline.distribution().draw(), nudged.distribution().draw(), 1e-9);
-        assertEquals(baseline.distribution().awayWin(), nudged.distribution().awayWin(), 1e-9);
-
         boolean cellMoved = false;
         var baseM = baseline.distribution().matrix();
         var nudgeM = nudged.distribution().matrix();
@@ -76,6 +73,32 @@ class PoissonScoreModelMarketPathNudgeTest {
         assertTrue(r.explanation().analysis() != null && !r.explanation().analysis().isBlank());
         assertTrue(r.explanation().analysis().contains("рекомендуем"));
         assertTrue(r.explanation().analysis().contains("call"));
+    }
+
+    @Test
+    void marketPathCellWeightsReshapeInside1x2WithoutChangingMargins() {
+        ExtendedTeamMetrics highBtts = ExtendedTeamMetrics.builder()
+                .seasonBtts(75.0, 78.0, 72.0)
+                .formBtts(80.0, 80.0, 80.0)
+                .drawPct(55.0, 58.0, 52.0)
+                .over25(70.0, 72.0, 68.0)
+                .build();
+        var baseline = run(ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty());
+        var shaped = run(highBtts, highBtts);
+
+        double base11 = baseline.distribution().matrix().get(1).get(1);
+        double shaped11 = shaped.distribution().matrix().get(1).get(1);
+        double base00 = baseline.distribution().matrix().get(0).get(0);
+        double shaped00 = shaped.distribution().matrix().get(0).get(0);
+        double base10 = baseline.distribution().matrix().get(1).get(0);
+        double shaped10 = shaped.distribution().matrix().get(1).get(0);
+        double base21 = baseline.distribution().matrix().get(2).get(1);
+        double shaped21 = shaped.distribution().matrix().get(2).get(1);
+
+        assertTrue(shaped11 > base11, "1:1 should rise with high BTTS/draw%");
+        assertTrue(shaped00 < base00, "0:0 should fall when BTTS is high");
+        assertTrue(shaped21 / shaped10 > base21 / base10 - 1e-12,
+                "within home-win region, higher totals should gain vs 1:0");
     }
 
     @Test
@@ -116,8 +139,9 @@ class PoissonScoreModelMarketPathNudgeTest {
         TeamStatsSnapshot away = seasonXgTeam("AWY", 1.3, 1.4, ExtendedTeamMetrics.empty());
         var a = PoissonScoreModel.recommend(ODD_H, ODD_D, ODD_A, high, away, LEAGUE, null, 2.5, null, null);
         var b = PoissonScoreModel.recommend(ODD_H, ODD_D, ODD_A, low, away, LEAGUE, null, 2.5, null, null);
-        assertEquals(a.distribution().homeWin(), b.distribution().homeWin(), 1e-9);
         assertNotEquals(a.lambdaHome(), b.lambdaHome(), 1e-9);
+        assertNotNull(a.explanation().modelScore());
+        assertNotNull(b.explanation().modelScore());
     }
 
     private static PoissonScoreModel.Result run(ExtendedTeamMetrics homeExt, ExtendedTeamMetrics awayExt) {

@@ -3390,6 +3390,9 @@
         const section = $('#modal-recommendation-section');
         const summaryEl = $('#modal-recommendation-summary');
         const scoreEl = $('#modal-recommendation-score');
+        const modelLineEl = $('#modal-recommendation-model');
+        const modelWrap = $('#modal-recommendation-model-score-wrap');
+        const modelScoreEl = $('#modal-recommendation-model-score');
         if (!section || !summaryEl || !scoreEl) return;
 
         const enabled = state.profile && state.profile.bettingRecommenderEnabled;
@@ -3403,14 +3406,38 @@
         }
 
         section.classList.remove('hidden');
-        const score = recommendation.recommendedHome + ':' + recommendation.recommendedAway;
-        scoreEl.textContent = score;
+        scoreEl.textContent = recommendation.recommendedHome + ':' + recommendation.recommendedAway;
         const lambda = 'λ '
             + Number(recommendation.expectedHomeGoals).toFixed(1)
             + ' : '
             + Number(recommendation.expectedAwayGoals).toFixed(1);
         const tipPct = Math.round(Number(recommendation.scoreProbability || 0) * 100);
         summaryEl.textContent = lambda + ' · tip ' + tipPct + '% · открыть матрицу';
+
+        const hasModel = recommendation.modelHome != null && recommendation.modelAway != null;
+        if (modelWrap && modelScoreEl) {
+            if (hasModel) {
+                modelWrap.classList.remove('hidden');
+                modelScoreEl.textContent = recommendation.modelHome + ':' + recommendation.modelAway;
+            } else {
+                modelWrap.classList.add('hidden');
+            }
+        }
+        if (modelLineEl) {
+            if (hasModel
+                && recommendation.modelHomeWin != null
+                && recommendation.modelDraw != null
+                && recommendation.modelAwayWin != null) {
+                modelLineEl.classList.remove('hidden');
+                modelLineEl.textContent = 'Модель 1X2 '
+                    + Math.round(Number(recommendation.modelHomeWin) * 100) + '/'
+                    + Math.round(Number(recommendation.modelDraw) * 100) + '/'
+                    + Math.round(Number(recommendation.modelAwayWin) * 100) + '%';
+            } else {
+                modelLineEl.classList.add('hidden');
+                modelLineEl.textContent = '';
+            }
+        }
     }
 
     const AI_STAT_METRICS = ['Ожидаемые голы', 'Шанс победы', 'Атака', 'Оборона', 'xG / матч', 'Форма'];
@@ -3993,6 +4020,17 @@
                     { key: 'btts', label: 'ОЗ', value: fmtStatPct(stats.bttsPct), tip: 'Обе забьют — доля матчей' },
                     { key: 'cs', label: 'СМ %', value: fmtStatPct(stats.csPct), tip: 'Сухие матчи — доля игр без пропущенных' },
                     { key: 'csc', label: 'Сухие', value: stats.cleanSheets != null ? String(stats.cleanSheets) : null, tip: 'Число сухих матчей' }
+                ]
+            },
+            {
+                title: 'Игровой сценарий',
+                cells: [
+                    { key: 'sf', label: 'Откр.%', value: fmtStatPct(stats.scoredFirstPct), tip: 'Доля матчей сезона, где команда открыла счёт' },
+                    { key: 'lead', label: 'Лидер %', value: fmtStatPct(stats.leadPct), tip: 'Доля времени сезона, проведённая впереди' },
+                    { key: 'trail', label: 'Отст.%', value: fmtStatPct(stats.trailPct), tip: 'Доля времени сезона, проведённая позади' },
+                    { key: 'eqs', label: 'Эквал.заб', value: fmtStatPct(stats.equaliserScoredPct), tip: 'Доля случаев, когда команда сравнивала счёт' },
+                    { key: 'eqc', label: 'Эквал.пр', value: fmtStatPct(stats.equaliserConcededPct), tip: 'Доля случаев, когда соперник сравнивал счёт' },
+                    { key: 'fgm', label: '1-й гол\'', value: fmtStatNum(stats.avgFirstGoalMin), tip: 'Средняя минута первого гола команды в матчах сезона' }
                 ]
             },
             {

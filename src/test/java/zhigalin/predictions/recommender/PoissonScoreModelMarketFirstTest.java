@@ -1,6 +1,9 @@
 package zhigalin.predictions.recommender;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
@@ -34,20 +37,29 @@ class PoissonScoreModelMarketFirstTest {
     }
 
     @Test
-    void outcomeProbabilitiesEqualTheDeViggedMarket() {
+    void outcomeProbabilitiesAreSoftBlendOfModelAndMarket() {
         var r = run(1.60, 4.10, 5.50, team("H", 1.8, 1.0, 1.5, 1.2), team("A", 1.1, 1.5, 0.9, 1.7), 2.5);
         double[] m = market(1.60, 4.10, 5.50);
-        assertEquals(m[0], r.distribution().homeWin(), 1e-6);
-        assertEquals(m[1], r.distribution().draw(), 1e-6);
-        assertEquals(m[2], r.distribution().awayWin(), 1e-6);
+        var model = r.explanation().modelScore();
+        assertNotNull(model);
+        double targetH = 0.60 * model.homeWin() + 0.40 * m[0];
+        double targetD = 0.60 * model.draw() + 0.40 * m[1];
+        double targetA = 0.60 * model.awayWin() + 0.40 * m[2];
+        double sum = targetH + targetD + targetA;
+        assertEquals(targetH / sum, r.distribution().homeWin(), 1e-6);
+        assertEquals(targetD / sum, r.distribution().draw(), 1e-6);
+        assertEquals(targetA / sum, r.distribution().awayWin(), 1e-6);
     }
 
     @Test
-    void teamStatsDoNotChangeWhoIsLikelyToWin() {
+    void teamStatsCanMoveSoftBlended1x2AwayFromPureMarket() {
         var strongStats = run(2.40, 3.30, 3.00, team("H", 2.6, 0.6, 2.2, 0.8), team("A", 0.7, 2.0, 0.5, 2.2), 2.5);
         var weakStats = run(2.40, 3.30, 3.00, team("H", 0.7, 2.0, 0.5, 2.2), team("A", 2.6, 0.6, 2.2, 0.8), 2.5);
-        assertEquals(strongStats.distribution().homeWin(), weakStats.distribution().homeWin(), 1e-6);
-        assertEquals(strongStats.distribution().awayWin(), weakStats.distribution().awayWin(), 1e-6);
+        assertNotEquals(
+                strongStats.distribution().homeWin(), weakStats.distribution().homeWin(), 1e-6);
+        assertEquals(
+                strongStats.shadowHome() + ":" + strongStats.shadowAway(),
+                weakStats.shadowHome() + ":" + weakStats.shadowAway());
     }
 
     @Test
@@ -89,10 +101,11 @@ class PoissonScoreModelMarketFirstTest {
     }
 
     @Test
-    void explanationSaysTheForecastIsMarketBased() {
+    void explanationSaysTheForecastBlendsStatsAndMarket() {
         var r = run(2.20, 3.40, 3.30, team("H", 1.5, 1.3, 1.3, 1.4), team("A", 1.5, 1.3, 1.3, 1.4), 2.5);
         List<String> lines = r.explanationLines();
-        assertTrue(lines.stream().anyMatch(l -> l.contains("коэффициенты букмекеров")));
+        assertTrue(lines.stream().anyMatch(l -> l.contains("смесь модели") && l.contains("рынка")));
+        assertNotNull(r.explanation().modelScore());
     }
 
     @Test
@@ -101,6 +114,7 @@ class PoissonScoreModelMarketFirstTest {
                 team("H", 1.8, 1.0, 1.5, 1.2), team("A", 1.1, 1.5, 0.9, 1.7), LEAGUE, null, null, null, null);
         assertTrue(r.distribution().hasMatrix());
         assertEquals(1.0, r.distribution().homeWin() + r.distribution().draw() + r.distribution().awayWin(), 1e-6);
-        assertTrue(r.explanationLines().stream().noneMatch(l -> l.contains("коэффициенты букмекеров; статистика")));
+        assertTrue(r.explanationLines().stream().noneMatch(l -> l.contains("Основа прогноза")));
+        assertNull(r.explanation().modelScore());
     }
 }

@@ -56,6 +56,28 @@ class MarketScoreMatrixTest {
     }
 
     @Test
+    void dixonColesNegativeRhoLiftsLowDrawsAndCutsNarrowWins() {
+        double[][] raw = MarketScoreMatrix.poisson(1.4, 1.2, 5);
+        double[][] dc = MarketScoreMatrix.dixonColes(raw, 1.4, 1.2, -0.13);
+        assertEquals(1.0, sum(dc), 1e-12);
+        assertTrue(dc[0][0] > raw[0][0]);
+        assertTrue(dc[1][1] > raw[1][1]);
+        assertTrue(dc[1][0] < raw[1][0]);
+        assertTrue(dc[0][1] < raw[0][1]);
+    }
+
+    @Test
+    void blendOutcomesIsConvexCombinationNormalized() {
+        var model = new PoissonScoreModel.MarketOutcome(0.50, 0.30, 0.20);
+        var market = new PoissonScoreModel.MarketOutcome(0.40, 0.30, 0.30);
+        var soft = MarketScoreMatrix.blendOutcomes(model, market, 0.60);
+        assertEquals(0.60 * 0.50 + 0.40 * 0.40, soft.homeWin(), 1e-12);
+        assertEquals(0.60 * 0.30 + 0.40 * 0.30, soft.draw(), 1e-12);
+        assertEquals(0.60 * 0.20 + 0.40 * 0.30, soft.awayWin(), 1e-12);
+        assertEquals(1.0, soft.homeWin() + soft.draw() + soft.awayWin(), 1e-12);
+    }
+
+    @Test
     void calibrationReproducesTheMarketExactlyAndKeepsTheShapeInsideEachOutcome() {
         double[][] raw = MarketScoreMatrix.poisson(1.4, 1.2, 5);
         PoissonScoreModel.MarketOutcome market = new PoissonScoreModel.MarketOutcome(0.50, 0.30, 0.20);

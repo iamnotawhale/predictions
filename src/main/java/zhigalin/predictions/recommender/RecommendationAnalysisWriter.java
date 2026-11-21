@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import zhigalin.predictions.recommender.PoissonScoreModel.MarketOutcome;
+import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
 import zhigalin.predictions.recommender.model.ScoreDistribution;
 import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
@@ -27,6 +28,7 @@ final class RecommendationAnalysisWriter {
             double lambdaAway,
             ScoreDistribution distribution,
             MarketOutcome market,
+            ExplanationBreakdown.ModelScore modelScore,
             TeamStatsSnapshot home,
             TeamStatsSnapshot away,
             ExtendedTeamMetrics homeExt,
@@ -34,11 +36,23 @@ final class RecommendationAnalysisWriter {
             H2hStats h2h,
             double thinSample
     ) {
-        List<String> paragraphs = new ArrayList<>(4);
+        List<String> paragraphs = new ArrayList<>(5);
         paragraphs.add(hookParagraph(
                 homeCode, awayCode, tipHome, tipAway, tipProb, expectedPoints,
                 mostLikelyHome, mostLikelyAway, mostLikelyProb
         ));
+        if (modelScore != null) {
+            paragraphs.add(String.format(
+                    Locale.US,
+                    "Модель (до мягкой подгонки к рынку): %d:%d (≈ %.0f%%) · П1 %.0f%% · X %.0f%% · П2 %.0f%%.",
+                    modelScore.home(),
+                    modelScore.away(),
+                    modelScore.probability() * 100,
+                    modelScore.homeWin() * 100,
+                    modelScore.draw() * 100,
+                    modelScore.awayWin() * 100
+            ));
+        }
         paragraphs.add(leanParagraph(homeCode, awayCode, lambdaHome, lambdaAway, distribution, market));
         String contrast = contrastParagraph(homeCode, awayCode, home, away, homeExt, awayExt, thinSample);
         if (contrast != null) {
@@ -123,7 +137,7 @@ final class RecommendationAnalysisWriter {
                 lean
         );
         if (market != null) {
-            return base + " Исход 1X2 опирается на рынок; статистика лишь уточняет форму счёта.";
+            return base + " Итоговый 1X2 — смесь модели (60%) и рынка (40%); tip для игры считает ожидаемые очки EPL.";
         }
         return base;
     }

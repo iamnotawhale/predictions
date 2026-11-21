@@ -28,8 +28,12 @@ public final class PoissonScoreModel {
     private static final double DEFAULT_AWAY_AVG = 1.25;
     /** P(over line) assumed for a typical bookmaker total line (over-2.5 averaged 0.566 over 3 seasons). */
     private static final double TYPICAL_OVER_PROBABILITY = 0.566;
-    /** Max share of the team-stats goal rates blended into the market-fitted rates (shape only, not who wins). */
-    private static final double STATS_SHAPE_WEIGHT = 0.15;
+    /** Share of team-stats λ blended into market-fitted rates on the market path (thin sample reduces it). */
+    private static final double STATS_SHAPE_WEIGHT = 0.50;
+    /** Weight of pre-calibration model 1X2 vs bookmaker when soft-blending margins for the game tip. */
+    private static final double SOFT_1X2_STATS_WEIGHT = 0.60;
+    /** Dixon–Coles ρ for low-score correction (negative lifts 0-0 / 1-1). */
+    private static final double DIXON_COLES_RHO = -0.13;
 
     private PoissonScoreModel() {
     }
@@ -160,10 +164,10 @@ public final class PoissonScoreModel {
         double blendedAway;
         Integer shadowHome = null;
         Integer shadowAway = null;
+        ExplanationBreakdown.ModelScore modelScore = null;
         double[][] matrix = new double[MAX_GOALS + 1][MAX_GOALS + 1];
         double total = 0;
         if (market != null) {
-            // Market first: odds decide who is likely to win, the stats only shape the scoreline.
             double leagueTotal = Math.max(2.5, Math.min(3.3, leagueHome + leagueAway));
             double totalTarget = leagueTotal;
             if (matchOverUnder != null && matchOverUnder > 0) {
@@ -171,7 +175,6 @@ public final class PoissonScoreModel {
                         + 0.5 * MarketScoreMatrix.totalMeanForOver(matchOverUnder, TYPICAL_OVER_PROBABILITY);
             }
             MarketScoreMatrix.Lambdas fit = MarketScoreMatrix.fit(market, totalTarget);
-            // Shadow pick: pure market (no stats/xG reshaping), logged to compare with the final tip later.
             ScorePicker.Pick shadow = ScorePicker.bestByExpectedPoints(
                     MarketScoreMatrix.calibrated(fit.home(), fit.away(), market, MAX_GOALS));
             shadowHome = shadow.home();
@@ -185,7 +188,30 @@ public final class PoissonScoreModel {
             double w = STATS_SHAPE_WEIGHT * (1.0 - 0.6 * thinSample);
             blendedHome = clampLambda((1 - w) * fit.home() + w * statsHome);
             blendedAway = clampLambda((1 - w) * fit.away() + w * statsAway);
-            matrix = MarketScoreMatrix.calibrated(blendedHome, blendedAway, market, MAX_GOALS);
+            matrix = MarketScoreMatrix.poisson(blendedHome, blendedAway, MAX_GOALS);
+            matrix = MarketScoreMatrix.dixonColes(matrix, blendedHome, blendedAway, DIXON_COLES_RHO);
+            for (int homeGoals = 0; homeGoals <= MAX_GOALS; homeGoals++) {
+                for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
+                    matrix[homeGoals][awayGoals] *= scoreWeight(
+                            homeGoals, awayGoals, home, away, homeExt, awayExt, thinSample);
+                    matrix[homeGoals][awayGoals] *= soccerStatsScoreWeight(
+                            homeGoals, awayGoals, homeExt, awayExt, thinSample);
+                }
+            }
+            matrix = MarketScoreMatrix.normalize(matrix);
+            MarketOutcome model1x2 = MarketScoreMatrix.outcomeFromMatrix(matrix);
+            ScorePicker.Pick modelPick = ScorePicker.mostLikely(matrix);
+            modelScore = new ExplanationBreakdown.ModelScore(
+                    modelPick.home(),
+                    modelPick.away(),
+                    modelPick.probability(),
+                    model1x2.homeWin(),
+                    model1x2.draw(),
+                    model1x2.awayWin()
+            );
+            MarketOutcome softTarget = MarketScoreMatrix.blendOutcomes(
+                    model1x2, market, SOFT_1X2_STATS_WEIGHT);
+            matrix = MarketScoreMatrix.calibrateTo1x2(matrix, softTarget);
             total = 1.0;
         } else {
             MarketLambdas marketLambdas = marketLambdas(market, leagueHome, leagueAway);
@@ -227,6 +253,7 @@ public final class PoissonScoreModel {
                 double pHome = poisson(homeGoals, blendedHome);
                 for (int awayGoals = 0; awayGoals <= MAX_GOALS; awayGoals++) {
                     double joint = pHome * poisson(awayGoals, blendedAway);
+                    joint *= dixonColesTau(homeGoals, awayGoals, blendedHome, blendedAway);
                     joint *= scoreWeight(homeGoals, awayGoals, home, away, homeExt, awayExt, thinSample);
                     joint *= soccerStatsScoreWeight(homeGoals, awayGoals, homeExt, awayExt, thinSample);
                     if (market != null) {
@@ -305,6 +332,9 @@ public final class PoissonScoreModel {
                 pick.probability(),
                 pick.expectedPoints()
         ).withDistribution(distribution);
+        if (modelScore != null) {
+            explanation = explanation.withModelScore(modelScore);
+        }
         if (market != null) {
             explanation = withMarketNote(explanation);
         }
@@ -322,6 +352,7 @@ public final class PoissonScoreModel {
                 blendedAway,
                 distribution,
                 market,
+                modelScore,
                 home,
                 away,
                 homeExt,
@@ -482,13 +513,30 @@ public final class PoissonScoreModel {
 
     private static ExplanationBreakdown withMarketNote(ExplanationBreakdown explanation) {
         List<String> notes = new ArrayList<>(explanation.notes());
-        notes.add(0, "Основа прогноза — коэффициенты букмекеров; статистика команд лишь уточняет форму счёта");
+        notes.add(0, "Основа прогноза — смесь модели (60%) и рынка (40%) по 1X2; tip для игры — max ожидаемых очков");
         return new ExplanationBreakdown(
                 explanation.rows(),
                 notes,
                 explanation.distribution(),
-                explanation.analysis()
+                explanation.analysis(),
+                explanation.modelScore()
         );
+    }
+
+    private static double dixonColesTau(int homeGoals, int awayGoals, double lambdaHome, double lambdaAway) {
+        if (homeGoals == 0 && awayGoals == 0) {
+            return 1.0 - lambdaHome * lambdaAway * DIXON_COLES_RHO;
+        }
+        if (homeGoals == 0 && awayGoals == 1) {
+            return 1.0 + lambdaHome * DIXON_COLES_RHO;
+        }
+        if (homeGoals == 1 && awayGoals == 0) {
+            return 1.0 + lambdaAway * DIXON_COLES_RHO;
+        }
+        if (homeGoals == 1 && awayGoals == 1) {
+            return 1.0 - DIXON_COLES_RHO;
+        }
+        return 1.0;
     }
 
     static Double mixRecentXg(Double seasonRate, Double recentRate, Integer recentSamples) {

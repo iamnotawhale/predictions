@@ -3,6 +3,7 @@ package zhigalin.predictions.recommender;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.predict.ScoringMode;
 
@@ -48,6 +49,22 @@ public final class RecommendationInsight {
             double expectedAway,
             boolean marketBased
     ) {
+        return build(matrix, pickHome, pickAway, expectedHome, expectedAway, marketBased,
+                ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty(), null, null);
+    }
+
+    public static Insight build(
+            double[][] matrix,
+            int pickHome,
+            int pickAway,
+            double expectedHome,
+            double expectedAway,
+            boolean marketBased,
+            ExtendedTeamMetrics homeExt,
+            ExtendedTeamMetrics awayExt,
+            String homeCode,
+            String awayCode
+    ) {
         Scoring scoring = new Scoring(
                 points(1, 0, 1, 0), points(2, 1, 1, 0), points(2, 0, 1, 0), points(0, 1, 1, 0));
         int n = matrix.length;
@@ -76,7 +93,10 @@ public final class RecommendationInsight {
         ModeScore mode = new ModeScore(mh, ma, matrix[mh][ma], modeEv);
         return new Insight(
                 scoring, breakdown, pickEv, pick.pointsChance(), mode,
-                reasons(matrix, pickHome, pickAway, pick, pickEv, mode, expectedHome, expectedAway, marketBased));
+                reasons(matrix, pickHome, pickAway, pick, pickEv, mode, expectedHome, expectedAway, marketBased,
+                        homeExt != null ? homeExt : ExtendedTeamMetrics.empty(),
+                        awayExt != null ? awayExt : ExtendedTeamMetrics.empty(),
+                        homeCode, awayCode));
     }
 
     static Tiers tiers(double[][] matrix, int ph, int pa) {
@@ -112,7 +132,9 @@ public final class RecommendationInsight {
 
     private static List<String> reasons(
             double[][] m, int ph, int pa, Tiers pick, double pickEv, ModeScore mode,
-            double expectedHome, double expectedAway, boolean marketBased
+            double expectedHome, double expectedAway, boolean marketBased,
+            ExtendedTeamMetrics homeExt, ExtendedTeamMetrics awayExt,
+            String homeCode, String awayCode
     ) {
         double home = 0;
         double draw = 0;
@@ -132,31 +154,137 @@ public final class RecommendationInsight {
                 }
             }
         }
-        List<String> out = new ArrayList<>();
-        if (marketBased) {
-            out.add(String.format(Locale.US, "Букмекеры: победа хозяев %s, ничья %s, победа гостей %s.",
-                    pct(home), pct(draw), pct(away)));
+        String marketLine = marketBased
+                ? String.format(Locale.US, "Букмекеры: победа хозяев %s, ничья %s, победа гостей %s.",
+                pct(home), pct(draw), pct(away))
+                : String.format(Locale.US,
+                "Коэффициентов пока нет — прогноз только по статистике (хозяева %s, ничья %s, гости %s). Он менее надёжен.",
+                pct(home), pct(draw), pct(away));
+        String goalsLine = String.format(Locale.US, "Ждём около %.1f : %.1f гола, тотал больше 2.5 — %s.",
+                expectedHome, expectedAway, pct(over25));
+        String scoreLine = (mode.home() == ph && mode.away() == pa)
+                ? String.format(Locale.US,
+                "%d:%d — самый вероятный счёт (%s) и он же приносит больше всего очков.",
+                ph, pa, pct(pick.exact()))
+                : String.format(Locale.US,
+                "Самый вероятный счёт %d:%d (%s), но %d:%d выгоднее: в среднем %.2f очка против %.2f — "
+                        + "чаще попадает хотя бы в исход или разницу голов.",
+                mode.home(), mode.away(), pct(mode.probability()), ph, pa, pickEv, mode.expectedPoints());
+
+        String ssLine = soccerStatsContrast(homeExt, awayExt, homeCode, awayCode);
+        boolean pickIsMode = mode.home() == ph && mode.away() == pa;
+
+        List<String> out = new ArrayList<>(3);
+        out.add(marketLine);
+        if (ssLine != null) {
+            out.add(ssLine);
+            if (pickIsMode) {
+                out.add(goalsLine);
+            } else {
+                out.add(scoreLine);
+            }
         } else {
-            out.add(String.format(Locale.US,
-                    "Коэффициентов пока нет — прогноз только по статистике (хозяева %s, ничья %s, гости %s). Он менее надёжен.",
-                    pct(home), pct(draw), pct(away)));
-        }
-        out.add(String.format(Locale.US, "Ждём около %.1f : %.1f гола, тотал больше 2.5 — %s.",
-                expectedHome, expectedAway, pct(over25)));
-        if (mode.home() == ph && mode.away() == pa) {
-            out.add(String.format(Locale.US,
-                    "%d:%d — самый вероятный счёт (%s) и он же приносит больше всего очков.",
-                    ph, pa, pct(pick.exact())));
-        } else {
-            out.add(String.format(Locale.US,
-                    "Самый вероятный счёт %d:%d (%s), но %d:%d выгоднее: в среднем %.2f очка против %.2f — "
-                            + "чаще попадает хотя бы в исход или разницу голов.",
-                    mode.home(), mode.away(), pct(mode.probability()), ph, pa, pickEv, mode.expectedPoints()));
+            out.add(goalsLine);
+            out.add(scoreLine);
         }
         return out;
     }
 
+    static String soccerStatsContrast(
+            ExtendedTeamMetrics homeExt,
+            ExtendedTeamMetrics awayExt,
+            String homeCode,
+            String awayCode
+    ) {
+        if (homeCode == null || homeCode.isBlank() || awayCode == null || awayCode.isBlank()) {
+            return null;
+        }
+        String home = homeCode.trim().toUpperCase(Locale.ROOT);
+        String away = awayCode.trim().toUpperCase(Locale.ROOT);
+
+        Cand best = null;
+
+        Double hOpen = openingPct(homeExt);
+        Double aOpen = openingPct(awayExt);
+        best = better(best, percentCand(hOpen, aOpen, home, away,
+                "чаще открывает счёт в матчах сезона"));
+
+        best = better(best, percentCand(homeExt.ssLeadPct(), awayExt.ssLeadPct(), home, away,
+                "дольше ведёт в счёте по сезону"));
+
+        best = better(best, percentCand(homeExt.ssEqualiserScoredPct(), awayExt.ssEqualiserScoredPct(), home, away,
+                "чаще сравнивает счёт в матчах сезона"));
+
+        if (best == null || best.score() < 1.0) {
+            best = better(best, minuteCand(homeExt.ssAvgFirstGoalMin(), awayExt.ssAvgFirstGoalMin(), home, away));
+        }
+
+        return best != null && best.score() >= 1.0 ? best.text() : null;
+    }
+
+    private static Double openingPct(ExtendedTeamMetrics ext) {
+        if (ext.ssScoredFirstPct() != null) {
+            return ext.ssScoredFirstPct();
+        }
+        return ext.ssOgsPct();
+    }
+
+    private static Cand better(Cand cur, Cand next) {
+        if (next == null) {
+            return cur;
+        }
+        if (cur == null || next.score() > cur.score()) {
+            return next;
+        }
+        return cur;
+    }
+
+    private static Cand percentCand(Double home, Double away, String homeCode, String awayCode, String verb) {
+        if (home == null || away == null) {
+            return null;
+        }
+        double gap = Math.abs(home - away);
+        double score = gap / 12.0;
+        if (score < 1.0) {
+            return null;
+        }
+        boolean homeHigher = home >= away;
+        String lead = homeHigher ? homeCode : awayCode;
+        double leadV = homeHigher ? home : away;
+        double otherV = homeHigher ? away : home;
+        String text = String.format(Locale.US,
+                "%s %s (%s против %s).",
+                lead, verb, pctPoints(leadV), pctPoints(otherV));
+        return new Cand(score, text);
+    }
+
+    private static Cand minuteCand(Double home, Double away, String homeCode, String awayCode) {
+        if (home == null || away == null) {
+            return null;
+        }
+        double gap = Math.abs(home - away);
+        double score = gap / 8.0;
+        if (score < 1.0) {
+            return null;
+        }
+        boolean homeEarlier = home <= away;
+        String lead = homeEarlier ? homeCode : awayCode;
+        double leadV = homeEarlier ? home : away;
+        double otherV = homeEarlier ? away : home;
+        String text = String.format(Locale.US,
+                "%s раньше открывает счёт в среднем (%.0f' против %.0f').",
+                lead, leadV, otherV);
+        return new Cand(score, text);
+    }
+
+    private record Cand(double score, String text) {
+    }
+
     private static String pct(double p) {
         return String.format(Locale.US, "%.0f%%", p * 100);
+    }
+
+    private static String pctPoints(double points) {
+        return String.format(Locale.US, "%.0f%%", points);
     }
 }

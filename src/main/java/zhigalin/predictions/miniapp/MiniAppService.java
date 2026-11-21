@@ -312,8 +312,10 @@ public class MiniAppService {
             return null;
         }
         bettingRecommendationService.ensureCurrentWeekRecommendations();
+        String home = homeCode.toUpperCase();
+        String away = awayCode.toUpperCase();
         return bettingRecommendationService.recommendationForMatch(match.getId())
-                .map(this::toRecommendationResponse)
+                .map(s -> toRecommendationResponse(s, home, away))
                 .orElse(null);
     }
 
@@ -360,7 +362,11 @@ public class MiniAppService {
                 .toList();
     }
 
-    private MatchRecommendationResponse toRecommendationResponse(MatchRecommendationSnapshot snapshot) {
+    private MatchRecommendationResponse toRecommendationResponse(
+            MatchRecommendationSnapshot snapshot,
+            String homeCode,
+            String awayCode
+    ) {
         var explanation = snapshot.explanation() != null
                 ? snapshot.explanation()
                 : ExplanationBreakdown.empty();
@@ -369,12 +375,21 @@ public class MiniAppService {
                 .toList();
         List<String> notes = explanation.notes() != null ? explanation.notes() : List.of();
         ScoreDistributionDto distribution = toDistributionDto(explanation.distribution());
+        ExtendedTeamMetrics homeExt = teamExtendedMetrics(homeCode);
+        ExtendedTeamMetrics awayExt = teamExtendedMetrics(awayCode);
+        var model = explanation.modelScore();
         return new MatchRecommendationResponse(
                 snapshot.recommendedHome(),
                 snapshot.recommendedAway(),
                 snapshot.expectedHome(),
                 snapshot.expectedAway(),
                 snapshot.scoreProbability(),
+                model != null ? model.home() : null,
+                model != null ? model.away() : null,
+                model != null ? model.probability() : null,
+                model != null ? model.homeWin() : null,
+                model != null ? model.draw() : null,
+                model != null ? model.awayWin() : null,
                 rows,
                 notes,
                 snapshot.explanationLines(),
@@ -387,11 +402,27 @@ public class MiniAppService {
                         snapshot.recommendedAway(),
                         snapshot.expectedHome(),
                         snapshot.expectedAway(),
-                        notes.stream().anyMatch(n -> n != null && n.startsWith("Основа прогноза"))),
+                        notes.stream().anyMatch(n -> n != null && n.startsWith("Основа прогноза")),
+                        homeExt,
+                        awayExt,
+                        homeCode,
+                        awayCode),
                 snapshot.computedAt() != null ? snapshot.computedAt().toEpochMilli() : null,
                 snapshot.kickoffFrozenAt() != null ? snapshot.kickoffFrozenAt().toEpochMilli() : null,
                 bettingRecommendationService.seasonTrackRecord()
         );
+    }
+
+    private ExtendedTeamMetrics teamExtendedMetrics(String teamCode) {
+        if (teamCode == null || teamCode.isBlank()) {
+            return ExtendedTeamMetrics.empty();
+        }
+        String code = teamCode.trim().toUpperCase();
+        Optional<TeamStatsSnapshot> fsOpt = recommenderStatsDao.findTeamStats(DaoUtil.currentWeekId, code);
+        if (fsOpt.isEmpty()) {
+            fsOpt = recommenderStatsDao.findLatestTeamStats(code);
+        }
+        return fsOpt.map(TeamStatsSnapshot::extendedOrEmpty).orElseGet(ExtendedTeamMetrics::empty);
     }
 
     private static ScoreDistributionDto toDistributionDto(
@@ -905,6 +936,7 @@ public class MiniAppService {
         Integer cleanSheets = espn.cleanSheets();
         Double csPct = ext.seasonCsOverall();
 
+        Double scoredFirst = MiniAppFormat.firstNonNull(ext.ssScoredFirstPct(), ext.ssOgsPct());
         TeamSeasonStats stats = new TeamSeasonStats(
                 MiniAppFormat.round1(xg),
                 MiniAppFormat.round1(xga),
@@ -921,7 +953,13 @@ public class MiniAppService {
                 MiniAppFormat.round1(espn.possessionPct()),
                 MiniAppFormat.round1(espn.shotsPerMatch()),
                 MiniAppFormat.round1(espn.shotsOnTargetPerMatch()),
-                cleanSheets
+                cleanSheets,
+                MiniAppFormat.round1(scoredFirst),
+                MiniAppFormat.round1(ext.ssLeadPct()),
+                MiniAppFormat.round1(ext.ssTrailPct()),
+                MiniAppFormat.round1(ext.ssEqualiserScoredPct()),
+                MiniAppFormat.round1(ext.ssEqualiserConcededPct()),
+                MiniAppFormat.round1(ext.ssAvgFirstGoalMin())
         );
         if (stats.isEmpty()) {
             return null;

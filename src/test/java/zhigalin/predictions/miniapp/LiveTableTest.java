@@ -81,9 +81,14 @@ class LiveTableTest {
 
     @Test
     void seasonStatsEmptyOnlyWhenAllFieldsNull() {
-        assertTrue(new TeamSeasonStats(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).isEmpty());
-        assertFalse(new TeamSeasonStats(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 3).isEmpty());
-        assertFalse(new TeamSeasonStats(1.2, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).isEmpty());
+        assertTrue(new TeamSeasonStats(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null).isEmpty());
+        assertFalse(new TeamSeasonStats(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 3,
+                null, null, null, null, null, null).isEmpty());
+        assertFalse(new TeamSeasonStats(1.2, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null).isEmpty());
+        assertFalse(new TeamSeasonStats(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                40.0, null, null, null, null, null).isEmpty());
     }
 }
 

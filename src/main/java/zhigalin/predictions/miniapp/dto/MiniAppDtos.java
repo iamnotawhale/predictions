@@ -148,7 +148,13 @@ public final class MiniAppDtos {
             Double possessionPct,
             Double shotsPerMatch,
             Double shotsOnTargetPerMatch,
-            Integer cleanSheets
+            Integer cleanSheets,
+            Double scoredFirstPct,
+            Double leadPct,
+            Double trailPct,
+            Double equaliserScoredPct,
+            Double equaliserConcededPct,
+            Double avgFirstGoalMin
     ) {
         public boolean isEmpty() {
             return xg == null && xga == null && goalsDelta == null
@@ -157,7 +163,10 @@ public final class MiniAppDtos {
                     && homePpg == null && awayPpg == null
                     && winningAtHtPct == null && htPpg == null
                     && possessionPct == null && shotsPerMatch == null
-                    && shotsOnTargetPerMatch == null && cleanSheets == null;
+                    && shotsOnTargetPerMatch == null && cleanSheets == null
+                    && scoredFirstPct == null && leadPct == null && trailPct == null
+                    && equaliserScoredPct == null && equaliserConcededPct == null
+                    && avgFirstGoalMin == null;
         }
     }
 
@@ -234,6 +243,12 @@ public final class MiniAppDtos {
             @JsonProperty("expectedHomeGoals") double expectedHome,
             @JsonProperty("expectedAwayGoals") double expectedAway,
             double scoreProbability,
+            Integer modelHome,
+            Integer modelAway,
+            Double modelProbability,
+            Double modelHomeWin,
+            Double modelDraw,
+            Double modelAwayWin,
             List<ExplanationStatRow> explanationRows,
             List<String> explanationNotes,
             List<String> explanationLines,

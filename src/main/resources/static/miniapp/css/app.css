@@ -1916,6 +1916,39 @@ html[data-switching] *::after {
     line-height: 1.35;
 }
 
+.modal-recommendation-scores {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.modal-recommendation-score-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.modal-recommendation-score-label {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.65;
+}
+
+.modal-recommendation-model {
+    margin: 4px 0 0;
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.modal-recommendation-score.is-model {
+    font-size: 1.05rem;
+    opacity: 0.85;
+}
+
 .modal-recommendation-score {
     flex-shrink: 0;
     min-width: 52px;

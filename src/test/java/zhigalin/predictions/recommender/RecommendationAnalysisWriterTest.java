@@ -41,6 +41,7 @@ class RecommendationAnalysisWriterTest {
                 1.56, 1.28,
                 dist,
                 new PoissonScoreModel.MarketOutcome(0.43, 0.26, 0.31),
+                null,
                 home, away,
                 home.extendedOrEmpty(), away.extendedOrEmpty(),
                 h2h,
@@ -52,7 +53,7 @@ class RecommendationAnalysisWriterTest {
         assertTrue(text.contains("личных"));
         assertTrue(text.contains("Тотал больше 2.5"));
         assertTrue(text.contains("call"));
-        assertTrue(text.contains("опирается на рынок"));
+        assertTrue(text.contains("смесь модели"));
         assertFalse(text.contains("STATS_SHAPE"));
         assertFalse(text.contains("λ"));
     }
@@ -74,6 +75,7 @@ class RecommendationAnalysisWriterTest {
                 2.6, 0.7,
                 dist,
                 new PoissonScoreModel.MarketOutcome(0.78, 0.14, 0.08),
+                null,
                 null, null,
                 ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty(),
                 null,
@@ -100,12 +102,13 @@ class RecommendationAnalysisWriterTest {
                 1.4, 1.3,
                 dist,
                 null,
+                null,
                 null, null,
                 ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty(),
                 null,
                 0.2
         );
-        assertFalse(text.contains("опирается на рынок"));
+        assertFalse(text.contains("смесь модели"));
         assertTrue(text.contains("call"));
     }
 }

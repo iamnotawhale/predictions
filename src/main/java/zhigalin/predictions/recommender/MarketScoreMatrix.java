@@ -87,19 +87,101 @@ final class MarketScoreMatrix {
         double[] h = poissonRow(lambdaHome, maxGoals + 1);
         double[] a = poissonRow(lambdaAway, maxGoals + 1);
         double[][] m = new double[maxGoals + 1][maxGoals + 1];
-        double sum = 0;
         for (int i = 0; i <= maxGoals; i++) {
             for (int j = 0; j <= maxGoals; j++) {
                 m[i][j] = h[i] * a[j];
+            }
+        }
+        return normalize(m);
+    }
+
+    /**
+     * Dixon–Coles τ on low scores (0-0, 1-0, 0-1, 1-1), then renormalize.
+     * Negative {@code rho} (typical EPL ≈ −0.13) lifts 0-0 / 1-1 and cuts 1-0 / 0-1.
+     */
+    static double[][] dixonColes(double[][] matrix, double lambdaHome, double lambdaAway, double rho) {
+        int n = matrix.length;
+        double[][] m = new double[n][];
+        for (int i = 0; i < n; i++) {
+            m[i] = matrix[i].clone();
+            for (int j = 0; j < n; j++) {
+                m[i][j] *= tau(i, j, lambdaHome, lambdaAway, rho);
+            }
+        }
+        return normalize(m);
+    }
+
+    static double[][] normalize(double[][] matrix) {
+        int n = matrix.length;
+        double[][] m = new double[n][];
+        double sum = 0;
+        for (int i = 0; i < n; i++) {
+            m[i] = matrix[i].clone();
+            for (int j = 0; j < n; j++) {
                 sum += m[i][j];
             }
         }
-        for (int i = 0; i <= maxGoals; i++) {
-            for (int j = 0; j <= maxGoals; j++) {
+        if (sum <= 0) {
+            return m;
+        }
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
                 m[i][j] /= sum;
             }
         }
         return m;
+    }
+
+    static PoissonScoreModel.MarketOutcome outcomeFromMatrix(double[][] matrix) {
+        double home = 0;
+        double draw = 0;
+        double away = 0;
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < matrix[i].length; j++) {
+                int r = region(i, j);
+                if (r == 0) {
+                    home += matrix[i][j];
+                } else if (r == 1) {
+                    draw += matrix[i][j];
+                } else {
+                    away += matrix[i][j];
+                }
+            }
+        }
+        double sum = home + draw + away;
+        if (sum <= 0) {
+            return new PoissonScoreModel.MarketOutcome(1.0 / 3, 1.0 / 3, 1.0 / 3);
+        }
+        return new PoissonScoreModel.MarketOutcome(home / sum, draw / sum, away / sum);
+    }
+
+    static PoissonScoreModel.MarketOutcome blendOutcomes(
+            PoissonScoreModel.MarketOutcome model,
+            PoissonScoreModel.MarketOutcome market,
+            double modelWeight
+    ) {
+        double w = Math.max(0, Math.min(1, modelWeight));
+        double home = w * model.homeWin() + (1 - w) * market.homeWin();
+        double draw = w * model.draw() + (1 - w) * market.draw();
+        double away = w * model.awayWin() + (1 - w) * market.awayWin();
+        double sum = home + draw + away;
+        return new PoissonScoreModel.MarketOutcome(home / sum, draw / sum, away / sum);
+    }
+
+    private static double tau(int homeGoals, int awayGoals, double lambdaHome, double lambdaAway, double rho) {
+        if (homeGoals == 0 && awayGoals == 0) {
+            return 1.0 - lambdaHome * lambdaAway * rho;
+        }
+        if (homeGoals == 0 && awayGoals == 1) {
+            return 1.0 + lambdaHome * rho;
+        }
+        if (homeGoals == 1 && awayGoals == 0) {
+            return 1.0 + lambdaAway * rho;
+        }
+        if (homeGoals == 1 && awayGoals == 1) {
+            return 1.0 - rho;
+        }
+        return 1.0;
     }
 
     static double expectedPoints(double lambdaFor, double lambdaAgainst, int maxGoals) {
