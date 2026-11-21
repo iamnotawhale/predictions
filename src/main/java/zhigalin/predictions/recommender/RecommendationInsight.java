@@ -210,18 +210,25 @@ public final class RecommendationInsight {
                         + "чаще попадает хотя бы в исход или разницу голов.",
                 mode.home(), mode.away(), pct(mode.probability()), ph, pa, pickEv, mode.expectedPoints());
 
-        String venueLine = venueFormReason(homeTeam, awayTeam, homeCode, awayCode);
+        String homeLabel = homeTeam != null ? label(homeCode, homeTeam.teamCode()) : label(homeCode, null);
+        String awayLabel = awayTeam != null ? label(awayCode, awayTeam.teamCode()) : label(awayCode, null);
+        String homeVenue = venuePart(homeLabel, true, homeTeam);
+        String awayVenue = venuePart(awayLabel, false, awayTeam);
         String ssLine = soccerStatsContrast(homeExt, awayExt, homeCode, awayCode);
         boolean pickIsMode = mode.home() == ph && mode.away() == pa;
+        String third = pickIsMode ? goalsLine : scoreLine;
 
         List<String> out = new ArrayList<>(3);
         out.add(marketLine);
-        if (venueLine != null) {
-            out.add(venueLine);
-            out.add(pickIsMode ? goalsLine : scoreLine);
+        if (homeVenue != null && awayVenue != null) {
+            out.add(homeVenue);
+            out.add(awayVenue);
+        } else if (homeVenue != null || awayVenue != null) {
+            out.add(homeVenue != null ? homeVenue : awayVenue);
+            out.add(third);
         } else if (ssLine != null) {
             out.add(ssLine);
-            out.add(pickIsMode ? goalsLine : scoreLine);
+            out.add(third);
         } else {
             out.add(goalsLine);
             out.add(scoreLine);

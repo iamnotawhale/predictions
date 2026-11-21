@@ -119,8 +119,8 @@ class RecommendationInsightTest {
         assertTrue(line.contains("MUN в гостях: xG 1.15, 0.90 очк./матч, 1.10 гол./матч."));
         var ins = RecommendationInsight.build(normalized(), 2, 1, 1.9, 1.1, true, home, away);
         assertEquals(3, ins.reasons().size());
-        assertTrue(ins.reasons().get(1).contains("LIV дома"));
-        assertTrue(ins.reasons().get(1).contains("MUN в гостях"));
+        assertEquals("LIV дома: xG 1.95, 2.10 очк./матч, 2.20 гол./матч.", ins.reasons().get(1));
+        assertEquals("MUN в гостях: xG 1.15, 0.90 очк./матч, 1.10 гол./матч.", ins.reasons().get(2));
     }
 
     @Test

@@ -64,9 +64,11 @@ class MatchNarrativeCompactPromptTest {
         assertFalse(compact.contains("venue=home"));
         assertFalse(compact.contains("|xPts="));
         assertTrue(GroqNarrativeClient.SYSTEM_PROMPT.contains("только из строк FACTS"));
-        assertTrue(GroqNarrativeClient.SYSTEM_PROMPT.contains("опирайся на FACTS"));
+        assertTrue(GroqNarrativeClient.SYSTEM_PROMPT.contains("не повторяй цифры и метрики из FACTS"));
         assertFalse(GroqNarrativeClient.SYSTEM_PROMPT.contains("почти"));
         assertTrue(GroqNarrativeClient.CJK_RETRY_SUFFIX.contains("строк FACTS"));
+        assertTrue(GroqNarrativeClient.CJK_RETRY_SUFFIX.contains("один счёт"));
+        assertTrue(GroqNarrativeClient.CJK_RETRY_SUFFIX.contains("пустой строкой"));
         assertFalse(GroqNarrativeClient.CJK_RETRY_SUFFIX.contains("venue=home"));
     }
 

@@ -98,11 +98,63 @@ public class GroqNarrativeClient {
             return null;
         }
         String normalized = raw.replace('\u00A0', ' ').trim();
+        if (normalized.isBlank() || hasCjk(normalized) || conclusionHasStatDigits(normalized)) {
+            return null;
+        }
         String trimmed = trimToThreeParagraphs(normalized);
-        if (trimmed == null || trimmed.isBlank() || hasCjk(trimmed)) {
+        if (trimmed == null || trimmed.isBlank() || hasCjk(trimmed) || conclusionHasStatDigits(trimmed)) {
             return null;
         }
         return trimmed;
+    }
+
+    static boolean conclusionHasStatDigits(String text) {
+        if (text == null || text.isBlank()) {
+            return true;
+        }
+        String close = isolateConclusion(text);
+        if (close == null) {
+            return true;
+        }
+        String withoutTip = close.replaceFirst("\\b\\d{1,2}:\\d{1,2}\\b", " ");
+        if (withoutTip.matches("(?s).*\\b\\d{1,2}:\\d{1,2}\\b.*")) {
+            return true;
+        }
+        for (int i = 0; i < withoutTip.length(); i++) {
+            if (Character.isDigit(withoutTip.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String isolateConclusion(String text) {
+        List<String> paras = nonEmptyBlocks(text.trim().split("\\n\\s*\\n+"));
+        if (paras.size() >= 3) {
+            return String.join(" ", paras.subList(2, paras.size()));
+        }
+        if (paras.size() == 2) {
+            return paras.get(1);
+        }
+        List<String> byLine = nonEmptyBlocks(text.trim().split("\\n"));
+        if (byLine.size() >= 3) {
+            return String.join(" ", byLine.subList(2, byLine.size()));
+        }
+        if (byLine.size() == 2) {
+            return byLine.get(1);
+        }
+        return null;
+    }
+
+    private static List<String> nonEmptyBlocks(String[] parts) {
+        List<String> out = new ArrayList<>();
+        for (String part : parts) {
+            String p = part.trim().replaceAll("[ \\t]+", " ");
+            if (!p.isEmpty()) {
+                out.add(p);
+            }
+        }
+        return out;
     }
 
     static boolean hasCjk(String text) {
@@ -221,7 +273,9 @@ public class GroqNarrativeClient {
     static final String CJK_RETRY_SUFFIX =
             "Перепиши строго по-русски: без иероглифов, без латиницы "
                     + "вместо русских слов; цифры хозяев только из строк FACTS «дома», "
-                    + "гостей — только из строк FACTS «в гостях»; числа не меняй и не добавляй.";
+                    + "гостей — только из строк FACTS «в гостях»; числа не меняй и не добавляй; "
+                    + "абзацы разделяй пустой строкой; в третьем абзаце допустим только один счёт "
+                    + "вида h:a из TIP/MS, без повторной статистики (xG, очки, голы за матч и любых других цифр).";
 
     static final String SYSTEM_PROMPT =
             "Вход — компактный протокол матча (не JSON).\n"
@@ -237,9 +291,9 @@ public class GroqNarrativeClient {
                     + "цифры в этом абзаце бери только из строк FACTS "
                     + "(можно слегка перефразировать, числа не меняй и не добавляй других). "
                     + "Не пиши про домашние игры гостей и гостевые игры хозяев.\n"
-                    + "3) Заключение — вероятный счёт из TIP (иначе MS) и коротко почему: "
-                    + "опирайся на FACTS (xG/очки/голы хозяев дома и гостей в гостях), "
-                    + "цифры только оттуда, без новых метрик.\n"
+                    + "3) Заключение — вероятный счёт из TIP (иначе MS) в виде h:a и коротко почему "
+                    + "словами по контрасту формы; не повторяй цифры и метрики из FACTS "
+                    + "(никакого xG, очков/голов за матч и прочих чисел кроме самого счёта h:a).\n"
                     + "Запрещено: tip/λ/model/1X2/протокол; стадионы и города; погода; "
                     + "травмы; составы; серии W/D/L; счёты прошлых игр; "
                     + "китайские иероглифы и английские слова вместо русских "
