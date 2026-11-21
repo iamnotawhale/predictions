@@ -88,8 +88,8 @@ public class GoalSceneVideoRenderer {
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("home", req.homeCode());
         c.put("away", req.awayCode());
-        c.put("homeLogo", CardLogos.resolveLogoSrc(req.homeTeamId(), null));
-        c.put("awayLogo", CardLogos.resolveLogoSrc(req.awayTeamId(), null));
+        c.put("homeLogo", CardLogos.resolveLogoSrc(req.homeTeamId(), null, req.homeCode()));
+        c.put("awayLogo", CardLogos.resolveLogoSrc(req.awayTeamId(), null, req.awayCode()));
         c.put("prev", List.of(req.prevHome(), req.prevAway()));
         c.put("next", List.of(req.nextHome(), req.nextAway()));
         c.put("subtitle", req.subtitle() == null ? "" : req.subtitle());

@@ -10,7 +10,9 @@ html,body{width:480px;height:480px;overflow:hidden;background:#07090d;color:#f4f
 .card{position:absolute;left:24px;right:24px;top:186px;height:124px;border-radius:24px;overflow:hidden;background:rgba(12,16,26,.78);border:1px solid rgba(255,255,255,.1);box-shadow:0 24px 60px rgba(0,0,0,.5)}
 .hl{position:absolute;inset:0}
 .content{position:absolute;inset:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 14px}
-.crest{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.45));justify-self:center}
+.crest-slot{width:66px;height:66px;justify-self:center;position:relative;display:grid;place-items:center}
+.crest{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.45))}
+.crest-fb{display:none;width:66px;height:66px;border-radius:18px;background:#1a2332;align-items:center;justify-content:center;font-family:"Sora",sans-serif;font-weight:800;font-size:18px;letter-spacing:.02em;color:#f4f1ea;box-shadow:0 6px 12px rgba(0,0,0,.45)}
 .score{position:relative;display:flex;align-items:center;justify-content:center;font-family:"Sora",sans-serif;font-weight:800;font-size:60px;color:#fff}
 .digit{height:70px;width:44px;overflow:hidden;position:relative}
 .digit div{transform-origin:top}
@@ -37,13 +39,13 @@ html,body{width:480px;height:480px;overflow:hidden;background:#07090d;color:#f4f
     <div class="hl" id="hl"><div class="motif" id="hlMotif"></div></div>
     <img class="symbol" id="symbol" alt="">
     <div class="content">
-      <img class="crest" id="crestH" alt="">
+      <div class="crest-slot"><img class="crest" id="crestH" alt=""><div class="crest-fb" id="crestHfb"></div></div>
       <div class="score" id="score">
         <div class="digit" id="dH"><div id="rH"></div></div>
         <span class="colon">:</span>
         <div class="digit" id="dA"><div id="rA"></div></div>
       </div>
-      <img class="crest" id="crestA" alt="">
+      <div class="crest-slot"><img class="crest" id="crestA" alt=""><div class="crest-fb" id="crestAfb"></div></div>
     </div>
   </div>
   <div class="tag" id="tag"><span class="pill" id="pill"></span><span class="sub" id="sub"></span></div>
@@ -129,8 +131,8 @@ function setup(c) {
   $("title").innerHTML = [...word].map(ch => `<span>${ch === " " ? "&nbsp;" : ch}</span>`).join("");
   $("title").querySelectorAll("span").forEach(s => { s.dataset.fade = "1"; });
 
-  $("crestH").src = c.homeLogo || "";
-  $("crestA").src = c.awayLogo || "";
+  setCrest("crestH", "crestHfb", c.homeLogo, c.home);
+  setCrest("crestA", "crestAfb", c.awayLogo, c.away);
   $("rH").innerHTML = digitStack();
   $("rA").innerHTML = digitStack();
 
@@ -145,9 +147,32 @@ function setup(c) {
 
   const logoSrc = scoringHome ? c.homeLogo : c.awayLogo;
   const symbol = $("symbol");
-  symbol.src = C.logoMode && logoSrc ? logoSrc : "";
-  symbol.style.display = C.logoMode && logoSrc ? "block" : "none";
+  if (C.logoMode && logoSrc) {
+    symbol.style.display = "block";
+    symbol.onerror = () => { symbol.style.display = "none"; };
+    symbol.src = logoSrc;
+  } else {
+    symbol.removeAttribute("src");
+    symbol.style.display = "none";
+  }
   window.seek(0);
+}
+
+function setCrest(imgId, fbId, src, code) {
+  const img = $(imgId);
+  const fb = $(fbId);
+  const label = String(code || "?").trim().toUpperCase().slice(0, 4) || "?";
+  fb.textContent = label;
+  const showFb = () => { img.style.display = "none"; fb.style.display = "flex"; };
+  const showImg = () => { img.style.display = "block"; fb.style.display = "none"; };
+  img.onerror = showFb;
+  if (src) {
+    showImg();
+    img.src = src;
+  } else {
+    img.removeAttribute("src");
+    showFb();
+  }
 }
 
 window.seek = function (t) {

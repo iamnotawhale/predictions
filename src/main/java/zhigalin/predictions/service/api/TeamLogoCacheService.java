@@ -180,8 +180,14 @@ public class TeamLogoCacheService {
             return local;
         }
         Team team = DaoUtil.TEAMS.get(teamPublicId);
-        if (team != null) {
-            String espn = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(team.getCode()));
+        String code = null;
+        if (team != null && team.getCode() != null && !team.getCode().isBlank()) {
+            code = TeamCodeMapper.toInternalCode(team.getCode());
+            local = bundledByCode(code);
+            if (local.length > 0) {
+                return local;
+            }
+            String espn = EspnTeamLogos.logoUrl(code);
             if (espn != null) {
                 byte[] fromEspn = fetcher.apply(espn);
                 if (fromEspn.length > 0) {
@@ -196,17 +202,30 @@ public class TeamLogoCacheService {
                 }
             }
         }
+        log.warn("Logo missing teamId={} code={} — empty after bundled/ESPN", teamPublicId, code);
         return EMPTY;
     }
 
     /** Logo shipped inside the jar ({@code static/img/teams/{id}.png}); last resort when every CDN is down. */
     private static byte[] bundled(int teamPublicId) {
-        ClassPathResource res = new ClassPathResource("static/img/teams/" + teamPublicId + ".png");
+        return readClasspath("static/img/teams/" + teamPublicId + ".png");
+    }
+
+    private static byte[] bundledByCode(String code) {
+        if (code == null || code.isBlank()) {
+            return EMPTY;
+        }
+        return readClasspath("static/img/teams/by-code/" + code.trim().toUpperCase() + ".png");
+    }
+
+    private static byte[] readClasspath(String path) {
+        ClassPathResource res = new ClassPathResource(path);
         if (!res.exists()) {
             return EMPTY;
         }
         try (var in = res.getInputStream()) {
-            return in.readAllBytes();
+            byte[] bytes = in.readAllBytes();
+            return bytes.length == 0 ? EMPTY : bytes;
         } catch (IOException e) {
             return EMPTY;
         }
@@ -221,6 +240,10 @@ public class TeamLogoCacheService {
                     .socketTimeout(SOCKET_MS)
                     .asBytes();
             if (resp.getStatus() != 200 || resp.getBody() == null || resp.getBody().length == 0) {
+                log.warn("Logo fetch failed status={} bytes={} url={}",
+                        resp.getStatus(),
+                        resp.getBody() == null ? 0 : resp.getBody().length,
+                        url);
                 return EMPTY;
             }
             return resp.getBody();

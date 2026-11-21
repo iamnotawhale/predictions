@@ -563,11 +563,13 @@ public class GoalEventGifRenderer {
                 bytes = fetchEspnLogo(teamCode);
             }
             if (bytes == null || bytes.length == 0) {
-                return null;
+                log.warn("Logo missing for GIF teamId={} code={} — monogram fallback", teamId, teamCode);
+                return monogramLogo(teamCode, 44);
             }
             BufferedImage src = ImageIO.read(new ByteArrayInputStream(bytes));
             if (src == null) {
-                return null;
+                log.warn("Logo decode failed teamId={} code={} — monogram fallback", teamId, teamCode);
+                return monogramLogo(teamCode, 44);
             }
             int logo = 44;
             BufferedImage out = new BufferedImage(logo, logo, BufferedImage.TYPE_INT_ARGB);
@@ -577,9 +579,30 @@ public class GoalEventGifRenderer {
             g.dispose();
             return out;
         } catch (Exception e) {
-            log.debug("Logo load failed teamId={} code={}: {}", teamId, teamCode, e.getMessage());
-            return null;
+            log.warn("Logo load failed teamId={} code={}: {} — monogram fallback", teamId, teamCode, e.getMessage());
+            return monogramLogo(teamCode, 44);
         }
+    }
+
+    private BufferedImage monogramLogo(String teamCode, int size) {
+        String code = teamCode == null || teamCode.isBlank() ? "?" : teamCode.trim().toUpperCase();
+        if (code.length() > 4) {
+            code = code.substring(0, 4);
+        }
+        BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        enableQuality(g);
+        g.setColor(new Color(0x1a2332));
+        g.fill(new RoundRectangle2D.Float(0, 0, size, size, size * 0.28f, size * 0.28f));
+        g.setColor(new Color(0xf4f1ea));
+        float fontSize = code.length() >= 4 ? size * 0.32f : size * 0.38f;
+        g.setFont(fontCode.deriveFont(Font.BOLD, fontSize));
+        FontMetrics fm = g.getFontMetrics();
+        int x = (size - fm.stringWidth(code)) / 2;
+        int y = (size - fm.getHeight()) / 2 + fm.getAscent();
+        g.drawString(code, x, y);
+        g.dispose();
+        return out;
     }
 
     private static byte[] fetchEspnLogo(String teamCode) {
