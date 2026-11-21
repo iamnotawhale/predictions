@@ -35,8 +35,8 @@ public class GroqNarrativeClient {
         try {
             ObjectNode body = MAPPER.createObjectNode();
             body.put("model", modelId());
-            body.put("temperature", 0.45);
-            body.put("max_tokens", 1600);
+            body.put("temperature", 0.4);
+            body.put("max_tokens", 700);
             ArrayNode messages = body.putArray("messages");
             ObjectNode system = messages.addObject();
             system.put("role", "system");
@@ -148,28 +148,27 @@ public class GroqNarrativeClient {
     }
 
     static final String SYSTEM_PROMPT =
-            "Вход — компактный протокол матча (не JSON). Ключи уже подписаны — читай имя ключа.\n"
+            "Вход — компактный протокол матча (не JSON). Ключи подписаны.\n"
                     + "M|homeName|homeCode|home|awayName|awayCode|away\n"
-                    + "TIP|h:a|… — целевой счёт для заключения; MS|h:a|… — запасной\n"
-                    + "SS.HA / SS.OV: ptsShare%=доля набранных очков (не % побед); "
-                    + "gfPm/gaPm/tgPm=голы/пропущенные/сумма за матч; "
-                    + "o25%=доля матчей с тоталом >2.5 (не минуты)\n"
-                    + "T.*: gfPm/gaPm=голы/пропущенные за матч overall/home/away; "
-                    + "xgPm=xG/xGA за матч; "
-                    + "f8Ppg/f8GfPm/f8GaPm=очки/голы/пропущенные за матч за last 8; "
-                    + "hPpg/aPpg=очки за матч дома/в гостях; "
-                    + "btts%/cs%/o25%/sf%/late%=доли матчей или голов\n"
+                    + "TIP|h:a|… — целевой счёт; MS|h:a|… — запасной\n"
+                    + "SS.HA|code|home|… — только домашние показатели хозяев; "
+                    + "SS.HA|code|away|… — только гостевые показатели гостей; "
+                    + "ptsShare%=доля набранных очков; gfPm/gaPm=голы/пропущенные за матч; "
+                    + "o25%=доля матчей с тоталом >2.5\n"
+                    + "T.code|venue=home|… — только дома для хозяев; "
+                    + "T.code|venue=away|… — только в гостях для гостей; "
+                    + "ppg/gfPm/gaPm/o25%/btts%=очки, голы или доли в этом venue\n"
+                    + "SS.OV — overall fallback, если нет SS.HA; не путай с home/away\n"
                     + "Ровно 3 абзаца на русском, без заголовков и markdown, пустая строка между ними:\n"
-                    + "1) Вводная — лирическое описание матча без цифр и без прогноза.\n"
-                    + "2) Форма — связный текст, 2–4 цифры максимум; бери только из f8*, hPpg/aPpg, "
-                    + "SS ptsShare%/gfPm/gaPm/o25% или T gfPm/gaPm; "
-                    + "единицы словами: «очков за матч», «голов за матч», "
-                    + "«доля набранных очков». Не печатай имена ключей (f8Ppg, gfPm…). "
-                    + "Неясное поле — пропусти.\n"
+                    + "1) Вводная — разговорное лирическое описание матча без цифр и прогноза.\n"
+                    + "2) Форма — коротко: хозяева только из SS.HA/T venue=home, гости из venue=away; "
+                    + "2–4 цифры; единицы словами («очков за матч дома», «голов за матч в гостях»). "
+                    + "Не пиши про домашние игры гостей и гостевые игры хозяев. "
+                    + "Не печатай имена ключей. Неясное — пропусти.\n"
                     + "3) Заключение — вероятный счёт из TIP (иначе MS) и одна фраза почему.\n"
-                    + "Запрещено: tip/λ/model/1X2/протокол; названия стадионов и городов "
-                    + "(даже известных); погода; травмы; составы; серии W/D/L; "
-                    + "счёты прошлых игр; путать gfPm с gaPm или f8Ppg с голами.";
+                    + "Запрещено: tip/λ/model/1X2/протокол; стадионы и города; погода; "
+                    + "травмы; составы; серии W/D/L; счёты прошлых игр; "
+                    + "путать gfPm с gaPm.";
 
     private static String apiKey() {
         String key = System.getenv("GROQ_API_KEY");
@@ -185,7 +184,7 @@ public class GroqNarrativeClient {
             model = System.getProperty("GROQ_MODEL");
         }
         if (model == null || model.isBlank()) {
-            return "openai/gpt-oss-20b";
+            return "qwen/qwen3.8-27b";
         }
         return model.trim();
     }

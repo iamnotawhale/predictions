@@ -67,13 +67,15 @@ final class MatchNarrativeCompactEncoder {
         }
 
         appendPreview(lines, "SS.HA", homeAwayPreview);
-        appendPreview(lines, "SS.OV", overallPreview);
+        if (homeAwayPreview == null) {
+            appendPreview(lines, "SS.OV", overallPreview);
+        }
 
         if (homeTeam != null) {
-            lines.add(teamLine(homeTeam));
+            lines.add(teamLine(homeTeam, true));
         }
         if (awayTeam != null) {
-            lines.add(teamLine(awayTeam));
+            lines.add(teamLine(awayTeam, false));
         }
         return String.join("\n", lines);
     }
@@ -116,47 +118,23 @@ final class MatchNarrativeCompactEncoder {
         return sb.toString();
     }
 
-    private static String teamLine(TeamStatsSnapshot team) {
+    private static String teamLine(TeamStatsSnapshot team, boolean homeVenue) {
         ExtendedTeamMetrics e = team.extendedOrEmpty();
         StringBuilder sb = new StringBuilder();
         sb.append("T.").append(team.teamCode());
-        sb.append("|gfPm=").append(num(team.scoredOverall())).append('/')
-                .append(num(team.scoredHome())).append('/')
-                .append(num(team.scoredAway()));
-        sb.append("|gaPm=").append(num(team.concededOverall())).append('/')
-                .append(num(team.concededHome())).append('/')
-                .append(num(team.concededAway()));
-        if (team.xgOverall() != null || team.xgaOverall() != null) {
-            sb.append("|xgPm=").append(num(team.xgOverall())).append('/')
-                    .append(num(team.xgaOverall()));
-        }
-        append(sb, "sf%", e.ssScoredFirstPct());
-        append(sb, "sfPpg", e.ssScoredFirstPpg());
-        append(sb, "cf%", e.ssConcededFirstPct());
-        append(sb, "cfPpg", e.ssConcededFirstPpg());
-        append(sb, "lead%", e.ssLeadPct());
-        append(sb, "trail%", e.ssTrailPct());
-        append(sb, "eqS%", e.ssEqualiserScoredPct());
-        append(sb, "eqC%", e.ssEqualiserConcededPct());
-        append(sb, "late%", e.ssLateScoredPct());
-        append(sb, "lateGA%", e.ssLateConcededPct());
-        append(sb, "2hGF%", e.ssSecondHalfGfSharePct());
-        if (e.ssForm8Ppg() != null || e.ssForm8GfPm() != null) {
-            sb.append("|f8Ppg=").append(num(e.ssForm8Ppg()));
-            sb.append("|f8GfPm=").append(num(e.ssForm8GfPm()));
-            sb.append("|f8GaPm=").append(num(e.ssForm8GaPm()));
-            if (e.ssForm8OppPpg() != null) {
-                sb.append("|f8OppPpg=").append(num(e.ssForm8OppPpg()));
-            }
-        }
-        append(sb, "hPpg", e.homePpg());
-        append(sb, "aPpg", e.awayPpg());
-        append(sb, "btts%", e.seasonBttsOverall());
-        append(sb, "cs%", e.seasonCsOverall());
-        append(sb, "o25%", e.over25Overall());
-        if (e.recentXgPerMatch() != null) {
-            sb.append("|rxgPm=").append(num(e.recentXgPerMatch())).append('/')
-                    .append(num(e.recentXgaPerMatch()));
+        sb.append("|venue=").append(homeVenue ? "home" : "away");
+        if (homeVenue) {
+            sb.append("|gfPm=").append(num(team.scoredHome()));
+            sb.append("|gaPm=").append(num(team.concededHome()));
+            append(sb, "ppg", e.homePpg());
+            append(sb, "o25%", e.over25Home());
+            append(sb, "btts%", e.seasonBttsHome());
+        } else {
+            sb.append("|gfPm=").append(num(team.scoredAway()));
+            sb.append("|gaPm=").append(num(team.concededAway()));
+            append(sb, "ppg", e.awayPpg());
+            append(sb, "o25%", e.over25Away());
+            append(sb, "btts%", e.seasonBttsAway());
         }
         return sb.toString();
     }

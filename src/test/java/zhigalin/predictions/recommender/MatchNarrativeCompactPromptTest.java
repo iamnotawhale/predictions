@@ -66,17 +66,34 @@ class MatchNarrativeCompactPromptTest {
         assertTrue(compact.contains("MS|2:1|"));
         assertTrue(compact.contains("SS.HA|ARS|home|ptsShare%=100%|gfPm=2.00|gaPm=0.40|tgPm=2.40|o25%=50%"));
         assertTrue(compact.contains("SS.HA|MCI|away|"));
-        assertTrue(compact.contains("SS.OV|ARS|all|ptsShare%=90%|gfPm=1.90"));
-        assertTrue(compact.contains("T.ARS|"));
-        assertTrue(compact.contains("gfPm=1.80/2/1.60"));
-        assertTrue(compact.contains("sf%=55"));
-        assertTrue(compact.contains("late%=22"));
-        assertTrue(compact.contains("f8Ppg=1.75"));
-        assertTrue(compact.contains("f8GfPm=1.50"));
-        assertTrue(compact.contains("f8GaPm=1.10"));
+        assertFalse(compact.contains("SS.OV|"));
+        assertTrue(compact.contains("T.ARS|venue=home|gfPm=2|gaPm=0.70"));
+        assertFalse(compact.contains("f8Ppg="));
         assertFalse(compact.contains("|xPts="));
-        assertTrue(compact.contains("T.MCI|"));
+        assertTrue(compact.contains("T.MCI|venue=away|gfPm=1.40|gaPm=1.10"));
         assertFalse(compact.contains("{"));
         assertFalse(compact.contains("\"homeTeam\""));
+    }
+
+    @Test
+    void overallPreviewUsedWhenHomeAwayMissing() {
+        MatchNarrativeService service = new MatchNarrativeService(null, null, null, null, null, null);
+        MatchRecommendationSnapshot tip = new MatchRecommendationSnapshot(
+                1, 12, 2, 1, 1.85, 1.20, 0.11,
+                ExplanationBreakdown.empty(),
+                "summary",
+                Instant.now()
+        );
+        SoccerStatsMatchPreviewScraper.PreviewLine ov = new SoccerStatsMatchPreviewScraper.PreviewLine(
+                "ARS", "MCI", "all", "all",
+                "90% · 1.90", "70% · 1.70",
+                java.util.List.of("90%", "1.90"),
+                java.util.List.of("70%", "1.70")
+        );
+        String compact = service.buildCompactPrompt(
+                "ARS", "MCI", tip, null, null, ov, null, null
+        );
+        assertTrue(compact.contains("SS.OV|ARS|all|ptsShare%=90%|gfPm=1.90"));
+        assertFalse(compact.contains("SS.HA|"));
     }
 }
