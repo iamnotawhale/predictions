@@ -26,6 +26,7 @@ import zhigalin.predictions.miniapp.dto.MiniAppDtos.ExplanationStatRow;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.ScoreDistributionDto;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.TopScoreDto;
 import zhigalin.predictions.recommender.BettingRecommendationService;
+import zhigalin.predictions.recommender.MatchNarrativeService;
 import zhigalin.predictions.miniapp.dto.MiniAppDtos.CupTipResponse;
 import zhigalin.predictions.recommender.CupOddsModel;
 import zhigalin.predictions.recommender.model.TipTrackRecord;
@@ -117,6 +118,7 @@ public class MiniAppService {
     private final ObjectMapper objectMapper;
     private final DeploymentInfoService deploymentInfoService;
     private final BettingRecommendationService bettingRecommendationService;
+    private final MatchNarrativeService matchNarrativeService;
     private final CupMatchTipService cupMatchTipService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
     private final UserPredictionStatsService userPredictionStatsService;
@@ -139,6 +141,7 @@ public class MiniAppService {
             ObjectMapper objectMapper,
             DeploymentInfoService deploymentInfoService,
             BettingRecommendationService bettingRecommendationService,
+            MatchNarrativeService matchNarrativeService,
             CupMatchTipService cupMatchTipService,
             UserWeekBonusMatchService userWeekBonusMatchService,
             UserPredictionStatsService userPredictionStatsService,
@@ -160,6 +163,7 @@ public class MiniAppService {
         this.objectMapper = objectMapper;
         this.deploymentInfoService = deploymentInfoService;
         this.bettingRecommendationService = bettingRecommendationService;
+        this.matchNarrativeService = matchNarrativeService;
         this.cupMatchTipService = cupMatchTipService;
         this.userWeekBonusMatchService = userWeekBonusMatchService;
         this.userPredictionStatsService = userPredictionStatsService;
@@ -220,6 +224,19 @@ public class MiniAppService {
         } catch (IllegalStateException e) {
             throw new MiniAppException(502, e.getMessage());
         }
+    }
+
+    public ActionResponse generateMatchNarratives(String telegramId, Integer weekId) {
+        requireAdmin(telegramId);
+        int targetWeek = weekId != null ? weekId : DaoUtil.currentWeekId;
+        if (targetWeek <= 0) {
+            throw new MiniAppException(400, "Не задан тур для обзора.");
+        }
+        if (!matchNarrativeService.isConfigured()) {
+            throw new MiniAppException(503, "GROQ_API_KEY не задан на сервере.");
+        }
+        matchNarrativeService.generateForWeekAsync(targetWeek);
+        return new ActionResponse(true, "Обзор для тура " + targetWeek + " запущен в фоне");
     }
 
     private void requireAdmin(String telegramId) {

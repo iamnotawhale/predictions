@@ -360,7 +360,7 @@
 - `FotMobTeamNameMapper` — только точные title → коды (без `startsWith`).
 - `FixtureXgDao` — upsert/lookup кэша xG (пишет только валидные home/away xG).
 - `EspnLinescores` — HT из scoreboard/summary `linescores[0]`; `htPpg` / `winningAtHtPct` в snapshot только при `htSample ≥ 4`.
-- `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с). Out of scope для замены модели; enrich после снимка, ошибки не валят refresh.
+- `SoccerStatsScraperService` — scrape game-state + narrative метрик с soccerstats.com (first goal, scored first, lead/equalisers, favourite PPG, timing late goals, form last-8, HT/2H PPG; пауза ~0.9с; Cloudflare challenge → skip page). Out of scope для замены модели; enrich после снимка, ошибки не валят refresh.
 - `SoccerStatsTeamNameMapper` — имена команд SoccerSTATS → коды `teams`; scrape FootyStats удалён (Cloudflare 403).
 - `RecommenderStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
 - `PoissonScoreModel` — λ + коррекции матрицы счёта.
@@ -381,7 +381,10 @@
 - `table.asp?tid=t` — lead / level / trail durations %
 - `table.asp?tid=x` / `tid=w` — equalisers scored / conceded %
 - `fstats.asp` — PPG as favourite
-- (relative form `tid=re` пока не парсим — разметка нестабильна)
+- `timing.asp` — Overall 15-min Total: late (76–90) GF/GA share, 2H GF share, avg GF/GA minute (`ssLate*`, `ssSecondHalfGfSharePct`, `ssAvgGfMinute`/`ssAvgGaMinute`; не пишет в `ssAvgFirstGoalMin`)
+- `formtable.asp` — Overall Last 8: PPG / GF/GA per match / opponents PPG (`ssForm8*`); только блок без Home/Away
+- `halftime.asp` — Total 1H → `htPpg`/`winningAtHtPct` только если в снимке null; Total 2H → `ssSecondHalfPpg`
+- (relative form `tid=re`, homeaway — не парсим; narrative-поля не в tip weights)
 
 **Модель:**
 - База: атака×оборона со **shrinkage** к среднему лиги (1 матч не обнуляет λ); если у команды ещё не было матчей на этом поле (home/away), сила = 1.0 — **не** подставляем голы с другого поля.
@@ -402,7 +405,8 @@
 **UI:**
 - Ползунок **AI** в шапке справа (`#betting-recommender-toggle`).
 - Для admin рядом — кнопка `#betting-recommender-refresh` (↻): `POST /admin/betting-recommender/refresh`, со спиннером и toast.
-- В `#score-modal` компактная кнопка `#modal-recommendation-section`: **«Для игры»** (EV tip) + при наличии **«Модель»** (мода до soft blend) и строка model 1X2 %; tip грузится через `GET /match/{home}/{away}/recommendation`. Список тура/`AI h:a` = game tip. `#ai-modal` из кнопки: **Обзор** (`analysis` с обеими строками), heatmap по game-матрице, 1X2/BTTS/OU, топ-счета. `MatchRecommendationResponse` несёт `modelHome/Away/Probability/HomeWin/Draw/AwayWin` (nullable для старых JSON).
+- В `#score-modal` компактная кнопка `#modal-recommendation-section`: один tip-счёт (EV) без подписей «Для игры»/«Модель»; tip через `GET /match/{home}/{away}/recommendation`. Список тура/`AI h:a` = game tip. `#ai-modal`: **Обзор** (`analysis` — шаблон `RecommendationAnalysisWriter` или Groq после rollover), heatmap, 1X2/BTTS/OU, топ-счета. DTO `model*` остаются в API, в плашке не показываются.
+- После смены тура (`onCurrentWeekRollover` → `refreshForWeek`) один раз на `weekId` async `MatchNarrativeService` (только `ns`/`pst`/`tbd`): SoccerSTATS `matchlist/r{N}` + `leaguepreviews` (homeaway **и** overall) + team snapshot/`extended` → компактный line-протокол (`MatchNarrativeCompactEncoder`) → free Groq (`GROQ_API_KEY`, `GROQ_MODEL` default `openai/gpt-oss-20b`, стиль Statistical Preview 4–6 абзацев) → `explanation_json.analysis` + `groqAnalysis=true`. Round из `weeks.name`, иначе id; tip-refresh Groq не вызывает; ручной повтор: `POST /api/miniapp/admin/match-narrative/generate?weekId=`; Groq-текст сохраняется при tip-refresh, если tip не сменился. Soft-fail (Cloudflare/429/нет ключа).
 - На **«Профиль» → Мои прогнозы / Разбор тура** — **kickoff**-счёт `AI h:a` всем пользователям (поля `recommendedHome/Away` из `kickoff_*`).
 - Картинка FT: `HtmlImageRenderer` RESULT (EPL + кубки с разными accent); строка `AI h:a` для EPL, если freeze есть.
 - Mini App кубки: цвета турниров на карточках; категория «Кубки» (карточки турниров, вся FT-история + матчи с сегодня и будущие); live-детали/составы/комментарии через ESPN summary по league slug; live Общий зачёт += provisional cup.

@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
+import zhigalin.predictions.recommender.model.ExplanationBreakdown;
 import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
 import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.recommender.model.MatchRecommendationSnapshot;
@@ -40,6 +41,7 @@ public class BettingRecommendationService {
     private final OddsService oddsService;
     private final HeadToHeadService headToHeadService;
     private final ConcurrentHashMap<Integer, CompletableFuture<Integer>> refreshInFlight = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, Object> weekMutexes = new ConcurrentHashMap<>();
 
     public BettingRecommendationService(
             ApiFootballStatsSnapshotService statsSnapshotService,
@@ -57,6 +59,10 @@ public class BettingRecommendationService {
         this.headToHeadService = headToHeadService;
     }
 
+    Object weekMutex(int weekId) {
+        return weekMutexes.computeIfAbsent(weekId, id -> new Object());
+    }
+
     public int refreshForWeek(int weekId) {
         CompletableFuture<Integer> created = new CompletableFuture<>();
         CompletableFuture<Integer> existing = refreshInFlight.putIfAbsent(weekId, created);
@@ -64,7 +70,10 @@ public class BettingRecommendationService {
             return joinRefresh(existing, weekId);
         }
         try {
-            int stored = doRefreshForWeek(weekId);
+            int stored;
+            synchronized (weekMutex(weekId)) {
+                stored = doRefreshForWeek(weekId);
+            }
             created.complete(stored);
             return stored;
         } catch (Exception e) {
@@ -72,6 +81,34 @@ public class BettingRecommendationService {
             throw unwrapRefreshFailure(e, weekId);
         } finally {
             refreshInFlight.remove(weekId, created);
+        }
+    }
+
+    public boolean applyGroqAnalysisIfTipUnchanged(
+            int matchId,
+            int weekId,
+            int tipHome,
+            int tipAway,
+            String analysis
+    ) {
+        if (analysis == null || analysis.isBlank()) {
+            return false;
+        }
+        synchronized (weekMutex(weekId)) {
+            Optional<MatchRecommendationSnapshot> current = statsDao.findRecommendation(matchId);
+            if (current.isEmpty()) {
+                return false;
+            }
+            MatchRecommendationSnapshot row = current.get();
+            if (row.recommendedHome() != tipHome || row.recommendedAway() != tipAway) {
+                return false;
+            }
+            ExplanationBreakdown explanation = row.explanation() != null
+                    ? row.explanation()
+                    : ExplanationBreakdown.empty();
+            MatchRecommendationSnapshot updated = row.withExplanation(explanation.withGroqAnalysis(analysis.trim()));
+            statsDao.saveRecommendations(List.of(updated));
+            return true;
         }
     }
 
@@ -95,6 +132,22 @@ public class BettingRecommendationService {
 
     private int doRefreshForWeek(int weekId) {
         try {
+            Map<Integer, GroqTipSnapshot> groqByMatch = new java.util.HashMap<>();
+            for (MatchRecommendationSnapshot existing : statsDao.findRecommendationsForWeek(weekId)) {
+                ExplanationBreakdown expl = existing.explanation();
+                if (expl != null && expl.isGroqAnalysis()
+                        && expl.analysis() != null && !expl.analysis().isBlank()) {
+                    groqByMatch.put(
+                            existing.matchId(),
+                            new GroqTipSnapshot(
+                                    existing.recommendedHome(),
+                                    existing.recommendedAway(),
+                                    expl.analysis()
+                            )
+                    );
+                }
+            }
+
             LeagueStatsSnapshot snapshot = statsSnapshotService.fetchSnapshot();
             List<TeamStatsSnapshot> teams;
             try {
@@ -124,7 +177,20 @@ public class BettingRecommendationService {
                 }
                 Optional<MatchRecommendationSnapshot> recommendation =
                         computeAndStore(match, weekId, league.get(), statsByCode);
-                recommendation.ifPresent(toStore::add);
+                if (recommendation.isEmpty()) {
+                    continue;
+                }
+                MatchRecommendationSnapshot row = recommendation.get();
+                GroqTipSnapshot prior = groqByMatch.get(row.matchId());
+                if (prior != null
+                        && prior.home() == row.recommendedHome()
+                        && prior.away() == row.recommendedAway()) {
+                    ExplanationBreakdown expl = row.explanation() != null
+                            ? row.explanation()
+                            : ExplanationBreakdown.empty();
+                    row = row.withExplanation(expl.withGroqAnalysis(prior.analysis()));
+                }
+                toStore.add(row);
             }
             statsDao.saveRecommendations(toStore);
             log.info(
@@ -185,6 +251,9 @@ public class BettingRecommendationService {
     }
 
     private record CachedTrackRecord(TipTrackRecord value, long fetchedAtMs) {
+    }
+
+    private record GroqTipSnapshot(int home, int away, String analysis) {
     }
 
     /** Freeze live recommendation into kickoff_* once (no-op if already frozen or missing). */

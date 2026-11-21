@@ -3390,9 +3390,6 @@
         const section = $('#modal-recommendation-section');
         const summaryEl = $('#modal-recommendation-summary');
         const scoreEl = $('#modal-recommendation-score');
-        const modelLineEl = $('#modal-recommendation-model');
-        const modelWrap = $('#modal-recommendation-model-score-wrap');
-        const modelScoreEl = $('#modal-recommendation-model-score');
         if (!section || !summaryEl || !scoreEl) return;
 
         const enabled = state.profile && state.profile.bettingRecommenderEnabled;
@@ -3413,31 +3410,6 @@
             + Number(recommendation.expectedAwayGoals).toFixed(1);
         const tipPct = Math.round(Number(recommendation.scoreProbability || 0) * 100);
         summaryEl.textContent = lambda + ' · tip ' + tipPct + '% · открыть матрицу';
-
-        const hasModel = recommendation.modelHome != null && recommendation.modelAway != null;
-        if (modelWrap && modelScoreEl) {
-            if (hasModel) {
-                modelWrap.classList.remove('hidden');
-                modelScoreEl.textContent = recommendation.modelHome + ':' + recommendation.modelAway;
-            } else {
-                modelWrap.classList.add('hidden');
-            }
-        }
-        if (modelLineEl) {
-            if (hasModel
-                && recommendation.modelHomeWin != null
-                && recommendation.modelDraw != null
-                && recommendation.modelAwayWin != null) {
-                modelLineEl.classList.remove('hidden');
-                modelLineEl.textContent = 'Модель 1X2 '
-                    + Math.round(Number(recommendation.modelHomeWin) * 100) + '/'
-                    + Math.round(Number(recommendation.modelDraw) * 100) + '/'
-                    + Math.round(Number(recommendation.modelAwayWin) * 100) + '%';
-            } else {
-                modelLineEl.classList.add('hidden');
-                modelLineEl.textContent = '';
-            }
-        }
     }
 
     const AI_STAT_METRICS = ['Ожидаемые голы', 'Шанс победы', 'Атака', 'Оборона', 'xG / матч', 'Форма'];

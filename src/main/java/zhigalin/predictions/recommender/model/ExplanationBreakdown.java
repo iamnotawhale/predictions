@@ -8,7 +8,8 @@ public record ExplanationBreakdown(
         List<String> notes,
         ScoreDistribution distribution,
         String analysis,
-        ModelScore modelScore
+        ModelScore modelScore,
+        Boolean groqAnalysis
 ) {
     public record ModelScore(
             int home,
@@ -26,11 +27,11 @@ public record ExplanationBreakdown(
     }
 
     public ExplanationBreakdown(List<ExplanationRow> rows, List<String> notes) {
-        this(rows, notes, null, null, null);
+        this(rows, notes, null, null, null, null);
     }
 
     public ExplanationBreakdown(List<ExplanationRow> rows, List<String> notes, ScoreDistribution distribution) {
-        this(rows, notes, distribution, null, null);
+        this(rows, notes, distribution, null, null, null);
     }
 
     public ExplanationBreakdown(
@@ -39,23 +40,41 @@ public record ExplanationBreakdown(
             ScoreDistribution distribution,
             String analysis
     ) {
-        this(rows, notes, distribution, analysis, null);
+        this(rows, notes, distribution, analysis, null, null);
+    }
+
+    public ExplanationBreakdown(
+            List<ExplanationRow> rows,
+            List<String> notes,
+            ScoreDistribution distribution,
+            String analysis,
+            ModelScore modelScore
+    ) {
+        this(rows, notes, distribution, analysis, modelScore, null);
     }
 
     public static ExplanationBreakdown empty() {
-        return new ExplanationBreakdown(List.of(), List.of(), null, null, null);
+        return new ExplanationBreakdown(List.of(), List.of(), null, null, null, null);
     }
 
     public ExplanationBreakdown withDistribution(ScoreDistribution distribution) {
-        return new ExplanationBreakdown(rows, notes, distribution, analysis, modelScore);
+        return new ExplanationBreakdown(rows, notes, distribution, analysis, modelScore, groqAnalysis);
     }
 
     public ExplanationBreakdown withAnalysis(String analysis) {
-        return new ExplanationBreakdown(rows, notes, distribution, analysis, modelScore);
+        return new ExplanationBreakdown(rows, notes, distribution, analysis, modelScore, null);
+    }
+
+    public ExplanationBreakdown withGroqAnalysis(String analysis) {
+        return new ExplanationBreakdown(rows, notes, distribution, analysis, modelScore, true);
     }
 
     public ExplanationBreakdown withModelScore(ModelScore modelScore) {
-        return new ExplanationBreakdown(rows, notes, distribution, analysis, modelScore);
+        return new ExplanationBreakdown(rows, notes, distribution, analysis, modelScore, groqAnalysis);
+    }
+
+    public boolean isGroqAnalysis() {
+        return Boolean.TRUE.equals(groqAnalysis);
     }
 
     public List<String> asLines() {

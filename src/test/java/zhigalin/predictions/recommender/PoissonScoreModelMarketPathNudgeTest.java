@@ -102,6 +102,28 @@ class PoissonScoreModelMarketPathNudgeTest {
     }
 
     @Test
+    void narrativeOnlySoccerStatsFieldsDoNotMoveTipOrMatrix() {
+        ExtendedTeamMetrics narrative = ExtendedTeamMetrics.builder()
+                .ssTiming(40.0, 35.0, 62.0, 52.0, 48.0)
+                .ssForm8(2.1, 1.8, 0.9, 1.4)
+                .ssSecondHalfPpg(1.9)
+                .build();
+        var baseline = run(ExtendedTeamMetrics.empty(), ExtendedTeamMetrics.empty());
+        var withNarrative = run(narrative, narrative);
+        assertEquals(baseline.lambdaHome(), withNarrative.lambdaHome(), 1e-12);
+        assertEquals(baseline.lambdaAway(), withNarrative.lambdaAway(), 1e-12);
+        assertEquals(baseline.recommendedHome(), withNarrative.recommendedHome());
+        assertEquals(baseline.recommendedAway(), withNarrative.recommendedAway());
+        var baseM = baseline.distribution().matrix();
+        var narrM = withNarrative.distribution().matrix();
+        for (int h = 0; h < baseM.size(); h++) {
+            for (int a = 0; a < baseM.get(h).size(); a++) {
+                assertEquals(baseM.get(h).get(a), narrM.get(h).get(a), 1e-12);
+            }
+        }
+    }
+
+    @Test
     void recentXgOnlyBlendsWhenSeasonReady() {
         TeamStatsSnapshot noSeasonXg = new TeamStatsSnapshot(
                 "HOM", 1.5, 1.6, 1.4, 1.2, 1.1, 1.3,

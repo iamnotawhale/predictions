@@ -33,6 +33,7 @@ import zhigalin.predictions.model.v2.Event;
 import zhigalin.predictions.model.v2.Scoreboard;
 import zhigalin.predictions.panic.PanicSender;
 import zhigalin.predictions.recommender.BettingRecommendationService;
+import zhigalin.predictions.recommender.MatchNarrativeService;
 import zhigalin.predictions.service.event.CupMatchSyncService;
 import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
@@ -58,6 +59,7 @@ public class DataInitService {
     private final PanicSender panicSender;
     private final ApiClient apiClient;
     private final BettingRecommendationService bettingRecommendationService;
+    private final MatchNarrativeService matchNarrativeService;
     private final EspnScoreboardClient espnScoreboardClient;
     private final CupMatchSyncService cupMatchSyncService;
     private final UserWeekBonusMatchService userWeekBonusMatchService;
@@ -85,6 +87,7 @@ public class DataInitService {
                            HeadToHeadService headToHeadService, NotificationService notificationService,
                            PanicSender panicSender, ApiClient apiClient,
                            BettingRecommendationService bettingRecommendationService,
+                           MatchNarrativeService matchNarrativeService,
                            EspnScoreboardClient espnScoreboardClient,
                            PredictionService predictionService,
                            OddsService oddsService,
@@ -98,6 +101,7 @@ public class DataInitService {
         this.panicSender = panicSender;
         this.apiClient = apiClient;
         this.bettingRecommendationService = bettingRecommendationService;
+        this.matchNarrativeService = matchNarrativeService;
         this.espnScoreboardClient = espnScoreboardClient;
         this.predictionService = predictionService;
         this.oddsService = oddsService;
@@ -374,6 +378,16 @@ public class DataInitService {
             bettingRecommendationService.refreshForWeek(currentWeek.getId());
         } catch (Exception e) {
             serverLogger.warn("Betting recommender refresh after week rollover failed: {}", e.getMessage());
+        }
+        try {
+            int weekId = currentWeek.getId();
+            if (matchNarrativeService.isConfigured() && matchNarrativeService.tryMarkScheduled(weekId)) {
+                matchNarrativeService.generateForWeekAsync(weekId);
+            } else if (!matchNarrativeService.isConfigured()) {
+                serverLogger.info("Groq narrative skipped after rollover: GROQ_API_KEY missing");
+            }
+        } catch (Exception e) {
+            serverLogger.warn("Groq narrative schedule after week rollover failed: {}", e.getMessage());
         }
     }
 

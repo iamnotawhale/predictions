@@ -65,5 +65,12 @@ class ExplanationBreakdownAnalysisTest {
         String json = mapper.writeValueAsString(new ExplanationBreakdown(List.of(), List.of(), null, null));
         ExplanationBreakdown parsed = mapper.readValue(json, ExplanationBreakdown.class);
         assertNull(parsed.modelScore());
+
+        ExplanationBreakdown groq = base.withGroqAnalysis("обзор");
+        assertTrue(groq.isGroqAnalysis());
+        assertEquals("обзор", groq.analysis());
+        assertNull(groq.withAnalysis("шаблон").groqAnalysis());
+        ExplanationBreakdown roundTrip = mapper.readValue(mapper.writeValueAsString(groq), ExplanationBreakdown.class);
+        assertTrue(roundTrip.isGroqAnalysis());
     }
 }

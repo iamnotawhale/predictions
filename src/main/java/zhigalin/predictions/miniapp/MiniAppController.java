@@ -146,6 +146,14 @@ public class MiniAppController {
         return miniAppService.refreshBettingRecommendations(requireTelegramId(initData), weekId);
     }
 
+    @PostMapping(value = "/admin/match-narrative/generate", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ActionResponse generateMatchNarratives(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(required = false) Integer weekId
+    ) {
+        return miniAppService.generateMatchNarratives(requireTelegramId(initData), weekId);
+    }
+
     @GetMapping("/admin/data/tables")
     public List<AdminTableItem> adminTables(
             @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData

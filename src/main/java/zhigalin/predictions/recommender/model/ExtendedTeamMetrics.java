@@ -50,6 +50,16 @@ public record ExtendedTeamMetrics(
         Double ssOgcPct,
         Double ssAvgFirstGoalMin,
         Double ssFavouritePpg,
+        Double ssLateScoredPct,
+        Double ssLateConcededPct,
+        Double ssSecondHalfGfSharePct,
+        Double ssAvgGfMinute,
+        Double ssAvgGaMinute,
+        Double ssForm8Ppg,
+        Double ssForm8GfPm,
+        Double ssForm8GaPm,
+        Double ssForm8OppPpg,
+        Double ssSecondHalfPpg,
         Double recentXgPerMatch,
         Double recentXgaPerMatch,
         Integer recentXgSamples
@@ -75,6 +85,10 @@ public record ExtendedTeamMetrics(
                 ssScoredFirstPct, ssScoredFirstPpg, ssConcededFirstPct, ssConcededFirstPpg,
                 ssLeadPct, ssTrailPct, ssEqualiserScoredPct, ssEqualiserConcededPct,
                 ssOgsPct, ssOgcPct, ssAvgFirstGoalMin, ssFavouritePpg,
+                ssLateScoredPct, ssLateConcededPct, ssSecondHalfGfSharePct,
+                ssAvgGfMinute, ssAvgGaMinute,
+                ssForm8Ppg, ssForm8GfPm, ssForm8GaPm, ssForm8OppPpg,
+                ssSecondHalfPpg,
                 null, null, null
         );
     }
@@ -133,6 +147,16 @@ public record ExtendedTeamMetrics(
                 coalesce(patch.ssOgcPct, ssOgcPct),
                 coalesce(patch.ssAvgFirstGoalMin, ssAvgFirstGoalMin),
                 coalesce(patch.ssFavouritePpg, ssFavouritePpg),
+                coalesce(patch.ssLateScoredPct, ssLateScoredPct),
+                coalesce(patch.ssLateConcededPct, ssLateConcededPct),
+                coalesce(patch.ssSecondHalfGfSharePct, ssSecondHalfGfSharePct),
+                coalesce(patch.ssAvgGfMinute, ssAvgGfMinute),
+                coalesce(patch.ssAvgGaMinute, ssAvgGaMinute),
+                coalesce(patch.ssForm8Ppg, ssForm8Ppg),
+                coalesce(patch.ssForm8GfPm, ssForm8GfPm),
+                coalesce(patch.ssForm8GaPm, ssForm8GaPm),
+                coalesce(patch.ssForm8OppPpg, ssForm8OppPpg),
+                coalesce(patch.ssSecondHalfPpg, ssSecondHalfPpg),
                 coalesce(patch.recentXgPerMatch, recentXgPerMatch),
                 coalesce(patch.recentXgaPerMatch, recentXgaPerMatch),
                 coalesce(patch.recentXgSamples, recentXgSamples)
@@ -193,6 +217,16 @@ public record ExtendedTeamMetrics(
         private Double ssOgcPct;
         private Double ssAvgFirstGoalMin;
         private Double ssFavouritePpg;
+        private Double ssLateScoredPct;
+        private Double ssLateConcededPct;
+        private Double ssSecondHalfGfSharePct;
+        private Double ssAvgGfMinute;
+        private Double ssAvgGaMinute;
+        private Double ssForm8Ppg;
+        private Double ssForm8GfPm;
+        private Double ssForm8GaPm;
+        private Double ssForm8OppPpg;
+        private Double ssSecondHalfPpg;
         private Double recentXgPerMatch;
         private Double recentXgaPerMatch;
         private Integer recentXgSamples;
@@ -342,6 +376,34 @@ public record ExtendedTeamMetrics(
             return this;
         }
 
+        public Builder ssTiming(
+                Double lateScoredPct,
+                Double lateConcededPct,
+                Double secondHalfGfSharePct,
+                Double avgGfMinute,
+                Double avgGaMinute
+        ) {
+            ssLateScoredPct = lateScoredPct;
+            ssLateConcededPct = lateConcededPct;
+            ssSecondHalfGfSharePct = secondHalfGfSharePct;
+            ssAvgGfMinute = avgGfMinute;
+            ssAvgGaMinute = avgGaMinute;
+            return this;
+        }
+
+        public Builder ssForm8(Double ppg, Double gfPm, Double gaPm, Double oppPpg) {
+            ssForm8Ppg = ppg;
+            ssForm8GfPm = gfPm;
+            ssForm8GaPm = gaPm;
+            ssForm8OppPpg = oppPpg;
+            return this;
+        }
+
+        public Builder ssSecondHalfPpg(Double value) {
+            ssSecondHalfPpg = value;
+            return this;
+        }
+
         public Builder recentXg(Double xgPerMatch, Double xgaPerMatch, Integer samples) {
             recentXgPerMatch = xgPerMatch;
             recentXgaPerMatch = xgaPerMatch;
@@ -369,6 +431,10 @@ public record ExtendedTeamMetrics(
                     ssEqualiserScoredPct, ssEqualiserConcededPct,
                     ssOgsPct, ssOgcPct, ssAvgFirstGoalMin,
                     ssFavouritePpg,
+                    ssLateScoredPct, ssLateConcededPct, ssSecondHalfGfSharePct,
+                    ssAvgGfMinute, ssAvgGaMinute,
+                    ssForm8Ppg, ssForm8GfPm, ssForm8GaPm, ssForm8OppPpg,
+                    ssSecondHalfPpg,
                     recentXgPerMatch, recentXgaPerMatch, recentXgSamples
             );
         }

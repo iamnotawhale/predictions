@@ -205,6 +205,14 @@ public class RecommenderStatsDao {
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getFirst());
     }
 
+    public List<MatchRecommendationSnapshot> findRecommendationsForWeek(int weekId) {
+        return jdbcTemplate.query(
+                "SELECT * FROM match_recommendation WHERE week_id = ? ORDER BY match_id",
+                recommendationMapper(),
+                weekId
+        );
+    }
+
     /**
      * One-shot freeze: copy live recommended score into kickoff_* if not already frozen.
      *

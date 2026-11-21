@@ -105,4 +105,14 @@ public record MatchRecommendationSnapshot(
     public boolean hasKickoffFreeze() {
         return kickoffFrozenAt != null && kickoffHome != null && kickoffAway != null;
     }
+
+    public MatchRecommendationSnapshot withExplanation(ExplanationBreakdown explanation) {
+        return new MatchRecommendationSnapshot(
+                matchId, weekId, recommendedHome, recommendedAway,
+                expectedHome, expectedAway, scoreProbability,
+                explanation, summary, computedAt,
+                kickoffHome, kickoffAway, kickoffFrozenAt,
+                shadowHome, shadowAway
+        );
+    }
 }
