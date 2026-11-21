@@ -395,8 +395,8 @@ public class MiniAppService {
                 .toList();
         List<String> notes = explanation.notes() != null ? explanation.notes() : List.of();
         ScoreDistributionDto distribution = toDistributionDto(explanation.distribution());
-        ExtendedTeamMetrics homeExt = teamExtendedMetrics(homeCode);
-        ExtendedTeamMetrics awayExt = teamExtendedMetrics(awayCode);
+        TeamStatsSnapshot homeTeam = teamStatsSnapshot(homeCode);
+        TeamStatsSnapshot awayTeam = teamStatsSnapshot(awayCode);
         var model = explanation.modelScore();
         return new MatchRecommendationResponse(
                 snapshot.recommendedHome(),
@@ -423,26 +423,24 @@ public class MiniAppService {
                         snapshot.expectedHome(),
                         snapshot.expectedAway(),
                         notes.stream().anyMatch(n -> n != null && n.startsWith("Основа прогноза")),
-                        homeExt,
-                        awayExt,
-                        homeCode,
-                        awayCode),
+                        homeTeam,
+                        awayTeam),
                 snapshot.computedAt() != null ? snapshot.computedAt().toEpochMilli() : null,
                 snapshot.kickoffFrozenAt() != null ? snapshot.kickoffFrozenAt().toEpochMilli() : null,
                 bettingRecommendationService.seasonTrackRecord()
         );
     }
 
-    private ExtendedTeamMetrics teamExtendedMetrics(String teamCode) {
+    private TeamStatsSnapshot teamStatsSnapshot(String teamCode) {
         if (teamCode == null || teamCode.isBlank()) {
-            return ExtendedTeamMetrics.empty();
+            return null;
         }
         String code = teamCode.trim().toUpperCase();
         Optional<TeamStatsSnapshot> fsOpt = recommenderStatsDao.findTeamStats(DaoUtil.currentWeekId, code);
         if (fsOpt.isEmpty()) {
             fsOpt = recommenderStatsDao.findLatestTeamStats(code);
         }
-        return fsOpt.map(TeamStatsSnapshot::extendedOrEmpty).orElseGet(ExtendedTeamMetrics::empty);
+        return fsOpt.orElse(null);
     }
 
     private static ScoreDistributionDto toDistributionDto(

@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 
 class RecommendationInsightTest {
 
@@ -98,6 +100,41 @@ class RecommendationInsightTest {
         ExtendedTeamMetrics home = ExtendedTeamMetrics.builder().ssLeadDurations(55.0, 20.0).build();
         assertEquals(null, RecommendationInsight.soccerStatsContrast(home, ExtendedTeamMetrics.empty(), "ARS", "CHE"));
         assertEquals(null, RecommendationInsight.soccerStatsContrast(home, home, "ARS", null));
+    }
+
+    @Test
+    void venueFormReasonUsesHomeAndAwaySplits() {
+        ExtendedTeamMetrics homeExt = ExtendedTeamMetrics.builder().homePpg(2.1).awayPpg(1.0).build();
+        ExtendedTeamMetrics awayExt = ExtendedTeamMetrics.builder().homePpg(1.5).awayPpg(0.9).build();
+        TeamStatsSnapshot home = new TeamStatsSnapshot(
+                "LIV", 2.1, 2.2, 2.0, 0.9, 0.8, 1.0,
+                2.0, 0.9, 1.1, 1.95, 1.4, homeExt, Instant.now()
+        );
+        TeamStatsSnapshot away = new TeamStatsSnapshot(
+                "MUN", 1.2, 1.4, 1.1, 1.7, 1.5, 1.8,
+                1.3, 1.6, -0.3, 1.4, 1.15, awayExt, Instant.now()
+        );
+        String line = RecommendationInsight.venueFormReason(home, away, "LIV", "MUN");
+        assertTrue(line.contains("LIV дома: xG 1.95, 2.10 очк./матч, 2.20 гол./матч."));
+        assertTrue(line.contains("MUN в гостях: xG 1.15, 0.90 очк./матч, 1.10 гол./матч."));
+        var ins = RecommendationInsight.build(normalized(), 2, 1, 1.9, 1.1, true, home, away);
+        assertEquals(3, ins.reasons().size());
+        assertTrue(ins.reasons().get(1).contains("LIV дома"));
+        assertTrue(ins.reasons().get(1).contains("MUN в гостях"));
+    }
+
+    @Test
+    void venueFormReasonNullWhenNoVenueEvidence() {
+        TeamStatsSnapshot emptyHome = new TeamStatsSnapshot(
+                "LIV", 0, 0, 0, 0, 0, 0,
+                null, null, null, null, null, ExtendedTeamMetrics.empty(), Instant.now()
+        );
+        ExtendedTeamMetrics awayExt = ExtendedTeamMetrics.builder().awayPpg(0.9).build();
+        TeamStatsSnapshot away = new TeamStatsSnapshot(
+                "MUN", 1.2, 1.4, 1.1, 1.7, 1.5, 1.8,
+                1.3, 1.6, -0.3, 1.4, 1.15, awayExt, Instant.now()
+        );
+        assertEquals(null, RecommendationInsight.venueFormReason(emptyHome, away, "LIV", "MUN"));
     }
 
     @Test

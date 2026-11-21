@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
+import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.service.predict.ScoringMode;
 
@@ -65,6 +66,42 @@ public final class RecommendationInsight {
             String homeCode,
             String awayCode
     ) {
+        return build(matrix, pickHome, pickAway, expectedHome, expectedAway, marketBased,
+                homeExt, awayExt, homeCode, awayCode, null, null);
+    }
+
+    public static Insight build(
+            double[][] matrix,
+            int pickHome,
+            int pickAway,
+            double expectedHome,
+            double expectedAway,
+            boolean marketBased,
+            TeamStatsSnapshot homeTeam,
+            TeamStatsSnapshot awayTeam
+    ) {
+        ExtendedTeamMetrics homeExt = homeTeam != null ? homeTeam.extendedOrEmpty() : ExtendedTeamMetrics.empty();
+        ExtendedTeamMetrics awayExt = awayTeam != null ? awayTeam.extendedOrEmpty() : ExtendedTeamMetrics.empty();
+        String homeCode = homeTeam != null ? homeTeam.teamCode() : null;
+        String awayCode = awayTeam != null ? awayTeam.teamCode() : null;
+        return build(matrix, pickHome, pickAway, expectedHome, expectedAway, marketBased,
+                homeExt, awayExt, homeCode, awayCode, homeTeam, awayTeam);
+    }
+
+    private static Insight build(
+            double[][] matrix,
+            int pickHome,
+            int pickAway,
+            double expectedHome,
+            double expectedAway,
+            boolean marketBased,
+            ExtendedTeamMetrics homeExt,
+            ExtendedTeamMetrics awayExt,
+            String homeCode,
+            String awayCode,
+            TeamStatsSnapshot homeTeam,
+            TeamStatsSnapshot awayTeam
+    ) {
         Scoring scoring = new Scoring(
                 points(1, 0, 1, 0), points(2, 1, 1, 0), points(2, 0, 1, 0), points(0, 1, 1, 0));
         int n = matrix.length;
@@ -96,7 +133,7 @@ public final class RecommendationInsight {
                 reasons(matrix, pickHome, pickAway, pick, pickEv, mode, expectedHome, expectedAway, marketBased,
                         homeExt != null ? homeExt : ExtendedTeamMetrics.empty(),
                         awayExt != null ? awayExt : ExtendedTeamMetrics.empty(),
-                        homeCode, awayCode));
+                        homeCode, awayCode, homeTeam, awayTeam));
     }
 
     static Tiers tiers(double[][] matrix, int ph, int pa) {
@@ -134,7 +171,9 @@ public final class RecommendationInsight {
             double[][] m, int ph, int pa, Tiers pick, double pickEv, ModeScore mode,
             double expectedHome, double expectedAway, boolean marketBased,
             ExtendedTeamMetrics homeExt, ExtendedTeamMetrics awayExt,
-            String homeCode, String awayCode
+            String homeCode, String awayCode,
+            TeamStatsSnapshot homeTeam,
+            TeamStatsSnapshot awayTeam
     ) {
         double home = 0;
         double draw = 0;
@@ -171,23 +210,91 @@ public final class RecommendationInsight {
                         + "чаще попадает хотя бы в исход или разницу голов.",
                 mode.home(), mode.away(), pct(mode.probability()), ph, pa, pickEv, mode.expectedPoints());
 
+        String venueLine = venueFormReason(homeTeam, awayTeam, homeCode, awayCode);
         String ssLine = soccerStatsContrast(homeExt, awayExt, homeCode, awayCode);
         boolean pickIsMode = mode.home() == ph && mode.away() == pa;
 
         List<String> out = new ArrayList<>(3);
         out.add(marketLine);
-        if (ssLine != null) {
+        if (venueLine != null) {
+            out.add(venueLine);
+            out.add(pickIsMode ? goalsLine : scoreLine);
+        } else if (ssLine != null) {
             out.add(ssLine);
-            if (pickIsMode) {
-                out.add(goalsLine);
-            } else {
-                out.add(scoreLine);
-            }
+            out.add(pickIsMode ? goalsLine : scoreLine);
         } else {
             out.add(goalsLine);
             out.add(scoreLine);
         }
         return out;
+    }
+
+    static String venueFormReason(
+            TeamStatsSnapshot homeTeam,
+            TeamStatsSnapshot awayTeam,
+            String homeCode,
+            String awayCode
+    ) {
+        if (homeTeam == null || awayTeam == null) {
+            return null;
+        }
+        String home = label(homeCode, homeTeam.teamCode());
+        String away = label(awayCode, awayTeam.teamCode());
+        String homePart = venuePart(home, true, homeTeam);
+        String awayPart = venuePart(away, false, awayTeam);
+        if (homePart == null || awayPart == null) {
+            return null;
+        }
+        return homePart + " " + awayPart;
+    }
+
+    private static String label(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred.trim().toUpperCase(Locale.ROOT);
+        }
+        if (fallback != null && !fallback.isBlank()) {
+            return fallback.trim().toUpperCase(Locale.ROOT);
+        }
+        return null;
+    }
+
+    private static String venuePart(String code, boolean homeVenue, TeamStatsSnapshot team) {
+        if (code == null || team == null) {
+            return null;
+        }
+        ExtendedTeamMetrics e = team.extendedOrEmpty();
+        Double xg = homeVenue ? team.xgHome() : team.xgAway();
+        double gf = homeVenue ? team.scoredHome() : team.scoredAway();
+        double ga = homeVenue ? team.concededHome() : team.concededAway();
+        Double ppg = homeVenue ? e.homePpg() : e.awayPpg();
+        boolean hasSample = PoissonScoreModel.hasVenueSample(gf, ga);
+        if (xg == null && ppg == null && !hasSample) {
+            return null;
+        }
+        String where = homeVenue ? "дома" : "в гостях";
+        StringBuilder sb = new StringBuilder();
+        sb.append(code).append(' ').append(where).append(':');
+        boolean first = true;
+        if (xg != null) {
+            sb.append(" xG ").append(fmt(xg));
+            first = false;
+        }
+        if (ppg != null) {
+            sb.append(first ? ' ' : ", ").append(fmt(ppg)).append(" очк./матч");
+            first = false;
+        }
+        if (hasSample) {
+            sb.append(first ? ' ' : ", ").append(fmt(gf)).append(" гол./матч");
+        }
+        sb.append('.');
+        return sb.toString();
+    }
+
+    private static String fmt(double value) {
+        if (Math.rint(value) == value && Math.abs(value) < 1_000_000) {
+            return Long.toString((long) value);
+        }
+        return String.format(Locale.US, "%.2f", value);
     }
 
     static String soccerStatsContrast(

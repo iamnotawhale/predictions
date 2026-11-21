@@ -34,16 +34,5 @@ class SoccerStatsMatchPreviewScraperTest {
                 ars.homeCells()
         );
         assertFalse(ars.homeCells().stream().anyMatch(SoccerStatsMatchPreviewScraper::looksLikeKickoffDate));
-        var tip = new zhigalin.predictions.recommender.model.MatchRecommendationSnapshot(
-                1, 1, 1, 0, 1.0, 1.0, 0.1,
-                zhigalin.predictions.recommender.model.ExplanationBreakdown.empty(),
-                "s",
-                java.time.Instant.now()
-        );
-        String labeled = MatchNarrativeCompactEncoder.encode(
-                "ARS", "MCI", tip, null, ars, null, null, null
-        );
-        assertTrue(labeled.contains("SS.HA|ARS|home|ptsShare%=100%|gfPm=2.00|gaPm=0.40|tgPm=2.40|o25%=50%"));
-        assertFalse(labeled.contains("ptsShare%=Fr"));
     }
 }

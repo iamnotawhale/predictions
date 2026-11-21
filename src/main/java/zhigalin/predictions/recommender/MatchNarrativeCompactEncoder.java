@@ -66,55 +66,57 @@ final class MatchNarrativeCompactEncoder {
             ));
         }
 
-        appendPreview(lines, "SS.HA", homeAwayPreview);
-        appendPreview(lines, "SS.OV", overallPreview);
-
         if (homeTeam != null) {
             lines.add(formLine(homeTeam));
-            lines.add(teamLine(homeTeam, true));
         }
         if (awayTeam != null) {
             lines.add(formLine(awayTeam));
-            lines.add(teamLine(awayTeam, false));
         }
+
+        String homeFacts = venueFacts(homeName, true, homeTeam);
+        String awayFacts = venueFacts(awayName, false, awayTeam);
+        if (homeFacts != null || awayFacts != null) {
+            lines.add("FACTS");
+            if (homeFacts != null) {
+                lines.add(homeFacts);
+            }
+            if (awayFacts != null) {
+                lines.add(awayFacts);
+            }
+        }
+
         return String.join("\n", lines);
     }
 
-    private static void appendPreview(
-            List<String> lines,
-            String tag,
-            SoccerStatsMatchPreviewScraper.PreviewLine preview
-    ) {
-        if (preview == null) {
-            return;
+    static String venueFacts(String teamName, boolean homeVenue, TeamStatsSnapshot team) {
+        if (team == null || teamName == null || teamName.isBlank()) {
+            return null;
         }
-        lines.add(previewTeamLine(tag, preview.homeCode(), preview.homeScope(),
-                preview.homeCells(), preview.homeStats()));
-        lines.add(previewTeamLine(tag, preview.awayCode(), preview.awayScope(),
-                preview.awayCells(), preview.awayStats()));
-    }
-
-    private static String previewTeamLine(
-            String tag,
-            String code,
-            String scope,
-            List<String> cells,
-            String stats
-    ) {
+        ExtendedTeamMetrics e = team.extendedOrEmpty();
+        Double xg = homeVenue ? team.xgHome() : team.xgAway();
+        double gf = homeVenue ? team.scoredHome() : team.scoredAway();
+        double ga = homeVenue ? team.concededHome() : team.concededAway();
+        Double ppg = homeVenue ? e.homePpg() : e.awayPpg();
+        boolean hasSample = PoissonScoreModel.hasVenueSample(gf, ga);
+        if (xg == null && ppg == null && !hasSample) {
+            return null;
+        }
+        String where = homeVenue ? "дома" : "в гостях";
         StringBuilder sb = new StringBuilder();
-        sb.append(tag).append('|').append(code).append('|').append(safeScope(scope));
-        if (cells != null && !cells.isEmpty()) {
-            String[] keys = metricKeysFor(cells);
-            if (keys != null) {
-                for (int i = 0; i < keys.length; i++) {
-                    sb.append('|').append(keys[i]).append('=').append(esc(cells.get(i)));
-                }
-                return sb.toString();
-            }
-            sb.append('|').append(String.join(",", cells.stream().map(MatchNarrativeCompactEncoder::esc).toList()));
-            return sb.toString();
+        sb.append(esc(teamName)).append(' ').append(where).append(':');
+        boolean first = true;
+        if (xg != null) {
+            sb.append(" xG ").append(num(xg));
+            first = false;
         }
-        sb.append('|').append(esc(stats == null ? "" : stats.replace('·', ',').replace("|", "/")));
+        if (ppg != null) {
+            sb.append(first ? ' ' : ", ").append(num(ppg)).append(" очков за матч");
+            first = false;
+        }
+        if (hasSample) {
+            sb.append(first ? ' ' : ", ").append(num(gf)).append(" голов за матч");
+        }
+        sb.append('.');
         return sb.toString();
     }
 
@@ -134,62 +136,6 @@ final class MatchNarrativeCompactEncoder {
         return sb.toString();
     }
 
-    private static String teamLine(TeamStatsSnapshot team, boolean homeVenue) {
-        ExtendedTeamMetrics e = team.extendedOrEmpty();
-        StringBuilder sb = new StringBuilder();
-        sb.append("T.").append(team.teamCode());
-        sb.append("|venue=").append(homeVenue ? "home" : "away");
-        if (homeVenue) {
-            sb.append("|gfPm=").append(num(team.scoredHome()));
-            sb.append("|gaPm=").append(num(team.concededHome()));
-            append(sb, "ppg", e.homePpg());
-            append(sb, "o25%", e.over25Home());
-            append(sb, "btts%", e.seasonBttsHome());
-        } else {
-            sb.append("|gfPm=").append(num(team.scoredAway()));
-            sb.append("|gaPm=").append(num(team.concededAway()));
-            append(sb, "ppg", e.awayPpg());
-            append(sb, "o25%", e.over25Away());
-            append(sb, "btts%", e.seasonBttsAway());
-        }
-        return sb.toString();
-    }
-
-    private static String[] metricKeysFor(List<String> cells) {
-        if (cells.size() == 5
-                && isPct(cells.get(0)) && isNum(cells.get(1)) && isNum(cells.get(2))
-                && isNum(cells.get(3)) && isPct(cells.get(4))) {
-            return new String[]{"ptsShare%", "gfPm", "gaPm", "tgPm", "o25%"};
-        }
-        if (cells.size() == 3 && isPct(cells.get(0)) && isNum(cells.get(1)) && isNum(cells.get(2))) {
-            return new String[]{"ptsShare%", "gfPm", "gaPm"};
-        }
-        if (cells.size() == 2 && isPct(cells.get(0)) && isNum(cells.get(1))) {
-            return new String[]{"ptsShare%", "gfPm"};
-        }
-        return null;
-    }
-
-    private static boolean isPct(String raw) {
-        if (raw == null) {
-            return false;
-        }
-        String c = raw.trim();
-        return c.endsWith("%") && isNum(c.substring(0, c.length() - 1).trim());
-    }
-
-    private static boolean isNum(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return false;
-        }
-        try {
-            Double.parseDouble(raw.trim().replace(',', '.'));
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
     private static void append(StringBuilder sb, String key, Double value) {
         if (value == null) {
             return;
@@ -197,22 +143,11 @@ final class MatchNarrativeCompactEncoder {
         sb.append('|').append(key).append('=').append(num(value));
     }
 
-    private static String safeScope(String scope) {
-        if (scope == null || scope.isBlank()) {
-            return "-";
-        }
-        return scope.toLowerCase(Locale.ROOT);
-    }
-
     private static String num(Double value) {
         if (value == null) {
             return "-";
         }
-        double v = value;
-        if (Math.rint(v) == v && Math.abs(v) < 1_000_000) {
-            return Long.toString((long) v);
-        }
-        return String.format(Locale.US, "%.2f", v);
+        return num(value.doubleValue());
     }
 
     private static String num(double value) {
