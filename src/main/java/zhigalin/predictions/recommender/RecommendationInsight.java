@@ -218,15 +218,15 @@ public final class RecommendationInsight {
         boolean pickIsMode = mode.home() == ph && mode.away() == pa;
         String third = pickIsMode ? goalsLine : scoreLine;
 
-        List<String> out = new ArrayList<>(3);
+        List<String> out = new ArrayList<>();
         out.add(marketLine);
-        if (homeVenue != null && awayVenue != null) {
+        if (homeVenue != null) {
             out.add(homeVenue);
+        }
+        if (awayVenue != null) {
             out.add(awayVenue);
-        } else if (homeVenue != null || awayVenue != null) {
-            out.add(homeVenue != null ? homeVenue : awayVenue);
-            out.add(third);
-        } else if (ssLine != null) {
+        }
+        if (ssLine != null) {
             out.add(ssLine);
             out.add(third);
         } else {
