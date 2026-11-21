@@ -28,6 +28,28 @@ public class GroqNarrativeClient {
     }
 
     public Result generate(String prompt) {
+        Result first = requestOnce(prompt, 0.35);
+        if (first.rateLimited()) {
+            return first;
+        }
+        String cleaned = cleanNarrative(first.text());
+        if (cleaned != null) {
+            return new Result(cleaned, false);
+        }
+        Result second = requestOnce(
+                prompt + "\n\nПерепиши строго по-русски: без иероглифов, без латиницы "
+                        + "вместо русских слов; цифры хозяев только из venue=home их кода, "
+                        + "гостей — только из venue=away их кода.",
+                0.2
+        );
+        if (second.rateLimited()) {
+            return second;
+        }
+        cleaned = cleanNarrative(second.text());
+        return new Result(cleaned, false);
+    }
+
+    private Result requestOnce(String prompt, double temperature) {
         String key = apiKey();
         if (key == null || key.isBlank()) {
             return new Result(null, false);
@@ -35,7 +57,7 @@ public class GroqNarrativeClient {
         try {
             ObjectNode body = MAPPER.createObjectNode();
             body.put("model", modelId());
-            body.put("temperature", 0.4);
+            body.put("temperature", temperature);
             body.put("max_tokens", 700);
             ArrayNode messages = body.putArray("messages");
             ObjectNode system = messages.addObject();
@@ -66,11 +88,65 @@ public class GroqNarrativeClient {
             if (content.isMissingNode() || content.asText().isBlank()) {
                 return new Result(null, false);
             }
-            return new Result(trimToThreeParagraphs(content.asText()), false);
+            return new Result(content.asText(), false);
         } catch (Exception e) {
             log.warn("Groq narrative failed: {}", e.getMessage());
             return new Result(null, false);
         }
+    }
+
+    static String cleanNarrative(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        if (hasCjk(raw)) {
+            return null;
+        }
+        String normalized = raw.replace('\u00A0', ' ').trim();
+        String trimmed = trimToThreeParagraphs(normalized);
+        if (trimmed == null || trimmed.isBlank() || hasCjk(trimmed)) {
+            return null;
+        }
+        return trimmed;
+    }
+
+    static boolean hasCjk(String text) {
+        if (text == null) {
+            return false;
+        }
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            if (isCjk(cp)) {
+                return true;
+            }
+            i += Character.charCount(cp);
+        }
+        return false;
+    }
+
+    static String stripCjk(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            if (!isCjk(cp)) {
+                sb.appendCodePoint(cp);
+            } else {
+                sb.append(' ');
+            }
+            i += Character.charCount(cp);
+        }
+        return sb.toString().replaceAll(" {2,}", " ").trim();
+    }
+
+    private static boolean isCjk(int cp) {
+        Character.UnicodeScript script = Character.UnicodeScript.of(cp);
+        return script == Character.UnicodeScript.HAN
+                || script == Character.UnicodeScript.HIRAGANA
+                || script == Character.UnicodeScript.KATAKANA
+                || (cp >= 0x3000 && cp <= 0x303F);
     }
 
     static String trimToThreeParagraphs(String raw) {
@@ -160,8 +236,9 @@ public class GroqNarrativeClient {
                     + "1) Вводная — разговорное лирическое описание без цифр и прогноза.\n"
                     + "2) Форма — сначала общее впечатление о форме обеих команд "
                     + "только словами по form=overall / SS.OV (без любых цифр из overall/f8); "
-                    + "затем ровно 2–4 цифры только из T.* venue=home / venue=away "
-                    + "(хозяева — home, гости — away): «очков/голов за матч дома/в гостях». "
+                    + "затем ровно 2–4 цифры: хозяевам — только из T.<homeCode>|venue=home "
+                    + "и SS.HA|<homeCode>|home; гостям — только из T.<awayCode>|venue=away "
+                    + "и SS.HA|<awayCode>|away. Не переставляй цифры между командами. "
                     + "Не цитируй overall-цифры, f8, SS.OV числа. "
                     + "Не пиши про домашние игры гостей и гостевые игры хозяев. "
                     + "Не печатай имена ключей.\n"
