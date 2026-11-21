@@ -21,8 +21,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Lineup;
 import zhigalin.predictions.model.event.Player;
-import zhigalin.predictions.model.input.Response;
-import zhigalin.predictions.model.input.ResponseTeam;
 import zhigalin.predictions.util.TelegramMarkdownV2;
 
 @Service
@@ -39,7 +37,6 @@ public class ApiClient {
     private String urlEditMessageMedia;
 
     private final ObjectMapper mapper;
-    private final ApiFootballClient apiFootballClient;
     private final ConcurrentHashMap<Integer, Map<Integer, List<Lineup>>> lineupsCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CachedEspnSummary> espnSummaryCache = new ConcurrentHashMap<>();
 
@@ -62,9 +59,8 @@ public class ApiClient {
 
     private static final Logger log = LoggerFactory.getLogger("server");
 
-    public ApiClient(ObjectMapper objectMapper, ApiFootballClient apiFootballClient) {
+    public ApiClient(ObjectMapper objectMapper) {
         this.mapper = objectMapper;
-        this.apiFootballClient = apiFootballClient;
     }
 
     public boolean sendMessage(String chatId, String text, String replyMarkupJson) {
@@ -234,30 +230,7 @@ public class ApiClient {
 
     public Map<Integer, List<Lineup>> getLineups(int publicId) {
         Map<Integer, List<Lineup>> cached = lineupsCache.get(publicId);
-        if (cached != null) {
-            return cached;
-        }
-        try {
-            Map<Integer, List<Lineup>> lineups = new HashMap<>();
-            for (Response response : apiFootballClient.fetchFixtureLineups(publicId)) {
-                ResponseTeam team = response.getTeam();
-                if (team == null) {
-                    continue;
-                }
-                int teamId = team.getId();
-                List<Lineup> lineup = response.getLineup();
-                lineups.put(teamId, lineup == null ? List.of() : List.copyOf(lineup));
-            }
-            if (!lineups.isEmpty()) {
-                Map<Integer, List<Lineup>> frozen = Map.copyOf(lineups);
-                lineupsCache.put(publicId, frozen);
-                return frozen;
-            }
-            return lineups;
-        } catch (Exception e) {
-            log.error("Lineups  error: {}", e.getMessage());
-            return Map.of();
-        }
+        return cached != null ? cached : Map.of();
     }
 
     public Map<Integer, List<Lineup>> getLineupsFromEspnSummary(String espnEventId, int homeTeamId, int awayTeamId) {

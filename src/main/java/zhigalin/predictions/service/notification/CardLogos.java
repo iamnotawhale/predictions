@@ -27,11 +27,13 @@ final class CardLogos {
     }
 
     static String resolveLogoSrc(Integer teamId, String remoteUrl) {
-        // EPL: API-Football media CDN (ESPN CDN hangs mid-download from Odyssey).
         if (teamId != null) {
-            String af = embedRemoteLogo("https://media.api-sports.io/football/teams/" + teamId + ".png");
-            if (!af.isBlank()) {
-                return af;
+            String data = classpathImageDataUri("static/img/teams/" + teamId + ".webp");
+            if (data == null) {
+                data = classpathImageDataUri("static/img/teams/" + teamId + ".png");
+            }
+            if (data != null) {
+                return data;
             }
             Team team = DaoUtil.TEAMS.get(teamId);
             if (team != null) {
@@ -43,15 +45,8 @@ final class CardLogos {
                     }
                 }
             }
-            String data = classpathImageDataUri("static/img/teams/" + teamId + ".webp");
-            if (data == null) {
-                data = classpathImageDataUri("static/img/teams/" + teamId + ".png");
-            }
-            if (data != null) {
-                return data;
-            }
         }
-        if (remoteUrl != null && !remoteUrl.isBlank()) {
+        if (remoteUrl != null && !remoteUrl.isBlank() && !remoteUrl.contains("media.api-sports.io")) {
             return embedRemoteLogo(remoteUrl);
         }
         return "";

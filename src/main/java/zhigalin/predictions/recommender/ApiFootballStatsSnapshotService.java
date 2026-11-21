@@ -1,146 +1,125 @@
 package zhigalin.predictions.recommender;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.model.input.Response;
-import zhigalin.predictions.model.input.Score;
 import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
 import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
 import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
 import zhigalin.predictions.service.DataInitService;
-import zhigalin.predictions.service.api.ApiFootballClient;
+import zhigalin.predictions.service.api.EspnTeamSeasonStatsService;
+import zhigalin.predictions.service.api.EspnTeamSeasonStatsService.TeamSeasonExtras;
+import zhigalin.predictions.service.event.MatchService;
+import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.DaoUtil;
 
 @Service
 public class ApiFootballStatsSnapshotService {
 
     private static final Logger log = LoggerFactory.getLogger("server");
-    private static final int EPL_LEAGUE_ID = 39;
     private static final int MIN_TEAMS = 15;
-    private static final int MAX_XG_FETCH_PER_REFRESH = 25;
     private static final int XPTS_MAX_GOALS = 10;
     private static final int MIN_XG_SAMPLES_FOR_METRICS = 8;
     private static final double MIN_XG_COVERAGE = 0.8;
     private static final int RECENT_XG_WINDOW = 6;
     private static final int MIN_RECENT_XG_SAMPLES = 4;
-    private static final Set<String> FINISHED = Set.of("FT", "AET", "PEN");
 
-    private final ApiFootballClient apiFootballClient;
-    private final ApiFootballFixtureXgDao fixtureXgDao;
+    private final MatchService matchService;
+    private final EspnTeamSeasonStatsService espnTeamSeasonStatsService;
 
-    public ApiFootballStatsSnapshotService(ApiFootballClient apiFootballClient, ApiFootballFixtureXgDao fixtureXgDao) {
-        this.apiFootballClient = apiFootballClient;
-        this.fixtureXgDao = fixtureXgDao;
+    public ApiFootballStatsSnapshotService(
+            MatchService matchService,
+            EspnTeamSeasonStatsService espnTeamSeasonStatsService
+    ) {
+        this.matchService = matchService;
+        this.espnTeamSeasonStatsService = espnTeamSeasonStatsService;
     }
 
     public LeagueStatsSnapshot fetchSnapshot() {
         Instant fetchedAt = Instant.now();
-        List<Response> fixtures = apiFootballClient.fetchLeagueFixtures(EPL_LEAGUE_ID, DataInitService.SEASON);
+        LocalDate seasonStart = DataInitService.seasonStartDate();
         List<FinishedMatch> finished = new ArrayList<>();
-        for (Response r : fixtures) {
-            FinishedMatch m = toFinished(r);
+        for (Match match : matchService.findFinishedMatches()) {
+            FinishedMatch m = toFinished(match, seasonStart);
             if (m != null) {
                 finished.add(m);
             }
         }
         finished.sort(Comparator.comparingLong(FinishedMatch::timestamp));
         if (finished.isEmpty()) {
-            throw new IllegalStateException("ApiFootball: no finished EPL fixtures for season " + DataInitService.SEASON);
-        }
-
-        ensureXgCache(finished);
-
-        Map<Integer, ApiFootballFixtureXgDao.XgRow> xgByFixture = new HashMap<>();
-        for (ApiFootballFixtureXgDao.XgRow row : fixtureXgDao.findAll()) {
-            if (row.hasXg()) {
-                xgByFixture.put(row.matchId(), row);
-            }
+            throw new IllegalStateException(
+                    "No finished EPL fixtures in DB for season starting " + seasonStart
+            );
         }
 
         Map<Integer, TeamAgg> byTeam = new HashMap<>();
         for (FinishedMatch m : finished) {
-            ApiFootballFixtureXgDao.XgRow xg = xgByFixture.get(m.fixtureId());
-            Double homeXg = xg != null ? xg.homeXg() : null;
-            Double awayXg = xg != null ? xg.awayXg() : null;
-            byTeam.computeIfAbsent(m.homeTeamId(), TeamAgg::new).addHome(m, homeXg, awayXg);
-            byTeam.computeIfAbsent(m.awayTeamId(), TeamAgg::new).addAway(m, awayXg, homeXg);
+            byTeam.computeIfAbsent(m.homeTeamId(), TeamAgg::new).addHome(m, null, null);
+            byTeam.computeIfAbsent(m.awayTeamId(), TeamAgg::new).addAway(m, null, null);
         }
 
         List<TeamStatsSnapshot> teams = new ArrayList<>();
+        int withEspnXg = 0;
         for (TeamAgg agg : byTeam.values()) {
             TeamStatsSnapshot snap = agg.toSnapshot(fetchedAt);
-            if (snap != null) {
-                teams.add(snap);
+            if (snap == null) {
+                continue;
             }
+            TeamStatsSnapshot withXg = applyEspnSeasonXg(snap);
+            if (withXg.xgOverall() != null) {
+                withEspnXg++;
+            }
+            teams.add(withXg);
         }
         if (teams.size() < MIN_TEAMS) {
             throw new IllegalStateException(
-                    "ApiFootball snapshot parsed only " + teams.size() + " teams (expected >= " + MIN_TEAMS + ")"
+                    "Season snapshot parsed only " + teams.size() + " teams (expected >= " + MIN_TEAMS + ")"
             );
         }
 
         LeagueAveragesSnapshot league = buildLeagueSnapshot(teams, fetchedAt);
         log.info(
-                "ApiFootball snapshot complete: {} teams, {} finished fixtures, {} xG rows cached",
+                "Season snapshot complete: {} teams, {} finished fixtures, {} with ESPN xG",
                 teams.size(),
                 finished.size(),
-                xgByFixture.size()
+                withEspnXg
         );
         return new LeagueStatsSnapshot(teams, league);
     }
 
-    void ensureXgCache(List<FinishedMatch> finished) {
-        List<Integer> ids = finished.stream().map(FinishedMatch::fixtureId).toList();
-        Set<Integer> cached = new java.util.HashSet<>(fixtureXgDao.findCachedFixtureIds(ids));
-        int attempts = 0;
-        int stored = 0;
-        int tombstones = 0;
-        for (FinishedMatch m : finished) {
-            if (cached.contains(m.fixtureId())) {
-                continue;
-            }
-            if (attempts >= MAX_XG_FETCH_PER_REFRESH) {
-                log.warn(
-                        "ApiFootball xG backfill capped at {} statistics calls this refresh ({} still missing)",
-                        MAX_XG_FETCH_PER_REFRESH,
-                        ids.size() - cached.size()
-                );
-                break;
-            }
-            attempts++;
-            JsonNode stats = apiFootballClient.fetchFixtureStatistics(m.fixtureId());
-            if (stats == null || isTransportLikeStats(stats)) {
-                continue;
-            }
-            Instant now = Instant.now();
-            DoublePair xg = parseExpectedGoals(stats, m.homeTeamId(), m.awayTeamId());
-            if (xg == null) {
-                fixtureXgDao.upsertUnavailable(m.fixtureId(), m.homeTeamId(), m.awayTeamId(), now);
-                tombstones++;
-            } else {
-                fixtureXgDao.upsert(m.fixtureId(), m.homeTeamId(), m.awayTeamId(), xg.home(), xg.away(), now);
-            }
-            cached.add(m.fixtureId());
-            stored++;
+    private TeamStatsSnapshot applyEspnSeasonXg(TeamStatsSnapshot snap) {
+        TeamSeasonExtras extras = espnTeamSeasonStatsService.forInternalCode(snap.teamCode());
+        if (extras == null || (extras.avgXg() == null && extras.avgXga() == null)) {
+            return snap;
         }
-        if (attempts > 0) {
-            log.info(
-                    "ApiFootball xG cache attempts={} stored={} unavailable={}",
-                    attempts,
-                    stored,
-                    tombstones
-            );
-        }
+        Double xg = extras.avgXg();
+        Double xga = extras.avgXga();
+        Double xgd = xg != null && xga != null ? xg - xga : null;
+        return new TeamStatsSnapshot(
+                snap.teamCode(),
+                snap.scoredOverall(),
+                snap.scoredHome(),
+                snap.scoredAway(),
+                snap.concededOverall(),
+                snap.concededHome(),
+                snap.concededAway(),
+                xg,
+                xga,
+                xgd,
+                xg,
+                xg,
+                snap.extendedOrEmpty(),
+                snap.fetchedAt()
+        );
     }
 
     static boolean xgMetricsReady(int xgSamples, int matchesPlayed) {
@@ -149,102 +128,28 @@ public class ApiFootballStatsSnapshotService {
                 && (double) xgSamples / matchesPlayed >= MIN_XG_COVERAGE;
     }
 
-    static boolean isTransportLikeStats(JsonNode root) {
-        if (root == null) {
-            return true;
-        }
-        JsonNode errors = root.get("errors");
-        if (errors != null && !errors.isNull() && !errors.isMissingNode()) {
-            if (errors.isObject() && !errors.isEmpty()) {
-                return true;
-            }
-            if (errors.isArray() && !errors.isEmpty()) {
-                return true;
-            }
-            if (errors.isTextual() && !errors.asText().isBlank()) {
-                return true;
-            }
-        }
-        JsonNode arr = root.path("response");
-        return !arr.isArray() || arr.size() < 2;
-    }
-
-    static DoublePair parseExpectedGoals(JsonNode root, int homeTeamId, int awayTeamId) {
-        if (root == null) {
+    private static FinishedMatch toFinished(Match match, LocalDate seasonStart) {
+        if (match == null || !"ft".equals(match.getStatus())) {
             return null;
         }
-        JsonNode arr = root.path("response");
-        if (!arr.isArray() || arr.size() < 2) {
+        if (match.getHomeScore() == null || match.getAwayScore() == null) {
             return null;
         }
-        Double home = null;
-        Double away = null;
-        for (JsonNode teamNode : arr) {
-            int teamId = teamNode.path("team").path("id").asInt(0);
-            Double xg = null;
-            for (JsonNode stat : teamNode.path("statistics")) {
-                if ("expected_goals".equalsIgnoreCase(stat.path("type").asText())) {
-                    JsonNode value = stat.path("value");
-                    if (value.isNumber()) {
-                        xg = value.asDouble();
-                    } else if (value.isTextual()) {
-                        try {
-                            xg = Double.parseDouble(value.asText());
-                        } catch (NumberFormatException ignored) {
-                            xg = null;
-                        }
-                    } else if (!value.isNull() && !value.isMissingNode()) {
-                        try {
-                            xg = Double.parseDouble(value.asText());
-                        } catch (NumberFormatException ignored) {
-                            xg = null;
-                        }
-                    }
-                    break;
-                }
-            }
-            if (xg == null) {
-                continue;
-            }
-            if (teamId == homeTeamId) {
-                home = xg;
-            } else if (teamId == awayTeamId) {
-                away = xg;
-            }
-        }
-        if (home == null || away == null) {
+        if (match.getStartsAt() == null
+                || match.getStartsAt().toLocalDate().isBefore(seasonStart)) {
             return null;
         }
-        return new DoublePair(home, away);
-    }
-
-    private static FinishedMatch toFinished(Response r) {
-        if (r == null || r.getFixture() == null || r.getTeams() == null || r.getGoals() == null) {
-            return null;
-        }
-        String status = r.getFixture().getStatus() != null ? r.getFixture().getStatus().getMyshort() : null;
-        if (status == null || !FINISHED.contains(status)) {
-            return null;
-        }
-        Integer hg = r.getGoals().getHome();
-        Integer ag = r.getGoals().getAway();
-        if (hg == null || ag == null) {
-            return null;
-        }
-        int homeId = r.getTeams().getHome() != null ? r.getTeams().getHome().getId() : 0;
-        int awayId = r.getTeams().getAway() != null ? r.getTeams().getAway().getId() : 0;
-        if (homeId <= 0 || awayId <= 0) {
-            return null;
-        }
-        Integer htH = null;
-        Integer htA = null;
-        Score score = r.getScore();
-        if (score != null && score.getHalftime() != null) {
-            htH = score.getHalftime().getHome();
-            htA = score.getHalftime().getAway();
-        }
-        long ts = r.getFixture().getTimestamp() != null ? r.getFixture().getTimestamp() : 0L;
-        return new FinishedMatch(r.getFixture().getPublicId(), homeId, awayId, hg, ag, htH, htA, ts);
+        long ts = match.getStartsAt().atZone(AppTimeZones.DISPLAY).toEpochSecond();
+        return new FinishedMatch(
+                match.getId(),
+                match.getHomeTeamId(),
+                match.getAwayTeamId(),
+                match.getHomeScore(),
+                match.getAwayScore(),
+                null,
+                null,
+                ts
+        );
     }
 
     private static LeagueAveragesSnapshot buildLeagueSnapshot(List<TeamStatsSnapshot> teams, Instant fetchedAt) {
@@ -284,9 +189,6 @@ public class ApiFootballStatsSnapshotService {
             Integer htAway,
             long timestamp
     ) {
-    }
-
-    record DoublePair(double home, double away) {
     }
 
     private static final class TeamAgg {
@@ -485,7 +387,7 @@ public class ApiFootballStatsSnapshotService {
         private TeamStatsSnapshot toSnapshot(Instant fetchedAt) {
             Team team = DaoUtil.TEAMS.get(teamId);
             if (team == null || team.getCode() == null || team.getCode().isBlank()) {
-                log.warn("ApiFootball snapshot: unknown team id {}", teamId);
+                log.warn("Season snapshot: unknown team id {}", teamId);
                 return null;
             }
             double scoredOverall = perMatch(gf, mp);

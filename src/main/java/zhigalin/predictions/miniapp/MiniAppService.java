@@ -339,9 +339,6 @@ public class MiniAppService {
                 match.getHomeTeamId(),
                 match.getAwayTeamId()
         );
-        if (lineups.isEmpty()) {
-            lineups = apiClient.getLineups(match.getId());
-        }
         if (!lineups.isEmpty()) {
             homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
             awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
@@ -453,7 +450,11 @@ public class MiniAppService {
         List<LineupPlayerItem> homeLineup = EspnSummaryParser.toLineupItemsFromFormation(homeFormation);
         List<LineupPlayerItem> awayLineup = EspnSummaryParser.toLineupItemsFromFormation(awayFormation);
         if (homeLineup.isEmpty() && awayLineup.isEmpty()) {
-            Map<Integer, List<Lineup>> lineups = apiClient.getLineups(match.getId());
+            Map<Integer, List<Lineup>> lineups = apiClient.getLineupsFromEspnSummary(
+                    match.getEspnId(),
+                    match.getHomeTeamId(),
+                    match.getAwayTeamId()
+            );
             homeLineup = toLineupItems(lineups.get(match.getHomeTeamId()));
             awayLineup = toLineupItems(lineups.get(match.getAwayTeamId()));
         }

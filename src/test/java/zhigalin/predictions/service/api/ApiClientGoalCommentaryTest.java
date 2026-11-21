@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import zhigalin.predictions.service.api.ApiClient.GoalScorer;
 import zhigalin.predictions.service.api.ApiClient.LatestGoalInfo;
 
@@ -21,7 +20,7 @@ class ApiClientGoalCommentaryTest {
     @BeforeEach
     void setUp() {
         mapper = new ObjectMapper();
-        api = new ApiClient(mapper, Mockito.mock(ApiFootballClient.class));
+        api = new ApiClient(mapper);
     }
 
     @Test

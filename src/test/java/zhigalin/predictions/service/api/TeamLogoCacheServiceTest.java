@@ -11,18 +11,39 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.util.DaoUtil;
 
 class TeamLogoCacheServiceTest {
 
     private static final byte[] PNG = {1, 2, 3, 4};
     private static final byte[] NONE = new byte[0];
+    private static final int TEAM_ID = 888_001;
+    private static final String TEAM_LOGO = "https://cdn.example/team.png";
 
     @TempDir
     Path dir;
 
     private final AtomicLong now = new AtomicLong(1_000_000L);
+
+    @BeforeEach
+    void putTeam() {
+        DaoUtil.TEAMS.put(TEAM_ID, Team.builder()
+                .id(TEAM_ID)
+                .code("ZZZ")
+                .name("Test")
+                .logo(TEAM_LOGO)
+                .build());
+    }
+
+    @AfterEach
+    void clearTeam() {
+        DaoUtil.TEAMS.remove(TEAM_ID);
+    }
 
     private TeamLogoCacheService service(Function<String, byte[]> fetcher) {
         return new TeamLogoCacheService(dir.toString(), fetcher, now::get);
@@ -35,20 +56,20 @@ class TeamLogoCacheServiceTest {
             calls.incrementAndGet();
             return PNG;
         });
-        assertArrayEquals(PNG, s.bytesForTeam(50));
-        assertArrayEquals(PNG, s.bytesForTeam(50));
+        assertArrayEquals(PNG, s.bytesForTeam(TEAM_ID));
+        assertArrayEquals(PNG, s.bytesForTeam(TEAM_ID));
         assertEquals(1, calls.get());
     }
 
     @Test
     void logoSurvivesRestartThroughDisk() {
-        service(url -> PNG).bytesForTeam(50);
+        service(url -> PNG).bytesForTeam(TEAM_ID);
         AtomicInteger calls = new AtomicInteger();
         TeamLogoCacheService afterRestart = service(url -> {
             calls.incrementAndGet();
             return NONE;
         });
-        assertArrayEquals(PNG, afterRestart.bytesForTeam(50));
+        assertArrayEquals(PNG, afterRestart.bytesForTeam(TEAM_ID));
         assertEquals(0, calls.get(), "disk copy must make the CDN unnecessary");
     }
 
@@ -60,24 +81,36 @@ class TeamLogoCacheServiceTest {
             calls.incrementAndGet();
             return up[0] ? PNG : NONE;
         });
-        assertNull(s.bytesForTeam(7));
+        assertNull(s.bytesForTeam(TEAM_ID));
         int afterFirst = calls.get();
         assertTrue(afterFirst >= 1);
 
         up[0] = true;
         now.addAndGet(TeamLogoCacheService.NEGATIVE_TTL_MS - 1);
-        assertNull(s.bytesForTeam(7), "still inside the negative window");
+        assertNull(s.bytesForTeam(TEAM_ID), "still inside the negative window");
         assertEquals(afterFirst, calls.get());
 
         now.addAndGet(1);
-        assertArrayEquals(PNG, s.bytesForTeam(7), "retried once the window passed");
+        assertArrayEquals(PNG, s.bytesForTeam(TEAM_ID), "retried once the window passed");
     }
 
     @Test
     void unknownTeamWithAllSourcesDownYieldsNull() {
-        TeamLogoCacheService s = service(url -> url.contains("api-sports") ? NONE : PNG);
-        // DaoUtil.TEAMS has no such team, so only API-Football is tried, it fails, no bundled file → null
+        TeamLogoCacheService s = service(url -> PNG);
         assertNull(s.bytesForTeam(999_999));
+    }
+
+    @Test
+    void fetchDoesNotRequestApiSportsCdn() {
+        AtomicInteger afHits = new AtomicInteger();
+        TeamLogoCacheService s = service(url -> {
+            if (url.contains("media.api-sports.io")) {
+                afHits.incrementAndGet();
+            }
+            return url.equals(TEAM_LOGO) ? PNG : NONE;
+        });
+        assertArrayEquals(PNG, s.bytesForTeam(TEAM_ID));
+        assertEquals(0, afHits.get());
     }
 
     @Test

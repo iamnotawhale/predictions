@@ -487,9 +487,6 @@ public class NotificationService {
                         match.getHomeTeamId(),
                         match.getAwayTeamId()
                 );
-                if (lineups.isEmpty()) {
-                    lineups = api.getLineups(match.getId());
-                }
                 Set<Integer> predictedUserIds = predictionService.getByMatchPublicId(match.getId()).stream()
                         .map(Prediction::getUserId)
                         .collect(Collectors.toSet());

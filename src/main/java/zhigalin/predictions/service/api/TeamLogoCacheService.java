@@ -25,16 +25,15 @@ import zhigalin.predictions.util.EspnTeamLogos;
 import zhigalin.predictions.util.TeamCodeMapper;
 
 /**
- * Same-origin team logos for the miniapp: fetch once (API-Football media, then ESPN),
- * keep in memory + disk, serve with long browser cache. Avoids flaky ESPN CDN in Telegram WebView.
+ * Same-origin team logos for the miniapp: bundled/disk first, then ESPN CDN,
+ * keep in memory + disk, serve with long browser cache.
  * <p>
- * Resolution order for an EPL team: memory → disk → CDN → bundled {@code static/img/teams/{id}.png}.
+ * Resolution order for an EPL team: memory → disk → bundled {@code static/img/teams/{id}.png} → ESPN.
  * A failed fetch is remembered only for {@link #NEGATIVE_TTL_MS} so the next warm-up retries it.
  */
 @Service
 public class TeamLogoCacheService {
     private static final Logger log = LoggerFactory.getLogger("server");
-    private static final String AF_CDN = "https://media.api-sports.io/football/teams/%d.png";
     private static final int CONNECT_MS = 2_500;
     private static final int SOCKET_MS = 4_000;
     private static final byte[] EMPTY = new byte[0];
@@ -176,9 +175,9 @@ public class TeamLogoCacheService {
     }
 
     private byte[] fetchTeam(int teamPublicId) {
-        byte[] af = fetcher.apply(AF_CDN.formatted(teamPublicId));
-        if (af.length > 0) {
-            return af;
+        byte[] local = bundled(teamPublicId);
+        if (local.length > 0) {
+            return local;
         }
         Team team = DaoUtil.TEAMS.get(teamPublicId);
         if (team != null) {
@@ -189,14 +188,15 @@ public class TeamLogoCacheService {
                     return fromEspn;
                 }
             }
-            if (team.getLogo() != null && team.getLogo().startsWith("http")) {
+            if (team.getLogo() != null && team.getLogo().startsWith("http")
+                    && !team.getLogo().contains("media.api-sports.io")) {
                 byte[] fromTeam = fetcher.apply(team.getLogo());
                 if (fromTeam.length > 0) {
                     return fromTeam;
                 }
             }
         }
-        return bundled(teamPublicId);
+        return EMPTY;
     }
 
     /** Logo shipped inside the jar ({@code static/img/teams/{id}.png}); last resort when every CDN is down. */

@@ -22,8 +22,4 @@ predictions:
     recalculate: false
     sync-match-times: false
 
-api:
-  football:
-    token: ${API_FOOTBALL_TOKEN:}
-
 # HTTPS для Telegram Mini App: ./scripts/dev-https.sh → deploy/local-https.env

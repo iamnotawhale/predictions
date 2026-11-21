@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rometools.rome.feed.synd.SyndEntry;
@@ -25,12 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import zhigalin.predictions.model.event.HeadToHead;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
-import zhigalin.predictions.model.input.Fixture;
-import zhigalin.predictions.model.input.Response;
-import zhigalin.predictions.model.input.ResponseTeam;
 import zhigalin.predictions.model.news.News;
 import zhigalin.predictions.model.v2.Competitor;
 import zhigalin.predictions.model.v2.Event;
@@ -42,9 +37,7 @@ import zhigalin.predictions.service.event.HeadToHeadService;
 import zhigalin.predictions.service.event.MatchService;
 import zhigalin.predictions.service.event.UserWeekBonusMatchService;
 import zhigalin.predictions.service.event.WeekService;
-import zhigalin.predictions.service.football.TeamService;
 import zhigalin.predictions.service.api.ApiClient;
-import zhigalin.predictions.service.api.ApiFootballClient;
 import zhigalin.predictions.service.api.EspnScoreboardClient;
 import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.odds.OddsService;
@@ -52,19 +45,16 @@ import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
 import zhigalin.predictions.util.EspnStatus;
 import zhigalin.predictions.util.DaoUtil;
-import zhigalin.predictions.util.EspnTeamLogos;
 import zhigalin.predictions.util.TeamCodeMapper;
 
 @Service
 public class DataInitService {
-    private final TeamService teamService;
     private final WeekService weekService;
     private final MatchService matchService;
     private final HeadToHeadService headToHeadService;
     private final NotificationService notificationService;
     private final PanicSender panicSender;
     private final ApiClient apiClient;
-    private final ApiFootballClient apiFootballClient;
     private final BettingRecommendationService bettingRecommendationService;
     private final EspnScoreboardClient espnScoreboardClient;
     private final CupMatchSyncService cupMatchSyncService;
@@ -89,9 +79,9 @@ public class DataInitService {
     private volatile long dataInitIntervalMs = LIVE_INTERVAL_MS;
     private volatile CachedLeagueNews cachedLeagueNews;
 
-    public DataInitService(TeamService teamService, WeekService weekService, MatchService matchService,
+    public DataInitService(WeekService weekService, MatchService matchService,
                            HeadToHeadService headToHeadService, NotificationService notificationService,
-                           PanicSender panicSender, ApiClient apiClient, ApiFootballClient apiFootballClient,
+                           PanicSender panicSender, ApiClient apiClient,
                            BettingRecommendationService bettingRecommendationService,
                            EspnScoreboardClient espnScoreboardClient,
                            PredictionService predictionService,
@@ -99,14 +89,12 @@ public class DataInitService {
                            CupMatchSyncService cupMatchSyncService,
                            UserWeekBonusMatchService userWeekBonusMatchService
     ) {
-        this.teamService = teamService;
         this.weekService = weekService;
         this.matchService = matchService;
         this.headToHeadService = headToHeadService;
         this.notificationService = notificationService;
         this.panicSender = panicSender;
         this.apiClient = apiClient;
-        this.apiFootballClient = apiFootballClient;
         this.bettingRecommendationService = bettingRecommendationService;
         this.espnScoreboardClient = espnScoreboardClient;
         this.predictionService = predictionService;
@@ -412,108 +400,133 @@ public class DataInitService {
         return result;
     }
 
-    private void matchUpdateFromApiFootball() {
-        List<Match> currentWeekMatches = matchService.findAllByCurrentWeek();
-        if (!currentWeekMatches.isEmpty() && currentWeekMatches.stream()
-                .allMatch(m -> Objects.equals(m.getStatus(), "ft")
-                               || Objects.equals(m.getStatus(), "pst"))) {
-            notificationService.sendWeeklyResults();
-            weekService.updateCurrent();
-            onCurrentWeekRollover();
-        }
-        if (!matchService.findOnlineMatches().isEmpty()) {
-            serverLogger.info("Matches to update found");
-            List<Match> matches = apiFootballClient
-                    .fetchLeagueFixtures(39, SEASON, LocalDate.now().minusDays(1L).toString(), LocalDate.now().toString())
-                    .stream()
-                    .map(this::getMatch)
-                    .toList();
-            matchService.updateAll(matches);
-        }
-    }
-
-    private void matchInitFromApiFootball() {
-        List<Match> matches = apiFootballClient.fetchLeagueFixtures(39, SEASON).stream()
-                .map(this::getMatch)
-                .toList();
-        matchService.save(matches);
-    }
 
     private void matchDateTimeStatusUpdate() {
-        int currentWeekId = weekService.findCurrentWeek().getId();
-        List<Match> matches = apiFootballClient.fetchLeagueFixtures(39, SEASON).stream()
-                .filter(r -> isFutureMatch(currentWeekId, r))
-                .map(this::getMatch)
+        LocalDate today = LocalDate.now(AppTimeZones.DISPLAY);
+        LocalDate windowEnd = today.plusDays(13);
+        List<Match> upcoming = matchService.findAllByUpcomingDays(14).stream()
+                .filter(m -> "ns".equals(m.getStatus()) || "pst".equals(m.getStatus()))
                 .toList();
-        if (matches.isEmpty()) {
-            serverLogger.info("No future matches to sync from API");
+        if (upcoming.isEmpty()) {
+            serverLogger.info("No ns/pst matches in next 14 days for kickoff sync");
             return;
         }
-        matchService.updateAll(matches);
-        serverLogger.info("Synced {} match times from API (timezone={})", matches.size(), AppTimeZones.DISPLAY);
-    }
-
-    private boolean isFutureMatch(int currentWeekId, Response response) {
-        int weekId = Integer.parseInt(response.getLeague().getRound().replaceAll("\\D+", ""));
-        return weekId >= currentWeekId;
-    }
-
-    private Match getMatch(Response response) {
-        Match match;
-
-        int weekId = Integer.parseInt(response.getLeague().getRound().replaceAll("\\D+", ""));
-
-        Fixture fixture = response.getFixture();
-        int publicId = fixture.getPublicId();
-        LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(fixture.getTimestamp()),
-                AppTimeZones.DISPLAY);
-        String status = fixture.getStatus().getMyshort();
-        switch (status) {
-            case "PST" -> status = "pst";
-            case "NS" -> status = "ns";
-            case "FT" -> status = "ft";
-            case "HT" -> status = "ht";
-            case "1H", "2H" -> status = fixture.getStatus().getElapsed() + "'";
-            default -> status = null;
+        Scoreboard scoreboard = espnScoreboardClient.fetchScoreboard(today, windowEnd);
+        if (scoreboard == null || scoreboard.getEvents() == null || scoreboard.getEvents().isEmpty()) {
+            serverLogger.warn("ESPN scoreboard empty for kickoff sync {}..{}", today, windowEnd);
+            return;
         }
-
-        ResponseTeam home = response.getTeams().getHome();
-        ResponseTeam away = response.getTeams().getAway();
-
-        int htPublicId = home.getId();
-        int atPublicId = away.getId();
-
-        if (response.getGoals().getHome() == null) {
-            match = Match.builder()
-                    .id(publicId)
-                    .status(status)
-                    .startsAt(matchDateTime)
-                    .weekId(weekId)
-                    .homeTeamId(htPublicId)
-                    .awayTeamId(atPublicId)
-                    .build();
-        } else {
-            String result;
-            Integer homeTeamScore = response.getGoals().getHome();
-            Integer awayTeamScore = response.getGoals().getAway();
-            if (homeTeamScore.equals(awayTeamScore)) {
-                result = "D";
-            } else {
-                result = homeTeamScore > awayTeamScore ? "H" : "A";
+        int synced = 0;
+        for (Event event : scoreboard.getEvents()) {
+            if (event.getShortName() == null || !event.getShortName().contains(" @ ")) {
+                continue;
             }
-            match = Match.builder()
-                    .id(publicId)
-                    .status(status)
-                    .startsAt(matchDateTime)
-                    .weekId(weekId)
-                    .homeTeamId(htPublicId)
-                    .awayTeamId(atPublicId)
-                    .homeScore(homeTeamScore)
-                    .awayScore(awayTeamScore)
-                    .result(result)
-                    .build();
+            String[] teams = event.getShortName().split(" @ ");
+            if (teams.length != 2) {
+                continue;
+            }
+            String homeCode = realTeamCode(teams[1]);
+            String awayCode = realTeamCode(teams[0]);
+            Match match = resolveUpcomingMatch(upcoming, event.getId(), homeCode, awayCode);
+            if (match == null) {
+                continue;
+            }
+            Integer homeScoreBefore = match.getHomeScore();
+            Integer awayScoreBefore = match.getAwayScore();
+            String espnBefore = match.getEspnId();
+            int idBefore = match.getId();
+            if (EspnStatus.isPostponed(event.getStatus())) {
+                markPostponed(match, event.getId(), homeCode, awayCode);
+                synced++;
+                continue;
+            }
+            String state = event.getStatus() != null && event.getStatus().getType() != null
+                    ? event.getStatus().getType().getState()
+                    : "";
+            if (!"pre".equals(state)) {
+                continue;
+            }
+            if (match.getEspnId() != null && !match.getEspnId().isBlank()
+                    && event.getId() != null && !event.getId().isBlank()
+                    && !match.getEspnId().equals(event.getId())) {
+                continue;
+            }
+            boolean updated = false;
+            if (event.getId() != null && !event.getId().isBlank()
+                    && (match.getEspnId() == null || match.getEspnId().isBlank())) {
+                match.setEspnId(event.getId());
+                updated = true;
+            }
+            if (event.getDate() != null && !event.getDate().isBlank()) {
+                String dateStr = event.getDate().replaceAll("(T\\d{2}:\\d{2})Z", "$1:00Z");
+                LocalDateTime espnDate = Instant.parse(dateStr)
+                        .atZone(AppTimeZones.DISPLAY)
+                        .toLocalDateTime();
+                if (!espnDate.equals(match.getStartsAt())) {
+                    match.setStartsAt(espnDate);
+                    updated = true;
+                }
+            }
+            if ("pst".equals(match.getStatus())) {
+                match.setStatus("ns");
+                updated = true;
+            }
+            if (!updated) {
+                continue;
+            }
+            if (match.getId() != idBefore
+                    || !Objects.equals(match.getHomeScore(), homeScoreBefore)
+                    || !Objects.equals(match.getAwayScore(), awayScoreBefore)
+                    || (espnBefore != null && !espnBefore.isBlank()
+                        && !espnBefore.equals(match.getEspnId()))) {
+                serverLogger.error("Kickoff sync refused unsafe mutation for match {}", idBefore);
+                continue;
+            }
+            matchService.update(match);
+            synced++;
         }
-        return match;
+        serverLogger.info(
+                "Synced {} match kickoffs from ESPN within {}..{} (timezone={})",
+                synced, today, windowEnd, AppTimeZones.DISPLAY
+        );
+    }
+
+    static Match resolveUpcomingMatch(
+            List<Match> upcoming, String espnId, String homeCode, String awayCode
+    ) {
+        if (upcoming == null || upcoming.isEmpty()) {
+            return null;
+        }
+        if (espnId != null && !espnId.isBlank()) {
+            for (Match match : upcoming) {
+                if (espnId.equals(match.getEspnId())) {
+                    return match;
+                }
+            }
+        }
+        Integer homeId = null;
+        Integer awayId = null;
+        for (Team team : DaoUtil.TEAMS.values()) {
+            if (homeId == null && homeCode.equals(team.getCode())) {
+                homeId = team.getId();
+            }
+            if (awayId == null && awayCode.equals(team.getCode())) {
+                awayId = team.getId();
+            }
+            if (homeId != null && awayId != null) {
+                break;
+            }
+        }
+        if (homeId == null || awayId == null) {
+            return null;
+        }
+        for (Match match : upcoming) {
+            if (homeId.equals(match.getHomeTeamId()) && awayId.equals(match.getAwayTeamId())
+                    && ("ns".equals(match.getStatus()) || "pst".equals(match.getStatus()))) {
+                return match;
+            }
+        }
+        return null;
     }
 
     public List<News> newsInit() throws IOException, ParseException, FeedException {
@@ -555,58 +568,4 @@ public class DataInitService {
     private record CachedLeagueNews(List<News> news, long fetchedAtMs) {
     }
 
-    private void headToHeadInitFromApiFootball() {
-        for (int league : List.of(39, 45, 48, 2, 40)) {
-            for (int season : IntStream.rangeClosed(2020, SEASON).toArray()) {
-                for (Response response : apiFootballClient.fetchLeagueFixtures(league, season)) {
-                    LocalDateTime matchDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(response.getFixture().getTimestamp()),
-                            AppTimeZones.DISPLAY);
-                    String leagueName = switch (response.getLeague().getName()) {
-                        case "Premier League" -> "PL ";
-                        case "League Cup" -> "LC ";
-                        case "FA Cup" -> "FA ";
-                        case "UEFA Champions League" -> "UCL ";
-                        case "Championship" -> "CH ";
-                        default -> response.getLeague().getName();
-                    } + response.getLeague().getSeason();
-                    Team homeTeam = DaoUtil.TEAMS.getOrDefault(response.getTeams().getHome().getId(), null);
-                    Team awayTeam = DaoUtil.TEAMS.getOrDefault(response.getTeams().getAway().getId(), null);
-                    if (homeTeam == null || awayTeam == null) {
-                        continue;
-                    }
-                    if (response.getGoals().getHome() == null) {
-                        continue;
-                    }
-                    Integer homeTeamScore = response.getGoals().getHome();
-                    Integer awayTeamScore = response.getGoals().getAway();
-                    HeadToHead headToHead = HeadToHead.builder()
-                            .leagueName(leagueName)
-                            .homeTeamId(homeTeam.getId())
-                            .awayTeamId(awayTeam.getId())
-                            .homeScore(homeTeamScore)
-                            .awayScore(awayTeamScore)
-                            .startsAt(matchDateTime)
-                            .build();
-                    headToHeadService.save(headToHead);
-                }
-            }
-        }
-    }
-
-    private void teamsInitFromApiFootball() {
-        for (Response response : apiFootballClient.fetchLeagueTeams(39, SEASON)) {
-            String code = response.getTeam().getCode();
-            String logo = EspnTeamLogos.logoUrl(TeamCodeMapper.toInternalCode(code));
-            if (logo == null) {
-                logo = response.getTeam().getLogo();
-            }
-            Team team = Team.builder()
-                    .id(response.getTeam().getId())
-                    .logo(logo)
-                    .name(response.getTeam().getName())
-                    .code(code)
-                    .build();
-            teamService.save(team);
-        }
-    }
 }
