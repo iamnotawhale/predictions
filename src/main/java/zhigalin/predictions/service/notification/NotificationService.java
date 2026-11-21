@@ -249,6 +249,87 @@ public class NotificationService {
         }
     }
 
+    public Integer refreshLiveScoreGoalAnimation(int matchPublicId) {
+        Match match = matchService.findById(matchPublicId);
+        if (match == null) {
+            log.warn("refreshLiveScoreGoalAnimation: match {} not found", matchPublicId);
+            return null;
+        }
+        Team home = DaoUtil.team(match.getHomeTeamId());
+        Team away = DaoUtil.team(match.getAwayTeamId());
+        if (home == null || away == null) {
+            return null;
+        }
+        int[] prev = inferPreviousScore(match);
+        if (prev == null) {
+            log.warn("refreshLiveScoreGoalAnimation: match {} has no goals to animate", matchPublicId);
+            return null;
+        }
+        String key = liveScoreState.key(match, home, away);
+        String text = buildLiveScoreUpdateText(match, home, away, prev[0], prev[1]);
+        Integer beforeId = match.getLiveScoreMessageId();
+        Integer existingMessageId = liveScoreState.existingMessageId(match, key, home, away);
+        Integer gifMessageId = trySendOrEditGoalEventGif(
+                match, home, away, prev[0], prev[1], text, existingMessageId);
+        if (gifMessageId == null) {
+            log.warn("refreshLiveScoreGoalAnimation: render/send failed for match {}", matchPublicId);
+            return null;
+        }
+        Match latest = matchService.findById(matchPublicId);
+        Integer afterId = latest != null ? latest.getLiveScoreMessageId() : null;
+        boolean createdNew = existingMessageId == null || !existingMessageId.equals(gifMessageId);
+        if (createdNew) {
+            boolean raceLost = (beforeId != null && afterId == null)
+                    || (afterId != null && !afterId.equals(beforeId) && !afterId.equals(gifMessageId));
+            if (raceLost) {
+                api.deleteMessage(defaultChatId, gifMessageId);
+                log.warn("refreshLiveScoreGoalAnimation: dropped stale send for match {} (before={}, after={})",
+                        matchPublicId, beforeId, afterId);
+                return null;
+            }
+            if (existingMessageId != null && (afterId == null || existingMessageId.equals(afterId))) {
+                api.deleteMessage(defaultChatId, existingMessageId);
+            }
+        }
+        liveScoreState.putMessageId(key, gifMessageId);
+        liveScoreState.markAnimation(key);
+        matchService.updateLiveScoreMessageId(match.getId(), gifMessageId);
+        liveScoreState.putLastText(key, text);
+        log.info("Refreshed live goal animation match={} messageId={} (was {})",
+                matchPublicId, gifMessageId, existingMessageId);
+        return gifMessageId;
+    }
+
+    private int[] inferPreviousScore(Match match) {
+        int nh = match.getHomeScore() == null ? 0 : match.getHomeScore();
+        int na = match.getAwayScore() == null ? 0 : match.getAwayScore();
+        int total = nh + na;
+        if (total <= 0) {
+            return null;
+        }
+        if (match.getEspnId() != null && !match.getEspnId().isBlank()) {
+            List<GoalScorer> scorers = api.listGoalScorers(match.getEspnId(), total);
+            if (scorers.size() != total) {
+                return null;
+            }
+            if (total == 1) {
+                return new int[]{0, 0};
+            }
+            GoalScorer before = scorers.get(scorers.size() - 2);
+            if (before.homeScore() == null || before.awayScore() == null) {
+                return null;
+            }
+            return new int[]{before.homeScore(), before.awayScore()};
+        }
+        if (nh > 0 && na == 0) {
+            return new int[]{nh - 1, 0};
+        }
+        if (na > 0 && nh == 0) {
+            return new int[]{0, na - 1};
+        }
+        return null;
+    }
+
     private Integer trySendOrEditGoalEventGif(
             Match match,
             Team home,
