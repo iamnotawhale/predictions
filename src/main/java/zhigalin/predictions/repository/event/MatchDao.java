@@ -112,6 +112,8 @@ public class MatchDao {
                 UPDATE match
                 SET home_score = :homeScore,
                     away_score = :awayScore,
+                    ht_home = :htHome,
+                    ht_away = :htAway,
                     result = :result,
                     starts_at = :date,
                     status = :status,
@@ -126,6 +128,8 @@ public class MatchDao {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("homeScore", match.getHomeScore());
             parameters.addValue("awayScore", match.getAwayScore());
+            parameters.addValue("htHome", match.getHtHome());
+            parameters.addValue("htAway", match.getHtAway());
             parameters.addValue("result", match.getResult());
             parameters.addValue("status", match.getStatus());
             parameters.addValue("publicId", match.getId());
@@ -753,6 +757,8 @@ public class MatchDao {
                     .awayTeamId(rs.getInt("away_team_id"))
                     .homeScore(rs.getInt("home_score"))
                     .awayScore(rs.getInt("away_score"))
+                    .htHome((Integer) rs.getObject("ht_home"))
+                    .htAway((Integer) rs.getObject("ht_away"))
                     .status(rs.getString("status"))
                     .result(rs.getString("result"))
                     .espnId(rs.getString("espn_id"))

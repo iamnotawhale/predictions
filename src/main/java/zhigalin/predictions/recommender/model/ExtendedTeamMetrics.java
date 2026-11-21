@@ -58,6 +58,27 @@ public record ExtendedTeamMetrics(
         return builder().build();
     }
 
+    public ExtendedTeamMetrics withoutRecentXg() {
+        return new ExtendedTeamMetrics(
+                formBttsOverall, formBttsHome, formBttsAway,
+                formCsOverall, formCsHome, formCsAway,
+                xPts, actualPts, xPtsDelta, homeAdvantage,
+                seasonBttsOverall, seasonBttsHome, seasonBttsAway,
+                seasonCsOverall, seasonCsHome, seasonCsAway,
+                ftsHome, ftsAway,
+                drawPctOverall, drawPctHome, drawPctAway,
+                seasonScoredPerMatch, seasonScoredHome, seasonScoredAway,
+                seasonConcededPerMatch, seasonConcededHome, seasonConcededAway,
+                over25Overall, over25Home, over25Away,
+                under25Overall, under25Home, under25Away,
+                homePpg, awayPpg, htPpg, winningAtHtPct,
+                ssScoredFirstPct, ssScoredFirstPpg, ssConcededFirstPct, ssConcededFirstPpg,
+                ssLeadPct, ssTrailPct, ssEqualiserScoredPct, ssEqualiserConcededPct,
+                ssOgsPct, ssOgcPct, ssAvgFirstGoalMin, ssFavouritePpg,
+                null, null, null
+        );
+    }
+
     public ExtendedTeamMetrics merge(ExtendedTeamMetrics patch) {
         if (patch == null) {
             return this;

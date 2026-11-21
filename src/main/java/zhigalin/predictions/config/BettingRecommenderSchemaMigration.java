@@ -100,5 +100,13 @@ public class BettingRecommenderSchemaMigration {
                     ADD COLUMN IF NOT EXISTS shadow_home INTEGER,
                     ADD COLUMN IF NOT EXISTS shadow_away INTEGER
                 """);
+        jdbcTemplate.execute("""
+                ALTER TABLE match
+                    ADD COLUMN IF NOT EXISTS ht_home INTEGER
+                """);
+        jdbcTemplate.execute("""
+                ALTER TABLE match
+                    ADD COLUMN IF NOT EXISTS ht_away INTEGER
+                """);
     }
 }

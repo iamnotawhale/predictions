@@ -82,6 +82,12 @@ alter table match
     add column if not exists odd_away_total numeric(6, 2);
 
 alter table match
+    add column if not exists ht_home integer;
+
+alter table match
+    add column if not exists ht_away integer;
+
+alter table match
     add column if not exists finished_at timestamp;
 
 alter table predict

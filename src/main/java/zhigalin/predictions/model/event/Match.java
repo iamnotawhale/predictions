@@ -33,6 +33,10 @@ public class Match {
     private Integer homeScore;
     @JsonProperty("away_score")
     private Integer awayScore;
+    @JsonProperty("ht_home")
+    private Integer htHome;
+    @JsonProperty("ht_away")
+    private Integer htAway;
     private String result;
     private String status;
     @JsonProperty("starts_at")

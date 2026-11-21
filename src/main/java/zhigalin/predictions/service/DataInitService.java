@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
@@ -43,6 +44,7 @@ import zhigalin.predictions.service.notification.NotificationService;
 import zhigalin.predictions.service.odds.OddsService;
 import zhigalin.predictions.service.predict.PredictionService;
 import zhigalin.predictions.util.AppTimeZones;
+import zhigalin.predictions.util.EspnLinescores;
 import zhigalin.predictions.util.EspnStatus;
 import zhigalin.predictions.util.DaoUtil;
 import zhigalin.predictions.util.TeamCodeMapper;
@@ -244,10 +246,16 @@ public class DataInitService {
                 Integer awayScore = findScore(event, "away");
                 Integer prevHome = match.getHomeScore();
                 Integer prevAway = match.getAwayScore();
+                Integer prevHtHome = match.getHtHome();
+                Integer prevHtAway = match.getHtAway();
                 int prevTotal = (prevHome == null ? 0 : prevHome) + (prevAway == null ? 0 : prevAway);
                 int nextTotal = homeScore + awayScore;
                 match.setHomeScore(homeScore);
                 match.setAwayScore(awayScore);
+                applyHalfTimeScore(match, event);
+                boolean htFilled = (prevHtHome == null || prevHtAway == null)
+                        && match.getHtHome() != null
+                        && match.getHtAway() != null;
 
                 boolean becameFinished = !status.equals(match.getStatus());
                 boolean scoreCorrected = !becameFinished
@@ -278,6 +286,8 @@ public class DataInitService {
                                 homeTeam, awayTeam, e.getMessage(), e);
                         panicSender.sendPanic("updateByMatch after score correction", e);
                     }
+                } else if (htFilled) {
+                    matchService.update(match);
                 }
                 bettingRecommendationService.freezeAtKickoffIfNeeded(match.getId());
                 if (becameFinished) {
@@ -303,6 +313,8 @@ public class DataInitService {
         serverLogger.info("Match {}-{} postponed by ESPN: {} -> pst", homeTeam, awayTeam, match.getStatus());
         match.setHomeScore(null);
         match.setAwayScore(null);
+        match.setHtHome(null);
+        match.setHtAway(null);
         match.setResult(null);
         boolean wasFinished = "ft".equals(match.getStatus());
         match.setStatus("pst");
@@ -388,6 +400,25 @@ public class DataInitService {
                 .orElseThrow();
 
         return Integer.parseInt(competitor.getScore());
+    }
+
+    private void applyHalfTimeScore(Match match, Event event) {
+        EspnLinescores.HtScore ht = EspnLinescores.fromEvent(event);
+        String espnId = match.getEspnId() != null && !match.getEspnId().isBlank()
+                ? match.getEspnId()
+                : (event != null ? event.getId() : null);
+        if (ht == null && espnId != null && !espnId.isBlank()) {
+            JsonNode summary = apiClient.fetchEspnSummary(espnId);
+            ht = EspnLinescores.fromSummary(summary);
+        }
+        if (ht == null) {
+            return;
+        }
+        match.setHtHome(ht.home());
+        match.setHtAway(ht.away());
+        if ((match.getEspnId() == null || match.getEspnId().isBlank()) && espnId != null) {
+            match.setEspnId(espnId);
+        }
     }
 
     private String findResult(Integer homeScore, Integer awayScore) {

@@ -1,5 +1,7 @@
 package zhigalin.predictions.model.v2;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
@@ -11,6 +13,7 @@ public class Competitor {
     private String score;
     private Integer shootoutScore;
     private EspnTeamRef team;
+    private List<LineScore> linescores;
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -21,5 +24,12 @@ public class Competitor {
         private String name;
         private String shortDisplayName;
         private String logo;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class LineScore {
+        private String displayValue;
+        private Double value;
     }
 }

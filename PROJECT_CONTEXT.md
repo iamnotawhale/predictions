@@ -46,7 +46,7 @@
 - `src/main/java/zhigalin/predictions/service/odds` — **`OddsService`**: коэффициенты через общий `EspnScoreboardClient` **по диапазону дат матчей** (`dates=YYYYMMDD-YYYYMMDD`), TTL 60с (`ensureFresh`), сохранение в БД; матчевый тотал (`overUnder`) + индивидуальные тоталы команд (ESPN propBets `Team Total Goals` через `EspnTeamTotalsClient`).
 - `src/main/java/zhigalin/predictions/service/predict` — скоринг (`ScoringMode`), **`FlooredPointsService`** (скользящий пол), FT recalc.
 - `src/main/java/zhigalin/predictions/service/event` — матчи; **`CupMatchSyncService`** (кубки ESPN); **`UserWeekBonusMatchService`** (персональный бонус тура).
-- `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: сезон-снимок из FT в БД + ESPN season xG + SoccerSTATS enrich → Poisson-модель → кэш в БД; single-flight refresh, batch writes.
+- `src/main/java/zhigalin/predictions/recommender` — **рекомендатор ставок**: сезон-снимок из FT в БД + Understat/FotMob per-match xG (`fixture_xg`) + ESPN season xG fallback + SoccerSTATS enrich → Poisson-модель → кэш в БД; single-flight refresh, batch writes.
   **Сначала рынок** (`MarketScoreMatrix`): при наличии коэффициентов λ подгоняются под вероятности 1X2 (без маржи) с мягкой тягой к ожидаемому тоталу (50% среднее лиги из снимка + 50% тотал, при котором P(больше линии)=0.566), строится матрица Пуассона 0–5 и выравнивается так, что вероятности победы/ничьи/поражения равны рыночным; статистика команд (формула + xG, до 15% веса в λ, снижается при тонкой выборке) сдвигает λ и форму счёта внутри исхода, исходы 1X2 по-прежнему фиксирует рынок. Без коэффициентов — прежний расчёт по статистике/xG/H2H. Рекомендуемый счёт — **максимум ожидаемых очков** по матрице (`ScorePicker`, выплаты из `PredictionService.computePoints` по правилам EPL 4/2/1/−1), а не самый вероятный счёт: на 3 сезонах АПЛ это +0.14…+0.20 очка за матч (95% ДИ +0.02…+0.26), см. `docs/recommender-backtest.md`; один выбор подходит и для «бонусных» очков (совпал в 100% матчей). `scoreProbability` — вероятность именно рекомендованного счёта; самый вероятный счёт и ожидаемые очки есть в `PoissonScoreModel.Result` и в тексте объяснения. Регрессия на истории: `RecommenderBacktestTest` (запуск с `BACKTEST_DIR=<папка с E0*.csv football-data.co.uk>`).
 - `src/main/java/zhigalin/predictions/service/api` — `ApiClient` (Telegram, ESPN summary TTL 8с, lineups только ESPN); **`EspnScoreboardClient`** — eng.1 и cup leagues (`eng.fa`, `eng.league_cup`, `uefa.*`); **`EspnTeamTotalsClient`** — team total goals lines; **`EspnTeamRosterService`** — season leaders; **`EspnTeamSeasonStatsService`** — командные сезон-статы (владение/удары/CS/xG, TTL 6ч). ESPN scoreboard больше не принимает диапазон `dates=YYYYMMDD-YYYYMMDD` (всегда 400, проверено 2026-10-10): `EspnScoreboardClient.fetchScoreboard(from, to)` запрашивает по одному дню (до 14) и склеивает events; одиночный `dates=YYYYMMDD` работает. ESPN site JSON: хост **`site.web.api.espn.com`** (не `site.api` — Akamai с Odyssey часто даёт 403), UA `predictions-bot/1.0`; core stats — `sports.core.api.espn.com`.
 - `src/main/java/zhigalin/predictions/telegram/MatchMessageFormatter` — единый формат строк матча для `/today`, `/tour`, upcoming.
@@ -113,6 +113,7 @@
 - `live_score_message_id` — id Telegram-сообщения live-счёта (переживает рестарт).
 - `odd_home`, `odd_draw`, `odd_away` — коэффициенты 1/X/2 (`NUMERIC(6,2)`), заполняются `OddsService`, читаются в miniapp и разборе тура.
 - `odd_over_under` — линия тотала матча; `odd_home_total` / `odd_away_total` — индивидуальные тоталы.
+- `ht_home` / `ht_away` — счёт первого тайма (nullable); на FT из ESPN `competitors.linescores[0]`, иначе summary `header.competitions[0].competitors[].linescores`; `0:0` валиден; mapper через `getObject`.
 - `starts_at` — kickoff (бывш. `local_date_time`); `home_score` / `away_score` (бывш. `*_team_score`); `id` — внешний id матча (бывш. `public_id` на `match`/`cup_match`/`teams`).
 - `finished_at` — время фиксации FT для скользящего пола очков.
 - `cup_match` — кубковые матчи с участием клубов АПЛ; `predict.cup_match_id` — прогноз на них; AET/пен. — `aet_home`/`aet_away`/`pen_home`/`pen_away`.
@@ -124,9 +125,9 @@
 
 **Рекомендатор ставок (DB+ESPN snapshot + cache):**
 - `users.betting_recommender_enabled` — per-user toggle (default `false`).
-- `recommender_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (…); источник — DB FT + ESPN xG + SoccerSTATS enrich.
+- `recommender_team_stats` — снимок команды на тур: scored/conceded (overall/home/away), xG/xGA/xGD, `extended_json` (…); источник — DB FT + Understat/FotMob `fixture_xg` (+ ESPN season xG fallback) + SoccerSTATS enrich.
 - `recommender_league_snapshot` — средние лиги home/away scored/conceded на тур.
-- `fixture_xg` — кэш `expected_goals` по `match_id` (инкрементальный backfill, до ~25 новых матчей за refresh).
+- `fixture_xg` — кэш per-match xG: сначала Understat `datesData` (когда онлайн), иначе FotMob matchDetails; join по `match_id` (join home+away + kickoff ±36ч, ровно одна FT-строка; ≤25 новых HTTP/refresh; пустой ответ кэш не затирает).
 - `match_recommendation` — готовый прогноз счёта + explanation JSON на `match_id`; `expected_home`/`expected_away`; при kickoff копируется в `kickoff_home` / `kickoff_away` / `kickoff_frozen_at` (не перезаписывается refresh тура).
 - Миграция: `RecommenderTableRename` (`footystats_*` → `recommender_*`, `api_football_fixture_xg` → `fixture_xg`) + `SchemaColumnRename` в `DBConfig` до `tablesInit.sql` и в `BettingRecommenderSchemaMigration`; DDL новых имён в `tablesInit.sql`.
 
@@ -288,7 +289,7 @@
 | GET | `/profile/stats` | Статистика прогнозов пользователя по всем матчам (АПЛ и кубки: exact%/исход, средние очки, привычки П1/X/П2 + тотал прогноз/факт; `cupMatchCount`/`cupAvgPoints` для блока «Туры, бонусные и кубковые матчи»; `teams`: ср. очки по клубам АПЛ; лучший/слабый тур только по АПЛ; без сравнений с другими) |
 | GET | `/profile/team/{teamCode}` | Профиль → «По командам» → модалка: сыгранные матчи команды и будущие с вашим прогнозом из `match` и `cup_match` (`UserPredictionStatsService.teamPredictions`); сверху ближайшие будущие, ниже сыгранные от новых к старым; сыгранный матч без прогноза показан как «прогноз не сделан» (очки пустые, в средние не входит); кубковые строки помечены `cup` и `competition` (код турнира для бейджа, как в списках кубков) и не получают ИИ-совет (счёт, свой прогноз, очки с учётом бонуса тура), совет ИИ на старте матча (`kickoff_*`) и его очки, средние очки остальных пользователей по матчу (обезличенно, только сделавшие прогноз), сводка «вы / ИИ / остальные». Считается в `UserPredictionStatsService.teamPredictions` на той же выборке, что и список по командам, поэтому средние совпадают |
 | POST | `/profile/betting-recommender` | Вкл/выкл рекомендатор `{ "enabled": true/false }` |
-| POST | `/admin/betting-recommender/refresh` | **Только `ADMIN_CHAT_ID`**: форс-пересчёт DB+ESPN snapshot + SoccerSTATS enrich + рекомендаций (`?weekId=` опционально, иначе текущий тур; квота AF / cold xG backfill) |
+| POST | `/admin/betting-recommender/refresh` | **Только `ADMIN_CHAT_ID`**: форс-пересчёт DB+Understat/FotMob(+ESPN fallback) snapshot + SoccerSTATS enrich + рекомендаций (`?weekId=` опционально, иначе текущий тур) |
 | GET | `/admin/data/tables` | **Admin**: список таблиц БД, доступных для правки |
 | GET | `/admin/data/{tableId}/columns` | **Admin**: колонки таблицы (`information_schema`) |
 | GET | `/admin/data/{tableId}/rows` | **Admin**: постраничный список строк (`limit`≤100, `q` — поиск по полю сортировки) |
@@ -348,25 +349,31 @@
 - Не сделано: тик в карточке списка кубков; трек-рекорд кубков в интерфейсе.
 - Фикстура `src/test/resources/espn/cup-odds-new-eve.json` (NEW–EVE: коэффициенты, `lastFiveGames`, `seasonseries`, `header.competitors`) и `CupOddsModelTest`.
 
-## Рекомендатор ставок (DB + ESPN + SoccerSTATS + Poisson)
+## Рекомендатор ставок (DB + Understat + FotMob + ESPN + SoccerSTATS + Poisson)
 **Назначение:** опциональный per-user помощник — рекомендуемый счёт 0–5 с математическим объяснением в модалке прогноза.
 
 **Пакет `zhigalin.predictions.recommender` + HTTP-клиент:**
-- `ApiFootballStatsSnapshotService` (имя историческое) — снимок сезона из `match` (status=ft с `seasonStartDate`) + сезон xG/xGA из `EspnTeamSeasonStatsService`; без API-Football. Таблица `fixture_xg` остаётся в схеме/admin, runtime не пишет.
-- `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с). Out of scope для замены модели; enrich после AF-снимка, ошибки не валят refresh.
+- `ApiFootballStatsSnapshotService` (имя историческое) — снимок сезона из `match` (status=ft с `seasonStartDate`) + per-match xG: Understat→`fixture_xg` (primary, soft-fail если offline), дыры добивает FotMob (≤25 matchDetails/refresh); ESPN season xG/xGA только fallback, если покрытие < 50% матчей (тогда recent/xPts остаются null, источники не смешиваются на одной команде).
+- `UnderstatClient` — GET `understat.com/league/EPL/{SEASON}`, парсинг `datesData`; soft-fail + детект maintenance («We will come back soon»); кэш 6ч/20мин. Primary, когда сайт снова онлайн.
+- `UnderstatTeamNameMapper` — только точные title → коды.
+- `FotMobClient` — GET `fotmob.com/api/data/leagues?id=47&season={SEASON}/{SEASON+1}` + `matchDetails?matchId=` для `expected_goals`; soft-fail; кэш списка 6ч (при дырах — 20 мин); ≤25 matchDetails/refresh. Fallback, пока Understat offline или не покрыл матч.
+- `FotMobTeamNameMapper` — только точные title → коды (без `startsWith`).
+- `FixtureXgDao` — upsert/lookup кэша xG (пишет только валидные home/away xG).
+- `EspnLinescores` — HT из scoreboard/summary `linescores[0]`; `htPpg` / `winningAtHtPct` в snapshot только при `htSample ≥ 4`.
+- `SoccerStatsScraperService` — scrape game-state метрик с soccerstats.com (first goal, scored first, lead durations, equalisers, favourite PPG; пауза ~0.9с). Out of scope для замены модели; enrich после снимка, ошибки не валят refresh.
 - `SoccerStatsTeamNameMapper` — имена команд SoccerSTATS → коды `teams`; scrape FootyStats удалён (Cloudflare 403).
 - `RecommenderStatsDao` — кэш в PostgreSQL; `replaceTeamStats` / `saveRecommendations` через JDBC `batchUpdate`.
 - `PoissonScoreModel` — λ + коррекции матрицы счёта.
-- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_id` (DB+ESPN snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId`; refresh **не трогает** матчи с `kickoff_frozen_at`; `freezeAtKickoffIfNeeded` копирует `recommended_*` → `kickoff_*` один раз; HTTP ensure по-прежнему ждёт результат (не empty+async).
+- `BettingRecommendationService` — refresh тура / lazy ensure / lookup по `match_id` (DB+Understat/FotMob snapshot → SoccerSTATS enrich → store); **single-flight** на `weekId`; refresh **не трогает** матчи с `kickoff_frozen_at`; `freezeAtKickoffIfNeeded` копирует `recommended_*` → `kickoff_*` один раз; HTTP ensure по-прежнему ждёт результат (не empty+async).
 - `RecommenderWarmupOnStartup` — `@Async` на `ApplicationReady`: если у текущего тура нет recommendations — `ensureCurrentWeekRecommendations` в фоне.
 
 **Источники снимка (основной слой):**
-- `/fixtures` season EPL — FT/AET/PEN голы + HT для агрегатов формы/BTTS/CS/FTS/OU/PPG/HT PPG / homeAdvantage из PPG
-- `/fixtures/statistics` → `expected_goals` в `fixture_xg` (инкрементально, **≤25 HTTP-вызовов**/refresh); два team-блока без xG → tombstone (`home_xg`/`away_xg` NULL); null/`errors`/пустой response → retry позже без tombstone, но вызов считается в cap
+- FT из `match` — голы + HT (`ht_home`/`ht_away`) для агрегатов формы/BTTS/CS/FTS/OU/PPG/HT PPG / homeAdvantage из PPG
+- Understat `datesData` (primary) → `fixture_xg`; иначе FotMob matchDetails `expected_goals` (join home+away + kickoff ±36ч); ESPN season xG — fallback при низком покрытии
 - xG / xPts в снимок только при покрытии `xgSamples/mp ≥ 0.8` и `xgSamples ≥ 8`; иначе null (голы/BTTS/PPG остаются)
 - xPts / actualPts / xPtsDelta — независимый Пуассон по xG матча (`MarketScoreMatrix.expectedPoints`), сумма только по матчам с xG; delta = actual − xPts
 - Коэффициенты букмекеров — из уже существующего `OddsService`: 1X2 + match OU + team totals; Poisson мягко подтягивает λ к линиям тотала.
-- SoccerSTATS game-state — отдельный enrich (не AF).
+- SoccerSTATS game-state — отдельный enrich.
 
 **Источники SoccerSTATS (доп. слой, без замены модели):**
 - `firstgoal.asp` — OGS/OGC %, средняя минута первого гола

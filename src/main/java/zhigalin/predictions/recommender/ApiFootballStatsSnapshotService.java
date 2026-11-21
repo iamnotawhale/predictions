@@ -1,17 +1,23 @@
 package zhigalin.predictions.recommender;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import zhigalin.predictions.model.event.Match;
 import zhigalin.predictions.model.football.Team;
+import zhigalin.predictions.recommender.FotMobClient.FotMobFixture;
+import zhigalin.predictions.recommender.UnderstatClient.UnderstatMatch;
 import zhigalin.predictions.recommender.model.ExtendedTeamMetrics;
 import zhigalin.predictions.recommender.model.LeagueAveragesSnapshot;
 import zhigalin.predictions.recommender.model.TeamStatsSnapshot;
@@ -30,17 +36,30 @@ public class ApiFootballStatsSnapshotService {
     private static final int XPTS_MAX_GOALS = 10;
     private static final int MIN_XG_SAMPLES_FOR_METRICS = 8;
     private static final double MIN_XG_COVERAGE = 0.8;
+    private static final double MIN_XG_MATCH_COVERAGE = 0.5;
+    private static final int MAX_XG_FETCH_PER_REFRESH = 25;
     private static final int RECENT_XG_WINDOW = 6;
     private static final int MIN_RECENT_XG_SAMPLES = 4;
+    private static final int MIN_HT_SAMPLE = 4;
+    private static final Duration KICKOFF_MATCH_WINDOW = Duration.ofHours(36);
 
     private final MatchService matchService;
+    private final FixtureXgDao fixtureXgDao;
+    private final UnderstatClient understatClient;
+    private final FotMobClient fotMobClient;
     private final EspnTeamSeasonStatsService espnTeamSeasonStatsService;
 
     public ApiFootballStatsSnapshotService(
             MatchService matchService,
+            FixtureXgDao fixtureXgDao,
+            UnderstatClient understatClient,
+            FotMobClient fotMobClient,
             EspnTeamSeasonStatsService espnTeamSeasonStatsService
     ) {
         this.matchService = matchService;
+        this.fixtureXgDao = fixtureXgDao;
+        this.understatClient = understatClient;
+        this.fotMobClient = fotMobClient;
         this.espnTeamSeasonStatsService = espnTeamSeasonStatsService;
     }
 
@@ -61,24 +80,53 @@ public class ApiFootballStatsSnapshotService {
             );
         }
 
+        syncUnderstatXg(finished);
+        syncFotMobXg(finished);
+
+        Map<Integer, FixtureXgDao.XgRow> xgByMatch = new HashMap<>();
+        for (FixtureXgDao.XgRow row : fixtureXgDao.findAllWithXg()) {
+            xgByMatch.put(row.matchId(), row);
+        }
+        int xgCovered = 0;
+        for (FinishedMatch m : finished) {
+            if (xgByMatch.containsKey(m.fixtureId())) {
+                xgCovered++;
+            }
+        }
+        boolean xgCoverageOk = finished.size() > 0
+                && (double) xgCovered / finished.size() >= MIN_XG_MATCH_COVERAGE;
+
         Map<Integer, TeamAgg> byTeam = new HashMap<>();
         for (FinishedMatch m : finished) {
-            byTeam.computeIfAbsent(m.homeTeamId(), TeamAgg::new).addHome(m, null, null);
-            byTeam.computeIfAbsent(m.awayTeamId(), TeamAgg::new).addAway(m, null, null);
+            FixtureXgDao.XgRow xg = xgByMatch.get(m.fixtureId());
+            Double homeXg = xg != null ? xg.homeXg() : null;
+            Double awayXg = xg != null ? xg.awayXg() : null;
+            byTeam.computeIfAbsent(m.homeTeamId(), TeamAgg::new).addHome(m, homeXg, awayXg);
+            byTeam.computeIfAbsent(m.awayTeamId(), TeamAgg::new).addAway(m, awayXg, homeXg);
         }
 
         List<TeamStatsSnapshot> teams = new ArrayList<>();
-        int withEspnXg = 0;
+        int withMatchXg = 0;
+        int withEspnFallbackXg = 0;
         for (TeamAgg agg : byTeam.values()) {
             TeamStatsSnapshot snap = agg.toSnapshot(fetchedAt);
             if (snap == null) {
                 continue;
             }
-            TeamStatsSnapshot withXg = applyEspnSeasonXg(snap);
-            if (withXg.xgOverall() != null) {
-                withEspnXg++;
+            if (snap.xgOverall() != null) {
+                withMatchXg++;
+                teams.add(snap);
+                continue;
             }
-            teams.add(withXg);
+            if (!xgCoverageOk) {
+                TeamStatsSnapshot withEspn = applyEspnSeasonXgFallback(snap);
+                if (withEspn.xgOverall() != null) {
+                    withEspnFallbackXg++;
+                }
+                teams.add(withEspn);
+            } else {
+                teams.add(snap);
+            }
         }
         if (teams.size() < MIN_TEAMS) {
             throw new IllegalStateException(
@@ -88,15 +136,183 @@ public class ApiFootballStatsSnapshotService {
 
         LeagueAveragesSnapshot league = buildLeagueSnapshot(teams, fetchedAt);
         log.info(
-                "Season snapshot complete: {} teams, {} finished fixtures, {} with ESPN xG",
+                "Season snapshot complete: {} teams, {} finished fixtures, {} match xG, {} ESPN xG fallback",
                 teams.size(),
                 finished.size(),
-                withEspnXg
+                withMatchXg,
+                withEspnFallbackXg
         );
         return new LeagueStatsSnapshot(teams, league);
     }
 
-    private TeamStatsSnapshot applyEspnSeasonXg(TeamStatsSnapshot snap) {
+    void syncUnderstatXg(List<FinishedMatch> finished) {
+        Set<Integer> cached = new HashSet<>(fixtureXgDao.findCachedFixtureIds(
+                finished.stream().map(FinishedMatch::fixtureId).toList()
+        ));
+        boolean preferFresh = cached.size() < finished.size();
+        List<UnderstatMatch> understatMatches =
+                understatClient.fetchFinishedWithXg(DataInitService.SEASON, preferFresh);
+        if (understatMatches.isEmpty()) {
+            return;
+        }
+
+        Map<String, Integer> teamIdByCode = teamIdByCode();
+        Instant now = Instant.now();
+        int stored = 0;
+        int ambiguous = 0;
+        int unmatched = 0;
+        for (UnderstatMatch u : understatMatches) {
+            Integer homeId = teamIdByCode.get(u.homeCode());
+            Integer awayId = teamIdByCode.get(u.awayCode());
+            if (homeId == null || awayId == null) {
+                continue;
+            }
+            List<FinishedMatch> candidates = new ArrayList<>();
+            for (FinishedMatch m : finished) {
+                if (m.homeTeamId() != homeId || m.awayTeamId() != awayId) {
+                    continue;
+                }
+                if (m.kickoff() == null) {
+                    continue;
+                }
+                long hours = Math.abs(Duration.between(m.kickoff(), u.kickoff()).toHours());
+                if (hours <= KICKOFF_MATCH_WINDOW.toHours()) {
+                    candidates.add(m);
+                }
+            }
+            if (candidates.isEmpty()) {
+                unmatched++;
+                continue;
+            }
+            if (candidates.size() != 1) {
+                ambiguous++;
+                log.warn(
+                        "Understat xG skip ambiguous match {}-{} @ {}: {} DB candidates",
+                        u.homeCode(),
+                        u.awayCode(),
+                        u.kickoff(),
+                        candidates.size()
+                );
+                continue;
+            }
+            FinishedMatch match = candidates.getFirst();
+            fixtureXgDao.upsert(
+                    match.fixtureId(),
+                    match.homeTeamId(),
+                    match.awayTeamId(),
+                    u.homeXg(),
+                    u.awayXg(),
+                    now
+            );
+            cached.add(match.fixtureId());
+            stored++;
+        }
+        if (stored > 0 || ambiguous > 0 || unmatched > 0) {
+            log.info(
+                    "Understat xG sync stored={} ambiguous={} unmatched={} cached={}",
+                    stored,
+                    ambiguous,
+                    unmatched,
+                    cached.size()
+            );
+        }
+    }
+
+    void syncFotMobXg(List<FinishedMatch> finished) {
+        Set<Integer> cached = new HashSet<>(fixtureXgDao.findCachedFixtureIds(
+                finished.stream().map(FinishedMatch::fixtureId).toList()
+        ));
+        boolean preferFresh = cached.size() < finished.size();
+        List<FotMobFixture> fotmobFixtures =
+                fotMobClient.fetchFinishedFixtures(DataInitService.SEASON, preferFresh);
+        if (fotmobFixtures.isEmpty()) {
+            return;
+        }
+
+        Map<String, Integer> teamIdByCode = teamIdByCode();
+        Instant now = Instant.now();
+        int attempts = 0;
+        int stored = 0;
+        int ambiguous = 0;
+        int unmatched = 0;
+        int noXg = 0;
+        for (FotMobFixture f : fotmobFixtures) {
+            Integer homeId = teamIdByCode.get(f.homeCode());
+            Integer awayId = teamIdByCode.get(f.awayCode());
+            if (homeId == null || awayId == null) {
+                continue;
+            }
+            List<FinishedMatch> candidates = new ArrayList<>();
+            for (FinishedMatch m : finished) {
+                if (m.homeTeamId() != homeId || m.awayTeamId() != awayId) {
+                    continue;
+                }
+                if (m.kickoff() == null) {
+                    continue;
+                }
+                long hours = Math.abs(Duration.between(m.kickoff(), f.kickoff()).toHours());
+                if (hours <= KICKOFF_MATCH_WINDOW.toHours()) {
+                    candidates.add(m);
+                }
+            }
+            if (candidates.isEmpty()) {
+                unmatched++;
+                continue;
+            }
+            if (candidates.size() != 1) {
+                ambiguous++;
+                log.warn(
+                        "FotMob xG skip ambiguous match {}-{} @ {}: {} DB candidates",
+                        f.homeCode(),
+                        f.awayCode(),
+                        f.kickoff(),
+                        candidates.size()
+                );
+                continue;
+            }
+            FinishedMatch match = candidates.getFirst();
+            if (cached.contains(match.fixtureId())) {
+                continue;
+            }
+            if (attempts >= MAX_XG_FETCH_PER_REFRESH) {
+                log.warn(
+                        "FotMob xG backfill capped at {} matchDetails this refresh ({} still missing)",
+                        MAX_XG_FETCH_PER_REFRESH,
+                        finished.size() - cached.size()
+                );
+                break;
+            }
+            attempts++;
+            var xg = fotMobClient.fetchMatchXg(f.fotmobId());
+            if (xg.isEmpty()) {
+                noXg++;
+                continue;
+            }
+            fixtureXgDao.upsert(
+                    match.fixtureId(),
+                    match.homeTeamId(),
+                    match.awayTeamId(),
+                    xg.get().homeXg(),
+                    xg.get().awayXg(),
+                    now
+            );
+            cached.add(match.fixtureId());
+            stored++;
+        }
+        if (attempts > 0 || ambiguous > 0 || unmatched > 0) {
+            log.info(
+                    "FotMob xG sync attempts={} stored={} noXg={} ambiguous={} unmatched={} cached={}",
+                    attempts,
+                    stored,
+                    noXg,
+                    ambiguous,
+                    unmatched,
+                    cached.size()
+            );
+        }
+    }
+
+    private TeamStatsSnapshot applyEspnSeasonXgFallback(TeamStatsSnapshot snap) {
         TeamSeasonExtras extras = espnTeamSeasonStatsService.forInternalCode(snap.teamCode());
         if (extras == null || (extras.avgXg() == null && extras.avgXga() == null)) {
             return snap;
@@ -117,7 +333,7 @@ public class ApiFootballStatsSnapshotService {
                 xgd,
                 xg,
                 xg,
-                snap.extendedOrEmpty(),
+                snap.extendedOrEmpty().withoutRecentXg(),
                 snap.fetchedAt()
         );
     }
@@ -126,6 +342,16 @@ public class ApiFootballStatsSnapshotService {
         return matchesPlayed > 0
                 && xgSamples >= MIN_XG_SAMPLES_FOR_METRICS
                 && (double) xgSamples / matchesPlayed >= MIN_XG_COVERAGE;
+    }
+
+    private static Map<String, Integer> teamIdByCode() {
+        Map<String, Integer> out = new HashMap<>();
+        for (Team team : DaoUtil.TEAMS.values()) {
+            if (team != null && team.getCode() != null && !team.getCode().isBlank()) {
+                out.put(team.getCode(), team.getId());
+            }
+        }
+        return out;
     }
 
     private static FinishedMatch toFinished(Match match, LocalDate seasonStart) {
@@ -146,8 +372,9 @@ public class ApiFootballStatsSnapshotService {
                 match.getAwayTeamId(),
                 match.getHomeScore(),
                 match.getAwayScore(),
-                null,
-                null,
+                match.getHtHome(),
+                match.getHtAway(),
+                match.getStartsAt(),
                 ts
         );
     }
@@ -187,6 +414,7 @@ public class ApiFootballStatsSnapshotService {
             int awayGoals,
             Integer htHome,
             Integer htAway,
+            LocalDateTime kickoff,
             long timestamp
     ) {
     }
@@ -419,6 +647,7 @@ public class ApiFootballStatsSnapshotService {
             Double xPtsDelta = xPts != null && actualPts != null ? actualPts - xPts : null;
             RecentXg recentXg = recentXg(chronXg);
 
+            boolean htReady = htSample >= MIN_HT_SAMPLE;
             ExtendedTeamMetrics ext = ExtendedTeamMetrics.builder()
                     .formBtts(form.bttsPct, formHome.bttsPct, formAway.bttsPct)
                     .formCs(form.csPct, formHome.csPct, formAway.csPct)
@@ -435,8 +664,8 @@ public class ApiFootballStatsSnapshotService {
                     .under25(pct(under25, mp), pct(under25Home, homeMp), pct(under25Away, awayMp))
                     .homePpg(homePpg)
                     .awayPpg(awayPpg)
-                    .htPpg(htSample > 0 ? (double) htPoints / htSample : null)
-                    .winningAtHtPct(pct(leadingAtHt, htSample))
+                    .htPpg(htReady ? (double) htPoints / htSample : null)
+                    .winningAtHtPct(htReady ? pct(leadingAtHt, htSample) : null)
                     .recentXg(recentXg.xgPerMatch(), recentXg.xgaPerMatch(), recentXg.samples())
                     .build();
 
