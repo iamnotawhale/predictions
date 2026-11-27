@@ -130,9 +130,11 @@ public class MatchNarrativeService {
             }
             GroqNarrativeClient.Result result = groqNarrativeClient.generate(prompt);
             if (result.rateLimited()) {
+                log.warn("Groq narrative rate limited at {}-{} week {}", homeCode, awayCode, weekId);
                 break;
             }
             if (result.text() == null || result.text().isBlank()) {
+                log.warn("Groq narrative empty after clean for {}-{} week {}", homeCode, awayCode, weekId);
                 pauseGroq();
                 continue;
             }
@@ -145,6 +147,8 @@ public class MatchNarrativeService {
             );
             if (ok) {
                 written++;
+            } else {
+                log.warn("Groq narrative not saved for {}-{} week {} (tip/freeze/status)", homeCode, awayCode, weekId);
             }
             pauseGroq();
         }

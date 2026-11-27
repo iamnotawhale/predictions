@@ -10,11 +10,14 @@ import org.junit.jupiter.api.Test;
 class GroqNarrativeCleanTest {
 
     @Test
-    void detectsAndRejectsChineseGlyphInScore() {
+    void stripsChineseGlyphAndKeepsRussian() {
         String raw = "Лирика.\n\nФорма.\n\nВероятный счёт 2比1.";
         assertTrue(GroqNarrativeClient.hasCjk(raw));
-        assertEquals(null, GroqNarrativeClient.cleanNarrative(raw));
-        assertFalse(GroqNarrativeClient.hasCjk(GroqNarrativeClient.stripCjk(raw)));
+        String cleaned = GroqNarrativeClient.cleanNarrative(raw);
+        assertNotNull(cleaned);
+        assertFalse(GroqNarrativeClient.hasCjk(cleaned));
+        assertTrue(cleaned.contains("Лирика"));
+        assertTrue(cleaned.contains("2") && cleaned.contains("1"));
     }
 
     @Test

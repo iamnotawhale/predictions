@@ -94,15 +94,21 @@ public class GroqNarrativeClient {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        if (hasCjk(raw)) {
-            return null;
-        }
         String normalized = raw.replace('\u00A0', ' ').trim();
-        if (normalized.isBlank() || hasCjk(normalized)) {
+        if (hasCjk(normalized)) {
+            normalized = stripCjk(normalized);
+        }
+        if (normalized.isBlank()) {
             return null;
         }
         String trimmed = trimToThreeParagraphs(normalized);
-        if (trimmed == null || trimmed.isBlank() || hasCjk(trimmed)) {
+        if (trimmed == null || trimmed.isBlank()) {
+            return null;
+        }
+        if (hasCjk(trimmed)) {
+            trimmed = stripCjk(trimmed);
+        }
+        if (trimmed.isBlank()) {
             return null;
         }
         return trimmed;
