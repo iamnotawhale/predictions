@@ -25,7 +25,7 @@ public class MatchNarrativeService {
 
     private static final Logger log = LoggerFactory.getLogger("server");
     private static final Pattern DIGITS = Pattern.compile("(\\d+)");
-    private static final long GROQ_PAUSE_MS = 700L;
+    private static final long GROQ_PAUSE_MS = 2_500L;
 
     private final SoccerStatsMatchPreviewScraper previewScraper;
     private final GroqNarrativeClient groqNarrativeClient;
@@ -103,6 +103,9 @@ public class MatchNarrativeService {
             }
             MatchRecommendationSnapshot tip = tips.get(match.getId());
             if (tip == null) {
+                continue;
+            }
+            if (tip.explanation() != null && tip.explanation().isGroqAnalysis()) {
                 continue;
             }
             String homeCode = DaoUtil.TEAMS.get(match.getHomeTeamId()).getCode();

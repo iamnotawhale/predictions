@@ -27,8 +27,11 @@ public class GroqNarrativeClient {
         return key != null && !key.isBlank();
     }
 
+    private static final int RATE_LIMIT_RETRIES = 4;
+    private static final long RATE_LIMIT_BACKOFF_MS = 70_000L;
+
     public Result generate(String prompt) {
-        Result first = requestOnce(prompt, 0.35);
+        Result first = requestWithBackoff(prompt, 0.35);
         if (first.rateLimited()) {
             return first;
         }
@@ -36,12 +39,37 @@ public class GroqNarrativeClient {
         if (cleaned != null) {
             return new Result(cleaned, false);
         }
-        Result second = requestOnce(prompt + "\n\n" + CJK_RETRY_SUFFIX, 0.2);
+        Result second = requestWithBackoff(prompt + "\n\n" + CJK_RETRY_SUFFIX, 0.2);
         if (second.rateLimited()) {
             return second;
         }
         cleaned = cleanNarrative(second.text());
         return new Result(cleaned, false);
+    }
+
+    private Result requestWithBackoff(String prompt, double temperature) {
+        for (int attempt = 1; attempt <= RATE_LIMIT_RETRIES; attempt++) {
+            Result result = requestOnce(prompt, temperature);
+            if (!result.rateLimited()) {
+                return result;
+            }
+            if (attempt == RATE_LIMIT_RETRIES) {
+                log.warn("Groq rate limited (429) after {} attempts", RATE_LIMIT_RETRIES);
+                return result;
+            }
+            log.warn("Groq rate limited (429), backing off {} ms (attempt {}/{})",
+                    RATE_LIMIT_BACKOFF_MS, attempt, RATE_LIMIT_RETRIES);
+            sleep(RATE_LIMIT_BACKOFF_MS);
+        }
+        return new Result(null, true);
+    }
+
+    private static void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private Result requestOnce(String prompt, double temperature) {
@@ -71,7 +99,6 @@ public class GroqNarrativeClient {
                     .asString();
 
             if (response.getStatus() == 429) {
-                log.warn("Groq rate limited (429), stopping remaining narratives");
                 return new Result(null, true);
             }
             if (!response.isSuccess() || response.getBody() == null) {
